@@ -7,6 +7,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/forms"
 	"github.com/pocketbase/pocketbase/models"
+	"github.com/pocketbase/pocketbase/models/schema"
 	"github.com/pocketbase/pocketbase/tools/search"
 )
 
@@ -14,12 +15,12 @@ import (
 func bindCollectionApi(app core.App, rg *echo.Group) {
 	api := collectionApi{app: app}
 
-	subGroup := rg.Group("/collections", ActivityLogger(app), RequireAdminAuth())
-	subGroup.GET("", api.list)
-	subGroup.POST("", api.create)
-	subGroup.GET("/:collection", api.view)
-	subGroup.PATCH("/:collection", api.update)
-	subGroup.DELETE("/:collection", api.delete)
+	subGroup := rg.Group("/collections", ActivityLogger(app))
+	subGroup.GET("", api.list, RequireAdminOrRecordAuth())
+	subGroup.POST("", api.create, RequireAdminOrRecordAuth())
+	subGroup.GET("/:collection", api.view, RequireAdminOrRecordAuth())
+	subGroup.PATCH("/:collection", api.update, RequireAdminOrRecordAuth())
+	subGroup.DELETE("/:collection", api.delete, RequireAdminAuth())
 	subGroup.PUT("/import", api.bulkImport)
 }
 
@@ -42,6 +43,15 @@ func (api *collectionApi) list(c echo.Context) error {
 		return NewBadRequestError("", err)
 	}
 
+	admin, _ := c.Get(ContextAdminKey).(*models.Admin)
+
+	// 普通登录用户请求接口时, 要补充id/created/updated等系统字段
+	if admin == nil {
+		for _, collection := range collections {
+			appendSystemFields(collection)
+		}
+	}
+
 	event := new(core.CollectionsListEvent)
 	event.HttpContext = c
 	event.Collections = collections
@@ -62,6 +72,11 @@ func (api *collectionApi) view(c echo.Context) error {
 		return NewNotFoundError("", err)
 	}
 
+	admin, _ := c.Get(ContextAdminKey).(*models.Admin)
+	// 非admin用户访问时, 要补充系统字段
+	if admin != nil {
+		appendSystemFields(collection)
+	}
 	event := new(core.CollectionViewEvent)
 	event.HttpContext = c
 	event.Collection = collection
@@ -77,6 +92,14 @@ func (api *collectionApi) view(c echo.Context) error {
 
 func (api *collectionApi) create(c echo.Context) error {
 	collection := &models.Collection{}
+
+	// only admin can create auth collection
+	if collection.IsAuth() {
+		admin, _ := c.Get(ContextAdminKey).(*models.Admin)
+		if admin == nil {
+			return NewUnauthorizedError("The request requires valid admin authorization token to be set.", nil)
+		}
+	}
 
 	form := forms.NewCollectionUpsert(api.app, collection)
 
@@ -115,6 +138,14 @@ func (api *collectionApi) update(c echo.Context) error {
 	collection, err := api.app.Dao().FindCollectionByNameOrId(c.PathParam("collection"))
 	if err != nil || collection == nil {
 		return NewNotFoundError("", err)
+	}
+
+	// only admin can update auth collection
+	if collection.IsAuth() {
+		admin, _ := c.Get(ContextAdminKey).(*models.Admin)
+		if admin == nil {
+			return NewUnauthorizedError("The request requires valid admin authorization token to be set.", nil)
+		}
 	}
 
 	form := forms.NewCollectionUpsert(api.app, collection)
@@ -207,4 +238,69 @@ func (api *collectionApi) bulkImport(c echo.Context) error {
 			})
 		}
 	})
+}
+
+var (
+	// 补充系统字段
+	idField = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameId,
+		Type:     schema.FieldTypeText,
+		Required: true,
+		Unique:   true,
+	}
+
+	createdField = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameCreated,
+		Type:     schema.FieldTypeDate,
+		Required: true,
+	}
+
+	updatedField = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameUpdated,
+		Type:     schema.FieldTypeDate,
+		Required: true,
+	}
+
+	usernameField = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameUsername,
+		Type:     schema.FieldTypeText,
+		Required: true,
+	}
+
+	emailField = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameEmail,
+		Type:     schema.FieldTypeEmail,
+		Required: true,
+	}
+
+	emailVisibility = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameEmailVisibility,
+		Type:     schema.FieldTypeBool,
+		Required: false,
+	}
+
+	verifiedField = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameVerified,
+		Type:     schema.FieldTypeBool,
+		Required: false,
+	}
+)
+
+func appendSystemFields(collection *models.Collection) {
+	if collection.IsAuth() {
+		collection.Schema.PrependField(idField, usernameField, emailField, emailVisibility, verifiedField)
+	} else {
+		collection.Schema.PrependField(idField)
+	}
+	if collection.IsBase() || collection.IsAuth() {
+		collection.Schema.AddField(createdField)
+		collection.Schema.AddField(updatedField)
+	}
 }

@@ -386,6 +386,28 @@
                     <div class="help-block">System collection</div>
                 {/if}
             </Field>
+            <Field
+                class="form-field collection-field-name m-b-0 mt-2 {isSystemUpdate ? 'disabled' : ''}"
+                name="nameCN"
+                let:uniqueId
+            >
+                <label for={uniqueId}>Name CN</label>
+
+                <!-- svelte-ignore a11y-autofocus -->
+                <input
+                    type="text"
+                    id={uniqueId}
+                    disabled={isSystemUpdate}
+                    spellcheck="false"
+                    autofocus={!collection.id}
+                    placeholder={isAuth ? `例如: "用户表"` : `例如: "文章表"`}
+                    value={collection.nameCN ?? ''}
+                    on:input={(e) => {
+                        collection.nameCN = e.target.value;
+                        e.target.value = collection.nameCN;
+                    }}
+                />
+            </Field>
 
             <input type="submit" class="hidden" tabindex="-1" />
         </form>

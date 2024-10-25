@@ -173,6 +173,19 @@
                 }}
             />
         </Field>
+        <Field 
+            class="form-field" 
+            inlineError 
+            name="schema.{key}.nameCN" let:uniqueId>
+            <label for={uniqueId}>中文名</label>
+            <input 
+                type="text" 
+                id={uniqueId} 
+                value={field.nameCN ?? ''}
+                on:input={(e) => {
+                    field.nameCN = e.target.value;
+                }}/>
+        </Field>
 
         <slot {interactive} {hasErrors}>
             <span class="separator" />

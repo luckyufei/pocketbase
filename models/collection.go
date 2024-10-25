@@ -24,6 +24,7 @@ type Collection struct {
 	BaseModel
 
 	Name    string                  `db:"name" json:"name"`
+	NameCN  string                  `db:"nameCN" json:"nameCN"`
 	Type    string                  `db:"type" json:"type"`
 	System  bool                    `db:"system" json:"system"`
 	Schema  schema.Schema           `db:"schema" json:"schema"`
