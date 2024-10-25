@@ -7,6 +7,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/forms"
 	"github.com/pocketbase/pocketbase/models"
+	"github.com/pocketbase/pocketbase/models/schema"
 	"github.com/pocketbase/pocketbase/tools/search"
 )
 
@@ -14,12 +15,12 @@ import (
 func bindCollectionApi(app core.App, rg *echo.Group) {
 	api := collectionApi{app: app}
 
-	subGroup := rg.Group("/collections", ActivityLogger(app), RequireAdminAuth())
-	subGroup.GET("", api.list)
-	subGroup.POST("", api.create)
-	subGroup.GET("/:collection", api.view)
-	subGroup.PATCH("/:collection", api.update)
-	subGroup.DELETE("/:collection", api.delete)
+	subGroup := rg.Group("/collections", ActivityLogger(app))
+	subGroup.GET("", api.list, RequireAdminOrRecordAuth())
+	subGroup.POST("", api.create, RequireAdminOrRecordAuth())
+	subGroup.GET("/:collection", api.view, RequireAdminOrRecordAuth())
+	subGroup.PATCH("/:collection", api.update, RequireAdminOrRecordAuth())
+	subGroup.DELETE("/:collection", api.delete, RequireAdminAuth())
 	subGroup.PUT("/import", api.bulkImport)
 }
 
@@ -40,6 +41,67 @@ func (api *collectionApi) list(c echo.Context) error {
 
 	if err != nil {
 		return NewBadRequestError("", err)
+	}
+
+	// 补充系统字段
+	idField := &schema.SchemaField{
+		System:   true,
+		Name:     "id",
+		Type:     "text",
+		Required: true,
+		Unique:   true,
+	}
+
+	createdField := &schema.SchemaField{
+		System:   true,
+		Name:     "created",
+		Type:     "date",
+		Required: true,
+	}
+
+	updatedField := &schema.SchemaField{
+		System:   true,
+		Name:     "updated",
+		Type:     "date",
+		Required: true,
+	}
+
+	usernameField := &schema.SchemaField{
+		System:   true,
+		Name:     "username",
+		Type:     "text",
+		Required: true,
+	}
+
+	emailField := &schema.SchemaField{
+		System:   true,
+		Name:     "email",
+		Type:     "email",
+		Required: true,
+	}
+
+	emailVisibility := &schema.SchemaField{
+		System:   true,
+		Name:     "emailVisibility",
+		Type:     "bool",
+		Required: false,
+	}
+
+	verifiedField := &schema.SchemaField{
+		System:   true,
+		Name:     "verified",
+		Type:     "bool",
+		Required: false,
+	}
+
+	for _, collection := range collections {
+		if collection.IsAuth() {
+			collection.Schema.PrependField(idField, usernameField, emailField, emailVisibility, verifiedField)
+		} else {
+			collection.Schema.PrependField(idField)
+		}
+		collection.Schema.AddField(createdField)
+		collection.Schema.AddField(updatedField)
 	}
 
 	event := new(core.CollectionsListEvent)

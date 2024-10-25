@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig.json",
+  "compilerOptions": {
+    "target": "es2015",
+    "module": "esnext",
+    "strict": true,
+    "jsx": "preserve",
+    "baseUrl": "./src",
+    "outDir": "./dist",
+    "newLine": "lf",
+    "allowJs": false,
+    "importHelpers": true,
+    "moduleResolution": "node",
+    "downlevelIteration": true,
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "esModuleInterop": true,
+    "strictNullChecks": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "sourceMap": false,
+    "isolatedModules": true,
+    "noErrorTruncation": false,
+    "noUnusedLocals": true,
+    "disableReferencedProjectLoad": true,
+    "disableSolutionSearching": true,
+    "composite": true,
+    "useDefineForClassFields": true,
+    "types": ["vite/client", "node", "vue"],
+    "lib": ["esnext", "dom"]
+  },
+  "include": [
+    "typings/shims-*.d.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "scripts/**/*.ts",
+    "node_modules/jarvis-amis/lib/**/*.d.ts"
+  ],
+  "exclude": ["**/node_modules", "**/.*", "dist"]
+}

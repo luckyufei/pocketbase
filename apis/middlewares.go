@@ -160,7 +160,7 @@ func RequireAdminOrRecordAuth(optCollectionNames ...string) echo.MiddlewareFunc 
 		return func(c echo.Context) error {
 			admin, _ := c.Get(ContextAdminKey).(*models.Admin)
 			record, _ := c.Get(ContextAuthRecordKey).(*models.Record)
-
+			// log.Printf("record: admin=%+v, record=%+v", admin, record)
 			if admin == nil && record == nil {
 				return NewUnauthorizedError("The request requires admin or record authorization token to be set.", nil)
 			}

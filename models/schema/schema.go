@@ -128,6 +128,11 @@ func (s *Schema) AddField(newField *SchemaField) {
 	s.fields = append(s.fields, newField)
 }
 
+func (s *Schema) PrependField(newFields ...*SchemaField) {
+	// prepend new field
+	s.fields = append(newFields, s.fields...)
+}
+
 // Validate makes Schema validatable by implementing [validation.Validatable] interface.
 //
 // Internally calls each individual field's validator and additionally
