@@ -43,65 +43,8 @@ func (api *collectionApi) list(c echo.Context) error {
 		return NewBadRequestError("", err)
 	}
 
-	// 补充系统字段
-	idField := &schema.SchemaField{
-		System:   true,
-		Name:     "id",
-		Type:     "text",
-		Required: true,
-		Unique:   true,
-	}
-
-	createdField := &schema.SchemaField{
-		System:   true,
-		Name:     "created",
-		Type:     "date",
-		Required: true,
-	}
-
-	updatedField := &schema.SchemaField{
-		System:   true,
-		Name:     "updated",
-		Type:     "date",
-		Required: true,
-	}
-
-	usernameField := &schema.SchemaField{
-		System:   true,
-		Name:     "username",
-		Type:     "text",
-		Required: true,
-	}
-
-	emailField := &schema.SchemaField{
-		System:   true,
-		Name:     "email",
-		Type:     "email",
-		Required: true,
-	}
-
-	emailVisibility := &schema.SchemaField{
-		System:   true,
-		Name:     "emailVisibility",
-		Type:     "bool",
-		Required: false,
-	}
-
-	verifiedField := &schema.SchemaField{
-		System:   true,
-		Name:     "verified",
-		Type:     "bool",
-		Required: false,
-	}
-
 	for _, collection := range collections {
-		if collection.IsAuth() {
-			collection.Schema.PrependField(idField, usernameField, emailField, emailVisibility, verifiedField)
-		} else {
-			collection.Schema.PrependField(idField)
-		}
-		collection.Schema.AddField(createdField)
-		collection.Schema.AddField(updatedField)
+		appendSystemFields(collection)
 	}
 
 	event := new(core.CollectionsListEvent)
@@ -124,6 +67,7 @@ func (api *collectionApi) view(c echo.Context) error {
 		return NewNotFoundError("", err)
 	}
 
+	appendSystemFields(collection)
 	event := new(core.CollectionViewEvent)
 	event.HttpContext = c
 	event.Collection = collection
@@ -269,4 +213,69 @@ func (api *collectionApi) bulkImport(c echo.Context) error {
 			})
 		}
 	})
+}
+
+var (
+	// 补充系统字段
+	idField = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameId,
+		Type:     schema.FieldTypeText,
+		Required: true,
+		Unique:   true,
+	}
+
+	createdField = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameCreated,
+		Type:     schema.FieldTypeDate,
+		Required: true,
+	}
+
+	updatedField = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameUpdated,
+		Type:     schema.FieldTypeDate,
+		Required: true,
+	}
+
+	usernameField = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameUsername,
+		Type:     schema.FieldTypeText,
+		Required: true,
+	}
+
+	emailField = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameEmail,
+		Type:     schema.FieldTypeEmail,
+		Required: true,
+	}
+
+	emailVisibility = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameEmailVisibility,
+		Type:     schema.FieldTypeBool,
+		Required: false,
+	}
+
+	verifiedField = &schema.SchemaField{
+		System:   true,
+		Name:     schema.FieldNameVerified,
+		Type:     schema.FieldTypeBool,
+		Required: false,
+	}
+)
+
+func appendSystemFields(collection *models.Collection) {
+	if collection.IsAuth() {
+		collection.Schema.PrependField(idField, usernameField, emailField, emailVisibility, verifiedField)
+	} else {
+		collection.Schema.PrependField(idField)
+	}
+	if collection.IsBase() {
+		collection.Schema.AddField(createdField)
+		collection.Schema.AddField(updatedField)
+	}
 }
