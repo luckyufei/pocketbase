@@ -43,8 +43,13 @@ func (api *collectionApi) list(c echo.Context) error {
 		return NewBadRequestError("", err)
 	}
 
-	for _, collection := range collections {
-		appendSystemFields(collection)
+	admin, _ := c.Get(ContextAdminKey).(*models.Admin)
+
+	// 普通登录用户请求接口时, 要补充id/created/updated等系统字段
+	if admin == nil {
+		for _, collection := range collections {
+			appendSystemFields(collection)
+		}
 	}
 
 	event := new(core.CollectionsListEvent)
@@ -67,7 +72,11 @@ func (api *collectionApi) view(c echo.Context) error {
 		return NewNotFoundError("", err)
 	}
 
-	appendSystemFields(collection)
+	admin, _ := c.Get(ContextAdminKey).(*models.Admin)
+	// 非admin用户访问时, 要补充系统字段
+	if admin != nil {
+		appendSystemFields(collection)
+	}
 	event := new(core.CollectionViewEvent)
 	event.HttpContext = c
 	event.Collection = collection
@@ -274,7 +283,7 @@ func appendSystemFields(collection *models.Collection) {
 	} else {
 		collection.Schema.PrependField(idField)
 	}
-	if collection.IsBase() {
+	if collection.IsBase() || collection.IsAuth() {
 		collection.Schema.AddField(createdField)
 		collection.Schema.AddField(updatedField)
 	}
