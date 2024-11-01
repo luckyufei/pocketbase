@@ -93,6 +93,14 @@ func (api *collectionApi) view(c echo.Context) error {
 func (api *collectionApi) create(c echo.Context) error {
 	collection := &models.Collection{}
 
+	// only admin can create auth collection
+	if collection.IsAuth() {
+		admin, _ := c.Get(ContextAdminKey).(*models.Admin)
+		if admin == nil {
+			return NewUnauthorizedError("The request requires valid admin authorization token to be set.", nil)
+		}
+	}
+
 	form := forms.NewCollectionUpsert(api.app, collection)
 
 	// load request
@@ -130,6 +138,14 @@ func (api *collectionApi) update(c echo.Context) error {
 	collection, err := api.app.Dao().FindCollectionByNameOrId(c.PathParam("collection"))
 	if err != nil || collection == nil {
 		return NewNotFoundError("", err)
+	}
+
+	// only admin can update auth collection
+	if collection.IsAuth() {
+		admin, _ := c.Get(ContextAdminKey).(*models.Admin)
+		if admin == nil {
+			return NewUnauthorizedError("The request requires valid admin authorization token to be set.", nil)
+		}
 	}
 
 	form := forms.NewCollectionUpsert(api.app, collection)
