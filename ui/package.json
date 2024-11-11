@@ -2,7 +2,7 @@
   "name": "pocketbase-admin",
   "private": true,
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host 127.0.01 --port 3000",
     "build": "vite build",
     "preview": "vite preview"
   },

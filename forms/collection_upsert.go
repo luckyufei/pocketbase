@@ -31,6 +31,7 @@ type CollectionUpsert struct {
 	Id         string                  `form:"id" json:"id"`
 	Type       string                  `form:"type" json:"type"`
 	Name       string                  `form:"name" json:"name"`
+	NameCN     string                  `form:"nameCN" json:"nameCN"`
 	System     bool                    `form:"system" json:"system"`
 	Schema     schema.Schema           `form:"schema" json:"schema"`
 	Indexes    types.JsonArray[string] `form:"indexes" json:"indexes"`
@@ -59,6 +60,7 @@ func NewCollectionUpsert(app core.App, collection *models.Collection) *Collectio
 	form.Id = form.collection.Id
 	form.Type = form.collection.Type
 	form.Name = form.collection.Name
+	form.NameCN = form.collection.NameCN
 	form.System = form.collection.System
 	form.Indexes = form.collection.Indexes
 	form.ListRule = form.collection.ListRule
@@ -527,6 +529,7 @@ func (form *CollectionUpsert) Submit(interceptors ...InterceptorFunc[*models.Col
 		}
 	}
 
+	form.collection.NameCN = form.NameCN
 	form.collection.ListRule = form.ListRule
 	form.collection.ViewRule = form.ViewRule
 	form.collection.CreateRule = form.CreateRule

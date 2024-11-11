@@ -132,6 +132,7 @@ type SchemaField struct {
 	System   bool   `form:"system" json:"system"`
 	Id       string `form:"id" json:"id"`
 	Name     string `form:"name" json:"name"`
+	NameCN   string `form:"nameCN" json:"nameCN"`
 	Type     string `form:"type" json:"type"`
 	Required bool   `form:"required" json:"required"`
 
