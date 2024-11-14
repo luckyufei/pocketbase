@@ -387,7 +387,7 @@
                 {/if}
             </Field>
             <Field
-                class="form-field collection-field-name required m-b-0 mt-2 {isSystemUpdate ? 'disabled' : ''}"
+                class="form-field collection-field-name m-b-0 mt-2 {isSystemUpdate ? 'disabled' : ''}"
                 name="nameCN"
                 let:uniqueId
             >
@@ -397,7 +397,6 @@
                 <input
                     type="text"
                     id={uniqueId}
-                    required
                     disabled={isSystemUpdate}
                     spellcheck="false"
                     autofocus={!collection.id}

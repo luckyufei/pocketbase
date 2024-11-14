@@ -174,7 +174,7 @@
             />
         </Field>
         <Field 
-            class="form-field required" 
+            class="form-field" 
             inlineError 
             name="schema.{key}.nameCN" let:uniqueId>
             <label for={uniqueId}>中文名</label>
