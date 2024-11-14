@@ -1,0 +1,2 @@
+GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -C ./examples/base -o linux/pocketbase-yufei-v0.22.24
+GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -C ./examples/base -o darwin/pocketbase-yufei-v0.22.24
