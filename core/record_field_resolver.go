@@ -277,13 +277,25 @@ func (r *RecordFieldResolver) resolveStaticRequestField(path ...string) (*search
 		return &search.ResolverResult{Identifier: "NULL"}, nil
 	}
 
+	// Expanded special empty string filter in advance (PostgreSQL specific)
+	if resultVal == "" && (modifier == "" || modifier == lowerModifier) {
+		// note: LOWER('') is still ''
+		return &search.ResolverResult{Identifier: `''`}, nil
+	}
+
 	placeholder := "f" + security.PseudorandomString(8)
 
 	// @todo consider deprecating with the introduction of filter functions
 	if modifier == lowerModifier {
 		return &search.ResolverResult{
 			Identifier: "LOWER({:" + placeholder + "})",
+			/* SQLite:
 			Params:     dbx.Params{placeholder: resultVal},
+			*/
+			// PostgreSQL:
+			// `SELECT LOWER(1)` is valid in SQLite, but not in PostgreSQL
+			// so we need to explicitly cast the value to text
+			Params: dbx.Params{placeholder: cast.ToString(resultVal)},
 		}, nil
 	}
 
