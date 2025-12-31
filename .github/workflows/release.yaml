@@ -2,7 +2,13 @@ name: basebuild
 
 on:
   pull_request:
+    branches:
+      - master-main
   push:
+    branches:
+      - master-main
+    tags:
+      - 'v*'
 
 jobs:
   goreleaser:
