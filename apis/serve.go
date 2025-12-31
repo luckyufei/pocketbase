@@ -67,6 +67,11 @@ func Serve(app core.App, config ServeConfig) error {
 		return err
 	}
 
+	// 初始化监控服务
+	if err := InitMetricsService(app); err != nil {
+		app.Logger().Warn("Failed to initialize metrics service", "error", err)
+	}
+
 	pbRouter, err := NewRouter(app)
 	if err != nil {
 		return err

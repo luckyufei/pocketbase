@@ -114,6 +114,16 @@
                     <i class="ri-line-chart-line" />
                 </a>
                 <a
+                    href="/monitoring"
+                    class="menu-item"
+                    aria-label="Monitoring"
+                    use:link
+                    use:active={{ path: "/monitoring/?.*", className: "current-route" }}
+                    use:tooltip={{ text: "监控", position: "right" }}
+                >
+                    <i class="ri-pulse-line" />
+                </a>
+                <a
                     href="/settings"
                     class="menu-item"
                     aria-label="Settings"

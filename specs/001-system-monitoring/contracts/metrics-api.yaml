@@ -1,0 +1,185 @@
+openapi: 3.0.3
+info:
+  title: Pocketbase System Metrics API
+  description: 系统监控指标查询接口
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8090/api
+    description: 本地开发服务器
+
+paths:
+  /system/metrics:
+    get:
+      summary: 获取系统监控指标
+      description: |
+        查询系统监控历史数据，支持按时间范围筛选。
+        仅管理员可访问。
+      operationId: getSystemMetrics
+      tags:
+        - System
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: hours
+          in: query
+          description: 查询过去多少小时的数据
+          required: false
+          schema:
+            type: integer
+            default: 24
+            minimum: 1
+            maximum: 168
+            example: 24
+        - name: limit
+          in: query
+          description: 返回记录数上限
+          required: false
+          schema:
+            type: integer
+            default: 1000
+            minimum: 1
+            maximum: 10000
+            example: 1000
+      responses:
+        '200':
+          description: 成功返回监控数据
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SystemMetrics'
+                  totalItems:
+                    type: integer
+                    description: 总记录数
+                    example: 1440
+              example:
+                items:
+                  - id: "abc123"
+                    timestamp: "2025-12-31T10:00:00Z"
+                    cpu_usage_percent: 12.5
+                    memory_alloc_mb: 256.0
+                    goroutines_count: 45
+                    sqlite_wal_size_mb: 4.2
+                    sqlite_open_conns: 10
+                    p95_latency_ms: 45.0
+                    http_5xx_count: 0
+                totalItems: 1440
+        '401':
+          description: 未认证
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: 无权限（非管理员）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /system/metrics/current:
+    get:
+      summary: 获取当前系统状态
+      description: |
+        获取最新一条监控记录，用于实时状态展示。
+        仅管理员可访问。
+      operationId: getCurrentMetrics
+      tags:
+        - System
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功返回当前状态
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemMetrics'
+        '401':
+          description: 未认证
+        '403':
+          description: 无权限
+        '404':
+          description: 暂无监控数据
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Pocketbase 管理员 JWT Token
+
+  schemas:
+    SystemMetrics:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 唯一标识符
+          example: "abc123"
+        timestamp:
+          type: string
+          format: date-time
+          description: 采集时间
+          example: "2025-12-31T10:00:00Z"
+        cpu_usage_percent:
+          type: number
+          format: float
+          description: CPU 使用率 (%)
+          minimum: 0
+          maximum: 100
+          example: 12.5
+        memory_alloc_mb:
+          type: number
+          format: float
+          description: 已分配内存 (MB)
+          minimum: 0
+          example: 256.0
+        goroutines_count:
+          type: integer
+          description: Goroutine 数量
+          minimum: 0
+          example: 45
+        sqlite_wal_size_mb:
+          type: number
+          format: float
+          description: WAL 文件大小 (MB)
+          minimum: 0
+          example: 4.2
+        sqlite_open_conns:
+          type: integer
+          description: 数据库打开连接数
+          minimum: 0
+          example: 10
+        p95_latency_ms:
+          type: number
+          format: float
+          description: P95 请求延迟 (ms)
+          minimum: 0
+          example: 45.0
+        http_5xx_count:
+          type: integer
+          description: 5xx 错误计数
+          minimum: 0
+          example: 0
+      required:
+        - id
+        - timestamp
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 403
+        message:
+          type: string
+          example: "Only superusers can access this resource."
+        data:
+          type: object

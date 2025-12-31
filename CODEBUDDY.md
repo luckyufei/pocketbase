@@ -1,7 +1,10 @@
 # CODEBUDDY.md This file provides guidance to CodeBuddy when working with code in this repository.
 
 > **IMPORTANT**: 请总是使用中文来写文档和代码注释
-
+> **关于我**: `/ABOUTME.md`
+> **产品设计原则**: `/PRINCIPLES.md`
+> **深度总结**: `/SUMMARY.md`
+> **完整指南** `/MANUAL.md`
 ## Build & Development Commands
 
 ### Run the Application
@@ -167,3 +170,36 @@ app.OnRecordCreate("posts").BindFunc(func(e *core.RecordEvent) error {
 - **auxiliary.db**: Logs and temporary data
 - Dual connection pools per database: concurrent (read) and nonconcurrent (write)
 - Pure Go SQLite driver enables CGO_ENABLED=0 builds
+
+## 开发规范
+
+### 测试驱动开发 (TDD)
+
+- 采用测试驱动开发流程，先编写测试再实现功能
+- 非界面逻辑的代码行覆盖率必须达到 95% 以上
+- 非界面逻辑的分支覆盖率必须达到 95% 以上
+- 每个公开 API 必须有对应的单元测试
+- 每个用户故事必须有对应的集成测试
+
+### "丰田式"追求
+
+- 优先选择免费或低成本的依赖和工具
+- 代码必须高可靠性，关键路径需有错误恢复机制
+- 模块设计遵循"即插即用"原则，最小化配置需求
+- 避免过度工程，只实现明确需要的功能
+
+### 认知负荷优先 (COGNITIVE First)
+
+- 代码应该易于理解，优先选择简单直接的实现
+- 避免使用过于复杂的设计模式或抽象
+- 函数和方法应保持单一职责，长度不超过 50 行
+- 命名必须清晰表达意图，避免缩写和隐晦命名
+- 复杂逻辑必须有清晰的注释说明
+
+
+## Active Technologies
+- Go 1.24.0 (backend), JavaScript/Svelte 4.x (frontend) (001-system-monitoring)
+- SQLite (metrics.db - 独立监控数据库) (001-system-monitoring)
+
+## Recent Changes
+- 001-system-monitoring: Added Go 1.24.0 (backend), JavaScript/Svelte 4.x (frontend)
