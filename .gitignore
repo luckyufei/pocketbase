@@ -20,3 +20,9 @@ CHANGELOG_8_15.html
 LICENSE.html
 ABOUTME.md
 PRINCIPLES.md
+
+# local executable
+/base
+
+# temporary files
+/tmp

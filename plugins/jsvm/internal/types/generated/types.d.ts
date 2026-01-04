@@ -23898,3 +23898,72 @@ namespace slog {
   logValue(): Value
  }
 }
+
+// -------------------------------------------------------------------
+// tofauth - TOF 身份认证
+// -------------------------------------------------------------------
+
+/**
+ * TOF 身份信息
+ * 
+ * @group TOF
+ */
+interface TofIdentity {
+  /** 登录名（企业微信账号） */
+  loginname: string;
+  /** 员工 ID */
+  staffid: number;
+  /** 过期时间（RFC3339 格式） */
+  expiration: string;
+  /** 票据（可选） */
+  ticket?: string;
+}
+
+/**
+ * TOF 认证接口
+ * 
+ * @group TOF
+ */
+interface Tof {
+  /**
+   * 验证 TOF 身份并返回身份信息
+   * 
+   * @param taiId - x-tai-identity header 值
+   * @param timestamp - 时间戳
+   * @param signature - 网关签名
+   * @param seq - x-rio-seq header 值
+   * @returns TOF 身份信息
+   * @throws 如果验证失败则抛出错误
+   * 
+   * @example
+   * ```js
+   * onRecordViewRequest((e) => {
+   *   const identity = $tof.getTofIdentity(
+   *     e.request.header.get("x-tai-identity"),
+   *     e.request.header.get("timestamp"),
+   *     e.request.header.get("signature"),
+   *     e.request.header.get("x-rio-seq")
+   *   );
+   *   console.log("User:", identity.loginname);
+   *   return e.next();
+   * });
+   * ```
+   */
+  getTofIdentity(
+    taiId: string,
+    timestamp: string,
+    signature: string,
+    seq: string
+  ): TofIdentity;
+}
+
+/**
+ * TOF 认证全局对象
+ * 
+ * 提供 TOF 网关身份验证功能，可在 JS Hooks 中使用。
+ * 
+ * _注意：此对象仅在启用 tofauth 插件且配置了 TOF_APP_TOKEN 时可用。_
+ * 
+ * @group TOF
+ */
+declare var $tof: Tof;

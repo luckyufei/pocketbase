@@ -6,12 +6,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/dop251/goja"
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/ghupdate"
 	"github.com/pocketbase/pocketbase/plugins/jsvm"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
+	"github.com/pocketbase/pocketbase/plugins/tofauth"
 	"github.com/pocketbase/pocketbase/tools/hook"
 	"github.com/pocketbase/pocketbase/tools/osutils"
 )
@@ -85,12 +87,27 @@ func main() {
 	// Plugins and hooks:
 	// ---------------------------------------------------------------
 
+	// TOF 认证插件
+	// 自动从环境变量 TOF_APP_KEY 和 TOF_APP_TOKEN 读取配置
+	// 如果 TOF_APP_TOKEN 未设置，插件将静默跳过
+	tofConfig := tofauth.Config{
+		SafeMode:       tofauth.Bool(true),
+		CheckTimestamp: tofauth.Bool(true),
+	}
+	tofauth.MustRegister(app, tofConfig)
+
 	// load jsvm (pb_hooks and pb_migrations)
 	jsvm.MustRegister(app, jsvm.Config{
 		MigrationsDir: migrationsDir,
 		HooksDir:      hooksDir,
 		HooksWatch:    hooksWatch,
 		HooksPoolSize: hooksPool,
+		OnInit: func(vm *goja.Runtime) {
+			// 注入 $tof 对象到 JS 运行时（如果 TOF 已配置）
+			if os.Getenv("TOF_APP_TOKEN") != "" || os.Getenv("TOF_DEV_MOCK_USER") != "" {
+				tofauth.BindToVMWithConfig(vm, tofConfig)
+			}
+		},
 	})
 
 	// migrate command (with js templates)

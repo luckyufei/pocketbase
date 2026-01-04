@@ -195,6 +195,7 @@ app.OnRecordCreate("posts").BindFunc(func(e *core.RecordEvent) error {
 - 函数和方法应保持单一职责，长度不超过 50 行
 - 命名必须清晰表达意图，避免缩写和隐晦命名
 - 复杂逻辑必须有清晰的注释说明
+- 偏好函数式而非 OOP
 
 
 ## Active Technologies
