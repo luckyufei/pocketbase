@@ -99,7 +99,7 @@ func checkSignature(key string, headers map[string]string, safeMode, checkTimest
 	str := fmt.Sprintf("%s%s%s%s", timestampStr, key, strings.Join(extHeaders, ","), timestampStr)
 	localSignature := fmt.Sprintf("%x", sha256.Sum256([]byte(str)))
 
-	if strings.ToUpper(signature) != strings.ToUpper(localSignature) {
+	if !strings.EqualFold(signature, localSignature) {
 		return false, errors.New("invalid signature")
 	}
 
