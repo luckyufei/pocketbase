@@ -80,15 +80,21 @@ func createSQLiteEquivalentFunctions(db dbx.Builder) error {
 	END;
 	$$ LANGUAGE plpgsql IMMUTABLE;
 
-	-- Create a json_query_or_null function that handles any types.
+	-- Create a json_query_or_null function that handles jsonb input.
+	-- PostgreSQL 15+ 兼容: 使用 jsonb_path_query_first (PG12+) 而非 JSON_QUERY (PG17+)
 	CREATE OR REPLACE FUNCTION json_query_or_null(p_input jsonb, p_query text) RETURNS jsonb AS $$
-		SELECT JSON_QUERY(p_input, p_query)
-	$$ LANGUAGE sql IMMUTABLE;
+	BEGIN
+		RETURN jsonb_path_query_first(p_input, p_query::jsonpath);
+	EXCEPTION WHEN others THEN
+		RETURN NULL;
+	END;
+	$$ LANGUAGE plpgsql IMMUTABLE;
 
 	-- Create a json_query_or_null function that handles any types.
+	-- PostgreSQL 15+ 兼容: 使用 jsonb_path_query_first (PG12+) 而非 JSON_QUERY (PG17+)
 	CREATE OR REPLACE FUNCTION json_query_or_null(p_input anyelement, p_query text) RETURNS jsonb AS $$
 	BEGIN
-		RETURN JSON_QUERY(p_input::text::jsonb, p_query);
+		RETURN jsonb_path_query_first(p_input::text::jsonb, p_query::jsonpath);
 	EXCEPTION WHEN others THEN
 		RETURN NULL;
 	END;

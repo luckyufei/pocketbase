@@ -812,7 +812,7 @@ func createTestDB() (*testDB, func()) {
 
 func NewTestDBX() (db *testDB, cleanup func()) {
 	dbName := security.RandomString(5)
-	exec.Command("sh", "-c", fmt.Sprintf("PGPASSWORD=pass createdb -h 127.0.0.1 -U user %s", dbName)).Run()
+	exec.Command("sh", "-c", fmt.Sprintf("PGPASSWORD=pass /opt/homebrew/opt/postgresql@15/bin/createdb -h 127.0.0.1 -U user %s", dbName)).Run()
 
 	sqlDB, err := sql.Open("pgx", fmt.Sprintf("postgres://user:pass@localhost:5432/%s?sslmode=disable", dbName))
 	if err != nil {
@@ -824,7 +824,7 @@ func NewTestDBX() (db *testDB, cleanup func()) {
 		if err := sqlDB.Close(); err != nil {
 			panic(err)
 		}
-		exec.Command("sh", "-c", fmt.Sprintf("PGPASSWORD=pass dropdb --if-exists -h 127.0.0.1 -U user %s", dbName)).Run()
+		exec.Command("sh", "-c", fmt.Sprintf("PGPASSWORD=pass /opt/homebrew/opt/postgresql@15/bin/dropdb --if-exists -h 127.0.0.1 -U user %s", dbName)).Run()
 	}
 
 	return &testDB, cleanup

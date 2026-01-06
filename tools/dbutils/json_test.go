@@ -48,8 +48,8 @@ func TestJSONExtract(t *testing.T) {
 			/* SQLite:
 			"(CASE WHEN json_valid([[a.b]]) THEN JSON_EXTRACT([[a.b]], '$') ELSE JSON_EXTRACT(json_object('pb', [[a.b]]), '$.pb') END)",
 			*/
-			// PostgreSQL:
-			`JSON_QUERY_OR_NULL([[a.b]], '$')::jsonb`,
+			// PostgreSQL (PG15+ 兼容):
+			`json_query_or_null([[a.b]], '$')::jsonb`,
 		},
 		{
 			"starting with array index",
@@ -58,8 +58,8 @@ func TestJSONExtract(t *testing.T) {
 			/* SQLite:
 			"(CASE WHEN json_valid([[a.b]]) THEN JSON_EXTRACT([[a.b]], '$[1].a[2]') ELSE JSON_EXTRACT(json_object('pb', [[a.b]]), '$.pb[1].a[2]') END)",
 			*/
-			// PostgreSQL:
-			`JSON_QUERY_OR_NULL([[a.b]], '$[1].a[2]')::jsonb`,
+			// PostgreSQL (PG15+ 兼容):
+			`json_query_or_null([[a.b]], '$[1].a[2]')::jsonb`,
 		},
 		{
 			"starting with key",
@@ -68,7 +68,8 @@ func TestJSONExtract(t *testing.T) {
 			/* SQLite:
 			"(CASE WHEN json_valid([[a.b]]) THEN JSON_EXTRACT([[a.b]], '$.a.b[2].c') ELSE JSON_EXTRACT(json_object('pb', [[a.b]]), '$.pb.a.b[2].c') END)",
 			*/
-			`JSON_QUERY_OR_NULL([[a.b]], '$.a.b[2].c')::jsonb`,
+			// PostgreSQL (PG15+ 兼容):
+			`json_query_or_null([[a.b]], '$.a.b[2].c')::jsonb`,
 		},
 	}
 

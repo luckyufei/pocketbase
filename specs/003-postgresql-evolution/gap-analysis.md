@@ -6,37 +6,23 @@
 
 ---
 
-## 🚨 紧急问题: PostgreSQL 15 兼容性
+## ✅ 已解决: PostgreSQL 15 兼容性
 
-### 问题描述
+### 问题描述 (已修复)
 
-当前实现使用了 **`JSON_QUERY`** 函数，该函数是 **PostgreSQL 17** (2024年9月发布) 才引入的 SQL/JSON 标准函数。
+~~当前实现使用了 **`JSON_QUERY`** 函数，该函数是 **PostgreSQL 17** (2024年9月发布) 才引入的 SQL/JSON 标准函数。~~
 
-**影响范围**:
-- `migrations/postgres_functions.go` - `json_query_or_null` 函数定义
-- `tools/dbutils/json.go` - `JSONExtract` 函数
-- `tools/search/filter.go` - JSON 路径查询生成
-- `tests/data/*.pg-dump.sql` - 测试数据
+**已修复**: 所有 `JSON_QUERY` 调用已替换为 `jsonb_path_query_first` (PostgreSQL 12+)
 
-**受影响代码示例**:
+**修改的文件**:
+- ✅ `migrations/postgres_functions.go` - `json_query_or_null` 函数定义
+- ✅ `tools/dbutils/json.go` - `JSONExtract` 函数
+- ✅ `tools/search/simple_field_resolver.go` - JSON 路径查询生成
+- ✅ `tests/data/*.pg-dump.sql` - 测试数据
+
+**当前实现**:
 ```sql
--- 当前实现 (仅 PG17+)
-CREATE OR REPLACE FUNCTION json_query_or_null(p_input anyelement, p_query text) 
-RETURNS jsonb AS $$
-BEGIN
-    RETURN JSON_QUERY(p_input::text::jsonb, p_query);  -- ❌ PG17 only
-EXCEPTION WHEN others THEN
-    RETURN NULL;
-END;
-$$ LANGUAGE plpgsql STABLE;
-```
-
-### 解决方案
-
-使用 `jsonb_path_query` (PostgreSQL 12+) 替代:
-
-```sql
--- 兼容 PG15 的实现
+-- 兼容 PG15 的实现 (已应用)
 CREATE OR REPLACE FUNCTION json_query_or_null(p_input anyelement, p_query text) 
 RETURNS jsonb AS $$
 BEGIN
@@ -51,9 +37,9 @@ $$ LANGUAGE plpgsql STABLE;
 
 | 函数 | PostgreSQL 版本 | 说明 |
 |------|----------------|------|
-| `JSON_QUERY` | 17+ | SQL/JSON 标准函数 |
+| `JSON_QUERY` | 17+ | SQL/JSON 标准函数 (已移除) |
 | `jsonb_path_query` | 12+ | JSONPath 查询，返回所有匹配 |
-| `jsonb_path_query_first` | 12+ | JSONPath 查询，返回第一个匹配 |
+| `jsonb_path_query_first` | 12+ | JSONPath 查询，返回第一个匹配 (**当前使用**) |
 | `->`, `->>`, `#>` | 9.4+ | 传统 JSONB 操作符 |
 
 ---
@@ -292,7 +278,7 @@ CREATE TABLE "_realtimeClients" (
 
 | 风险 | 说明 | 建议 |
 |------|------|------|
-| 🚨 **PG15 兼容性** | `JSON_QUERY` 仅 PG17+ 支持 | **紧急**: 替换为 `jsonb_path_query` |
+| ~~🚨 **PG15 兼容性**~~ | ~~`JSON_QUERY` 仅 PG17+ 支持~~ | ✅ **已修复**: 替换为 `jsonb_path_query_first` |
 | **并发竞争** | 未见悲观锁和死锁重试 | 在关键写操作添加 `SELECT FOR UPDATE` |
 | **连接泄漏** | 未实现检测机制 | 添加连接池监控 |
 | **备份恢复** | pg_dump 未集成 | 优先实现 STORY-8.2 |

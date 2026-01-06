@@ -68,15 +68,21 @@ CREATE OR REPLACE FUNCTION json_valid(text) RETURNS boolean AS $$
 	END;
 	$$ LANGUAGE plpgsql IMMUTABLE;
 
--- Create a json_query_or_null function that handles any types.
+-- Create a json_query_or_null function that handles jsonb input.
+-- PostgreSQL 15+ 兼容: 使用 jsonb_path_query_first (PG12+) 而非 JSON_QUERY (PG17+)
 CREATE OR REPLACE FUNCTION json_query_or_null(p_input jsonb, p_query text) RETURNS jsonb AS $$
-    SELECT JSON_QUERY(p_input, p_query)
-$$ LANGUAGE sql IMMUTABLE;
+BEGIN
+    RETURN jsonb_path_query_first(p_input, p_query::jsonpath);
+EXCEPTION WHEN others THEN
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
 
 -- Create a json_query_or_null function that handles any types.
+-- PostgreSQL 15+ 兼容: 使用 jsonb_path_query_first (PG12+) 而非 JSON_QUERY (PG17+)
 CREATE OR REPLACE FUNCTION json_query_or_null(p_input anyelement, p_query text) RETURNS jsonb AS $$
 BEGIN
-    RETURN JSON_QUERY(p_input::text::jsonb, p_query);
+    RETURN jsonb_path_query_first(p_input::text::jsonb, p_query::jsonpath);
 EXCEPTION WHEN others THEN
     RETURN NULL;
 END;
@@ -1049,6 +1055,6 @@ CREATE UNIQUE INDEX "sqlite_autoindex__collections_2" ON public._collections USI
 
 
 
-CREATE VIEW "view1" AS SELECT * FROM (select id, text, bool, url, select_one, select_many, file_one, file_many, number, email, datetime, json, rel_one, rel_many, created from demo1);
-CREATE VIEW "view2" AS SELECT * FROM (SELECT view1.id, view1.bool as state, view1.file_many, view1.rel_many from view1);
-CREATE VIEW "numeric_id_view" AS SELECT * FROM (SELECT CAST("id" as TEXT) "id","email" FROM (select (ROW_NUMBER() OVER()) as id, email from clients));
+CREATE VIEW "view1" AS SELECT * FROM (select id, text, bool, url, select_one, select_many, file_one, file_many, number, email, datetime, json, rel_one, rel_many, created from demo1) AS subq;
+CREATE VIEW "view2" AS SELECT * FROM (SELECT view1.id, view1.bool as state, view1.file_many, view1.rel_many from view1) AS subq;
+CREATE VIEW "numeric_id_view" AS SELECT * FROM (SELECT CAST("id" as TEXT) "id","email" FROM (select (ROW_NUMBER() OVER()) as id, email from clients) AS inner_subq) AS subq;

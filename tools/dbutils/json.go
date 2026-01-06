@@ -74,6 +74,9 @@ func JSONArrayLength(column string) string {
 
 // JSONExtract returns a JSON_EXTRACT SQLite string expression with
 // some normalizations for non-json columns.
+//
+// PostgreSQL 15+ 兼容: 使用自定义函数 json_query_or_null，
+// 该函数内部使用 jsonb_path_query_first (PG12+) 而非 JSON_QUERY (PG17+)
 func JSONExtract(column string, path string) string {
 	// prefix the path with dot if it is not starting with array notation
 	if path != "" && !strings.HasPrefix(path, "[") {
@@ -92,11 +95,12 @@ func JSONExtract(column string, path string) string {
 	)
 	*/
 
-	// PostgreSQL:
-	// Using `json_value::text` will get a string with double quotes. Using `json_value #>> '{}'` to get string content instead.
-	// Adding `::jsonb` at the end as a hint to `typeAwareJoin` to convert the other value to text while comparing the data (only if the other type is not determined).
+	// PostgreSQL (PG15+ 兼容):
+	// 使用自定义函数 json_query_or_null，该函数内部使用 jsonb_path_query_first
+	// 而非 JSON_QUERY (仅 PG17+ 支持)
+	// 添加 ::jsonb 后缀作为类型提示，用于 typeAwareJoin 进行类型推断
 	return fmt.Sprintf(
-		`JSON_QUERY_OR_NULL([[%s]], '$%s')::jsonb`,
+		`json_query_or_null([[%s]], '$%s')::jsonb`,
 		column,
 		path,
 	)

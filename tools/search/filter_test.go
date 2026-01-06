@@ -111,8 +111,8 @@ func TestFilterDataBuildExpr(t *testing.T) {
 			"(JSON_EXTRACT([[test5]], '$.a') IS JSON_EXTRACT([[test5]], '$.b') OR JSON_EXTRACT([[test5]], '$.c') IS NOT JSON_EXTRACT([[test5]], '$.d'))",
 			,
 			*/
-			// PostgreSQL:
-			`(JSON_QUERY([[test5]]::jsonb, '$.a')::jsonb IS NOT DISTINCT FROM JSON_QUERY([[test5]]::jsonb, '$.b')::jsonb OR JSON_QUERY([[test5]]::jsonb, '$.c')::jsonb IS DISTINCT FROM JSON_QUERY([[test5]]::jsonb, '$.d')::jsonb)`,
+			// PostgreSQL (PG15+ 兼容):
+			`(json_query_or_null([[test5]], '$.a')::jsonb IS NOT DISTINCT FROM json_query_or_null([[test5]], '$.b')::jsonb OR json_query_or_null([[test5]], '$.c')::jsonb IS DISTINCT FROM json_query_or_null([[test5]], '$.d')::jsonb)`,
 		},
 		{
 			"macros",

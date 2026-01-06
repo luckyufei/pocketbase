@@ -859,10 +859,10 @@ func CopyTempPostgresDB(config core.BaseAppConfig) (string, string, error) {
 	}
 	// Run `cd tests/data && make dump`
 	commands := []any{
-		fmt.Sprintf("PGPASSWORD=pass createdb -h 127.0.0.1 -U user %s", dataDbName),
-		fmt.Sprintf("PGPASSWORD=pass createdb -h 127.0.0.1 -U user %s", auxiliaryDbName),
-		fmt.Sprintf("PGPASSWORD=pass psql -h 127.0.0.1 -U user -d %s < data.pg-dump.sql", dataDbName),
-		fmt.Sprintf("PGPASSWORD=pass psql -h 127.0.0.1 -U user -d %s < auxiliary.pg-dump.sql", auxiliaryDbName),
+		fmt.Sprintf("PGPASSWORD=pass /opt/homebrew/opt/postgresql@15/bin/createdb -h 127.0.0.1 -U user %s", dataDbName),
+		fmt.Sprintf("PGPASSWORD=pass /opt/homebrew/opt/postgresql@15/bin/createdb -h 127.0.0.1 -U user %s", auxiliaryDbName),
+		fmt.Sprintf("PGPASSWORD=pass /opt/homebrew/opt/postgresql@15/bin/psql -h 127.0.0.1 -U user -d %s < data.pg-dump.sql", dataDbName),
+		fmt.Sprintf("PGPASSWORD=pass /opt/homebrew/opt/postgresql@15/bin/psql -h 127.0.0.1 -U user -d %s < auxiliary.pg-dump.sql", auxiliaryDbName),
 	}
 	// Execute the commands
 	for _, cmd := range commands {
@@ -878,15 +878,10 @@ func CopyTempPostgresDB(config core.BaseAppConfig) (string, string, error) {
 			command.Stderr = io.MultiWriter(&stdout, &stderr) // combine stdout and stderr to get ordered output
 			err := command.Run()
 			if err != nil {
-				panic(err.Error())
-			}
-			if command.ProcessState.ExitCode() != 0 {
-				fmt.Fprintln(&stdout, "Command output:", stdout.String())
-				return "", "", fmt.Errorf("command failed with exit code %d", command.ProcessState.ExitCode())
-			}
-			if stderr.Len() > 0 {
-				fmt.Fprintln(&stdout, "Command output:", stdout.String())
-				return "", "", fmt.Errorf("command stderr: %s", stderr.String())
+				fmt.Fprintln(&stdout, "Command failed:", cmd)
+				fmt.Fprintln(&stdout, "Error:", err.Error())
+				fmt.Fprintln(&stdout, "Output:", stdout.String())
+				return "", "", err
 			}
 		}
 	}

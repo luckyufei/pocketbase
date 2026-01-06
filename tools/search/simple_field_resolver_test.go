@@ -62,8 +62,8 @@ func TestSimpleFieldResolverResolve(t *testing.T) {
 		/* SQLite:
 		{"data.test", false, "JSON_EXTRACT([[data]], '$.test')"},
 		*/
-		// PostgreSQL:
-		{"data.test", false, "JSON_QUERY([[data]]::jsonb, '$.test')::jsonb"},
+		// PostgreSQL (PG15+ 兼容):
+		{"data.test", false, "json_query_or_null([[data]], '$.test')::jsonb"},
 	}
 
 	for i, s := range scenarios {

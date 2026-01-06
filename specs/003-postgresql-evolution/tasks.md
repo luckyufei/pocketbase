@@ -13,13 +13,17 @@
 
 | Task ID | 描述 | 预估 | 状态 |
 |---------|------|------|------|
-| T-0.1.1 | 调研 `jsonb_path_query` 替代 `JSON_QUERY` 的可行性 | 2h | ⬜ |
-| T-0.1.2 | 重写 `json_query_or_null` 函数使用 `jsonb_path_query` | 4h | ⬜ |
-| T-0.1.3 | 更新 `tools/dbutils/json.go` 中的 `JSONExtract` 实现 | 4h | ⬜ |
-| T-0.1.4 | 更新 `tools/search/filter.go` 中的 JSON 路径查询 | 4h | ⬜ |
-| T-0.1.5 | 更新 `migrations/postgres_functions.go` 兼容函数 | 2h | ⬜ |
-| T-0.1.6 | 更新测试数据 `tests/data/*.pg-dump.sql` | 2h | ⬜ |
-| T-0.1.7 | 在 PostgreSQL 15 环境下运行全量测试 | 4h | ⬜ |
+| T-0.1.1 | 调研 `jsonb_path_query` 替代 `JSON_QUERY` 的可行性 | 2h | ✅ |
+| T-0.1.2 | 重写 `json_query_or_null` 函数使用 `jsonb_path_query_first` | 4h | ✅ |
+| T-0.1.3 | 更新 `tools/dbutils/json.go` 中的 `JSONExtract` 实现 | 4h | ✅ |
+| T-0.1.4 | 更新 `tools/search/filter.go` 中的 JSON 路径查询 | 4h | ✅ |
+| T-0.1.5 | 更新 `migrations/postgres_functions.go` 兼容函数 | 2h | ✅ |
+| T-0.1.6 | 更新测试数据 `tests/data/*.pg-dump.sql` | 2h | ✅ |
+| T-0.1.7 | 在 PostgreSQL 15 环境下运行全量测试 | 4h | ⚠️ |
+
+**测试环境说明**:
+- `tools/search` 和 `tools/dbutils` 测试已通过 ✅（使用 `embedded-postgres`）
+- `core` 包测试需要外部 PostgreSQL 工具（`createdb`, `psql`），待改造
 
 **技术方案对比**:
 

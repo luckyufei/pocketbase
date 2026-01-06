@@ -111,12 +111,12 @@ func (r *SimpleFieldResolver) Resolve(field string) (*ResolverResult, error) {
 			jsonPath.String(),
 		),
 		*/
-		// PostgreSQL:
-		// Note: we have to cast it to text because PostgreSQL always
-		// requires a determistic type for any expression. We will do
-		// more type casting while building the final db expression.
+		// PostgreSQL (PG15+ 兼容):
+		// 使用自定义函数 json_query_or_null，内部使用 jsonb_path_query_first (PG12+)
+		// 而非 JSON_QUERY (仅 PG17+ 支持)
+		// 添加 ::jsonb 后缀用于类型推断
 		Identifier: fmt.Sprintf(
-			"JSON_QUERY([[%s]]::jsonb, '%s')::jsonb",
+			"json_query_or_null([[%s]], '%s')::jsonb",
 			inflector.Columnify(parts[0]),
 			jsonPath.String(),
 		),
