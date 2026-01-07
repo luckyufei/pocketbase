@@ -1,0 +1,33 @@
+{
+  "test_time": "2026-01-08T06:47:00+08:00",
+  "test_duration": "15s",
+  "concurrency": 10,
+  "data_scale": "small",
+  "sqlite_results": {
+    "database_type": "sqlite",
+    "postgres_version": "",
+    "test_start_time": "0001-01-01T00:00:00Z",
+    "test_end_time": "0001-01-01T00:00:00Z",
+    "test_duration_seconds": 15.000318833,
+    "total_operations": 1223668,
+    "read_operations": 856125,
+    "write_operations": 367543,
+    "successful_ops": 906306,
+    "failed_ops": 317362,
+    "read_qps": 57073.786866220806,
+    "write_tps": 24502.345856237574,
+    "total_ops": 81576.13272245838,
+    "avg_latency_ms": 0.122,
+    "min_latency_ms": 0.004,
+    "max_latency_ms": 39.763,
+    "p50_latency_ms": 0.075,
+    "p95_latency_ms": 0.367,
+    "p99_latency_ms": 0.527,
+    "success_rate": 74.06469728717266,
+    "max_connections": 0,
+    "concurrency": 10,
+    "crud_results": null
+  },
+  "postgres_results": {},
+  "comparison": {}
+}

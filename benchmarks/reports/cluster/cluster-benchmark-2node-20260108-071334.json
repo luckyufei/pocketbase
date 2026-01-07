@@ -1,0 +1,43 @@
+{
+  "test_time": "2026-01-08T07:13:34+08:00",
+  "cluster_size": 2,
+  "duration_seconds": 20.013666041,
+  "concurrency": 20,
+  "total_ops": 252787,
+  "read_ops": 202166,
+  "write_ops": 50621,
+  "total_ops_per_sec": 12630.719403538587,
+  "read_qps": 10101.397694247655,
+  "write_tps": 2529.3217092909317,
+  "avg_latency_ms": 1.582395756110876,
+  "min_latency_ms": 0.336,
+  "max_latency_ms": 26.968,
+  "p50_latency_ms": 1.125,
+  "p95_latency_ms": 3.534,
+  "p99_latency_ms": 7.213,
+  "success_ops": 50509,
+  "failed_ops": 202278,
+  "success_rate": 19.980853445786373,
+  "primary_stats": {
+    "host": "localhost",
+    "port": 5440,
+    "role": "primary",
+    "ops": 50621,
+    "ops_per_sec": 2529.3217092909317,
+    "avg_latency_ms": 0,
+    "success_rate": 0
+  },
+  "replica_stats": [
+    {
+      "host": "localhost",
+      "port": 5441,
+      "role": "replica",
+      "ops": 202166,
+      "ops_per_sec": 10101.397694247655,
+      "avg_latency_ms": 0,
+      "success_rate": 0
+    }
+  ],
+  "replication_lag_ms": null,
+  "read_scalability": 0
+}

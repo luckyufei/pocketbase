@@ -1,0 +1,286 @@
+# PocketBase PostgreSQL 集群性能测试环境
+# 支持主从复制 + 读写分离 + 负载均衡
+
+services:
+  # ============ 2 节点集群 (1主1从) ============
+  
+  # 主节点 (Primary)
+  pg-primary:
+    image: postgres:17-alpine
+    container_name: pocketbase-cluster-primary
+    environment:
+      POSTGRES_DB: pocketbase_test
+      POSTGRES_USER: pocketbase
+      POSTGRES_PASSWORD: pocketbase_test_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5440:5432"
+    volumes:
+      - pg_primary_data:/var/lib/postgresql/data
+      - ../scripts/primary-init.sh:/docker-entrypoint-initdb.d/01-primary-init.sh
+    command: >
+      postgres 
+      -c wal_level=replica
+      -c max_wal_senders=10
+      -c max_replication_slots=10
+      -c hot_standby=on
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+      -c shared_buffers=512MB
+      -c effective_cache_size=1536MB
+      -c work_mem=8MB
+      -c maintenance_work_mem=128MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c synchronous_commit=on
+    networks:
+      pocketbase-cluster:
+        ipv4_address: 172.21.0.10
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pocketbase -d pocketbase_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 从节点 1 (Replica 1)
+  pg-replica1:
+    image: postgres:17-alpine
+    container_name: pocketbase-cluster-replica1
+    environment:
+      POSTGRES_DB: pocketbase_test
+      POSTGRES_USER: pocketbase
+      POSTGRES_PASSWORD: pocketbase_test_password
+      PGUSER: pocketbase
+      PGPASSWORD: pocketbase_test_password
+    ports:
+      - "5441:5432"
+    volumes:
+      - pg_replica1_data:/var/lib/postgresql/data
+    command: >
+      postgres 
+      -c hot_standby=on
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c work_mem=4MB
+    networks:
+      pocketbase-cluster:
+        ipv4_address: 172.21.0.11
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pocketbase -d pocketbase_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 从节点 2 (Replica 2) - 用于 3 节点集群测试
+  pg-replica2:
+    image: postgres:17-alpine
+    container_name: pocketbase-cluster-replica2
+    environment:
+      POSTGRES_DB: pocketbase_test
+      POSTGRES_USER: pocketbase
+      POSTGRES_PASSWORD: pocketbase_test_password
+      PGUSER: pocketbase
+      PGPASSWORD: pocketbase_test_password
+    ports:
+      - "5442:5432"
+    volumes:
+      - pg_replica2_data:/var/lib/postgresql/data
+    command: >
+      postgres 
+      -c hot_standby=on
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c work_mem=4MB
+    networks:
+      pocketbase-cluster:
+        ipv4_address: 172.21.0.12
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pocketbase -d pocketbase_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - cluster3
+      - cluster5
+
+  # 从节点 3 (Replica 3) - 用于 5 节点集群测试
+  pg-replica3:
+    image: postgres:17-alpine
+    container_name: pocketbase-cluster-replica3
+    environment:
+      POSTGRES_DB: pocketbase_test
+      POSTGRES_USER: pocketbase
+      POSTGRES_PASSWORD: pocketbase_test_password
+    ports:
+      - "5443:5432"
+    volumes:
+      - pg_replica3_data:/var/lib/postgresql/data
+    command: >
+      postgres 
+      -c hot_standby=on
+      -c max_connections=200
+      -c shared_buffers=256MB
+    networks:
+      pocketbase-cluster:
+        ipv4_address: 172.21.0.13
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+    profiles:
+      - cluster5
+
+  # 从节点 4 (Replica 4) - 用于 5 节点集群测试
+  pg-replica4:
+    image: postgres:17-alpine
+    container_name: pocketbase-cluster-replica4
+    environment:
+      POSTGRES_DB: pocketbase_test
+      POSTGRES_USER: pocketbase
+      POSTGRES_PASSWORD: pocketbase_test_password
+    ports:
+      - "5444:5432"
+    volumes:
+      - pg_replica4_data:/var/lib/postgresql/data
+    command: >
+      postgres 
+      -c hot_standby=on
+      -c max_connections=200
+      -c shared_buffers=256MB
+    networks:
+      pocketbase-cluster:
+        ipv4_address: 172.21.0.14
+    depends_on:
+      pg-primary:
+        condition: service_healthy
+    profiles:
+      - cluster5
+
+  # ============ 负载均衡和连接池 ============
+
+  # HAProxy 负载均衡器 (读写分离)
+  haproxy:
+    image: haproxy:2.8-alpine
+    container_name: pocketbase-cluster-haproxy
+    ports:
+      - "5450:5432"   # 写入端口 (路由到主节点)
+      - "5451:5433"   # 读取端口 (负载均衡到从节点)
+      - "8404:8404"   # HAProxy 统计页面
+    volumes:
+      - ../scripts/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      pocketbase-cluster:
+        ipv4_address: 172.21.0.100
+    depends_on:
+      - pg-primary
+      - pg-replica1
+    healthcheck:
+      test: ["CMD", "haproxy", "-c", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PgBouncer 连接池 (连接到 HAProxy)
+  pgbouncer-cluster:
+    image: pgbouncer/pgbouncer:latest
+    container_name: pocketbase-cluster-pgbouncer
+    environment:
+      DATABASES_HOST: haproxy
+      DATABASES_PORT: 5432
+      DATABASES_USER: pocketbase
+      DATABASES_PASSWORD: pocketbase_test_password
+      DATABASES_DBNAME: pocketbase_test
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 500
+      DEFAULT_POOL_SIZE: 50
+      RESERVE_POOL_SIZE: 10
+    ports:
+      - "6440:5432"
+    networks:
+      pocketbase-cluster:
+        ipv4_address: 172.21.0.101
+    depends_on:
+      - haproxy
+
+  # ============ 监控系统 ============
+
+  # Prometheus (集群监控)
+  prometheus-cluster:
+    image: prom/prometheus:latest
+    container_name: pocketbase-cluster-prometheus
+    ports:
+      - "9091:9090"
+    volumes:
+      - ../scripts/prometheus-cluster.yml:/etc/prometheus/prometheus.yml
+      - prometheus_cluster_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      pocketbase-cluster:
+        ipv4_address: 172.21.0.200
+
+  # PostgreSQL Exporter (主节点)
+  pg-exporter-primary:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: pocketbase-cluster-exporter-primary
+    environment:
+      DATA_SOURCE_NAME: "postgresql://pocketbase:pocketbase_test_password@pg-primary:5432/pocketbase_test?sslmode=disable"
+    ports:
+      - "9188:9187"
+    networks:
+      pocketbase-cluster:
+        ipv4_address: 172.21.0.201
+    depends_on:
+      - pg-primary
+
+  # PostgreSQL Exporter (从节点1)
+  pg-exporter-replica1:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: pocketbase-cluster-exporter-replica1
+    environment:
+      DATA_SOURCE_NAME: "postgresql://pocketbase:pocketbase_test_password@pg-replica1:5432/pocketbase_test?sslmode=disable"
+    ports:
+      - "9189:9187"
+    networks:
+      pocketbase-cluster:
+        ipv4_address: 172.21.0.202
+    depends_on:
+      - pg-replica1
+
+# 网络配置
+networks:
+  pocketbase-cluster:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+# 数据卷配置
+volumes:
+  pg_primary_data:
+    driver: local
+  pg_replica1_data:
+    driver: local
+  pg_replica2_data:
+    driver: local
+  pg_replica3_data:
+    driver: local
+  pg_replica4_data:
+    driver: local
+  prometheus_cluster_data:
+    driver: local

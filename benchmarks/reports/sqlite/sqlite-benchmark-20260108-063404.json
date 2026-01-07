@@ -1,0 +1,21 @@
+[
+  {
+    "name": "SQLite Mixed Workload",
+    "operations": 80939,
+    "duration": 10001262750,
+    "ops_per_second": 8092.87807182148,
+    "avg_latency": 96747,
+    "min_latency": 8750,
+    "max_latency": 7164125,
+    "p50_latency": 58791,
+    "p95_latency": 277958,
+    "p99_latency": 597666,
+    "errors": 5,
+    "success_rate": 99.99382250830872,
+    "metadata": {
+      "concurrency": 10,
+      "read_ratio": 0.7,
+      "scale": "small"
+    }
+  }
+]

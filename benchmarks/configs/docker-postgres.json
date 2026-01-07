@@ -1,0 +1,21 @@
+{
+  "environment": "docker",
+  "database": "postgresql",
+  "scale": "medium",
+  "postgres_host": "localhost",
+  "postgres_port": 5433,
+  "postgres_user": "postgres",
+  "postgres_pass": "postgres",
+  "postgres_db": "benchmark",
+  "iterations": 5000,
+  "warmup_iterations": 500,
+  "concurrency_levels": [10, 50, 100, 200],
+  "data_size": 100000,
+  "duration_seconds": 60,
+  "seed": 42,
+  "output_dir": "./results",
+  "report_format": "json",
+  "verbose": true,
+  "enable_connection_pool": true,
+  "pool_size": 50
+}

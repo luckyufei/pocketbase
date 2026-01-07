@@ -1,0 +1,265 @@
+# PocketBase 性能测试环境
+# 支持 PostgreSQL 多版本 + 监控系统
+
+services:
+  # PostgreSQL 15 (基准版本)
+  postgres15:
+    image: postgres:15-alpine
+    container_name: pocketbase-test-pg15
+    environment:
+      POSTGRES_DB: pocketbase_test
+      POSTGRES_USER: pocketbase
+      POSTGRES_PASSWORD: pocketbase_test_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg15_data:/var/lib/postgresql/data
+      - ../scripts:/docker-entrypoint-initdb.d
+    command: >
+      postgres 
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+    networks:
+      - pocketbase-test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pocketbase -d pocketbase_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL 16 (主流版本)
+  postgres16:
+    image: postgres:16-alpine
+    container_name: pocketbase-test-pg16
+    environment:
+      POSTGRES_DB: pocketbase_test
+      POSTGRES_USER: pocketbase
+      POSTGRES_PASSWORD: pocketbase_test_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5433:5432"
+    volumes:
+      - pg16_data:/var/lib/postgresql/data
+      - ../scripts:/docker-entrypoint-initdb.d
+    command: >
+      postgres 
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+    networks:
+      - pocketbase-test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pocketbase -d pocketbase_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL 17 (最新稳定版)
+  postgres17:
+    image: postgres:17-alpine
+    container_name: pocketbase-test-pg17
+    environment:
+      POSTGRES_DB: pocketbase_test
+      POSTGRES_USER: pocketbase
+      POSTGRES_PASSWORD: pocketbase_test_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5434:5432"
+    volumes:
+      - pg17_data:/var/lib/postgresql/data
+      - ../scripts:/docker-entrypoint-initdb.d
+    command: >
+      postgres 
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+    networks:
+      - pocketbase-test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pocketbase -d pocketbase_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PostgreSQL 18 (最新版本)
+  postgres18:
+    image: postgres:18-alpine
+    container_name: pocketbase-test-pg18
+    environment:
+      POSTGRES_DB: pocketbase_test
+      POSTGRES_USER: pocketbase
+      POSTGRES_PASSWORD: pocketbase_test_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5435:5432"
+    volumes:
+      - pg18_data:/var/lib/postgresql/data
+      - ../scripts:/docker-entrypoint-initdb.d
+    command: >
+      postgres 
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+    networks:
+      - pocketbase-test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pocketbase -d pocketbase_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Prometheus 监控系统
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: pocketbase-test-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    networks:
+      - pocketbase-test
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana 可视化系统
+  grafana:
+    image: grafana/grafana:latest
+    container_name: pocketbase-test-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=pocketbase_test
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - pocketbase-test
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL Exporter (为 Prometheus 提供 PostgreSQL 指标)
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: pocketbase-test-pg-exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://pocketbase:pocketbase_test_password@postgres15:5432/pocketbase_test?sslmode=disable"
+    ports:
+      - "9187:9187"
+    networks:
+      - pocketbase-test
+    depends_on:
+      - postgres15
+
+  # Redis (用于缓存和会话存储测试)
+  redis:
+    image: redis:7-alpine
+    container_name: pocketbase-test-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    networks:
+      - pocketbase-test
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # PgBouncer 连接池 (用于 PostgreSQL 连接池测试)
+  pgbouncer:
+    image: pgbouncer/pgbouncer:latest
+    container_name: pocketbase-test-pgbouncer
+    environment:
+      DATABASES_HOST: postgres15
+      DATABASES_PORT: 5432
+      DATABASES_USER: pocketbase
+      DATABASES_PASSWORD: pocketbase_test_password
+      DATABASES_DBNAME: pocketbase_test
+      POOL_MODE: transaction
+      SERVER_RESET_QUERY: DISCARD ALL
+      MAX_CLIENT_CONN: 100
+      DEFAULT_POOL_SIZE: 20
+      SERVER_LIFETIME: 3600
+      SERVER_IDLE_TIMEOUT: 600
+    ports:
+      - "6432:5432"
+    networks:
+      - pocketbase-test
+    depends_on:
+      - postgres15
+
+# 网络配置
+networks:
+  pocketbase-test:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# 数据卷配置
+volumes:
+  pg15_data:
+    driver: local
+  pg16_data:
+    driver: local
+  pg17_data:
+    driver: local
+  pg18_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  redis_data:
+    driver: local

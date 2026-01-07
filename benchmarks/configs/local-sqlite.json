@@ -1,0 +1,18 @@
+{
+  "environment": "local",
+  "database": "sqlite",
+  "scale": "small",
+  "sqlite_path": "./benchmark.db",
+  "iterations": 1000,
+  "warmup_iterations": 100,
+  "concurrency_levels": [1, 10, 50],
+  "data_size": 10000,
+  "duration_seconds": 30,
+  "seed": 42,
+  "output_dir": "./results",
+  "report_format": "json",
+  "verbose": true,
+  "enable_wal": true,
+  "enable_connection_pool": true,
+  "pool_size": 10
+}

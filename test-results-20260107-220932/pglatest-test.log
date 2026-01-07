@@ -1,0 +1,880 @@
+=== RUN   TestCreateTrgmExtensionSQL
+=== RUN   TestCreateTrgmExtensionSQL/生成基本扩展创建_SQL
+--- PASS: TestCreateTrgmExtensionSQL (0.00s)
+    --- PASS: TestCreateTrgmExtensionSQL/生成基本扩展创建_SQL (0.00s)
+=== RUN   TestTrgmExtensionConfig
+=== RUN   TestTrgmExtensionConfig/默认配置
+=== RUN   TestTrgmExtensionConfig/自定义配置
+--- PASS: TestTrgmExtensionConfig (0.00s)
+    --- PASS: TestTrgmExtensionConfig/默认配置 (0.00s)
+    --- PASS: TestTrgmExtensionConfig/自定义配置 (0.00s)
+=== RUN   TestGINIndexForLike
+=== RUN   TestGINIndexForLike/生成单列_GIN_索引_SQL
+=== RUN   TestGINIndexForLike/生成多列_GIN_索引_SQL
+=== RUN   TestGINIndexForLike/生成_IF_NOT_EXISTS_索引
+=== RUN   TestGINIndexForLike/生成索引名称
+--- PASS: TestGINIndexForLike (0.00s)
+    --- PASS: TestGINIndexForLike/生成单列_GIN_索引_SQL (0.00s)
+    --- PASS: TestGINIndexForLike/生成多列_GIN_索引_SQL (0.00s)
+    --- PASS: TestGINIndexForLike/生成_IF_NOT_EXISTS_索引 (0.00s)
+    --- PASS: TestGINIndexForLike/生成索引名称 (0.00s)
+=== RUN   TestTrgmOperators
+=== RUN   TestTrgmOperators/相似度查询_(%)
+=== RUN   TestTrgmOperators/词相似度查询_(<%)
+=== RUN   TestTrgmOperators/相似度函数
+=== RUN   TestTrgmOperators/ILIKE_优化查询
+--- PASS: TestTrgmOperators (0.00s)
+    --- PASS: TestTrgmOperators/相似度查询_(%) (0.00s)
+    --- PASS: TestTrgmOperators/词相似度查询_(<%) (0.00s)
+    --- PASS: TestTrgmOperators/相似度函数 (0.00s)
+    --- PASS: TestTrgmOperators/ILIKE_优化查询 (0.00s)
+=== RUN   TestTSVectorConfig
+=== RUN   TestTSVectorConfig/默认配置
+=== RUN   TestTSVectorConfig/中文配置
+--- PASS: TestTSVectorConfig (0.00s)
+    --- PASS: TestTSVectorConfig/默认配置 (0.00s)
+    --- PASS: TestTSVectorConfig/中文配置 (0.00s)
+=== RUN   TestTSVectorColumn
+=== RUN   TestTSVectorColumn/生成_tsvector_列_SQL
+=== RUN   TestTSVectorColumn/生成_tsvector_更新触发器
+--- PASS: TestTSVectorColumn (0.00s)
+    --- PASS: TestTSVectorColumn/生成_tsvector_列_SQL (0.00s)
+    --- PASS: TestTSVectorColumn/生成_tsvector_更新触发器 (0.00s)
+=== RUN   TestTSVectorIndex
+=== RUN   TestTSVectorIndex/生成_GIN_索引_SQL
+--- PASS: TestTSVectorIndex (0.00s)
+    --- PASS: TestTSVectorIndex/生成_GIN_索引_SQL (0.00s)
+=== RUN   TestTSVectorQuery
+=== RUN   TestTSVectorQuery/生成全文搜索查询
+=== RUN   TestTSVectorQuery/生成带权重的查询
+=== RUN   TestTSVectorQuery/生成_websearch_to_tsquery_查询
+--- PASS: TestTSVectorQuery (0.00s)
+    --- PASS: TestTSVectorQuery/生成全文搜索查询 (0.00s)
+    --- PASS: TestTSVectorQuery/生成带权重的查询 (0.00s)
+    --- PASS: TestTSVectorQuery/生成_websearch_to_tsquery_查询 (0.00s)
+=== RUN   TestFullTextSearchBenchmarkConfig
+=== RUN   TestFullTextSearchBenchmarkConfig/默认基准测试配置
+--- PASS: TestFullTextSearchBenchmarkConfig (0.00s)
+    --- PASS: TestFullTextSearchBenchmarkConfig/默认基准测试配置 (0.00s)
+=== RUN   TestSearchMethodComparison
+=== RUN   TestSearchMethodComparison/LIKE_查询生成
+=== RUN   TestSearchMethodComparison/ILIKE_查询生成
+=== RUN   TestSearchMethodComparison/trgm_相似度查询生成
+=== RUN   TestSearchMethodComparison/tsvector_查询生成
+--- PASS: TestSearchMethodComparison (0.00s)
+    --- PASS: TestSearchMethodComparison/LIKE_查询生成 (0.00s)
+    --- PASS: TestSearchMethodComparison/ILIKE_查询生成 (0.00s)
+    --- PASS: TestSearchMethodComparison/trgm_相似度查询生成 (0.00s)
+    --- PASS: TestSearchMethodComparison/tsvector_查询生成 (0.00s)
+=== RUN   TestFullTextHelpers
+=== RUN   TestFullTextHelpers/转义_LIKE_模式
+=== RUN   TestFullTextHelpers/构建_tsquery
+=== RUN   TestFullTextHelpers/高亮搜索结果
+--- PASS: TestFullTextHelpers (0.00s)
+    --- PASS: TestFullTextHelpers/转义_LIKE_模式 (0.00s)
+    --- PASS: TestFullTextHelpers/构建_tsquery (0.00s)
+    --- PASS: TestFullTextHelpers/高亮搜索结果 (0.00s)
+=== RUN   TestParseGINIndex
+=== RUN   TestParseGINIndex/基本_GIN_索引
+=== RUN   TestParseGINIndex/GIN_索引带操作符类
+=== RUN   TestParseGINIndex/GIN_索引多列
+=== RUN   TestParseGINIndex/GIN_索引带_WHERE
+=== RUN   TestParseGINIndex/BTREE_索引_(默认)
+=== RUN   TestParseGINIndex/显式_BTREE_索引
+=== RUN   TestParseGINIndex/GIST_索引
+=== RUN   TestParseGINIndex/BRIN_索引
+=== RUN   TestParseGINIndex/HASH_索引
+=== RUN   TestParseGINIndex/唯一_GIN_索引_(理论上)
+--- PASS: TestParseGINIndex (0.00s)
+    --- PASS: TestParseGINIndex/基本_GIN_索引 (0.00s)
+    --- PASS: TestParseGINIndex/GIN_索引带操作符类 (0.00s)
+    --- PASS: TestParseGINIndex/GIN_索引多列 (0.00s)
+    --- PASS: TestParseGINIndex/GIN_索引带_WHERE (0.00s)
+    --- PASS: TestParseGINIndex/BTREE_索引_(默认) (0.00s)
+    --- PASS: TestParseGINIndex/显式_BTREE_索引 (0.00s)
+    --- PASS: TestParseGINIndex/GIST_索引 (0.00s)
+    --- PASS: TestParseGINIndex/BRIN_索引 (0.00s)
+    --- PASS: TestParseGINIndex/HASH_索引 (0.00s)
+    --- PASS: TestParseGINIndex/唯一_GIN_索引_(理论上) (0.00s)
+=== RUN   TestBuildGINIndex
+=== RUN   TestBuildGINIndex/基本_GIN_索引_(SQLite_风格)
+=== RUN   TestBuildGINIndex/GIN_索引带操作符类_(SQLite_风格)
+=== RUN   TestBuildGINIndex/GIN_索引带_WHERE_(SQLite_风格)
+=== RUN   TestBuildGINIndex/普通索引_(无_Method)
+=== RUN   TestBuildGINIndex/唯一_GIN_索引_(SQLite_风格)
+=== RUN   TestBuildGINIndex/IF_NOT_EXISTS_GIN_索引_(SQLite_风格)
+--- PASS: TestBuildGINIndex (0.00s)
+    --- PASS: TestBuildGINIndex/基本_GIN_索引_(SQLite_风格) (0.00s)
+    --- PASS: TestBuildGINIndex/GIN_索引带操作符类_(SQLite_风格) (0.00s)
+    --- PASS: TestBuildGINIndex/GIN_索引带_WHERE_(SQLite_风格) (0.00s)
+    --- PASS: TestBuildGINIndex/普通索引_(无_Method) (0.00s)
+    --- PASS: TestBuildGINIndex/唯一_GIN_索引_(SQLite_风格) (0.00s)
+    --- PASS: TestBuildGINIndex/IF_NOT_EXISTS_GIN_索引_(SQLite_风格) (0.00s)
+=== RUN   TestBuildGINIndexPG
+=== RUN   TestBuildGINIndexPG/基本_GIN_索引_(PostgreSQL_风格)
+=== RUN   TestBuildGINIndexPG/GIN_索引带操作符类_(PostgreSQL_风格)
+=== RUN   TestBuildGINIndexPG/GIN_索引带_WHERE_(PostgreSQL_风格)
+=== RUN   TestBuildGINIndexPG/唯一_GIN_索引_(PostgreSQL_风格)
+=== RUN   TestBuildGINIndexPG/IF_NOT_EXISTS_GIN_索引_(PostgreSQL_风格)
+--- PASS: TestBuildGINIndexPG (0.00s)
+    --- PASS: TestBuildGINIndexPG/基本_GIN_索引_(PostgreSQL_风格) (0.00s)
+    --- PASS: TestBuildGINIndexPG/GIN_索引带操作符类_(PostgreSQL_风格) (0.00s)
+    --- PASS: TestBuildGINIndexPG/GIN_索引带_WHERE_(PostgreSQL_风格) (0.00s)
+    --- PASS: TestBuildGINIndexPG/唯一_GIN_索引_(PostgreSQL_风格) (0.00s)
+    --- PASS: TestBuildGINIndexPG/IF_NOT_EXISTS_GIN_索引_(PostgreSQL_风格) (0.00s)
+=== RUN   TestAutoGINIndexForJSONB
+=== RUN   TestAutoGINIndexForJSONB/默认_GIN_索引_(PostgreSQL_风格)
+=== RUN   TestAutoGINIndexForJSONB/带_jsonb_path_ops_(PostgreSQL_风格)
+--- PASS: TestAutoGINIndexForJSONB (0.00s)
+    --- PASS: TestAutoGINIndexForJSONB/默认_GIN_索引_(PostgreSQL_风格) (0.00s)
+    --- PASS: TestAutoGINIndexForJSONB/带_jsonb_path_ops_(PostgreSQL_风格) (0.00s)
+=== RUN   TestIsGINIndex
+=== RUN   TestIsGINIndex/CREATE_INDEX_idx_gin_ON_t_USING_GIN_(data)
+=== RUN   TestIsGINIndex/CREATE_INDEX_idx_gin_ON_t_USING_gin_(data)
+=== RUN   TestIsGINIndex/CREATE_INDEX_idx_btree_ON_t_(name)
+=== RUN   TestIsGINIndex/CREATE_INDEX_idx_btree_ON_t_USING_BTREE_(name)
+=== RUN   TestIsGINIndex/CREATE_INDEX_idx_gist_ON_t_USING_GIST_(geom)
+--- PASS: TestIsGINIndex (0.00s)
+    --- PASS: TestIsGINIndex/CREATE_INDEX_idx_gin_ON_t_USING_GIN_(data) (0.00s)
+    --- PASS: TestIsGINIndex/CREATE_INDEX_idx_gin_ON_t_USING_gin_(data) (0.00s)
+    --- PASS: TestIsGINIndex/CREATE_INDEX_idx_btree_ON_t_(name) (0.00s)
+    --- PASS: TestIsGINIndex/CREATE_INDEX_idx_btree_ON_t_USING_BTREE_(name) (0.00s)
+    --- PASS: TestIsGINIndex/CREATE_INDEX_idx_gist_ON_t_USING_GIST_(geom) (0.00s)
+=== RUN   TestGINIndexOperatorClasses
+=== RUN   TestGINIndexOperatorClasses/jsonb_ops_(默认)
+=== RUN   TestGINIndexOperatorClasses/jsonb_path_ops
+--- PASS: TestGINIndexOperatorClasses (0.00s)
+    --- PASS: TestGINIndexOperatorClasses/jsonb_ops_(默认) (0.00s)
+    --- PASS: TestGINIndexOperatorClasses/jsonb_path_ops (0.00s)
+=== RUN   TestBuildGINIndexSQL
+--- PASS: TestBuildGINIndexSQL (0.00s)
+=== RUN   TestDBTypeString
+=== RUN   TestDBTypeString/SQLite
+=== RUN   TestDBTypeString/PostgreSQL
+=== RUN   TestDBTypeString/Unknown
+--- PASS: TestDBTypeString (0.00s)
+    --- PASS: TestDBTypeString/SQLite (0.00s)
+    --- PASS: TestDBTypeString/PostgreSQL (0.00s)
+    --- PASS: TestDBTypeString/Unknown (0.00s)
+=== RUN   TestDBTypeIsSQLite
+=== RUN   TestDBTypeIsSQLite/SQLite
+=== RUN   TestDBTypeIsSQLite/PostgreSQL
+=== RUN   TestDBTypeIsSQLite/Unknown
+--- PASS: TestDBTypeIsSQLite (0.00s)
+    --- PASS: TestDBTypeIsSQLite/SQLite (0.00s)
+    --- PASS: TestDBTypeIsSQLite/PostgreSQL (0.00s)
+    --- PASS: TestDBTypeIsSQLite/Unknown (0.00s)
+=== RUN   TestDBTypeIsPostgres
+=== RUN   TestDBTypeIsPostgres/SQLite
+=== RUN   TestDBTypeIsPostgres/PostgreSQL
+=== RUN   TestDBTypeIsPostgres/Unknown
+--- PASS: TestDBTypeIsPostgres (0.00s)
+    --- PASS: TestDBTypeIsPostgres/SQLite (0.00s)
+    --- PASS: TestDBTypeIsPostgres/PostgreSQL (0.00s)
+    --- PASS: TestDBTypeIsPostgres/Unknown (0.00s)
+=== RUN   TestDetectDBTypeFromDriverName
+=== RUN   TestDetectDBTypeFromDriverName/sqlite_lowercase
+=== RUN   TestDetectDBTypeFromDriverName/sqlite3
+=== RUN   TestDetectDBTypeFromDriverName/SQLite_uppercase
+=== RUN   TestDetectDBTypeFromDriverName/postgres_lowercase
+=== RUN   TestDetectDBTypeFromDriverName/postgresql
+=== RUN   TestDetectDBTypeFromDriverName/pgx
+=== RUN   TestDetectDBTypeFromDriverName/pgx/v5
+=== RUN   TestDetectDBTypeFromDriverName/unknown_driver
+=== RUN   TestDetectDBTypeFromDriverName/empty_driver
+--- PASS: TestDetectDBTypeFromDriverName (0.00s)
+    --- PASS: TestDetectDBTypeFromDriverName/sqlite_lowercase (0.00s)
+    --- PASS: TestDetectDBTypeFromDriverName/sqlite3 (0.00s)
+    --- PASS: TestDetectDBTypeFromDriverName/SQLite_uppercase (0.00s)
+    --- PASS: TestDetectDBTypeFromDriverName/postgres_lowercase (0.00s)
+    --- PASS: TestDetectDBTypeFromDriverName/postgresql (0.00s)
+    --- PASS: TestDetectDBTypeFromDriverName/pgx (0.00s)
+    --- PASS: TestDetectDBTypeFromDriverName/pgx/v5 (0.00s)
+    --- PASS: TestDetectDBTypeFromDriverName/unknown_driver (0.00s)
+    --- PASS: TestDetectDBTypeFromDriverName/empty_driver (0.00s)
+=== RUN   TestDetectDBType_NilDB
+--- PASS: TestDetectDBType_NilDB (0.00s)
+=== RUN   TestParseIndex
+=== RUN   TestParseIndex/scenario_0
+=== RUN   TestParseIndex/scenario_1
+=== RUN   TestParseIndex/scenario_2
+=== RUN   TestParseIndex/scenario_3
+--- PASS: TestParseIndex (0.00s)
+    --- PASS: TestParseIndex/scenario_0 (0.00s)
+    --- PASS: TestParseIndex/scenario_1 (0.00s)
+    --- PASS: TestParseIndex/scenario_2 (0.00s)
+    --- PASS: TestParseIndex/scenario_3 (0.00s)
+=== RUN   TestIndexIsValid
+=== RUN   TestIndexIsValid/empty
+=== RUN   TestIndexIsValid/no_index_name
+=== RUN   TestIndexIsValid/no_table_name
+=== RUN   TestIndexIsValid/no_columns
+=== RUN   TestIndexIsValid/min_valid
+=== RUN   TestIndexIsValid/all_fields
+--- PASS: TestIndexIsValid (0.00s)
+    --- PASS: TestIndexIsValid/empty (0.00s)
+    --- PASS: TestIndexIsValid/no_index_name (0.00s)
+    --- PASS: TestIndexIsValid/no_table_name (0.00s)
+    --- PASS: TestIndexIsValid/no_columns (0.00s)
+    --- PASS: TestIndexIsValid/min_valid (0.00s)
+    --- PASS: TestIndexIsValid/all_fields (0.00s)
+=== RUN   TestIndexBuild
+=== RUN   TestIndexBuild/empty
+=== RUN   TestIndexBuild/no_index_name
+=== RUN   TestIndexBuild/no_table_name
+=== RUN   TestIndexBuild/no_columns
+=== RUN   TestIndexBuild/min_valid
+=== RUN   TestIndexBuild/all_fields
+--- PASS: TestIndexBuild (0.00s)
+    --- PASS: TestIndexBuild/empty (0.00s)
+    --- PASS: TestIndexBuild/no_index_name (0.00s)
+    --- PASS: TestIndexBuild/no_table_name (0.00s)
+    --- PASS: TestIndexBuild/no_columns (0.00s)
+    --- PASS: TestIndexBuild/min_valid (0.00s)
+    --- PASS: TestIndexBuild/all_fields (0.00s)
+=== RUN   TestHasSingleColumnUniqueIndex
+=== RUN   TestHasSingleColumnUniqueIndex/empty_indexes
+=== RUN   TestHasSingleColumnUniqueIndex/empty_column
+=== RUN   TestHasSingleColumnUniqueIndex/mismatched_column
+=== RUN   TestHasSingleColumnUniqueIndex/non_unique_index
+=== RUN   TestHasSingleColumnUniqueIndex/matching_columnd_and_unique_index
+=== RUN   TestHasSingleColumnUniqueIndex/multiple_columns
+=== RUN   TestHasSingleColumnUniqueIndex/multiple_indexes
+=== RUN   TestHasSingleColumnUniqueIndex/partial_unique_index
+--- PASS: TestHasSingleColumnUniqueIndex (0.00s)
+    --- PASS: TestHasSingleColumnUniqueIndex/empty_indexes (0.00s)
+    --- PASS: TestHasSingleColumnUniqueIndex/empty_column (0.00s)
+    --- PASS: TestHasSingleColumnUniqueIndex/mismatched_column (0.00s)
+    --- PASS: TestHasSingleColumnUniqueIndex/non_unique_index (0.00s)
+    --- PASS: TestHasSingleColumnUniqueIndex/matching_columnd_and_unique_index (0.00s)
+    --- PASS: TestHasSingleColumnUniqueIndex/multiple_columns (0.00s)
+    --- PASS: TestHasSingleColumnUniqueIndex/multiple_indexes (0.00s)
+    --- PASS: TestHasSingleColumnUniqueIndex/partial_unique_index (0.00s)
+=== RUN   TestFindSingleColumnUniqueIndex
+=== RUN   TestFindSingleColumnUniqueIndex/empty_indexes
+=== RUN   TestFindSingleColumnUniqueIndex/empty_column
+=== RUN   TestFindSingleColumnUniqueIndex/mismatched_column
+=== RUN   TestFindSingleColumnUniqueIndex/non_unique_index
+=== RUN   TestFindSingleColumnUniqueIndex/matching_columnd_and_unique_index
+=== RUN   TestFindSingleColumnUniqueIndex/multiple_columns
+=== RUN   TestFindSingleColumnUniqueIndex/multiple_indexes
+=== RUN   TestFindSingleColumnUniqueIndex/partial_unique_index
+--- PASS: TestFindSingleColumnUniqueIndex (0.00s)
+    --- PASS: TestFindSingleColumnUniqueIndex/empty_indexes (0.00s)
+    --- PASS: TestFindSingleColumnUniqueIndex/empty_column (0.00s)
+    --- PASS: TestFindSingleColumnUniqueIndex/mismatched_column (0.00s)
+    --- PASS: TestFindSingleColumnUniqueIndex/non_unique_index (0.00s)
+    --- PASS: TestFindSingleColumnUniqueIndex/matching_columnd_and_unique_index (0.00s)
+    --- PASS: TestFindSingleColumnUniqueIndex/multiple_columns (0.00s)
+    --- PASS: TestFindSingleColumnUniqueIndex/multiple_indexes (0.00s)
+    --- PASS: TestFindSingleColumnUniqueIndex/partial_unique_index (0.00s)
+=== RUN   TestJSONEachPG
+--- PASS: TestJSONEachPG (0.00s)
+=== RUN   TestJSONArrayLengthPG
+--- PASS: TestJSONArrayLengthPG (0.00s)
+=== RUN   TestJSONExtractPG
+=== RUN   TestJSONExtractPG/empty_path
+=== RUN   TestJSONExtractPG/simple_key
+=== RUN   TestJSONExtractPG/nested_path
+=== RUN   TestJSONExtractPG/array_index
+=== RUN   TestJSONExtractPG/mixed_path
+--- PASS: TestJSONExtractPG (0.00s)
+    --- PASS: TestJSONExtractPG/empty_path (0.00s)
+    --- PASS: TestJSONExtractPG/simple_key (0.00s)
+    --- PASS: TestJSONExtractPG/nested_path (0.00s)
+    --- PASS: TestJSONExtractPG/array_index (0.00s)
+    --- PASS: TestJSONExtractPG/mixed_path (0.00s)
+=== RUN   TestConvertPathToArray
+=== RUN   TestConvertPathToArray/simple_key
+=== RUN   TestConvertPathToArray/nested_path
+=== RUN   TestConvertPathToArray/with_array_index
+--- PASS: TestConvertPathToArray (0.00s)
+    --- PASS: TestConvertPathToArray/simple_key (0.00s)
+    --- PASS: TestConvertPathToArray/nested_path (0.00s)
+    --- PASS: TestConvertPathToArray/with_array_index (0.00s)
+=== RUN   TestJSONContainsPG
+--- PASS: TestJSONContainsPG (0.00s)
+=== RUN   TestJSONExistsPG
+--- PASS: TestJSONExistsPG (0.00s)
+=== RUN   TestJSONTypePG
+--- PASS: TestJSONTypePG (0.00s)
+=== RUN   TestJSONValidPG
+--- PASS: TestJSONValidPG (0.00s)
+=== RUN   TestCreatePGHelperFunctions
+--- PASS: TestCreatePGHelperFunctions (0.00s)
+=== RUN   TestJSONEach
+--- PASS: TestJSONEach (0.00s)
+=== RUN   TestJSONArrayLength
+--- PASS: TestJSONArrayLength (0.00s)
+=== RUN   TestJSONExtract
+=== RUN   TestJSONExtract/empty_path
+=== RUN   TestJSONExtract/starting_with_array_index
+=== RUN   TestJSONExtract/starting_with_key
+--- PASS: TestJSONExtract (0.00s)
+    --- PASS: TestJSONExtract/empty_path (0.00s)
+    --- PASS: TestJSONExtract/starting_with_array_index (0.00s)
+    --- PASS: TestJSONExtract/starting_with_key (0.00s)
+=== RUN   TestJSONFunctions_SQLite
+=== RUN   TestJSONFunctions_SQLite/Each
+=== RUN   TestJSONFunctions_SQLite/ArrayLength
+=== RUN   TestJSONFunctions_SQLite/Extract
+=== RUN   TestJSONFunctions_SQLite/Valid
+=== RUN   TestJSONFunctions_SQLite/BuildObject
+=== RUN   TestJSONFunctions_SQLite/BuildArray
+=== RUN   TestJSONFunctions_SQLite/Agg
+=== RUN   TestJSONFunctions_SQLite/Cast
+--- PASS: TestJSONFunctions_SQLite (0.00s)
+    --- PASS: TestJSONFunctions_SQLite/Each (0.00s)
+    --- PASS: TestJSONFunctions_SQLite/ArrayLength (0.00s)
+    --- PASS: TestJSONFunctions_SQLite/Extract (0.00s)
+    --- PASS: TestJSONFunctions_SQLite/Valid (0.00s)
+    --- PASS: TestJSONFunctions_SQLite/BuildObject (0.00s)
+    --- PASS: TestJSONFunctions_SQLite/BuildArray (0.00s)
+    --- PASS: TestJSONFunctions_SQLite/Agg (0.00s)
+    --- PASS: TestJSONFunctions_SQLite/Cast (0.00s)
+=== RUN   TestJSONFunctions_PostgreSQL
+=== RUN   TestJSONFunctions_PostgreSQL/Each
+=== RUN   TestJSONFunctions_PostgreSQL/ArrayLength
+=== RUN   TestJSONFunctions_PostgreSQL/Extract
+=== RUN   TestJSONFunctions_PostgreSQL/Valid
+=== RUN   TestJSONFunctions_PostgreSQL/Contains
+=== RUN   TestJSONFunctions_PostgreSQL/Exists
+=== RUN   TestJSONFunctions_PostgreSQL/Type
+=== RUN   TestJSONFunctions_PostgreSQL/BuildObject
+=== RUN   TestJSONFunctions_PostgreSQL/BuildArray
+=== RUN   TestJSONFunctions_PostgreSQL/Agg
+=== RUN   TestJSONFunctions_PostgreSQL/ObjectAgg
+=== RUN   TestJSONFunctions_PostgreSQL/Cast
+--- PASS: TestJSONFunctions_PostgreSQL (0.00s)
+    --- PASS: TestJSONFunctions_PostgreSQL/Each (0.00s)
+    --- PASS: TestJSONFunctions_PostgreSQL/ArrayLength (0.00s)
+    --- PASS: TestJSONFunctions_PostgreSQL/Extract (0.00s)
+    --- PASS: TestJSONFunctions_PostgreSQL/Valid (0.00s)
+    --- PASS: TestJSONFunctions_PostgreSQL/Contains (0.00s)
+    --- PASS: TestJSONFunctions_PostgreSQL/Exists (0.00s)
+    --- PASS: TestJSONFunctions_PostgreSQL/Type (0.00s)
+    --- PASS: TestJSONFunctions_PostgreSQL/BuildObject (0.00s)
+    --- PASS: TestJSONFunctions_PostgreSQL/BuildArray (0.00s)
+    --- PASS: TestJSONFunctions_PostgreSQL/Agg (0.00s)
+    --- PASS: TestJSONFunctions_PostgreSQL/ObjectAgg (0.00s)
+    --- PASS: TestJSONFunctions_PostgreSQL/Cast (0.00s)
+=== RUN   TestJSONFunctions_DBType
+=== RUN   TestJSONFunctions_DBType/SQLite
+=== RUN   TestJSONFunctions_DBType/PostgreSQL
+--- PASS: TestJSONFunctions_DBType (0.00s)
+    --- PASS: TestJSONFunctions_DBType/SQLite (0.00s)
+    --- PASS: TestJSONFunctions_DBType/PostgreSQL (0.00s)
+=== RUN   TestJSONFunctions_BuildObject_OddPairs
+--- PASS: TestJSONFunctions_BuildObject_OddPairs (0.00s)
+=== RUN   TestLeakDetector_Basic
+--- PASS: TestLeakDetector_Basic (0.00s)
+=== RUN   TestLeakDetector_LeakDetection
+--- PASS: TestLeakDetector_LeakDetection (0.10s)
+=== RUN   TestLeakDetector_EnableDisable
+--- PASS: TestLeakDetector_EnableDisable (0.00s)
+=== RUN   TestLeakDetector_Concurrent
+--- PASS: TestLeakDetector_Concurrent (0.02s)
+=== RUN   TestLeakDetector_History
+--- PASS: TestLeakDetector_History (0.05s)
+=== RUN   TestLeakDetector_Reset
+--- PASS: TestLeakDetector_Reset (0.05s)
+=== RUN   TestPoolStats
+--- PASS: TestPoolStats (0.00s)
+=== RUN   TestPoolMonitor_StartStop
+--- PASS: TestPoolMonitor_StartStop (0.20s)
+=== RUN   TestPoolMonitor_Stats
+--- PASS: TestPoolMonitor_Stats (0.00s)
+=== RUN   TestLeakDetector_SetThreshold
+--- PASS: TestLeakDetector_SetThreshold (0.05s)
+=== RUN   TestBoolValue
+=== RUN   TestBoolValue/nil
+=== RUN   TestBoolValue/bool_true
+=== RUN   TestBoolValue/bool_false
+=== RUN   TestBoolValue/int_0
+=== RUN   TestBoolValue/int_1
+=== RUN   TestBoolValue/int_-1
+=== RUN   TestBoolValue/int64_0
+=== RUN   TestBoolValue/int64_1
+=== RUN   TestBoolValue/uint_0
+=== RUN   TestBoolValue/uint_1
+=== RUN   TestBoolValue/float64_0
+=== RUN   TestBoolValue/float64_1
+=== RUN   TestBoolValue/float64_0.5
+=== RUN   TestBoolValue/string_'true'
+=== RUN   TestBoolValue/string_'TRUE'
+=== RUN   TestBoolValue/string_'True'
+=== RUN   TestBoolValue/string_'false'
+=== RUN   TestBoolValue/string_'FALSE'
+=== RUN   TestBoolValue/string_'1'
+=== RUN   TestBoolValue/string_'0'
+=== RUN   TestBoolValue/string_'yes'
+=== RUN   TestBoolValue/string_'no'
+=== RUN   TestBoolValue/string_'on'
+=== RUN   TestBoolValue/string_'off'
+=== RUN   TestBoolValue/string_empty
+=== RUN   TestBoolValue/string_'_true_'
+=== RUN   TestBoolValue/[]byte_'true'
+=== RUN   TestBoolValue/[]byte_'0'
+=== RUN   TestBoolValue/NullBool_valid_true
+=== RUN   TestBoolValue/NullBool_valid_false
+=== RUN   TestBoolValue/NullBool_invalid
+--- PASS: TestBoolValue (0.00s)
+    --- PASS: TestBoolValue/nil (0.00s)
+    --- PASS: TestBoolValue/bool_true (0.00s)
+    --- PASS: TestBoolValue/bool_false (0.00s)
+    --- PASS: TestBoolValue/int_0 (0.00s)
+    --- PASS: TestBoolValue/int_1 (0.00s)
+    --- PASS: TestBoolValue/int_-1 (0.00s)
+    --- PASS: TestBoolValue/int64_0 (0.00s)
+    --- PASS: TestBoolValue/int64_1 (0.00s)
+    --- PASS: TestBoolValue/uint_0 (0.00s)
+    --- PASS: TestBoolValue/uint_1 (0.00s)
+    --- PASS: TestBoolValue/float64_0 (0.00s)
+    --- PASS: TestBoolValue/float64_1 (0.00s)
+    --- PASS: TestBoolValue/float64_0.5 (0.00s)
+    --- PASS: TestBoolValue/string_'true' (0.00s)
+    --- PASS: TestBoolValue/string_'TRUE' (0.00s)
+    --- PASS: TestBoolValue/string_'True' (0.00s)
+    --- PASS: TestBoolValue/string_'false' (0.00s)
+    --- PASS: TestBoolValue/string_'FALSE' (0.00s)
+    --- PASS: TestBoolValue/string_'1' (0.00s)
+    --- PASS: TestBoolValue/string_'0' (0.00s)
+    --- PASS: TestBoolValue/string_'yes' (0.00s)
+    --- PASS: TestBoolValue/string_'no' (0.00s)
+    --- PASS: TestBoolValue/string_'on' (0.00s)
+    --- PASS: TestBoolValue/string_'off' (0.00s)
+    --- PASS: TestBoolValue/string_empty (0.00s)
+    --- PASS: TestBoolValue/string_'_true_' (0.00s)
+    --- PASS: TestBoolValue/[]byte_'true' (0.00s)
+    --- PASS: TestBoolValue/[]byte_'0' (0.00s)
+    --- PASS: TestBoolValue/NullBool_valid_true (0.00s)
+    --- PASS: TestBoolValue/NullBool_valid_false (0.00s)
+    --- PASS: TestBoolValue/NullBool_invalid (0.00s)
+=== RUN   TestIntValue
+=== RUN   TestIntValue/nil
+=== RUN   TestIntValue/int_42
+=== RUN   TestIntValue/int64_-100
+=== RUN   TestIntValue/uint_50
+=== RUN   TestIntValue/float64_3.7
+=== RUN   TestIntValue/bool_true
+=== RUN   TestIntValue/bool_false
+=== RUN   TestIntValue/string_'123'
+=== RUN   TestIntValue/string_'-456'
+=== RUN   TestIntValue/string_'invalid'
+=== RUN   TestIntValue/[]byte_'789'
+=== RUN   TestIntValue/NullInt64_valid
+=== RUN   TestIntValue/NullInt64_invalid
+--- PASS: TestIntValue (0.00s)
+    --- PASS: TestIntValue/nil (0.00s)
+    --- PASS: TestIntValue/int_42 (0.00s)
+    --- PASS: TestIntValue/int64_-100 (0.00s)
+    --- PASS: TestIntValue/uint_50 (0.00s)
+    --- PASS: TestIntValue/float64_3.7 (0.00s)
+    --- PASS: TestIntValue/bool_true (0.00s)
+    --- PASS: TestIntValue/bool_false (0.00s)
+    --- PASS: TestIntValue/string_'123' (0.00s)
+    --- PASS: TestIntValue/string_'-456' (0.00s)
+    --- PASS: TestIntValue/string_'invalid' (0.00s)
+    --- PASS: TestIntValue/[]byte_'789' (0.00s)
+    --- PASS: TestIntValue/NullInt64_valid (0.00s)
+    --- PASS: TestIntValue/NullInt64_invalid (0.00s)
+=== RUN   TestFloatValue
+=== RUN   TestFloatValue/nil
+=== RUN   TestFloatValue/float64_3.14
+=== RUN   TestFloatValue/float32_2.5
+=== RUN   TestFloatValue/int_42
+=== RUN   TestFloatValue/string_'3.14'
+=== RUN   TestFloatValue/string_'invalid'
+=== RUN   TestFloatValue/NullFloat64_valid
+=== RUN   TestFloatValue/NullFloat64_invalid
+--- PASS: TestFloatValue (0.00s)
+    --- PASS: TestFloatValue/nil (0.00s)
+    --- PASS: TestFloatValue/float64_3.14 (0.00s)
+    --- PASS: TestFloatValue/float32_2.5 (0.00s)
+    --- PASS: TestFloatValue/int_42 (0.00s)
+    --- PASS: TestFloatValue/string_'3.14' (0.00s)
+    --- PASS: TestFloatValue/string_'invalid' (0.00s)
+    --- PASS: TestFloatValue/NullFloat64_valid (0.00s)
+    --- PASS: TestFloatValue/NullFloat64_invalid (0.00s)
+=== RUN   TestStringValue
+=== RUN   TestStringValue/nil
+=== RUN   TestStringValue/string_'hello'
+=== RUN   TestStringValue/[]byte_'world'
+=== RUN   TestStringValue/bool_true
+=== RUN   TestStringValue/bool_false
+=== RUN   TestStringValue/int_42
+=== RUN   TestStringValue/int64_-100
+=== RUN   TestStringValue/float64_3.14
+=== RUN   TestStringValue/NullString_valid
+=== RUN   TestStringValue/NullString_invalid
+--- PASS: TestStringValue (0.00s)
+    --- PASS: TestStringValue/nil (0.00s)
+    --- PASS: TestStringValue/string_'hello' (0.00s)
+    --- PASS: TestStringValue/[]byte_'world' (0.00s)
+    --- PASS: TestStringValue/bool_true (0.00s)
+    --- PASS: TestStringValue/bool_false (0.00s)
+    --- PASS: TestStringValue/int_42 (0.00s)
+    --- PASS: TestStringValue/int64_-100 (0.00s)
+    --- PASS: TestStringValue/float64_3.14 (0.00s)
+    --- PASS: TestStringValue/NullString_valid (0.00s)
+    --- PASS: TestStringValue/NullString_invalid (0.00s)
+=== RUN   TestTimeValue
+=== RUN   TestTimeValue/nil
+=== RUN   TestTimeValue/time.Time
+=== RUN   TestTimeValue/*time.Time
+=== RUN   TestTimeValue/*time.Time_nil
+=== RUN   TestTimeValue/int64_unix
+=== RUN   TestTimeValue/NullTime_valid
+=== RUN   TestTimeValue/NullTime_invalid
+--- PASS: TestTimeValue (0.00s)
+    --- PASS: TestTimeValue/nil (0.00s)
+    --- PASS: TestTimeValue/time.Time (0.00s)
+    --- PASS: TestTimeValue/*time.Time (0.00s)
+    --- PASS: TestTimeValue/*time.Time_nil (0.00s)
+    --- PASS: TestTimeValue/int64_unix (0.00s)
+    --- PASS: TestTimeValue/NullTime_valid (0.00s)
+    --- PASS: TestTimeValue/NullTime_invalid (0.00s)
+=== RUN   TestTimeValue_StringFormats
+=== RUN   TestTimeValue_StringFormats/RFC3339
+=== RUN   TestTimeValue_StringFormats/RFC3339Nano
+=== RUN   TestTimeValue_StringFormats/RFC3339_with_offset
+=== RUN   TestTimeValue_StringFormats/PostgreSQL_TIMESTAMPTZ
+=== RUN   TestTimeValue_StringFormats/PostgreSQL_TIMESTAMPTZ_with_tz
+=== RUN   TestTimeValue_StringFormats/Date_only
+=== RUN   TestTimeValue_StringFormats/DateTime_without_tz
+=== RUN   TestTimeValue_StringFormats/DateTime_with_ms
+=== RUN   TestTimeValue_StringFormats/Empty_string
+=== RUN   TestTimeValue_StringFormats/Invalid
+--- PASS: TestTimeValue_StringFormats (0.00s)
+    --- PASS: TestTimeValue_StringFormats/RFC3339 (0.00s)
+    --- PASS: TestTimeValue_StringFormats/RFC3339Nano (0.00s)
+    --- PASS: TestTimeValue_StringFormats/RFC3339_with_offset (0.00s)
+    --- PASS: TestTimeValue_StringFormats/PostgreSQL_TIMESTAMPTZ (0.00s)
+    --- PASS: TestTimeValue_StringFormats/PostgreSQL_TIMESTAMPTZ_with_tz (0.00s)
+    --- PASS: TestTimeValue_StringFormats/Date_only (0.00s)
+    --- PASS: TestTimeValue_StringFormats/DateTime_without_tz (0.00s)
+    --- PASS: TestTimeValue_StringFormats/DateTime_with_ms (0.00s)
+    --- PASS: TestTimeValue_StringFormats/Empty_string (0.00s)
+    --- PASS: TestTimeValue_StringFormats/Invalid (0.00s)
+=== RUN   TestFormatTimeForDB
+--- PASS: TestFormatTimeForDB (0.00s)
+=== RUN   TestFormatBoolForDB
+--- PASS: TestFormatBoolForDB (0.00s)
+=== RUN   TestNullHelpers
+=== RUN   TestNullHelpers/NullString
+=== RUN   TestNullHelpers/NullInt64
+=== RUN   TestNullHelpers/NullFloat64
+=== RUN   TestNullHelpers/NullBool
+=== RUN   TestNullHelpers/NullTime
+--- PASS: TestNullHelpers (0.00s)
+    --- PASS: TestNullHelpers/NullString (0.00s)
+    --- PASS: TestNullHelpers/NullInt64 (0.00s)
+    --- PASS: TestNullHelpers/NullFloat64 (0.00s)
+    --- PASS: TestNullHelpers/NullBool (0.00s)
+    --- PASS: TestNullHelpers/NullTime (0.00s)
+PASS
+ok  	github.com/pocketbase/pocketbase/tools/dbutils	(cached)
+=== RUN   TestIdentifierMacros
+=== RUN   TestIdentifierMacros/@second
+=== RUN   TestIdentifierMacros/@minute
+=== RUN   TestIdentifierMacros/@month
+=== RUN   TestIdentifierMacros/@weekday
+=== RUN   TestIdentifierMacros/@year
+=== RUN   TestIdentifierMacros/@yearStart
+=== RUN   TestIdentifierMacros/@yesterday
+=== RUN   TestIdentifierMacros/@hour
+=== RUN   TestIdentifierMacros/@todayStart
+=== RUN   TestIdentifierMacros/@monthEnd
+=== RUN   TestIdentifierMacros/@tomorrow
+=== RUN   TestIdentifierMacros/@day
+=== RUN   TestIdentifierMacros/@todayEnd
+=== RUN   TestIdentifierMacros/@monthStart
+=== RUN   TestIdentifierMacros/@yearEnd
+=== RUN   TestIdentifierMacros/@now
+--- PASS: TestIdentifierMacros (0.00s)
+    --- PASS: TestIdentifierMacros/@second (0.00s)
+    --- PASS: TestIdentifierMacros/@minute (0.00s)
+    --- PASS: TestIdentifierMacros/@month (0.00s)
+    --- PASS: TestIdentifierMacros/@weekday (0.00s)
+    --- PASS: TestIdentifierMacros/@year (0.00s)
+    --- PASS: TestIdentifierMacros/@yearStart (0.00s)
+    --- PASS: TestIdentifierMacros/@yesterday (0.00s)
+    --- PASS: TestIdentifierMacros/@hour (0.00s)
+    --- PASS: TestIdentifierMacros/@todayStart (0.00s)
+    --- PASS: TestIdentifierMacros/@monthEnd (0.00s)
+    --- PASS: TestIdentifierMacros/@tomorrow (0.00s)
+    --- PASS: TestIdentifierMacros/@day (0.00s)
+    --- PASS: TestIdentifierMacros/@todayEnd (0.00s)
+    --- PASS: TestIdentifierMacros/@monthStart (0.00s)
+    --- PASS: TestIdentifierMacros/@yearEnd (0.00s)
+    --- PASS: TestIdentifierMacros/@now (0.00s)
+=== RUN   TestNewProvider
+--- PASS: TestNewProvider (0.00s)
+=== RUN   TestMaxFilterExprLimit
+=== RUN   TestMaxFilterExprLimit/max_0
+=== RUN   TestMaxFilterExprLimit/max_-10
+=== RUN   TestMaxFilterExprLimit/max_10
+--- PASS: TestMaxFilterExprLimit (0.00s)
+    --- PASS: TestMaxFilterExprLimit/max_0 (0.00s)
+    --- PASS: TestMaxFilterExprLimit/max_-10 (0.00s)
+    --- PASS: TestMaxFilterExprLimit/max_10 (0.00s)
+=== RUN   TestMaxSortExprLimit
+=== RUN   TestMaxSortExprLimit/max_0
+=== RUN   TestMaxSortExprLimit/max_-10
+=== RUN   TestMaxSortExprLimit/max_10
+--- PASS: TestMaxSortExprLimit (0.00s)
+    --- PASS: TestMaxSortExprLimit/max_0 (0.00s)
+    --- PASS: TestMaxSortExprLimit/max_-10 (0.00s)
+    --- PASS: TestMaxSortExprLimit/max_10 (0.00s)
+=== RUN   TestProviderQuery
+--- PASS: TestProviderQuery (0.00s)
+=== RUN   TestProviderSkipTotal
+--- PASS: TestProviderSkipTotal (0.00s)
+=== RUN   TestProviderCountCol
+--- PASS: TestProviderCountCol (0.00s)
+=== RUN   TestProviderPage
+--- PASS: TestProviderPage (0.00s)
+=== RUN   TestProviderPerPage
+--- PASS: TestProviderPerPage (0.00s)
+=== RUN   TestProviderSort
+--- PASS: TestProviderSort (0.00s)
+=== RUN   TestProviderFilter
+--- PASS: TestProviderFilter (0.00s)
+=== RUN   TestProviderParse
+=== RUN   TestProviderParse/0_
+=== RUN   TestProviderParse/1_invalid;
+=== RUN   TestProviderParse/2_page=a
+=== RUN   TestProviderParse/3_perPage=a
+=== RUN   TestProviderParse/4_page=3&perPage=456&filter=test3&sort=-a,b,+c&other=123
+--- PASS: TestProviderParse (0.00s)
+    --- PASS: TestProviderParse/0_ (0.00s)
+    --- PASS: TestProviderParse/1_invalid; (0.00s)
+    --- PASS: TestProviderParse/2_page=a (0.00s)
+    --- PASS: TestProviderParse/3_perPage=a (0.00s)
+    --- PASS: TestProviderParse/4_page=3&perPage=456&filter=test3&sort=-a,b,+c&other=123 (0.00s)
+=== RUN   TestProviderExecEmptyQuery
+--- PASS: TestProviderExecEmptyQuery (0.00s)
+=== RUN   TestProviderExecNonEmptyQuery
+=== RUN   TestProviderExecNonEmptyQuery/page_normalization
+=== RUN   TestProviderExecNonEmptyQuery/perPage_normalization
+=== RUN   TestProviderExecNonEmptyQuery/invalid_sort_field
+=== RUN   TestProviderExecNonEmptyQuery/invalid_filter
+=== RUN   TestProviderExecNonEmptyQuery/valid_sort_and_filter_fields
+=== RUN   TestProviderExecNonEmptyQuery/valid_sort_and_filter_fields_(skipTotal=1)
+=== RUN   TestProviderExecNonEmptyQuery/valid_sort_and_filter_fields_(zero_results)
+=== RUN   TestProviderExecNonEmptyQuery/valid_sort_and_filter_fields_(zero_results;_skipTotal=1)
+=== RUN   TestProviderExecNonEmptyQuery/pagination_test
+=== RUN   TestProviderExecNonEmptyQuery/pagination_test_(skipTotal=1)
+--- PASS: TestProviderExecNonEmptyQuery (0.00s)
+    --- PASS: TestProviderExecNonEmptyQuery/page_normalization (0.00s)
+    --- PASS: TestProviderExecNonEmptyQuery/perPage_normalization (0.00s)
+    --- PASS: TestProviderExecNonEmptyQuery/invalid_sort_field (0.00s)
+    --- PASS: TestProviderExecNonEmptyQuery/invalid_filter (0.00s)
+    --- PASS: TestProviderExecNonEmptyQuery/valid_sort_and_filter_fields (0.00s)
+    --- PASS: TestProviderExecNonEmptyQuery/valid_sort_and_filter_fields_(skipTotal=1) (0.00s)
+    --- PASS: TestProviderExecNonEmptyQuery/valid_sort_and_filter_fields_(zero_results) (0.00s)
+    --- PASS: TestProviderExecNonEmptyQuery/valid_sort_and_filter_fields_(zero_results;_skipTotal=1) (0.00s)
+    --- PASS: TestProviderExecNonEmptyQuery/pagination_test (0.00s)
+    --- PASS: TestProviderExecNonEmptyQuery/pagination_test_(skipTotal=1) (0.00s)
+=== RUN   TestProviderFilterAndSortLimits
+=== RUN   TestProviderFilterAndSortLimits/<=_max_filter_length
+=== RUN   TestProviderFilterAndSortLimits/>_max_filter_length
+=== RUN   TestProviderFilterAndSortLimits/<=_max_filter_exprs
+=== RUN   TestProviderFilterAndSortLimits/>_max_filter_exprs
+=== RUN   TestProviderFilterAndSortLimits/<=_max_sort_field_length
+=== RUN   TestProviderFilterAndSortLimits/>_max_sort_field_length
+=== RUN   TestProviderFilterAndSortLimits/<=_max_sort_exprs
+=== RUN   TestProviderFilterAndSortLimits/>_max_sort_exprs
+--- PASS: TestProviderFilterAndSortLimits (0.00s)
+    --- PASS: TestProviderFilterAndSortLimits/<=_max_filter_length (0.00s)
+    --- PASS: TestProviderFilterAndSortLimits/>_max_filter_length (0.00s)
+    --- PASS: TestProviderFilterAndSortLimits/<=_max_filter_exprs (0.00s)
+    --- PASS: TestProviderFilterAndSortLimits/>_max_filter_exprs (0.00s)
+    --- PASS: TestProviderFilterAndSortLimits/<=_max_sort_field_length (0.00s)
+    --- PASS: TestProviderFilterAndSortLimits/>_max_sort_field_length (0.00s)
+    --- PASS: TestProviderFilterAndSortLimits/<=_max_sort_exprs (0.00s)
+    --- PASS: TestProviderFilterAndSortLimits/>_max_sort_exprs (0.00s)
+=== RUN   TestProviderParseAndExec
+=== RUN   TestProviderParseAndExec/no_extra_query_params_(aka._use_the_provider_presets)
+=== RUN   TestProviderParseAndExec/invalid_query
+=== RUN   TestProviderParseAndExec/invalid_page
+=== RUN   TestProviderParseAndExec/invalid_perPage
+=== RUN   TestProviderParseAndExec/invalid_skipTotal
+=== RUN   TestProviderParseAndExec/invalid_sorting_field
+=== RUN   TestProviderParseAndExec/invalid_filter_field
+=== RUN   TestProviderParseAndExec/page_>_existing
+=== RUN   TestProviderParseAndExec/valid_query_params
+=== RUN   TestProviderParseAndExec/valid_query_params_with_skipTotal=1
+--- PASS: TestProviderParseAndExec (0.00s)
+    --- PASS: TestProviderParseAndExec/no_extra_query_params_(aka._use_the_provider_presets) (0.00s)
+    --- PASS: TestProviderParseAndExec/invalid_query (0.00s)
+    --- PASS: TestProviderParseAndExec/invalid_page (0.00s)
+    --- PASS: TestProviderParseAndExec/invalid_perPage (0.00s)
+    --- PASS: TestProviderParseAndExec/invalid_skipTotal (0.00s)
+    --- PASS: TestProviderParseAndExec/invalid_sorting_field (0.00s)
+    --- PASS: TestProviderParseAndExec/invalid_filter_field (0.00s)
+    --- PASS: TestProviderParseAndExec/page_>_existing (0.00s)
+    --- PASS: TestProviderParseAndExec/valid_query_params (0.00s)
+    --- PASS: TestProviderParseAndExec/valid_query_params_with_skipTotal=1 (0.00s)
+=== RUN   TestTokenFunctionsGeoDistance
+=== PAUSE TestTokenFunctionsGeoDistance
+=== RUN   TestTokenFunctionsGeoDistanceExec
+=== PAUSE TestTokenFunctionsGeoDistanceExec
+=== RUN   TestFilterDataBuildExprPostgres
+=== RUN   TestFilterDataBuildExprPostgres/PostgreSQL_布尔值_true
+=== RUN   TestFilterDataBuildExprPostgres/PostgreSQL_布尔值_false
+=== RUN   TestFilterDataBuildExprPostgres/SQLite_布尔值_true
+=== RUN   TestFilterDataBuildExprPostgres/SQLite_布尔值_false
+=== RUN   TestFilterDataBuildExprPostgres/PostgreSQL_IS_DISTINCT_FROM
+=== RUN   TestFilterDataBuildExprPostgres/SQLite_IS_NOT
+=== RUN   TestFilterDataBuildExprPostgres/默认解析器使用_SQLite_语法
+--- PASS: TestFilterDataBuildExprPostgres (0.00s)
+    --- PASS: TestFilterDataBuildExprPostgres/PostgreSQL_布尔值_true (0.00s)
+    --- PASS: TestFilterDataBuildExprPostgres/PostgreSQL_布尔值_false (0.00s)
+    --- PASS: TestFilterDataBuildExprPostgres/SQLite_布尔值_true (0.00s)
+    --- PASS: TestFilterDataBuildExprPostgres/SQLite_布尔值_false (0.00s)
+    --- PASS: TestFilterDataBuildExprPostgres/PostgreSQL_IS_DISTINCT_FROM (0.00s)
+    --- PASS: TestFilterDataBuildExprPostgres/SQLite_IS_NOT (0.00s)
+    --- PASS: TestFilterDataBuildExprPostgres/默认解析器使用_SQLite_语法 (0.00s)
+=== RUN   TestFilterDataBuildExpr
+=== RUN   TestFilterDataBuildExpr/empty
+=== RUN   TestFilterDataBuildExpr/invalid_format
+=== RUN   TestFilterDataBuildExpr/invalid_operator
+=== RUN   TestFilterDataBuildExpr/unknown_field
+=== RUN   TestFilterDataBuildExpr/simple_expression
+=== RUN   TestFilterDataBuildExpr/empty_string_vs_null
+=== RUN   TestFilterDataBuildExpr/like_with_2_columns
+=== RUN   TestFilterDataBuildExpr/like_with_right_column_operand
+=== RUN   TestFilterDataBuildExpr/like_with_left_column_operand_and_text_as_right_operand
+=== RUN   TestFilterDataBuildExpr/not_like_with_2_columns
+=== RUN   TestFilterDataBuildExpr/not_like_with_right_column_operand
+=== RUN   TestFilterDataBuildExpr/like_with_left_column_operand_and_text_as_right_operand#01
+=== RUN   TestFilterDataBuildExpr/nested_json_no_coalesce
+=== RUN   TestFilterDataBuildExpr/macros
+=== RUN   TestFilterDataBuildExpr/complex_expression
+=== RUN   TestFilterDataBuildExpr/combination_of_special_literals_(null,_true,_false)
+=== RUN   TestFilterDataBuildExpr/all_operators
+=== RUN   TestFilterDataBuildExpr/geoDistance_function
+--- PASS: TestFilterDataBuildExpr (0.00s)
+    --- PASS: TestFilterDataBuildExpr/empty (0.00s)
+    --- PASS: TestFilterDataBuildExpr/invalid_format (0.00s)
+    --- PASS: TestFilterDataBuildExpr/invalid_operator (0.00s)
+    --- PASS: TestFilterDataBuildExpr/unknown_field (0.00s)
+    --- PASS: TestFilterDataBuildExpr/simple_expression (0.00s)
+    --- PASS: TestFilterDataBuildExpr/empty_string_vs_null (0.00s)
+    --- PASS: TestFilterDataBuildExpr/like_with_2_columns (0.00s)
+    --- PASS: TestFilterDataBuildExpr/like_with_right_column_operand (0.00s)
+    --- PASS: TestFilterDataBuildExpr/like_with_left_column_operand_and_text_as_right_operand (0.00s)
+    --- PASS: TestFilterDataBuildExpr/not_like_with_2_columns (0.00s)
+    --- PASS: TestFilterDataBuildExpr/not_like_with_right_column_operand (0.00s)
+    --- PASS: TestFilterDataBuildExpr/like_with_left_column_operand_and_text_as_right_operand#01 (0.00s)
+    --- PASS: TestFilterDataBuildExpr/nested_json_no_coalesce (0.00s)
+    --- PASS: TestFilterDataBuildExpr/macros (0.00s)
+    --- PASS: TestFilterDataBuildExpr/complex_expression (0.00s)
+    --- PASS: TestFilterDataBuildExpr/combination_of_special_literals_(null,_true,_false) (0.00s)
+    --- PASS: TestFilterDataBuildExpr/all_operators (0.00s)
+    --- PASS: TestFilterDataBuildExpr/geoDistance_function (0.00s)
+=== RUN   TestFilterDataBuildExprWithParams
+--- PASS: TestFilterDataBuildExprWithParams (0.00s)
+=== RUN   TestFilterDataBuildExprWithLimit
+=== RUN   TestFilterDataBuildExprWithLimit/limit_0:1
+=== RUN   TestFilterDataBuildExprWithLimit/limit_1:0
+=== RUN   TestFilterDataBuildExprWithLimit/limit_2:2
+=== RUN   TestFilterDataBuildExprWithLimit/limit_3:1
+=== RUN   TestFilterDataBuildExprWithLimit/limit_4:3
+=== RUN   TestFilterDataBuildExprWithLimit/limit_5:6
+=== RUN   TestFilterDataBuildExprWithLimit/limit_6:5
+--- PASS: TestFilterDataBuildExprWithLimit (0.00s)
+    --- PASS: TestFilterDataBuildExprWithLimit/limit_0:1 (0.00s)
+    --- PASS: TestFilterDataBuildExprWithLimit/limit_1:0 (0.00s)
+    --- PASS: TestFilterDataBuildExprWithLimit/limit_2:2 (0.00s)
+    --- PASS: TestFilterDataBuildExprWithLimit/limit_3:1 (0.00s)
+    --- PASS: TestFilterDataBuildExprWithLimit/limit_4:3 (0.00s)
+    --- PASS: TestFilterDataBuildExprWithLimit/limit_5:6 (0.00s)
+    --- PASS: TestFilterDataBuildExprWithLimit/limit_6:5 (0.00s)
+=== RUN   TestLikeParamsWrapping
+--- PASS: TestLikeParamsWrapping (0.00s)
+=== RUN   TestSimpleFieldResolverUpdateQuery
+=== RUN   TestSimpleFieldResolverUpdateQuery/0_
+=== RUN   TestSimpleFieldResolverUpdateQuery/1_unknown
+=== RUN   TestSimpleFieldResolverUpdateQuery/2_test
+--- PASS: TestSimpleFieldResolverUpdateQuery (0.00s)
+    --- PASS: TestSimpleFieldResolverUpdateQuery/0_ (0.00s)
+    --- PASS: TestSimpleFieldResolverUpdateQuery/1_unknown (0.00s)
+    --- PASS: TestSimpleFieldResolverUpdateQuery/2_test (0.00s)
+=== RUN   TestSimpleFieldResolverResolve
+=== RUN   TestSimpleFieldResolverResolve/0_
+=== RUN   TestSimpleFieldResolverResolve/1__
+=== RUN   TestSimpleFieldResolverResolve/2_unknown
+=== RUN   TestSimpleFieldResolverResolve/3_test
+=== RUN   TestSimpleFieldResolverResolve/4_test.sub
+=== RUN   TestSimpleFieldResolverResolve/5_test_regex
+=== RUN   TestSimpleFieldResolverResolve/6_test_regex1
+=== RUN   TestSimpleFieldResolverResolve/7_Test_columnify!
+=== RUN   TestSimpleFieldResolverResolve/8_data.test
+--- PASS: TestSimpleFieldResolverResolve (0.00s)
+    --- PASS: TestSimpleFieldResolverResolve/0_ (0.00s)
+    --- PASS: TestSimpleFieldResolverResolve/1__ (0.00s)
+    --- PASS: TestSimpleFieldResolverResolve/2_unknown (0.00s)
+    --- PASS: TestSimpleFieldResolverResolve/3_test (0.00s)
+    --- PASS: TestSimpleFieldResolverResolve/4_test.sub (0.00s)
+    --- PASS: TestSimpleFieldResolverResolve/5_test_regex (0.00s)
+    --- PASS: TestSimpleFieldResolverResolve/6_test_regex1 (0.00s)
+    --- PASS: TestSimpleFieldResolverResolve/7_Test_columnify! (0.00s)
+    --- PASS: TestSimpleFieldResolverResolve/8_data.test (0.00s)
+=== RUN   TestSortFieldBuildExpr
+=== RUN   TestSortFieldBuildExpr/_
+=== RUN   TestSortFieldBuildExpr/unknown_unknown
+=== RUN   TestSortFieldBuildExpr/'test'_'test'
+=== RUN   TestSortFieldBuildExpr/null_null
+=== RUN   TestSortFieldBuildExpr/test1_test1
+=== RUN   TestSortFieldBuildExpr/test1_test1#01
+=== RUN   TestSortFieldBuildExpr/@random_@random
+=== RUN   TestSortFieldBuildExpr/@rowid_@rowid
+--- PASS: TestSortFieldBuildExpr (0.00s)
+    --- PASS: TestSortFieldBuildExpr/_ (0.00s)
+    --- PASS: TestSortFieldBuildExpr/unknown_unknown (0.00s)
+    --- PASS: TestSortFieldBuildExpr/'test'_'test' (0.00s)
+    --- PASS: TestSortFieldBuildExpr/null_null (0.00s)
+    --- PASS: TestSortFieldBuildExpr/test1_test1 (0.00s)
+    --- PASS: TestSortFieldBuildExpr/test1_test1#01 (0.00s)
+    --- PASS: TestSortFieldBuildExpr/@random_@random (0.00s)
+    --- PASS: TestSortFieldBuildExpr/@rowid_@rowid (0.00s)
+=== RUN   TestParseSortFromString
+=== RUN   TestParseSortFromString/#00
+=== RUN   TestParseSortFromString/test
+=== RUN   TestParseSortFromString/+test
+=== RUN   TestParseSortFromString/-test
+=== RUN   TestParseSortFromString/test1,-test2,+test3
+=== RUN   TestParseSortFromString/@random,-test
+=== RUN   TestParseSortFromString/-@rowid,-test
+--- PASS: TestParseSortFromString (0.00s)
+    --- PASS: TestParseSortFromString/#00 (0.00s)
+    --- PASS: TestParseSortFromString/test (0.00s)
+    --- PASS: TestParseSortFromString/+test (0.00s)
+    --- PASS: TestParseSortFromString/-test (0.00s)
+    --- PASS: TestParseSortFromString/test1,-test2,+test3 (0.00s)
+    --- PASS: TestParseSortFromString/@random,-test (0.00s)
+    --- PASS: TestParseSortFromString/-@rowid,-test (0.00s)
+=== CONT  TestTokenFunctionsGeoDistance
+=== CONT  TestTokenFunctionsGeoDistanceExec
+=== RUN   TestTokenFunctionsGeoDistance/no_args
+--- PASS: TestTokenFunctionsGeoDistanceExec (0.00s)
+=== RUN   TestTokenFunctionsGeoDistance/<_4_args
+=== RUN   TestTokenFunctionsGeoDistance/>_4_args
+=== RUN   TestTokenFunctionsGeoDistance/unsupported_function_argument
+=== RUN   TestTokenFunctionsGeoDistance/unsupported_text_argument
+=== RUN   TestTokenFunctionsGeoDistance/4_valid_arguments_but_with_resolver_error
+=== RUN   TestTokenFunctionsGeoDistance/4_valid_arguments
+=== RUN   TestTokenFunctionsGeoDistance/mixed_arguments
+--- PASS: TestTokenFunctionsGeoDistance (0.00s)
+    --- PASS: TestTokenFunctionsGeoDistance/no_args (0.00s)
+    --- PASS: TestTokenFunctionsGeoDistance/<_4_args (0.00s)
+    --- PASS: TestTokenFunctionsGeoDistance/>_4_args (0.00s)
+    --- PASS: TestTokenFunctionsGeoDistance/unsupported_function_argument (0.00s)
+    --- PASS: TestTokenFunctionsGeoDistance/unsupported_text_argument (0.00s)
+    --- PASS: TestTokenFunctionsGeoDistance/4_valid_arguments_but_with_resolver_error (0.00s)
+    --- PASS: TestTokenFunctionsGeoDistance/4_valid_arguments (0.00s)
+    --- PASS: TestTokenFunctionsGeoDistance/mixed_arguments (0.00s)
+PASS
+ok  	github.com/pocketbase/pocketbase/tools/search	(cached)

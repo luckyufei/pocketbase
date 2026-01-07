@@ -1,0 +1,21 @@
+{
+  "environment": "production",
+  "database": "postgresql",
+  "scale": "large",
+  "postgres_host": "db.example.com",
+  "postgres_port": 5432,
+  "postgres_user": "benchmark",
+  "postgres_pass": "secure_password",
+  "postgres_db": "benchmark",
+  "iterations": 10000,
+  "warmup_iterations": 1000,
+  "concurrency_levels": [50, 100, 200, 500],
+  "data_size": 1000000,
+  "duration_seconds": 300,
+  "seed": 42,
+  "output_dir": "./results",
+  "report_format": "json",
+  "verbose": false,
+  "enable_connection_pool": true,
+  "pool_size": 100
+}

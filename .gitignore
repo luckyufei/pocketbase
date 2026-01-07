@@ -26,3 +26,11 @@ PRINCIPLES.md
 
 # temporary files
 /tmp
+
+# 基准测试 (benchmarks/)
+benchmarks/bin/
+benchmarks/benchmark.db
+benchmarks/benchmark.db-wal
+benchmarks/benchmark.db-shm
+benchmarks/benchmark-config.json
+

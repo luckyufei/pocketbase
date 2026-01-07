@@ -1,0 +1,32 @@
+# Prometheus 配置 - PostgreSQL 集群监控
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Prometheus 自身
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # PostgreSQL 主节点
+  - job_name: 'postgres-primary'
+    static_configs:
+      - targets: ['172.21.0.201:9187']
+        labels:
+          role: 'primary'
+          instance: 'pg-primary'
+
+  # PostgreSQL 从节点 1
+  - job_name: 'postgres-replica1'
+    static_configs:
+      - targets: ['172.21.0.202:9187']
+        labels:
+          role: 'replica'
+          instance: 'pg-replica1'
+
+  # HAProxy 统计
+  - job_name: 'haproxy'
+    static_configs:
+      - targets: ['172.21.0.100:8404']
