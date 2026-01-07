@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase/tools/dbutils"
 	"github.com/pocketbase/pocketbase/tools/inflector"
 	"github.com/pocketbase/pocketbase/tools/list"
 )
@@ -46,6 +47,13 @@ type FieldResolver interface {
 	Resolve(field string) (*ResolverResult, error)
 }
 
+// DBTypeResolver 是可选接口，用于获取数据库类型
+// 如果 FieldResolver 实现了此接口，过滤器将使用对应的数据库语法
+type DBTypeResolver interface {
+	// DBType 返回数据库类型
+	DBType() dbutils.DBType
+}
+
 // NewSimpleFieldResolver creates a new `SimpleFieldResolver` with the
 // provided `allowedFields`.
 //
@@ -54,6 +62,15 @@ type FieldResolver interface {
 func NewSimpleFieldResolver(allowedFields ...string) *SimpleFieldResolver {
 	return &SimpleFieldResolver{
 		allowedFields: allowedFields,
+		dbType:        dbutils.DBTypeSQLite, // 默认 SQLite
+	}
+}
+
+// NewSimpleFieldResolverWithDBType 创建带数据库类型的 SimpleFieldResolver
+func NewSimpleFieldResolverWithDBType(dbType dbutils.DBType, allowedFields ...string) *SimpleFieldResolver {
+	return &SimpleFieldResolver{
+		allowedFields: allowedFields,
+		dbType:        dbType,
 	}
 }
 
@@ -63,12 +80,18 @@ func NewSimpleFieldResolver(allowedFields ...string) *SimpleFieldResolver {
 // If `allowedFields` are empty no fields filtering is applied.
 type SimpleFieldResolver struct {
 	allowedFields []string
+	dbType        dbutils.DBType
 }
 
 // UpdateQuery implements `search.UpdateQuery` interface.
 func (r *SimpleFieldResolver) UpdateQuery(query *dbx.SelectQuery) error {
 	// nothing to update...
 	return nil
+}
+
+// DBType 返回数据库类型，实现 DBTypeResolver 接口
+func (r *SimpleFieldResolver) DBType() dbutils.DBType {
+	return r.dbType
 }
 
 // Resolve implements `search.Resolve` interface.

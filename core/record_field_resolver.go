@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase/tools/dbutils"
 	"github.com/pocketbase/pocketbase/tools/search"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/pocketbase/pocketbase/tools/types"
@@ -204,6 +205,11 @@ func (r *RecordFieldResolver) updateQueryWithCollectionListRule(c *Collection, t
 //	@collection.product.name
 func (r *RecordFieldResolver) Resolve(fieldName string) (*search.ResolverResult, error) {
 	return parseAndRun(fieldName, r)
+}
+
+// DBType 返回数据库类型，实现 search.DBTypeResolver 接口
+func (r *RecordFieldResolver) DBType() dbutils.DBType {
+	return r.app.DBAdapter().Type()
 }
 
 func (r *RecordFieldResolver) resolveStaticRequestField(path ...string) (*search.ResolverResult, error) {

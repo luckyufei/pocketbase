@@ -1,8 +1,8 @@
 # CODEBUDDY.md This file provides guidance to CodeBuddy when working with code in this repository.
 
 > **IMPORTANT**: 请总是使用中文来写文档和代码注释
-> **关于我**: `/ABOUTME.md`
-> **产品设计原则**: `/PRINCIPLES.md`
+> **系统架构设计原则**: `/ARCH_RULES.md`
+> **产品设计原则**: `/PM_RULES.md`
 > **深度总结**: `/SUMMARY.md`
 > **完整指南** `/MANUAL.md`
 ## Build & Development Commands

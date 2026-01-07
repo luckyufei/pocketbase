@@ -9,6 +9,7 @@ import (
 
 	"github.com/ganigeorgiev/fexpr"
 	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase/tools/dbutils"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/pocketbase/pocketbase/tools/store"
 	"github.com/spf13/cast"
@@ -163,21 +164,23 @@ func resolveTokenizedExpr(expr fexpr.Expr, fieldResolver FieldResolver) (dbx.Exp
 		return nil, fmt.Errorf("invalid right operand %q - %v", expr.Right.Literal, rErr)
 	}
 
-	return buildResolversExpr(lResult, expr.Op, rResult)
+	return buildResolversExpr(lResult, expr.Op, rResult, fieldResolver)
 }
 
 func buildResolversExpr(
 	left *ResolverResult,
 	op fexpr.SignOp,
 	right *ResolverResult,
+	fieldResolver FieldResolver,
 ) (dbx.Expression, error) {
 	var expr dbx.Expression
+	dbType := getDBType(fieldResolver)
 
 	switch op {
 	case fexpr.SignEq, fexpr.SignAnyEq:
-		expr = resolveEqualExpr(true, left, right)
+		expr = resolveEqualExpr(true, left, right, dbType)
 	case fexpr.SignNeq, fexpr.SignAnyNeq:
-		expr = resolveEqualExpr(false, left, right)
+		expr = resolveEqualExpr(false, left, right, dbType)
 	case fexpr.SignLike, fexpr.SignAnyLike:
 		// the right side is a column and therefor wrap it with "%" for contains like behavior
 		if len(right.Params) == 0 {
@@ -210,28 +213,31 @@ func buildResolversExpr(
 	if !isAnyMatchOp(op) {
 		if left.MultiMatchSubQuery != nil && right.MultiMatchSubQuery != nil {
 			mm := &manyVsManyExpr{
-				left:  left,
-				right: right,
-				op:    op,
+				left:          left,
+				right:         right,
+				op:            op,
+				fieldResolver: fieldResolver,
 			}
 
 			expr = dbx.Enclose(dbx.And(expr, mm))
 		} else if left.MultiMatchSubQuery != nil {
 			mm := &manyVsOneExpr{
-				noCoalesce:   left.NoCoalesce,
-				subQuery:     left.MultiMatchSubQuery,
-				op:           op,
-				otherOperand: right,
+				noCoalesce:    left.NoCoalesce,
+				subQuery:      left.MultiMatchSubQuery,
+				op:            op,
+				otherOperand:  right,
+				fieldResolver: fieldResolver,
 			}
 
 			expr = dbx.Enclose(dbx.And(expr, mm))
 		} else if right.MultiMatchSubQuery != nil {
 			mm := &manyVsOneExpr{
-				noCoalesce:   right.NoCoalesce,
-				subQuery:     right.MultiMatchSubQuery,
-				op:           op,
-				otherOperand: left,
-				inverse:      true,
+				noCoalesce:    right.NoCoalesce,
+				subQuery:      right.MultiMatchSubQuery,
+				op:            op,
+				otherOperand:  left,
+				inverse:       true,
+				fieldResolver: fieldResolver,
 			}
 
 			expr = dbx.Enclose(dbx.And(expr, mm))
@@ -252,13 +258,39 @@ func buildResolversExpr(
 var normalizedIdentifiers = map[string]string{
 	// if `null` field is missing, treat `null` identifier as NULL token
 	"null": "NULL",
-	// if `true` field is missing, treat `true` identifier as TRUE token
+	// if `true` field is missing, treat `true` identifier as TRUE token (SQLite)
 	"true": "1",
-	// if `false` field is missing, treat `false` identifier as FALSE token
+	// if `false` field is missing, treat `false` identifier as FALSE token (SQLite)
 	"false": "0",
 }
 
+// normalizedIdentifiersPostgres PostgreSQL 版本的标识符映射
+var normalizedIdentifiersPostgres = map[string]string{
+	"null":  "NULL",
+	"true":  "TRUE",
+	"false": "FALSE",
+}
+
+// getDBType 从 FieldResolver 获取数据库类型
+func getDBType(fieldResolver FieldResolver) dbutils.DBType {
+	if dbTypeResolver, ok := fieldResolver.(DBTypeResolver); ok {
+		return dbTypeResolver.DBType()
+	}
+	return dbutils.DBTypeSQLite // 默认 SQLite
+}
+
+// getNormalizedIdentifiers 根据数据库类型返回标识符映射
+func getNormalizedIdentifiers(dbType dbutils.DBType) map[string]string {
+	if dbType.IsPostgres() {
+		return normalizedIdentifiersPostgres
+	}
+	return normalizedIdentifiers
+}
+
 func resolveToken(token fexpr.Token, fieldResolver FieldResolver) (*ResolverResult, error) {
+	dbType := getDBType(fieldResolver)
+	identifiers := getNormalizedIdentifiers(dbType)
+
 	switch token.Type {
 	case fexpr.TokenIdentifier:
 		// check for macros
@@ -281,7 +313,7 @@ func resolveToken(token fexpr.Token, fieldResolver FieldResolver) (*ResolverResu
 		// ---
 		result, err := fieldResolver.Resolve(token.Literal)
 		if err != nil || result.Identifier == "" {
-			for k, v := range normalizedIdentifiers {
+			for k, v := range identifiers {
 				if strings.EqualFold(k, token.Literal) {
 					return &ResolverResult{Identifier: v}, nil
 				}
@@ -325,7 +357,7 @@ func resolveToken(token fexpr.Token, fieldResolver FieldResolver) (*ResolverResu
 // The expression `a = "" OR a is null` tends to perform better than
 // `COALESCE(a, "") = ""` since the direct match can be accomplished
 // with a seek while the COALESCE will induce a table scan.
-func resolveEqualExpr(equal bool, left, right *ResolverResult) dbx.Expression {
+func resolveEqualExpr(equal bool, left, right *ResolverResult, dbType dbutils.DBType) dbx.Expression {
 	isLeftEmpty := isEmptyIdentifier(left) || (len(left.Params) == 1 && hasEmptyParamValue(left))
 	isRightEmpty := isEmptyIdentifier(right) || (len(right.Params) == 1 && hasEmptyParamValue(right))
 
@@ -334,18 +366,25 @@ func resolveEqualExpr(equal bool, left, right *ResolverResult) dbx.Expression {
 	concatOp := "OR"
 	nullExpr := "IS NULL"
 	if !equal {
-		// always use `IS NOT` instead of `!=` because direct non-equal comparisons
-		// to nullable column values that are actually NULL yields to NULL instead of TRUE, eg.:
-		// `'example' != nullableColumn` -> NULL even if nullableColumn row value is NULL
-		equalOp = "IS NOT"
-		nullEqualOp = equalOp
+		// PostgreSQL: 使用 IS DISTINCT FROM 替代 IS NOT
+		// SQLite: 使用 IS NOT
+		if dbType.IsPostgres() {
+			equalOp = "IS DISTINCT FROM"
+			nullEqualOp = equalOp
+		} else {
+			// always use `IS NOT` instead of `!=` because direct non-equal comparisons
+			// to nullable column values that are actually NULL yields to NULL instead of TRUE, eg.:
+			// `'example' != nullableColumn` -> NULL even if nullableColumn row value is NULL
+			equalOp = "IS NOT"
+			nullEqualOp = equalOp
+		}
 		concatOp = "AND"
 		nullExpr = "IS NOT NULL"
 	}
 
 	// no coalesce (eg. compare to a json field)
 	// a IS b
-	// a IS NOT b
+	// a IS NOT b / a IS DISTINCT FROM b
 	if left.NoCoalesce || right.NoCoalesce {
 		return dbx.NewExp(
 			fmt.Sprintf("%s %s %s", left.Identifier, nullEqualOp, right.Identifier),
@@ -376,7 +415,7 @@ func resolveEqualExpr(equal bool, left, right *ResolverResult) dbx.Expression {
 	}
 
 	// "" = b OR b IS NULL
-	// "" IS NOT b AND b IS NOT NULL
+	// "" IS NOT b AND b IS NOT NULL / "" IS DISTINCT FROM b AND b IS NOT NULL
 	if isLeftEmpty {
 		return dbx.NewExp(
 			fmt.Sprintf("('' %s %s %s %s %s)", equalOp, right.Identifier, concatOp, right.Identifier, nullExpr),
@@ -385,7 +424,7 @@ func resolveEqualExpr(equal bool, left, right *ResolverResult) dbx.Expression {
 	}
 
 	// a = "" OR a IS NULL
-	// a IS NOT "" AND a IS NOT NULL
+	// a IS NOT "" AND a IS NOT NULL / a IS DISTINCT FROM "" AND a IS NOT NULL
 	if isRightEmpty {
 		return dbx.NewExp(
 			fmt.Sprintf("(%s %s '' %s %s %s)", left.Identifier, equalOp, concatOp, left.Identifier, nullExpr),
@@ -613,9 +652,10 @@ var _ dbx.Expression = (*manyVsManyExpr)(nil)
 // Expects leftSubQuery and rightSubQuery to return a subquery with a
 // single "multiMatchValue" column.
 type manyVsManyExpr struct {
-	left  *ResolverResult
-	right *ResolverResult
-	op    fexpr.SignOp
+	left          *ResolverResult
+	right         *ResolverResult
+	op            fexpr.SignOp
+	fieldResolver FieldResolver
 }
 
 // Build converts the expression into a SQL fragment.
@@ -642,6 +682,7 @@ func (e *manyVsManyExpr) Build(db *dbx.DB, params dbx.Params) string {
 			// doesn't matter whether it is applied on the left or right subquery operand
 			AfterBuild: dbx.Not, // inverse for the not-exist expression
 		},
+		e.fieldResolver,
 	)
 
 	if buildErr != nil {
@@ -668,11 +709,12 @@ var _ dbx.Expression = (*manyVsOneExpr)(nil)
 //
 // You can set inverse=false to reverse the condition sides (aka. one<->many).
 type manyVsOneExpr struct {
-	otherOperand *ResolverResult
-	subQuery     dbx.Expression
-	op           fexpr.SignOp
-	inverse      bool
-	noCoalesce   bool
+	otherOperand  *ResolverResult
+	subQuery      dbx.Expression
+	op            fexpr.SignOp
+	inverse       bool
+	noCoalesce    bool
+	fieldResolver FieldResolver
 }
 
 // Build converts the expression into a SQL fragment.
@@ -700,9 +742,9 @@ func (e *manyVsOneExpr) Build(db *dbx.DB, params dbx.Params) string {
 	var buildErr error
 
 	if e.inverse {
-		whereExpr, buildErr = buildResolversExpr(r2, e.op, r1)
+		whereExpr, buildErr = buildResolversExpr(r2, e.op, r1, e.fieldResolver)
 	} else {
-		whereExpr, buildErr = buildResolversExpr(r1, e.op, r2)
+		whereExpr, buildErr = buildResolversExpr(r1, e.op, r2, e.fieldResolver)
 	}
 
 	if buildErr != nil {

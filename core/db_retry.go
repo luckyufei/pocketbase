@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/pocketbase/dbx"
@@ -47,10 +46,8 @@ Retry:
 	err := op(attempt)
 
 	if err != nil && attempt <= maxRetries {
-		errStr := err.Error()
-		// we are checking the error against the plain error texts since the codes could vary between drivers
-		if strings.Contains(errStr, "database is locked") ||
-			strings.Contains(errStr, "table is locked") {
+		// 使用统一的可重试错误检测（支持 SQLite 和 PostgreSQL）
+		if IsRetryableError(err) {
 			// wait and retry
 			time.Sleep(getDefaultRetryInterval(attempt))
 			attempt++

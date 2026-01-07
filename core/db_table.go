@@ -9,8 +9,13 @@ import (
 
 // TableColumns returns all column names of a single table by its name.
 func (app *BaseApp) TableColumns(tableName string) ([]string, error) {
-	columns := []string{}
+	// 如果使用 PostgreSQL，通过适配器查询
+	if app.IsPostgres() {
+		return app.DBAdapter().TableColumns(tableName)
+	}
 
+	// SQLite: 使用 PRAGMA
+	columns := []string{}
 	err := app.ConcurrentDB().NewQuery("SELECT name FROM PRAGMA_TABLE_INFO({:tableName})").
 		Bind(dbx.Params{"tableName": tableName}).
 		Column(&columns)
@@ -32,6 +37,33 @@ type TableInfoRow struct {
 
 // TableInfo returns the "table_info" pragma result for the specified table.
 func (app *BaseApp) TableInfo(tableName string) ([]*TableInfoRow, error) {
+	// 如果使用 PostgreSQL，通过适配器查询
+	if app.IsPostgres() {
+		adapterInfo, err := app.DBAdapter().TableInfo(tableName)
+		if err != nil {
+			return nil, err
+		}
+
+		// 转换为 TableInfoRow 格式
+		info := make([]*TableInfoRow, len(adapterInfo))
+		for i, row := range adapterInfo {
+			info[i] = &TableInfoRow{
+				Index:   row.CID,
+				Name:    row.Name,
+				Type:    row.Type,
+				NotNull: row.NotNull,
+				PK:      row.PK,
+			}
+			if row.DefaultVal != nil {
+				if defaultStr, ok := row.DefaultVal.(string); ok && defaultStr != "" {
+					info[i].DefaultValue = sql.NullString{String: defaultStr, Valid: true}
+				}
+			}
+		}
+		return info, nil
+	}
+
+	// SQLite: 使用 PRAGMA
 	info := []*TableInfoRow{}
 
 	err := app.ConcurrentDB().NewQuery("SELECT * FROM PRAGMA_TABLE_INFO({:tableName})").
@@ -54,6 +86,12 @@ func (app *BaseApp) TableInfo(tableName string) ([]*TableInfoRow, error) {
 //
 // Note: This method doesn't return an error on nonexisting table.
 func (app *BaseApp) TableIndexes(tableName string) (map[string]string, error) {
+	// 如果使用 PostgreSQL，通过适配器查询
+	if app.IsPostgres() {
+		return app.DBAdapter().TableIndexes(tableName)
+	}
+
+	// SQLite: 查询 sqlite_master
 	indexes := []struct {
 		Name string
 		Sql  string
@@ -108,6 +146,13 @@ func (app *BaseApp) AuxHasTable(tableName string) bool {
 }
 
 func (app *BaseApp) hasTable(db dbx.Builder, tableName string) bool {
+	// 如果使用 PostgreSQL，通过适配器查询
+	if app.IsPostgres() {
+		exists, err := app.DBAdapter().HasTable(tableName)
+		return err == nil && exists
+	}
+
+	// SQLite: 查询 sqlite_schema
 	var exists int
 
 	err := db.Select("(1)").
@@ -131,6 +176,12 @@ func (app *BaseApp) AuxVacuum() error {
 }
 
 func (app *BaseApp) vacuum(db dbx.Builder) error {
+	// 如果使用 PostgreSQL，通过适配器执行
+	if app.IsPostgres() {
+		return app.DBAdapter().Vacuum()
+	}
+
+	// SQLite: 直接执行 VACUUM
 	_, err := db.NewQuery("VACUUM").Execute()
 
 	return err

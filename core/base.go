@@ -84,6 +84,9 @@ type BaseApp struct {
 	auxConcurrentDB     dbx.Builder
 	auxNonconcurrentDB  dbx.Builder
 
+	// 数据库适配器，用于抽象 SQLite 和 PostgreSQL 的差异
+	dbAdapter DBAdapter
+
 	// app event hooks
 	onBootstrap     *hook.Hook[*BootstrapEvent]
 	onServe         *hook.Hook[*ServeEvent]
@@ -476,6 +479,36 @@ func (app *BaseApp) ResetBootstrapState() error {
 	}
 
 	return nil
+}
+
+// -------------------------------------------------------------------
+// 数据库适配器相关方法
+// -------------------------------------------------------------------
+
+// DBAdapter 返回当前使用的数据库适配器
+// 如果未初始化，返回默认的 SQLite 适配器
+func (app *BaseApp) DBAdapter() DBAdapter {
+	if app.dbAdapter == nil {
+		// 默认返回 SQLite 适配器
+		return NewSQLiteAdapter()
+	}
+	return app.dbAdapter
+}
+
+// SetDBAdapter 设置数据库适配器
+// 应该在 Bootstrap() 之前调用
+func (app *BaseApp) SetDBAdapter(adapter DBAdapter) {
+	app.dbAdapter = adapter
+}
+
+// IsPostgres 检查当前是否使用 PostgreSQL 数据库
+func (app *BaseApp) IsPostgres() bool {
+	return app.DBAdapter().Type().IsPostgres()
+}
+
+// IsSQLite 检查当前是否使用 SQLite 数据库
+func (app *BaseApp) IsSQLite() bool {
+	return app.DBAdapter().Type().IsSQLite()
 }
 
 // DB returns the default app data.db builder instance.

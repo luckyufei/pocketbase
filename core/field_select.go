@@ -138,6 +138,9 @@ func (f *SelectField) IsMultiple() bool {
 // ColumnType implements [Field.ColumnType] interface method.
 func (f *SelectField) ColumnType(app App) string {
 	if f.IsMultiple() {
+		if app.IsPostgres() {
+			return "JSONB DEFAULT '[]' NOT NULL"
+		}
 		return "JSON DEFAULT '[]' NOT NULL"
 	}
 

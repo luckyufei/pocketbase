@@ -108,6 +108,9 @@ func (f *JSONField) SetHidden(hidden bool) {
 
 // ColumnType implements [Field.ColumnType] interface method.
 func (f *JSONField) ColumnType(app App) string {
+	if app.IsPostgres() {
+		return "JSONB DEFAULT NULL"
+	}
 	return "JSON DEFAULT NULL"
 }
 

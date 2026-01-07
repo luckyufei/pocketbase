@@ -359,6 +359,39 @@ func createCollectionIndexes(app App, collection *Collection) error {
 			return validation.Errors{"indexes": errs}
 		}
 
+		// 自动为 PostgreSQL 创建 GIN 索引
+		// 这些索引用于加速 JSONB 字段的查询
+		if txApp.IsPostgres() {
+			if err := createAutoGINIndexes(txApp, collection); err != nil {
+				// GIN 索引创建失败不应阻止集合创建
+				// 只记录警告日志
+				txApp.Logger().Warn("创建自动 GIN 索引失败",
+					slog.String("collection", collection.Name),
+					slog.String("error", err.Error()),
+				)
+			}
+		}
+
 		return nil
 	})
+}
+
+// createAutoGINIndexes 为 PostgreSQL 自动创建 JSONB 字段的 GIN 索引
+func createAutoGINIndexes(app App, collection *Collection) error {
+	missing := GetMissingGINIndexes(collection)
+	if len(missing) == 0 {
+		return nil
+	}
+
+	for _, indexSQL := range missing {
+		if _, err := app.DB().NewQuery(indexSQL).Execute(); err != nil {
+			// 记录错误但继续创建其他索引
+			app.Logger().Warn("创建 GIN 索引失败",
+				slog.String("sql", indexSQL),
+				slog.String("error", err.Error()),
+			)
+		}
+	}
+
+	return nil
 }

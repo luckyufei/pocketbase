@@ -8,13 +8,15 @@ import (
 )
 
 var (
-	indexRegex       = regexp.MustCompile(`(?im)create\s+(unique\s+)?\s*index\s*(if\s+not\s+exists\s+)?(\S*)\s+on\s+(\S*)\s*\(([\s\S]*)\)(?:\s*where\s+([\s\S]*))?`)
-	indexColumnRegex = regexp.MustCompile(`(?im)^([\s\S]+?)(?:\s+collate\s+([\w]+))?(?:\s+(asc|desc))?$`)
+	// 更新正则以支持 USING method 语法 (PostgreSQL)
+	indexRegex       = regexp.MustCompile(`(?im)create\s+(unique\s+)?\s*index\s*(if\s+not\s+exists\s+)?(\S*)\s+on\s+(\S*)\s*(?:using\s+(\w+)\s*)?\(([\s\S]*)\)(?:\s*where\s+([\s\S]*))?`)
+	indexColumnRegex = regexp.MustCompile(`(?im)^([\s\S]+?)(?:\s+([\w_]+_ops))?(?:\s+collate\s+([\w]+))?(?:\s+(asc|desc))?$`)
 )
 
 // IndexColumn represents a single parsed SQL index column.
 type IndexColumn struct {
-	Name    string `json:"name"` // identifier or expression
+	Name    string `json:"name"`    // identifier or expression
+	OpClass string `json:"opClass"` // PostgreSQL operator class (e.g., jsonb_path_ops)
 	Collate string `json:"collate"`
 	Sort    string `json:"sort"`
 }
@@ -24,6 +26,7 @@ type Index struct {
 	SchemaName string        `json:"schemaName"`
 	IndexName  string        `json:"indexName"`
 	TableName  string        `json:"tableName"`
+	Method     string        `json:"method"` // PostgreSQL: BTREE, GIN, GIST, BRIN, HASH
 	Where      string        `json:"where"`
 	Columns    []IndexColumn `json:"columns"`
 	Unique     bool          `json:"unique"`
@@ -69,7 +72,16 @@ func (idx Index) Build() string {
 
 	str.WriteString("ON `")
 	str.WriteString(idx.TableName)
-	str.WriteString("` (")
+	str.WriteString("` ")
+
+	// PostgreSQL USING method (GIN, GIST, BRIN, HASH, BTREE)
+	if idx.Method != "" {
+		str.WriteString("USING ")
+		str.WriteString(strings.ToUpper(idx.Method))
+		str.WriteString(" ")
+	}
+
+	str.WriteString("(")
 
 	if len(idx.Columns) > 1 {
 		str.WriteString("\n  ")
@@ -94,6 +106,12 @@ func (idx Index) Build() string {
 			str.WriteString("`")
 			str.WriteString(trimmedColName)
 			str.WriteString("`")
+		}
+
+		// PostgreSQL operator class (e.g., jsonb_path_ops, gin_trgm_ops)
+		if col.OpClass != "" {
+			str.WriteString(" ")
+			str.WriteString(col.OpClass)
 		}
 
 		if col.Collate != "" {
@@ -128,7 +146,7 @@ func ParseIndex(createIndexExpr string) Index {
 	result := Index{}
 
 	matches := indexRegex.FindStringSubmatch(createIndexExpr)
-	if len(matches) != 7 {
+	if len(matches) != 8 {
 		return result
 	}
 
@@ -159,9 +177,13 @@ func ParseIndex(createIndexExpr string) Index {
 	// ---
 	result.TableName = strings.Trim(matches[4], trimChars)
 
+	// Method (PostgreSQL: BTREE, GIN, GIST, BRIN, HASH)
+	// ---
+	result.Method = strings.ToUpper(strings.TrimSpace(matches[5]))
+
 	// Columns
 	// ---
-	columnsTk := tokenizer.NewFromString(matches[5])
+	columnsTk := tokenizer.NewFromString(matches[6])
 	columnsTk.Separators(',')
 
 	rawColumns, _ := columnsTk.ScanAll()
@@ -170,7 +192,7 @@ func ParseIndex(createIndexExpr string) Index {
 
 	for _, col := range rawColumns {
 		colMatches := indexColumnRegex.FindStringSubmatch(col)
-		if len(colMatches) != 4 {
+		if len(colMatches) != 5 {
 			continue
 		}
 
@@ -181,14 +203,15 @@ func ParseIndex(createIndexExpr string) Index {
 
 		result.Columns = append(result.Columns, IndexColumn{
 			Name:    trimmedName,
-			Collate: strings.TrimSpace(colMatches[2]),
-			Sort:    strings.ToUpper(colMatches[3]),
+			OpClass: strings.TrimSpace(colMatches[2]), // PostgreSQL operator class
+			Collate: strings.TrimSpace(colMatches[3]),
+			Sort:    strings.ToUpper(colMatches[4]),
 		})
 	}
 
 	// WHERE expression
 	// ---
-	result.Where = strings.TrimSpace(matches[6])
+	result.Where = strings.TrimSpace(matches[7])
 
 	return result
 }

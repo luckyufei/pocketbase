@@ -273,6 +273,20 @@ type App interface {
 	// AuxVacuum executes VACUUM on the auxiliary.db in order to reclaim unused auxiliary db disk space.
 	AuxVacuum() error
 
+	// DBAdapter returns the database adapter for the current app.
+	// The adapter provides database-specific functionality for SQLite and PostgreSQL.
+	DBAdapter() DBAdapter
+
+	// IsPostgres returns true if the app is using PostgreSQL database.
+	IsPostgres() bool
+
+	// IsSQLite returns true if the app is using SQLite database.
+	IsSQLite() bool
+
+	// GetPoolMetrics returns the current connection pool metrics.
+	// This includes metrics for both the main data database and auxiliary database.
+	GetPoolMetrics() *PoolMetrics
+
 	// ---------------------------------------------------------------
 
 	// ModelQuery creates a new preconfigured select data.db query with preset
