@@ -2,6 +2,8 @@ package core
 
 import (
 	"context"
+	"log"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -14,24 +16,42 @@ import (
 
 // TraceConfig 定义 Trace 配置
 type TraceConfig struct {
-	Enabled        bool          // 是否启用追踪
-	BufferSize     int           // Ring Buffer 大小
-	FlushInterval  time.Duration // 刷新间隔
-	BatchSize      int           // 批量写入大小
-	RetentionDays  int           // 数据保留天数
-	SampleRate     float64       // 采样率 (0.0-1.0)
+	Enabled         bool          // 是否启用追踪
+	BufferSize      int           // Ring Buffer 大小
+	FlushInterval   time.Duration // 刷新间隔
+	BatchSize       int           // 批量写入大小
+	RetentionDays   int           // 数据保留天数
+	SampleRate      float64       // 采样率 (0.0-1.0)
+	DebugLevel      bool          // 是否启用 Debug 日志
+	AutoRecovery    bool          // 是否启用自动恢复
+	RecoveryRetries int           // 恢复重试次数
 }
 
 // DefaultTraceConfig 返回默认配置
 func DefaultTraceConfig() *TraceConfig {
 	return &TraceConfig{
-		Enabled:        true,
-		BufferSize:     10000,
-		FlushInterval:  time.Second,
-		BatchSize:      100,
-		RetentionDays:  7,
-		SampleRate:     1.0,
+		Enabled:         true,
+		BufferSize:      10000,
+		FlushInterval:   time.Second,
+		BatchSize:       100,
+		RetentionDays:   7,
+		SampleRate:      1.0,
+		DebugLevel:      false,
+		AutoRecovery:    true,
+		RecoveryRetries: 3,
 	}
+}
+
+// ============================================================================
+// 健康状态
+// ============================================================================
+
+// TraceHealth 表示 Trace 系统的健康状态
+type TraceHealth struct {
+	Status     string    // "healthy" 或 "unhealthy"
+	LastError  string    // 最后一次错误信息
+	ErrorCount int       // 错误计数
+	LastCheck  time.Time // 最后检查时间
 }
 
 // ============================================================================
@@ -47,10 +67,20 @@ type Trace struct {
 	wg         sync.WaitGroup
 	mu         sync.RWMutex
 	running    bool
+	logger     *log.Logger
+	health     *TraceHealth
+	errorCount int
+	lastError  error
+	recovering bool
 }
 
 // NewTrace 创建新的 Trace 实例
 func NewTrace(repo TraceRepository, config *TraceConfig) *Trace {
+	return NewTraceWithLogger(repo, config, nil)
+}
+
+// NewTraceWithLogger 创建带 logger 的新 Trace 实例
+func NewTraceWithLogger(repo TraceRepository, config *TraceConfig, logger *log.Logger) *Trace {
 	if config == nil {
 		config = DefaultTraceConfig()
 	}
@@ -65,12 +95,20 @@ func NewTrace(repo TraceRepository, config *TraceConfig) *Trace {
 	if config.BatchSize <= 0 {
 		config.BatchSize = 100
 	}
+	if config.RecoveryRetries <= 0 {
+		config.RecoveryRetries = 3
+	}
 
 	t := &Trace{
 		repo:   repo,
 		config: config,
 		buffer: NewRingBuffer(config.BufferSize),
 		stopCh: make(chan struct{}),
+		logger: logger,
+		health: &TraceHealth{
+			Status:    "healthy",
+			LastCheck: time.Now(),
+		},
 	}
 
 	// 启动 flush worker
@@ -86,6 +124,13 @@ func NewTrace(repo TraceRepository, config *TraceConfig) *Trace {
 // StartSpan 创建并开始一个新的 Span
 func (t *Trace) StartSpan(ctx context.Context, name string) (context.Context, SpanBuilder) {
 	if !t.isEnabled() {
+		t.debugLog("StartSpan: tracing disabled, operation=%s", name)
+		return ctx, &noopSpanBuilder{}
+	}
+
+	// 检查采样率
+	if !t.shouldSample() {
+		t.debugLog("StartSpan: sampled out, operation=%s", name)
 		return ctx, &noopSpanBuilder{}
 	}
 
@@ -102,6 +147,9 @@ func (t *Trace) StartSpan(ctx context.Context, name string) (context.Context, Sp
 		traceID = tc.TraceID
 		parentID = tc.ParentID
 	}
+
+	t.debugLog("StartSpan: operation=%s, trace_id=%s, span_id=%s, parent_id=%s",
+		name, traceID, spanID, parentID)
 
 	span := &Span{
 		TraceID:   traceID,
@@ -137,8 +185,14 @@ func (t *Trace) RecordSpan(span *Span) {
 		span.Created = types.NowDateTime()
 	}
 
+	t.debugLog("RecordSpan: operation=%s, trace_id=%s, span_id=%s, duration=%dμs",
+		span.Name, span.TraceID, span.SpanID, span.Duration)
+
 	// 写入 buffer
-	t.buffer.Push(span)
+	success := t.buffer.Push(span)
+	if !success {
+		t.debugLog("RecordSpan: buffer overflow, span dropped, operation=%s", span.Name)
+	}
 }
 
 // ============================================================================
@@ -214,14 +268,43 @@ func (t *Trace) isEnabled() bool {
 	return t.config.Enabled
 }
 
+func (t *Trace) shouldSample() bool {
+	t.mu.RLock()
+	sampleRate := t.config.SampleRate
+	t.mu.RUnlock()
+
+	if sampleRate >= 1.0 {
+		return true
+	}
+	if sampleRate <= 0.0 {
+		return false
+	}
+
+	return rand.Float64() < sampleRate
+}
+
+func (t *Trace) debugLog(format string, args ...interface{}) {
+	t.mu.RLock()
+	debugEnabled := t.config.DebugLevel
+	logger := t.logger
+	t.mu.RUnlock()
+
+	if debugEnabled && logger != nil {
+		logger.Printf("[TRACE DEBUG] "+format, args...)
+	}
+}
+
 func (t *Trace) startFlushWorker() {
 	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.startFlushWorkerLocked()
+}
+
+func (t *Trace) startFlushWorkerLocked() {
 	if t.running {
-		t.mu.Unlock()
 		return
 	}
 	t.running = true
-	t.mu.Unlock()
 
 	t.wg.Add(1)
 	go func() {
@@ -241,16 +324,26 @@ func (t *Trace) startFlushWorker() {
 }
 
 func (t *Trace) flushBuffer() {
+	totalFlushed := 0
 	for {
 		spans := t.buffer.Flush(t.config.BatchSize)
 		if len(spans) == 0 {
 			break
 		}
 
+		totalFlushed += len(spans)
+		t.debugLog("Flush: writing %d spans to repository", len(spans))
+
 		if err := t.repo.BatchWrite(spans); err != nil {
-			// 记录错误但不阻塞
-			// TODO: 添加错误处理/重试逻辑
+			t.debugLog("Flush: BatchWrite error: %v", err)
+			t.recordError(err)
+			// 发生错误时停止 flush，等待恢复
+			break
 		}
+	}
+
+	if totalFlushed > 0 {
+		t.debugLog("Flush: completed, total spans flushed: %d", totalFlushed)
 	}
 }
 
@@ -305,7 +398,245 @@ func (s *spanBuilderImpl) End() {
 // noopSpanBuilder 禁用时的空实现
 type noopSpanBuilder struct{}
 
-func (n *noopSpanBuilder) SetAttribute(key string, value any) SpanBuilder { return n }
+func (n *noopSpanBuilder) SetAttribute(key string, value any) SpanBuilder          { return n }
 func (n *noopSpanBuilder) SetStatus(status SpanStatus, message string) SpanBuilder { return n }
-func (n *noopSpanBuilder) SetKind(kind SpanKind) SpanBuilder { return n }
-func (n *noopSpanBuilder) End() {}
+func (n *noopSpanBuilder) SetKind(kind SpanKind) SpanBuilder                       { return n }
+func (n *noopSpanBuilder) End()                                                    {}
+
+// ============================================================================
+// 配置热更新 (T068)
+// ============================================================================
+
+// GetConfig 返回当前配置的副本
+func (t *Trace) GetConfig() *TraceConfig {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	// 返回配置副本，避免外部修改
+	return &TraceConfig{
+		Enabled:         t.config.Enabled,
+		BufferSize:      t.config.BufferSize,
+		FlushInterval:   t.config.FlushInterval,
+		BatchSize:       t.config.BatchSize,
+		RetentionDays:   t.config.RetentionDays,
+		SampleRate:      t.config.SampleRate,
+		DebugLevel:      t.config.DebugLevel,
+		AutoRecovery:    t.config.AutoRecovery,
+		RecoveryRetries: t.config.RecoveryRetries,
+	}
+}
+
+// UpdateConfig 热更新配置
+func (t *Trace) UpdateConfig(newConfig *TraceConfig) error {
+	if newConfig == nil {
+		return nil
+	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.debugLog("UpdateConfig: starting config update")
+
+	// 验证并修正配置值
+	if newConfig.BufferSize <= 0 {
+		newConfig.BufferSize = 10000
+	}
+	if newConfig.FlushInterval <= 0 {
+		newConfig.FlushInterval = time.Second
+	}
+	if newConfig.BatchSize <= 0 {
+		newConfig.BatchSize = 100
+	}
+	if newConfig.SampleRate < 0 {
+		newConfig.SampleRate = 0.0
+	}
+	if newConfig.SampleRate > 1.0 {
+		newConfig.SampleRate = 1.0
+	}
+
+	// 检查是否需要重启 flush worker
+	needRestart := t.config.FlushInterval != newConfig.FlushInterval
+
+	// 检查是否需要重建 buffer
+	needNewBuffer := t.config.BufferSize != newConfig.BufferSize
+
+	t.debugLog("UpdateConfig: BufferSize %d->%d, FlushInterval %v->%v, SampleRate %f->%f",
+		t.config.BufferSize, newConfig.BufferSize,
+		t.config.FlushInterval, newConfig.FlushInterval,
+		t.config.SampleRate, newConfig.SampleRate)
+
+	// 更新配置
+	t.config = &TraceConfig{
+		Enabled:         newConfig.Enabled,
+		BufferSize:      newConfig.BufferSize,
+		FlushInterval:   newConfig.FlushInterval,
+		BatchSize:       newConfig.BatchSize,
+		RetentionDays:   newConfig.RetentionDays,
+		SampleRate:      newConfig.SampleRate,
+		DebugLevel:      newConfig.DebugLevel,
+		AutoRecovery:    newConfig.AutoRecovery,
+		RecoveryRetries: newConfig.RecoveryRetries,
+	}
+
+	// 如果需要新 buffer，先 flush 旧数据再创建新 buffer
+	if needNewBuffer {
+		t.debugLog("UpdateConfig: rebuilding buffer, old size=%d, new size=%d",
+			t.buffer.capacity, newConfig.BufferSize)
+		t.flushBuffer()
+		t.buffer = NewRingBuffer(newConfig.BufferSize)
+	}
+
+	// 如果需要重启 flush worker
+	if needRestart && t.running {
+		t.debugLog("UpdateConfig: restarting flush worker, new interval=%v", newConfig.FlushInterval)
+		// 停止旧的 worker
+		t.running = false
+		close(t.stopCh)
+		t.mu.Unlock() // 临时释放锁等待 worker 停止
+		t.wg.Wait()
+		t.mu.Lock() // 重新获取锁
+
+		// 创建新的 stopCh 并启动新 worker
+		t.stopCh = make(chan struct{})
+		t.startFlushWorkerLocked()
+	}
+
+	t.debugLog("UpdateConfig: completed successfully")
+	return nil
+}
+
+// SetLogger 设置日志记录器
+func (t *Trace) SetLogger(logger *log.Logger) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.logger = logger
+	t.debugLog("SetLogger: logger updated")
+}
+
+// ============================================================================
+// 健康检查和自动恢复 (T072)
+// ============================================================================
+
+// IsHealthy 检查 Trace 系统是否健康
+func (t *Trace) IsHealthy() bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.health.Status == "healthy" && t.repo.IsHealthy()
+}
+
+// GetHealth 获取详细健康状态
+func (t *Trace) GetHealth() *TraceHealth {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	// 更新健康状态
+	isHealthy := t.repo.IsHealthy() && t.errorCount == 0
+	status := "healthy"
+	if !isHealthy {
+		status = "unhealthy"
+	}
+
+	return &TraceHealth{
+		Status:     status,
+		LastError:  t.getLastErrorString(),
+		ErrorCount: t.errorCount,
+		LastCheck:  time.Now(),
+	}
+}
+
+// Recover 手动恢复 Trace 系统
+func (t *Trace) Recover() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.debugLog("Recover: starting manual recovery")
+
+	err := t.recoverLocked()
+	if err != nil {
+		t.debugLog("Recover: manual recovery failed: %v", err)
+		return err
+	}
+
+	t.debugLog("Recover: manual recovery completed successfully")
+	return nil
+}
+
+func (t *Trace) recoverLocked() error {
+	// 尝试恢复 repository
+	if err := t.repo.Recover(); err != nil {
+		return err
+	}
+
+	// 重置错误状态
+	t.errorCount = 0
+	t.lastError = nil
+	t.health.Status = "healthy"
+	t.health.LastError = ""
+	t.health.LastCheck = time.Now()
+
+	return nil
+}
+
+func (t *Trace) getLastErrorString() string {
+	if t.lastError != nil {
+		return t.lastError.Error()
+	}
+	return ""
+}
+
+func (t *Trace) recordError(err error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.errorCount++
+	t.lastError = err
+	t.health.Status = "unhealthy"
+	t.health.LastError = err.Error()
+	t.health.LastCheck = time.Now()
+
+	t.debugLog("recordError: error recorded, count=%d, error=%v", t.errorCount, err)
+
+	// 检查是否需要自动恢复
+	if t.config.AutoRecovery && !t.recovering {
+		go t.autoRecover()
+	}
+}
+
+func (t *Trace) autoRecover() {
+	t.mu.Lock()
+	if t.recovering {
+		t.mu.Unlock()
+		return
+	}
+	t.recovering = true
+	retries := t.config.RecoveryRetries
+	t.mu.Unlock()
+
+	defer func() {
+		t.mu.Lock()
+		t.recovering = false
+		t.mu.Unlock()
+	}()
+
+	t.debugLog("autoRecover: starting auto recovery, retries=%d", retries)
+
+	for i := 0; i < retries; i++ {
+		t.debugLog("autoRecover: attempt %d/%d", i+1, retries)
+
+		t.mu.Lock()
+		err := t.recoverLocked()
+		t.mu.Unlock()
+
+		if err == nil {
+			t.debugLog("autoRecover: recovery successful on attempt %d", i+1)
+			return
+		}
+
+		t.debugLog("autoRecover: attempt %d failed: %v", i+1, err)
+
+		// 等待一段时间再重试
+		time.Sleep(time.Duration(i+1) * time.Second)
+	}
+
+	t.debugLog("autoRecover: all recovery attempts failed")
+}

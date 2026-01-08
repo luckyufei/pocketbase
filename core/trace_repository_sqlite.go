@@ -200,9 +200,24 @@ func (r *SQLiteTraceRepository) Query(params *FilterParams) ([]*Span, int64, err
 		countQuery += " AND parent_id IS NULL"
 	}
 
+	// 添加 AttributeFilters 支持（SQLite JSON 查询）
+	// 需要为 query 和 countQuery 分别构建参数
+	queryArgs := make([]any, len(args))
+	copy(queryArgs, args)
+	countArgs := make([]any, len(args))
+	copy(countArgs, args)
+	
+	for key, value := range params.AttributeFilters {
+		jsonPath := "$." + key
+		query += " AND json_extract(attributes, ?) = ?"
+		countQuery += " AND json_extract(attributes, ?) = ?"
+		queryArgs = append(queryArgs, jsonPath, value)
+		countArgs = append(countArgs, jsonPath, value)
+	}
+
 	// 获取总数
 	var total int64
-	if err := r.db.QueryRow(countQuery, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRow(countQuery, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("查询总数失败: %w", err)
 	}
 
@@ -210,15 +225,15 @@ func (r *SQLiteTraceRepository) Query(params *FilterParams) ([]*Span, int64, err
 	query += " ORDER BY start_time DESC"
 	if params.Limit > 0 {
 		query += " LIMIT ?"
-		args = append(args, params.Limit)
+		queryArgs = append(queryArgs, params.Limit)
 	}
 	if params.Offset > 0 {
 		query += " OFFSET ?"
-		args = append(args, params.Offset)
+		queryArgs = append(queryArgs, params.Offset)
 	}
 
 	// 执行查询
-	rows, err := r.db.Query(query, args...)
+	rows, err := r.db.Query(query, queryArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("查询失败: %w", err)
 	}
@@ -350,6 +365,23 @@ func (r *SQLiteTraceRepository) Prune(before time.Time) (int64, error) {
 // Close 关闭连接
 func (r *SQLiteTraceRepository) Close() error {
 	return r.db.Close()
+}
+
+// IsHealthy 检查 SQLite 数据库是否健康
+func (r *SQLiteTraceRepository) IsHealthy() bool {
+	if r.db == nil {
+		return false
+	}
+	
+	// 简单的 ping 测试
+	err := r.db.Ping()
+	return err == nil
+}
+
+// Recover 恢复 SQLite 数据库（重建 schema）
+func (r *SQLiteTraceRepository) Recover() error {
+	// 尝试重新创建 schema
+	return r.CreateSchema()
 }
 
 // ============================================================================

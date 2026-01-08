@@ -119,9 +119,19 @@
                     aria-label="Monitoring"
                     use:link
                     use:active={{ path: "/monitoring/?.*", className: "current-route" }}
-                    use:tooltip={{ text: "监控", position: "right" }}
+                    use:tooltip={{ text: "系统监控", position: "right" }}
                 >
                     <i class="ri-pulse-line" />
+                </a>
+                <a
+                    href="/traces"
+                    class="menu-item"
+                    aria-label="Traces"
+                    use:link
+                    use:active={{ path: "/traces/?.*", className: "current-route" }}
+                    use:tooltip={{ text: "Trace 监控", position: "right" }}
+                >
+                    <i class="ri-radar-line" />
                 </a>
                 <a
                     href="/settings"

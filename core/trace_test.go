@@ -58,6 +58,14 @@ func (m *mockRepository) Close() error {
 	return nil
 }
 
+func (m *mockRepository) IsHealthy() bool {
+	return true
+}
+
+func (m *mockRepository) Recover() error {
+	return nil
+}
+
 func (m *mockRepository) GetSpans() []*core.Span {
 	m.mu.Lock()
 	defer m.mu.Unlock()

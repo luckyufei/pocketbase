@@ -35,8 +35,8 @@
   - [x] T005c 创建 `_traces` 表和索引
 - [x] T006 在 `core/trace_buffer.go` 中实现 Ring Buffer 结构体
 - [x] T007 [P] 在 `core/trace_context.go` 中实现 Context 传递工具（SpanFromContext, ContextWithSpan）
-- [ ] T008 在 `core/base.go` 中集成 Trace 到 App 结构体
-- [ ] T009 在 `core/app.go` 接口中添加 `Trace()` 方法
+- [x] T008 在 `core/base.go` 中集成 Trace 到 App 结构体
+- [x] T009 在 `core/app.go` 接口中添加 `Trace()` 方法
 
 **Checkpoint**: 基础设施就绪 - 用户故事实现可以开始
 
@@ -99,12 +99,14 @@
 
 ### Implementation for User Story 3
 
+**✅ COMPLETED**: 此阶段已完成
+
 - [x] T028 [US3] 在 `apis/middlewares_trace.go` 中实现自动追踪中间件
 - [x] T029 [US3] 在中间件中自动创建 Root Span
 - [x] T030 [US3] 在中间件中自动记录 HTTP 属性（method, url, status_code）
 - [x] T031 [US3] 在中间件中自动设置 Span 状态（根据响应码）
 - [x] T032 [US3] 实现 traceparent 头解析（W3C Trace Context）
-- [ ] T033 [US3] 在 `apis/serve.go` 中注册追踪中间件
+- [x] T033 [US3] 在 `apis/serve.go` 中注册追踪中间件
 - [x] T034 [US3] 编写 `apis/middlewares_trace_test.go` 中间件测试
 
 **Checkpoint**: 此时 User Story 1, 3, 7 都应独立可用 ✅
@@ -120,12 +122,14 @@
 
 ### Implementation for User Story 2
 
+**✅ COMPLETED**: 此阶段已完成
+
 - [x] T035 [US2] 在 `core/trace_repository_pg.go` 中实现 `Query()` - PostgreSQL 方言
 - [x] T036 [US2] 在 `core/trace_repository_sqlite.go` 中实现 `Query()` - SQLite 方言
 - [x] T037 [US2] 在 `core/trace_repository_pg.go` 中实现 `GetTrace()` - 获取完整调用链
 - [x] T038 [US2] 在 `core/trace_repository_sqlite.go` 中实现 `GetTrace()` - 获取完整调用链
-- [ ] T039 [US2] 实现 JSONB 查询（PostgreSQL: `attrs->>'key'`）
-- [ ] T040 [US2] 实现 JSON 查询（SQLite: `json_extract(attrs, '$.key')`）
+- [x] T039 [US2] 实现 JSONB 查询（PostgreSQL: `attrs->>'key'`）
+- [x] T040 [US2] 实现 JSON 查询（SQLite: `json_extract(attrs, '$.key')`）
 - [x] T041 [US2] 编写 Query 单元测试
   - [ ] T041a PostgreSQL 环境测试
   - [x] T041b SQLite 环境测试
@@ -162,16 +166,18 @@
 
 ### Implementation for User Story 6
 
-- [ ] T047 [US6] 在 `apis/trace_routes.go` 中创建 Trace API 路由组 `'/api/traces/*`
-- [ ] T048 [US6] 实现 `GET '/api/traces` 端点（列表查询）
-- [ ] T049 [US6] 实现 `GET '/api/traces/:trace_id` 端点（获取完整调用链）
-- [ ] T050 [US6] 实现 `GET '/api/traces/stats` 端点（统计数据）
-- [ ] T051 [US6] 在 `core/trace_repository_pg.go` 中实现 `Stats()` - PostgreSQL
-- [ ] T052 [US6] 在 `core/trace_repository_sqlite.go` 中实现 `Stats()` - SQLite
-- [ ] T053 [US6] 实现 Superuser 权限检查
-- [ ] T054 [US6] 编写 `apis/trace_routes_test.go` HTTP API 测试
+**✅ COMPLETED**: 此阶段已完成
 
-**Checkpoint**: HTTP API 可用
+- [x] T047 [US6] 在 `apis/trace_routes.go` 中创建 Trace API 路由组 `'/api/traces/*`
+- [x] T048 [US6] 实现 `GET '/api/traces` 端点（列表查询）
+- [x] T049 [US6] 实现 `GET '/api/traces/:trace_id` 端点（获取完整调用链）
+- [x] T050 [US6] 实现 `GET '/api/traces/stats` 端点（统计数据）
+- [x] T051 [US6] 在 `core/trace_repository_pg.go` 中实现 `Stats()` - PostgreSQL
+- [x] T052 [US6] 在 `core/trace_repository_sqlite.go` 中实现 `Stats()` - SQLite
+- [x] T053 [US6] 实现 Superuser 权限检查
+- [x] T054 [US6] 编写 `apis/trace_routes_test.go` HTTP API 测试
+
+**Checkpoint**: HTTP API 可用 ✅
 
 ---
 
@@ -184,20 +190,20 @@
 
 ### Implementation for User Story 5
 
-- [ ] T055 [US5] 在 `ui/src/components/monitor/PageMonitor.svelte` 中实现 Monitor Center 页面
-- [ ] T056 [US5] 在 `ui/src/components/monitor/TraceStats.svelte` 中实现统计组件
-- [ ] T057 [US5] 在 `ui/src/components/monitor/TraceFilters.svelte` 中实现筛选组件
-- [ ] T058 [US5] 在 `ui/src/components/monitor/TraceList.svelte` 中实现 Trace 列表组件
-- [ ] T059 [US5] 在 `ui/src/components/monitor/TraceDetail.svelte` 中实现 Trace 详情组件（瀑布图）
-- [ ] T060 [US5] 在 `ui/src/routes.js` 中添加 Monitor 路由
-- [ ] T061 [US5] 在 `ui/src/components/settings/SettingsSidebar.svelte` 中添加 Monitor 菜单入口
-- [ ] T062 [US5] 实现时间范围筛选
-- [ ] T063 [US5] 实现 operation 筛选
-- [ ] T064 [US5] 实现 status 筛选
-- [ ] T065 [US5] 实现分页功能
-- [ ] T066 [US5] 实现瀑布图渲染（Span 层级展示）
+- [x] T055 [US5] 在 `ui/src/components/monitor/PageMonitor.svelte` 中实现 Monitor Center 页面
+- [x] T056 [US5] 在 `ui/src/components/monitor/TraceStats.svelte` 中实现统计组件
+- [x] T057 [US5] 在 `ui/src/components/monitor/TraceFilters.svelte` 中实现筛选组件
+- [x] T058 [US5] 在 `ui/src/components/monitor/TraceList.svelte` 中实现 Trace 列表组件
+- [x] T059 [US5] 在 `ui/src/components/monitor/TraceDetail.svelte` 中实现 Trace 详情组件（瀑布图）
+- [x] T060 [US5] 在 `ui/src/routes.js` 中添加 Monitor 路由
+- [x] T061 [US5] 在 `ui/src/components/settings/SettingsSidebar.svelte` 中添加 Monitor 菜单入口
+- [x] T062 [US5] 实现时间范围筛选
+- [x] T063 [US5] 实现 operation 筛选
+- [x] T064 [US5] 实现 status 筛选
+- [x] T065 [US5] 实现分页功能
+- [x] T066 [US5] 实现瀑布图渲染（Span 层级展示）
 
-**Checkpoint**: Admin UI 完整可用
+**✅ COMPLETED**: 此阶段已完成
 
 ---
 
@@ -208,12 +214,12 @@
 - [ ] T067 [P] 实现数据库操作自动追踪（可选，P2）
 - [ ] T068 [P] 添加 Trace 配置热更新
 - [ ] T069 [P] 添加操作日志（Debug 级别）
-- [ ] T070 编写 `core/trace_benchmark_test.go` 性能基准测试
-  - [ ] T070a PostgreSQL 基准测试
-  - [ ] T070b SQLite 基准测试
-- [ ] T071 运行完整集成测试，验证所有功能正常
-  - [ ] T071a PostgreSQL 集成测试
-  - [ ] T071b SQLite 集成测试
+- [x] T070 编写 `core/trace_benchmark_test.go` 性能基准测试
+  - [x] T070a PostgreSQL 基准测试
+  - [x] T070b SQLite 基准测试
+- [x] T071 运行完整集成测试，验证所有功能正常
+  - [x] T071a PostgreSQL 集成测试
+  - [x] T071b SQLite 集成测试
 - [ ] T072 [P] 实现 auxiliary.db 自动重建（损坏时）
 - [ ] T073 [P] 添加 Trace 启用/禁用开关
 

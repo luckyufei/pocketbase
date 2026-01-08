@@ -29,6 +29,7 @@ func NewRouter(app core.App) (*router.Router[*core.RequestEvent], error) {
 	// register default middlewares
 	pbRouter.Bind(activityLogger())
 	pbRouter.Bind(panicRecover())
+	pbRouter.Bind(traceMiddleware(app))
 	pbRouter.Bind(rateLimit())
 	pbRouter.Bind(loadAuthToken())
 	pbRouter.Bind(securityHeaders())
@@ -49,6 +50,7 @@ func NewRouter(app core.App) (*router.Router[*core.RequestEvent], error) {
 	bindMetricsApi(app, apiGroup)
 	bindKVApi(app, apiGroup)
 	bindJobsApi(app, apiGroup)
+	bindTraceApi(app, apiGroup)
 	bindSecretsApi(app, pbRouter)
 
 	// 注册代理路由（/-/* 网关）

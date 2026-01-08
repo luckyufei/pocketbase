@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/hook"
 )
 
 // ============================================================================
@@ -20,6 +21,60 @@ const (
 // ============================================================================
 // Trace 中间件
 // ============================================================================
+
+// traceMiddleware 返回 PocketBase 风格的追踪中间件
+// 用于自动追踪所有 HTTP 请求
+func traceMiddleware(app core.App) *hook.Handler[*core.RequestEvent] {
+	return &hook.Handler[*core.RequestEvent]{
+		Id:       DefaultTraceMiddlewareId,
+		Priority: DefaultTraceMiddlewarePriority,
+		Func: func(e *core.RequestEvent) error {
+			ctx := e.Request.Context()
+			trace := app.Trace()
+
+			// 解析 traceparent 头
+			if tp := e.Request.Header.Get("traceparent"); tp != "" {
+				traceID, parentID, valid := ParseTraceparent(tp)
+				if valid {
+					ctx = core.ContextWithTraceContext(ctx, &core.TraceContext{
+						TraceID:  traceID,
+						ParentID: parentID,
+					})
+				}
+			}
+
+			// 创建 Root Span
+			spanName := fmt.Sprintf("%s %s", e.Request.Method, e.Request.URL.Path)
+			ctx, span := trace.StartSpan(ctx, spanName)
+
+			// 设置 HTTP 属性
+			span.SetKind(core.SpanKindServer)
+			span.SetAttribute("http.method", e.Request.Method)
+			span.SetAttribute("http.url", e.Request.URL.String())
+			span.SetAttribute("http.host", e.Request.Host)
+			span.SetAttribute("http.scheme", getScheme(e.Request))
+			span.SetAttribute("http.user_agent", e.Request.UserAgent())
+
+			// 注入 Context
+			e.Request = e.Request.WithContext(ctx)
+
+			// 执行请求
+			err := e.Next()
+
+			// 设置响应属性和状态
+			// 注意：在 PocketBase 中，我们无法直接获取状态码，
+			// 所以根据错误来设置 span 状态
+			if err != nil {
+				span.SetStatus(core.SpanStatusError, "")
+			} else {
+				span.SetStatus(core.SpanStatusOK, "")
+			}
+
+			span.End()
+			return err
+		},
+	}
+}
 
 // TraceMiddleware 返回一个 HTTP 中间件，用于自动追踪所有 HTTP 请求
 // 它会：

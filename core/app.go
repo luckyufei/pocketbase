@@ -102,6 +102,11 @@ type App interface {
 	// Returns nil if the Secrets feature is not enabled (PB_MASTER_KEY not set).
 	Secrets() SecretsStore
 
+	// Trace returns the app Trace instance for distributed tracing operations.
+	// Provides OpenTelemetry-compatible tracing with automatic HTTP request tracking,
+	// manual span creation, and configurable data retention.
+	Trace() *Trace
+
 	// NewMailClient creates and returns a new SMTP or Sendmail client
 	// based on the current app settings.
 	NewMailClient() mailer.Mailer

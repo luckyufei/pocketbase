@@ -187,6 +187,14 @@ func (r *PgTraceRepository) Query(params *FilterParams) ([]*Span, int64, error) 
 		countQuery += " AND parent_id IS NULL"
 	}
 
+	// 添加 AttributeFilters 支持（PostgreSQL JSONB 查询）
+	for key, value := range params.AttributeFilters {
+		query += fmt.Sprintf(" AND attributes->>'%s' = $%d", key, argIdx)
+		countQuery += fmt.Sprintf(" AND attributes->>'%s' = $%d", key, argIdx)
+		args = append(args, value)
+		argIdx++
+	}
+
 	// 获取总数
 	var total int64
 	if err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
@@ -340,6 +348,26 @@ func (r *PgTraceRepository) Prune(before time.Time) (int64, error) {
 func (r *PgTraceRepository) Close() error {
 	r.pool.Close()
 	return nil
+}
+
+// IsHealthy 检查 PostgreSQL 连接是否健康
+func (r *PgTraceRepository) IsHealthy() bool {
+	if r.pool == nil {
+		return false
+	}
+	
+	// 简单的 ping 测试
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	err := r.pool.Ping(ctx)
+	return err == nil
+}
+
+// Recover 恢复 PostgreSQL 连接（重建 schema）
+func (r *PgTraceRepository) Recover() error {
+	// 尝试重新创建 schema
+	return r.CreateSchema()
 }
 
 // ============================================================================

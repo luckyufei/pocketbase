@@ -33,6 +33,12 @@ type TraceRepository interface {
 
 	// Close 关闭连接
 	Close() error
+
+	// IsHealthy 检查 repository 是否健康
+	IsHealthy() bool
+
+	// Recover 尝试恢复 repository（重建数据库等）
+	Recover() error
 }
 
 // ============================================================================
@@ -41,22 +47,24 @@ type TraceRepository interface {
 
 // FilterParams 定义查询过滤参数
 type FilterParams struct {
-	TraceID   string     // 按 trace_id 过滤
-	SpanID    string     // 按 span_id 过滤
-	Operation string     // 按操作名称过滤
-	Status    SpanStatus // 按状态过滤
-	StartTime int64      // 开始时间（微秒）
-	EndTime   int64      // 结束时间（微秒）
-	Limit     int        // 返回数量限制
-	Offset    int        // 偏移量
-	RootOnly  bool       // 只返回根 Span
+	TraceID          string            // 按 trace_id 过滤
+	SpanID           string            // 按 span_id 过滤
+	Operation        string            // 按操作名称过滤
+	Status           SpanStatus        // 按状态过滤
+	StartTime        int64             // 开始时间（微秒）
+	EndTime          int64             // 结束时间（微秒）
+	Limit            int               // 返回数量限制
+	Offset           int               // 偏移量
+	RootOnly         bool              // 只返回根 Span
+	AttributeFilters map[string]any    // 按 attributes 字段过滤
 }
 
 // NewFilterParams 创建默认的过滤参数
 func NewFilterParams() *FilterParams {
 	return &FilterParams{
-		Limit:  50,
-		Offset: 0,
+		Limit:            50,
+		Offset:           0,
+		AttributeFilters: make(map[string]any),
 	}
 }
 
