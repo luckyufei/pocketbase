@@ -201,6 +201,9 @@ type BaseApp struct {
 
 	// job store for job queue
 	jobStore *jobStore
+
+	// trace for distributed tracing
+	trace *Trace
 }
 
 // NewBaseApp creates and returns a new BaseApp instance

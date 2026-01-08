@@ -73,7 +73,7 @@ graph TD
 
 前端 UI **完全感知不到**底层的差异。
 
-* **API Layer**: `/api/tracing` 接口负责将前端的查询参数（Time Range, Filters）翻译成对应的 SQL 方言（PG SQL 或 SQLite SQL）。
+* **API Layer**: `/api/traces` 接口负责将前端的查询参数（Time Range, Filters）翻译成对应的 SQL 方言（PG SQL 或 SQLite SQL）。
 
 ## 5. Schema Definition (Polyglot)
 
@@ -177,7 +177,7 @@ if app.IsPgMode() {
 
 2. **Cross-DB Query (Not Supported)**:
 * 监控数据只能查自己的库。不要试图做 `JOIN _traces ON users.id` 这种跨库操作（特别是在 SQLite 模式下，物理文件都不同）。
-* UI 层如果需要补充用户信息，应该先查 Tracing，拿到 `user_id` 后再单独查 Users 表补全。
+* UI 层如果需要补充用户信息，应该先查 Trace，拿到 `user_id` 后再单独查 Users 表补全。
 
 
 3. **Migration-Free**:
