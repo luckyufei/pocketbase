@@ -195,6 +195,9 @@ type BaseApp struct {
 
 	// proxy manager for native gateway
 	proxyManager *ProxyManager
+
+	// kv store for key-value storage
+	kvStore *kvStore
 }
 
 // NewBaseApp creates and returns a new BaseApp instance
@@ -438,6 +441,10 @@ func (app *BaseApp) Bootstrap() error {
 			// log warning but don't fail bootstrap
 			app.Logger().Warn("Failed to load proxies", "error", err)
 		}
+
+		// initialize KV store and register cleanup job
+		app.initKVStore()
+		app.startKVCleanupJob()
 
 		// try to cleanup the pb_data temp directory (if any)
 		_ = os.RemoveAll(filepath.Join(app.DataDir(), LocalTempDirName))

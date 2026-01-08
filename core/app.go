@@ -89,6 +89,10 @@ type App interface {
 	// for handling native gateway proxy routes.
 	ProxyManager() *ProxyManager
 
+	// KV returns the app KVStore instance for key-value storage operations.
+	// Provides Redis-like API with L1 in-process cache and L2 PostgreSQL storage.
+	KV() KVStore
+
 	// NewMailClient creates and returns a new SMTP or Sendmail client
 	// based on the current app settings.
 	NewMailClient() mailer.Mailer

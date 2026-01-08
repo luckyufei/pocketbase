@@ -47,6 +47,7 @@ func NewRouter(app core.App) (*router.Router[*core.RequestEvent], error) {
 	bindRealtimeApi(app, apiGroup)
 	bindHealthApi(app, apiGroup)
 	bindMetricsApi(app, apiGroup)
+	bindKVApi(app, apiGroup)
 
 	// 注册代理路由（/-/* 网关）
 	bindProxyApi(app, pbRouter)
