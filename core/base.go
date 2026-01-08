@@ -464,6 +464,12 @@ func (app *BaseApp) Bootstrap() error {
 		// initialize Secrets store
 		app.initSecretsStore()
 
+		// initialize Trace system
+		if err := app.initTrace(); err != nil {
+			app.Logger().Warn("Failed to initialize trace system", "error", err)
+			// 不返回错误，Trace 初始化失败不应阻止应用启动
+		}
+
 		// try to cleanup the pb_data temp directory (if any)
 		_ = os.RemoveAll(filepath.Join(app.DataDir(), LocalTempDirName))
 

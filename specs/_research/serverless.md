@@ -90,7 +90,7 @@ const similar = await pb.collection('docs').vectorSearch({
 
 
 
-#### C. State Domain (新增 - 关键)
+#### C. State Domain (新增 - 关键) - 已实现
 
 * **Capability**: Ephemeral Key-Value Store.
 * **Goal**: 为 Agent 提供轻量级记忆（Session Memory）或分布式锁。
@@ -108,8 +108,6 @@ await pb.kv.set('chat_session:123', { stage: 'step_2' }, { ttl: 600 });
 const state = await pb.kv.get('chat_session:123');
 
 ```
-
-
 
 #### D. Storage Domain (新增 - 多模态)
 
@@ -138,7 +136,7 @@ await pb.files.save('coll_id', 'record_id', {
 * `pb.utils.uuid()`: 调用 Go 的 `google/uuid` (V7)。
 * `pb.utils.hash(str)`: 快速哈希。
 
-
+要充分利用之前在`plugins/jsvm`里提供的 go binds
 
 ### 3.3 Trigger Model (触发模型)
 
@@ -153,7 +151,7 @@ Serverless Function 不仅仅由 HTTP 请求触发，还应该支持以下入口
 * 配置方式: 在 `pb_serverless.json` 中定义。
 * 示例: `{ "func": "daily_report", "cron": "0 8 * * *" }`。
 
-
+不应该通过新增配置的方式, 而是充分利用之前 PB 提供的 Jobs 或者 Crons 能力
 
 ## 4. Boundaries (边界与限制)
 
@@ -180,7 +178,7 @@ my-pocketbase-project/
 
 ```
 
-### 5.2 The "Pb-cli" Build Tool
+### 5.2 The "Pb-cli" Build Tool (低优, 先不实现)
 
 我们需要集成在 PocketBase 二进制中：
 `./pocketbase dev`
@@ -188,6 +186,8 @@ my-pocketbase-project/
 * **Watch Mode**: 监听 `src/*.ts` 文件变动。
 * **Auto Bundle**: 调用 esbuild 将 TS 打包为 JS。
 * **Hot Reload**: 自动重置 WASM 运行时，无需重启服务器。
+
+--- 
 
 飞将军，你的直觉非常敏锐。目前的 V2.0 方案解决了“能不能跑”的问题，但要在生产环境高强度运行（Anti-Stupidity），我们必须解决**“如何稳健地跑”**、**“如何协作”**以及**“如何运维”**的问题。
 
@@ -202,9 +202,8 @@ my-pocketbase-project/
 **Focus**: Security, Reliability, Observability
 **Core Axiom**: "Production Readiness is not an afterthought."
 
-## 1. Secret Management (机密管理)
+## 1. Secret Management (机密管理) - 已实现
 
-> 飞将军备注: 已经实现
 
 **Problem**: Agent 开发强依赖 API Keys (OpenAI, Anthropic, Stripe)。
 
@@ -227,9 +226,7 @@ if (!apiKey) throw new Error("Missing config");
 
 ```
 
-## 2. Persistent Job Queue (持久化作业队列)
-
-> 飞将军备注: 已经实现
+## 2. Persistent Job Queue (持久化作业队列) - 已实现
 
 **Problem**: Vercel AI SDK 的请求通常有 HTTP 超时限制（如 60秒）。
 
@@ -263,7 +260,7 @@ export async function process_pdf(data) {
 
 ```
 
-## 3. Distributed Observability (全链路观测)
+## 3. Distributed Observability (全链路观测) - 已实现
 
 **Problem**: 当 Agent 出错时，单纯的 `console.log` 是灾难。
 
@@ -282,6 +279,8 @@ export async function process_pdf(data) {
 ### 3.2 Host Function
 
 * `pb_trace_span_start(name)` / `pb_trace_span_end(id)`: 允许 JS 代码在调用链中显式标记 Span，方便在 Jaeger/Grafana 中查看瀑布图。
+
+* 必须充分利用之前在 `plugins/jsvm` 里提供的 go binds, 实现最大程度的复用, 减少 API 数量, 降低用户心智负担
 
 ## 4. Resource Quotas & Isolation (资源配额与隔离)
 
@@ -308,7 +307,7 @@ export async function process_pdf(data) {
 
 ### 5.1 Design
 
-* **Build Phase**: 在部署阶段（`pb deploy`），调用 QuickJS 的编译器 `qjsc` 将用户的 `bundle.js` 编译为二进制字节码 (`.bin`)。
+* **Build Phase**: pocketbase 命令行提供构建工具, 支持调用 QuickJS 的编译器 `qjsc` 将用户的 `bundle.js` 编译为二进制字节码 (`.bin`)。
 * **Run Phase**: WASM 运行时直接加载 `.bin`，跳过 JS 解析（Parsing）阶段。
 * **Gain**: 启动速度提升 50% 以上，且大幅降低内存占用。
 
@@ -441,7 +440,7 @@ await pb.tx(async (tx) => {
 * **Goal**: ACID support spanning across DB and Logic.
 * **Mechanism**: `ctx` context propagation in Go. When `pb.tx(() => ...)` is called, a transaction handle is bound to the WASM instance's context. Subsequent `pb_db_*` calls check for this handle.
 
-#### 6. Observability - Source Mapping
+#### 6. Observability - Source Mapping (低优, 先不实现)
 
 * **Goal**: TypeScript stack traces in production logs.
 * **Mechanism**:
@@ -449,12 +448,12 @@ await pb.tx(async (tx) => {
 * Host: Go uses `github.com/go-sourcemap/sourcemap` library to decode stack traces before logging.
 
 
-#### 8. Deployment Strategy
+#### 8. Deployment Strategy 
 
 * **Goal**: Zero-downtime updates for long-running agents.
 * **Mechanism**:
 * **Versioned Registry**: Store WASM bytecodes in `_functions` table with `version` column.
 * **Job Affinity**: Running jobs lock to a specific function version.
 
-3. **版本优雅切换** 是 **P2**。初期可以接受“部署时杀掉所有正在运行的任务”这种简单粗暴的策略，等量大了再优化。
+3. **版本优雅切换** 是 **P2**。初期接受“部署时杀掉所有正在运行的任务”这种简单粗暴的策略，等量大了再优化。
 

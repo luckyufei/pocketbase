@@ -36,4 +36,4 @@ benchmarks/benchmark.db-wal
 benchmarks/benchmark.db-shm
 benchmarks/benchmark-config.json
 
-
+/ui/dist/
