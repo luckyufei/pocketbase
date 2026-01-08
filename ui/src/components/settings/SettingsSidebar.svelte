@@ -48,6 +48,15 @@
             <i class="ri-time-line" aria-hidden="true"></i>
             <span class="txt">Crons</span>
         </a>
+        <a
+            href="/settings/jobs"
+            class="sidebar-list-item"
+            use:active={{ path: "/settings/jobs/?.*" }}
+            use:link
+        >
+            <i class="ri-stack-line" aria-hidden="true"></i>
+            <span class="txt">Jobs</span>
+        </a>
 
         {#if !$hideControls}
             <div class="sidebar-title">

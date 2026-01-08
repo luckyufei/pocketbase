@@ -141,6 +141,61 @@ The `PocketBase` struct wraps `core.App` and adds CLI support via Cobra. `New()`
 
 Svelte-based Admin dashboard SPA. Built assets in `ui/dist/` are embedded into the Go binary via `embed.go`. During development, run the Vite dev server separately.
 
+### Benchmarks Package (`benchmarks/`)
+
+性能基准测试套件，用于验证 PocketBase 在 SQLite 和 PostgreSQL 环境下的性能表现。
+
+- **测试类型**:
+  - SQLite 基准测试（小/中/大规模）
+  - PostgreSQL vs SQLite 对比测试
+  - PostgreSQL 集群扩展性测试（1主2从 + HAProxy）
+
+- **目录结构**:
+  - `cmd/` - 命令行工具入口
+  - `configs/` - 环境配置文件（local-sqlite.json, docker-postgres.json 等）
+  - `docker/` - Docker Compose 配置（单节点和集群环境）
+  - `http/` - HTTP API 负载测试
+  - `websocket/` - WebSocket 测试
+  - `database/` - 数据库直连测试
+  - `reports/` - 测试报告输出
+
+- **运行方式**:
+  ```bash
+  cd benchmarks
+  make build          # 构建测试工具
+  make run-sqlite-small   # 小规模 SQLite 测试
+  make run-pg-compare-all # PostgreSQL vs SQLite 对比
+  make run-cluster-3node  # 3 节点集群测试
+  ```
+
+### JS SDK Package (`jssdk/`)
+
+官方 JavaScript SDK，支持浏览器和 Node.js 环境与 PocketBase API 交互。
+
+- **核心功能**:
+  - 完整的 CRUD 操作（`pb.collection().getList/getOne/create/update/delete`）
+  - 认证管理（密码登录、OAuth2、OTP、邮箱验证）
+  - 实时订阅（SSE-based realtime subscriptions）
+  - 文件上传下载
+  - 批量请求（Batch API）
+  - TypeScript 类型定义
+
+- **目录结构**:
+  - `src/Client.ts` - 主客户端类
+  - `src/services/` - API 服务实现（RecordService, CollectionService 等）
+  - `src/stores/` - 认证存储（LocalAuthStore, AsyncAuthStore）
+  - `tests/` - 单元测试
+
+- **开发命令**:
+  ```bash
+  cd jssdk
+  npm install
+  npm test          # 运行单元测试
+  npm run build     # 构建发布包
+  ```
+
+- **SSR 集成**: 支持 SvelteKit, Astro, Nuxt 3, Next.js 等框架的服务端渲染
+
 ### Data Flow
 
 1. HTTP request → Router middleware chain → Route handler

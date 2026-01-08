@@ -12,6 +12,8 @@ coverage.out
 # plaintask todo files
 *.todo
 
+*.out
+
 # generated markdown previews
 README.html
 CHANGELOG.html
@@ -33,4 +35,5 @@ benchmarks/benchmark.db
 benchmarks/benchmark.db-wal
 benchmarks/benchmark.db-shm
 benchmarks/benchmark-config.json
+
 

@@ -198,6 +198,9 @@ type BaseApp struct {
 
 	// kv store for key-value storage
 	kvStore *kvStore
+
+	// job store for job queue
+	jobStore *jobStore
 }
 
 // NewBaseApp creates and returns a new BaseApp instance
@@ -215,7 +218,7 @@ func NewBaseApp(config BaseAppConfig) *BaseApp {
 
 	// apply config defaults
 	if app.config.DBConnect == nil {
-		app.config.DBConnect = DefaultDBConnect
+		app.config.DBConnect = DBConnect // 自动检测 SQLite 或 PostgreSQL
 	}
 	if app.config.DataMaxOpenConns <= 0 {
 		app.config.DataMaxOpenConns = DefaultDataMaxOpenConns
@@ -406,9 +409,11 @@ func (app *BaseApp) Bootstrap() error {
 			return err
 		}
 
-		// ensure that data dir exist
-		if err := os.MkdirAll(app.DataDir(), os.ModePerm); err != nil {
-			return err
+		// ensure that data dir exist (only for SQLite)
+		if !IsPostgresDSN(app.DataDir()) {
+			if err := os.MkdirAll(app.DataDir(), os.ModePerm); err != nil {
+				return err
+			}
 		}
 
 		if err := app.initDataDB(); err != nil {
@@ -445,6 +450,9 @@ func (app *BaseApp) Bootstrap() error {
 		// initialize KV store and register cleanup job
 		app.initKVStore()
 		app.startKVCleanupJob()
+
+		// initialize Job store
+		app.initJobStore()
 
 		// try to cleanup the pb_data temp directory (if any)
 		_ = os.RemoveAll(filepath.Join(app.DataDir(), LocalTempDirName))
@@ -1222,7 +1230,13 @@ func (app *BaseApp) OnBatchRequest() *hook.Hook[*BatchRequestEvent] {
 // -------------------------------------------------------------------
 
 func (app *BaseApp) initDataDB() error {
-	dbPath := filepath.Join(app.DataDir(), "data.db")
+	// 检查 DataDir 是否为 PostgreSQL DSN
+	var dbPath string
+	if IsPostgresDSN(app.DataDir()) {
+		dbPath = app.DataDir()
+	} else {
+		dbPath = filepath.Join(app.DataDir(), "data.db")
+	}
 
 	concurrentDB, err := app.config.DBConnect(dbPath)
 	if err != nil {
@@ -1284,7 +1298,14 @@ func normalizeSQLLog(sql string) string {
 func (app *BaseApp) initAuxDB() error {
 	// note: renamed to "auxiliary" because "aux" is a reserved Windows filename
 	// (see https://github.com/pocketbase/pocketbase/issues/5607)
-	dbPath := filepath.Join(app.DataDir(), "auxiliary.db")
+	// 检查 DataDir 是否为 PostgreSQL DSN
+	var dbPath string
+	if IsPostgresDSN(app.DataDir()) {
+		// PostgreSQL 使用相同的连接（辅助表在同一数据库中）
+		dbPath = app.DataDir()
+	} else {
+		dbPath = filepath.Join(app.DataDir(), "auxiliary.db")
+	}
 
 	concurrentDB, err := app.config.DBConnect(dbPath)
 	if err != nil {

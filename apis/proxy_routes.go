@@ -6,24 +6,21 @@ import (
 )
 
 // bindProxyApi 注册代理路由
-// 代理路由使用动态匹配，拦截 /-/* 和自定义路径的请求
+// 代理路由使用动态匹配，拦截 /-/* 路径的请求
 func bindProxyApi(app core.App, rg *router.Router[*core.RequestEvent]) {
 	// 注册 /-/* 网关路由（推荐的代理前缀）
 	// 使用通配符匹配所有 /-/ 开头的路径
-	rg.Any("/-/{path...}", proxyHandler(app))
-
-	// 注册 fallback 路由用于开发代理模式
-	// 这个路由优先级最低，只有在没有其他路由匹配时才会触发
-	// 用于将未匹配的请求代理到 Vite 等开发服务器
-	rg.Any("/{path...}", devProxyFallbackHandler(app)).
-		BindFunc(func(e *core.RequestEvent) error {
-			// 只有配置了 dev-proxy 才处理
-			pm := app.ProxyManager()
-			if pm == nil || pm.GetDevProxy() == "" {
-				return e.Next()
-			}
-			return nil
-		})
+	// 注意：必须使用具体的 HTTP 方法，避免与 /{path...} 静态文件路由冲突
+	// Go 1.22 的 ServeMux 不允许 "ANY /-/{path...}" 和 "GET /{path...}" 同时存在
+	proxyPath := "/-/{path...}"
+	handler := proxyHandler(app)
+	rg.GET(proxyPath, handler)
+	rg.POST(proxyPath, handler)
+	rg.PUT(proxyPath, handler)
+	rg.PATCH(proxyPath, handler)
+	rg.DELETE(proxyPath, handler)
+	rg.HEAD(proxyPath, handler)
+	rg.OPTIONS(proxyPath, handler)
 }
 
 // proxyHandler 创建代理请求处理器
@@ -62,28 +59,6 @@ func proxyHandler(app core.App) func(e *core.RequestEvent) error {
 
 		// 执行代理转发
 		pm.ServeHTTPWithAuth(e.Response, e.Request, proxy, e.Auth)
-
-		return nil
-	}
-}
-
-// devProxyFallbackHandler 开发代理 fallback 处理器
-// 将未匹配的请求代理到开发服务器（如 Vite）
-func devProxyFallbackHandler(app core.App) func(e *core.RequestEvent) error {
-	return func(e *core.RequestEvent) error {
-		pm := app.ProxyManager()
-		if pm == nil {
-			return e.Next()
-		}
-
-		devProxy := pm.GetDevProxy()
-		if devProxy == "" {
-			return e.Next()
-		}
-
-		// 使用 ProxyManager 的 ServeHTTP 处理
-		// 它会自动使用 devProxy 作为 fallback
-		pm.ServeHTTP(e.Response, e.Request)
 
 		return nil
 	}

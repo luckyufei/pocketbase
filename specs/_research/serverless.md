@@ -204,6 +204,8 @@ my-pocketbase-project/
 
 ## 1. Secret Management (机密管理)
 
+> 飞将军备注: 已经实现
+
 **Problem**: Agent 开发强依赖 API Keys (OpenAI, Anthropic, Stripe)。
 
 * **Anti-Pattern**: 硬编码在代码里（极度不安全）；放在 OS 环境变量里（PocketBase 重启麻烦，且对多租户不友好）。
@@ -226,6 +228,8 @@ if (!apiKey) throw new Error("Missing config");
 ```
 
 ## 2. Persistent Job Queue (持久化作业队列)
+
+> 飞将军备注: 已经实现
 
 **Problem**: Vercel AI SDK 的请求通常有 HTTP 超时限制（如 60秒）。
 
@@ -397,9 +401,6 @@ await pb.tx(async (tx) => {
 }); // 函数结束，Go 层统一 Commit/Rollback
 
 ```
-
-
-
 
 
 #### 2. 环境一致性与调试 (The "It works on my machine" Trap)
