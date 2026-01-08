@@ -709,3 +709,248 @@ func TestKVKeys(t *testing.T) {
 		t.Errorf("expected 2 keys, got %d: %v", len(keys), keys)
 	}
 }
+
+// ==================== Phase 12: 验证和边界测试 ====================
+
+func TestKVKeyTooLong(t *testing.T) {
+	t.Parallel()
+
+	app, err := tests.NewTestApp()
+	if err != nil {
+		t.Fatalf("failed to create test app: %v", err)
+	}
+	defer app.Cleanup()
+
+	kv := app.KV()
+	if kv == nil {
+		t.Skip("KVStore not available")
+	}
+
+	// 创建超过 256 字符的 key
+	longKey := make([]byte, 300)
+	for i := range longKey {
+		longKey[i] = 'a'
+	}
+
+	err = kv.Set(string(longKey), "value")
+	if err != core.ErrKVKeyTooLong {
+		t.Errorf("expected ErrKVKeyTooLong, got %v", err)
+	}
+}
+
+func TestKVValueTooLarge(t *testing.T) {
+	t.Parallel()
+
+	app, err := tests.NewTestApp()
+	if err != nil {
+		t.Fatalf("failed to create test app: %v", err)
+	}
+	defer app.Cleanup()
+
+	kv := app.KV()
+	if kv == nil {
+		t.Skip("KVStore not available")
+	}
+
+	// 创建超过 1MB 的 value
+	largeValue := make([]byte, core.KVMaxValueSize+1)
+	for i := range largeValue {
+		largeValue[i] = 'x'
+	}
+
+	err = kv.Set("large:key", string(largeValue))
+	if err != core.ErrKVValueTooLarge {
+		t.Errorf("expected ErrKVValueTooLarge, got %v", err)
+	}
+}
+
+func TestKVValueTooLargeBytes(t *testing.T) {
+	t.Parallel()
+
+	app, err := tests.NewTestApp()
+	if err != nil {
+		t.Fatalf("failed to create test app: %v", err)
+	}
+	defer app.Cleanup()
+
+	kv := app.KV()
+	if kv == nil {
+		t.Skip("KVStore not available")
+	}
+
+	// 测试 []byte 类型的大 value
+	largeValue := make([]byte, core.KVMaxValueSize+1)
+	for i := range largeValue {
+		largeValue[i] = 'x'
+	}
+
+	err = kv.Set("large:bytes", largeValue)
+	if err != core.ErrKVValueTooLarge {
+		t.Errorf("expected ErrKVValueTooLarge for []byte, got %v", err)
+	}
+}
+
+func TestKVValueSizeValidObject(t *testing.T) {
+	t.Parallel()
+
+	app, err := tests.NewTestApp()
+	if err != nil {
+		t.Fatalf("failed to create test app: %v", err)
+	}
+	defer app.Cleanup()
+
+	kv := app.KV()
+	if kv == nil {
+		t.Skip("KVStore not available")
+	}
+
+	// 测试正常大小的对象
+	normalValue := map[string]string{"key": "value"}
+	err = kv.Set("normal:object", normalValue)
+	if err != nil {
+		t.Errorf("unexpected error for normal object: %v", err)
+	}
+}
+
+func TestKVHIncrByCore(t *testing.T) {
+	t.Parallel()
+
+	app, err := tests.NewTestApp()
+	if err != nil {
+		t.Fatalf("failed to create test app: %v", err)
+	}
+	defer app.Cleanup()
+
+	kv := app.KV()
+	if kv == nil {
+		t.Skip("KVStore not available")
+	}
+
+	// 测试 HIncrBy
+	newVal, err := kv.HIncrBy("hincrby:test", "counter", 5)
+	if err != nil {
+		t.Fatalf("HIncrBy failed: %v", err)
+	}
+	if newVal != 5 {
+		t.Errorf("expected 5, got %d", newVal)
+	}
+
+	// 再次递增
+	newVal, err = kv.HIncrBy("hincrby:test", "counter", 3)
+	if err != nil {
+		t.Fatalf("HIncrBy second call failed: %v", err)
+	}
+	if newVal != 8 {
+		t.Errorf("expected 8, got %d", newVal)
+	}
+}
+
+func TestKVSetExWithValidation(t *testing.T) {
+	t.Parallel()
+
+	app, err := tests.NewTestApp()
+	if err != nil {
+		t.Fatalf("failed to create test app: %v", err)
+	}
+	defer app.Cleanup()
+
+	kv := app.KV()
+	if kv == nil {
+		t.Skip("KVStore not available")
+	}
+
+	// 测试 SetEx 的 key 长度验证
+	longKey := make([]byte, 300)
+	for i := range longKey {
+		longKey[i] = 'a'
+	}
+
+	err = kv.SetEx(string(longKey), "value", 60000000000)
+	if err != core.ErrKVKeyTooLong {
+		t.Errorf("expected ErrKVKeyTooLong for SetEx, got %v", err)
+	}
+
+	// 测试 SetEx 的 value 大小验证
+	largeValue := make([]byte, core.KVMaxValueSize+1)
+	err = kv.SetEx("setex:large", string(largeValue), 60000000000)
+	if err != core.ErrKVValueTooLarge {
+		t.Errorf("expected ErrKVValueTooLarge for SetEx, got %v", err)
+	}
+}
+
+func TestKVHGetNotFound(t *testing.T) {
+	t.Parallel()
+
+	app, err := tests.NewTestApp()
+	if err != nil {
+		t.Fatalf("failed to create test app: %v", err)
+	}
+	defer app.Cleanup()
+
+	kv := app.KV()
+	if kv == nil {
+		t.Skip("KVStore not available")
+	}
+
+	// 测试获取不存在的 hash 字段
+	val, err := kv.HGet("nonexistent:hash", "field")
+	// 可能返回错误或 nil，两种情况都是正确的
+	if err == nil && val != nil {
+		t.Errorf("expected nil or error for nonexistent hash, got %v", val)
+	}
+}
+
+func TestKVHGetAllNotFound(t *testing.T) {
+	t.Parallel()
+
+	app, err := tests.NewTestApp()
+	if err != nil {
+		t.Fatalf("failed to create test app: %v", err)
+	}
+	defer app.Cleanup()
+
+	kv := app.KV()
+	if kv == nil {
+		t.Skip("KVStore not available")
+	}
+
+	// 测试获取不存在的 hash
+	result, err := kv.HGetAll("nonexistent:hash2")
+	// 可能返回错误或 nil，两种情况都是正确的
+	if err == nil && result != nil {
+		t.Errorf("expected nil or error for nonexistent hash, got %v", result)
+	}
+}
+
+// ==================== 清理和辅助函数测试 ====================
+
+func TestKVCleanupExpired(t *testing.T) {
+	t.Parallel()
+
+	app, err := tests.NewTestApp()
+	if err != nil {
+		t.Fatalf("failed to create test app: %v", err)
+	}
+	defer app.Cleanup()
+
+	kv := app.KV()
+	if kv == nil {
+		t.Skip("KVStore not available")
+	}
+
+	// 设置一个立即过期的 key
+	err = kv.SetEx("cleanup:test", "value", 1) // 1 纳秒
+	if err != nil {
+		t.Fatalf("SetEx failed: %v", err)
+	}
+
+	// 等待过期
+	time.Sleep(10 * time.Millisecond)
+
+	// 调用 Get - 过期的 key 应该返回错误或 nil
+	val, err := kv.Get("cleanup:test")
+	// 过期后，Get 应该返回错误或 nil 值
+	if err == nil && val != nil {
+		t.Errorf("expected nil or error for expired key, got %v", val)
+	}
+}

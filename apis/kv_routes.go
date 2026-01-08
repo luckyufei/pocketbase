@@ -13,6 +13,9 @@ import (
 func bindKVApi(app core.App, rg *router.RouterGroup[*core.RequestEvent]) {
 	kvGroup := rg.Group("/kv")
 
+	// 默认要求超级用户权限
+	kvGroup.Bind(RequireSuperuserAuth())
+
 	// 基础操作
 	kvGroup.POST("/set", kvSetHandler(app))
 	kvGroup.GET("/get", kvGetHandler(app))

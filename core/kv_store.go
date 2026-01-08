@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -144,6 +145,37 @@ func generateLockOwner() string {
 	return GenerateDefaultRandomId()
 }
 
+// validateValueSize 验证 value 大小是否超过限制
+func validateValueSize(value any) error {
+	// 快速路径：字符串直接检查长度
+	if s, ok := value.(string); ok {
+		if len(s) > KVMaxValueSize {
+			return ErrKVValueTooLarge
+		}
+		return nil
+	}
+
+	// 快速路径：[]byte 直接检查长度
+	if b, ok := value.([]byte); ok {
+		if len(b) > KVMaxValueSize {
+			return ErrKVValueTooLarge
+		}
+		return nil
+	}
+
+	// 其他类型：序列化后检查大小
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil // 序列化失败时不阻止，让后续操作处理
+	}
+
+	if len(data) > KVMaxValueSize {
+		return ErrKVValueTooLarge
+	}
+
+	return nil
+}
+
 // ==================== 基础操作实现 ====================
 
 func (kv *kvStore) Get(key string) (any, error) {
@@ -176,6 +208,11 @@ func (kv *kvStore) Set(key string, value any) error {
 		return ErrKVKeyTooLong
 	}
 
+	// 验证 Value 大小
+	if err := validateValueSize(value); err != nil {
+		return err
+	}
+
 	// 写入 L2
 	if err := kv.l2.Set(key, value); err != nil {
 		return err
@@ -191,6 +228,11 @@ func (kv *kvStore) SetEx(key string, value any, ttl time.Duration) error {
 	// 验证 Key 长度
 	if len(key) > KVMaxKeyLength {
 		return ErrKVKeyTooLong
+	}
+
+	// 验证 Value 大小
+	if err := validateValueSize(value); err != nil {
+		return err
 	}
 
 	// 写入 L2

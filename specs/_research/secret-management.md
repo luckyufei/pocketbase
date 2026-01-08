@@ -148,3 +148,6 @@ const endpoint = pb.secrets.get('API_ENDPOINT', 'https://default.com');
 4. **UI Component**:
 * 开发 Admin UI 的 Secrets 管理面板（Masked Input）。
 
+## 5. HTTP API
+
+作为前端/客户端开发者，我希望能够通过 HTTP API 操作，以便在 JS SDK、移动端或第三方服务中使用
