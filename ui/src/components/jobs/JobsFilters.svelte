@@ -78,16 +78,18 @@
 <style>
     .filters {
         margin-bottom: 0.5rem;
+        align-items: flex-end;
     }
 
-    .form-field {
+    .filters :global(.form-field) {
+        flex: 0 0 auto;
         min-width: 120px;
+        max-width: 200px;
+        margin-bottom: 0;
     }
 
-    .form-field label {
-        display: block;
-        font-size: 0.7rem;
-        color: var(--txtHintColor);
-        margin-bottom: 0.25rem;
+    .filters :global(input),
+    .filters :global(select) {
+        height: 38px;
     }
 </style>

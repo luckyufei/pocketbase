@@ -300,10 +300,10 @@ func (js *jobStore) EnqueueWithOptions(topic string, payload any, opts *JobEnque
 // ==================== 查询操作实现 ====================
 
 func (js *jobStore) Get(id string) (*Job, error) {
-	// 使用 COALESCE 处理 NULL 值，避免 sql.Scan 错误
+	// 直接选择字段，types.DateTime 可以处理 NULL 值
 	query := `
 		SELECT id, topic, payload, status, run_at, 
-		       COALESCE(locked_until, '') as locked_until, 
+		       locked_until, 
 		       retries, max_retries, 
 		       COALESCE(last_error, '') as last_error, 
 		       created, updated
@@ -331,9 +331,9 @@ func (js *jobStore) List(filter *JobFilter) (*JobListResult, error) {
 		filter.Limit = 20
 	}
 
-	// 构建查询，使用 COALESCE 处理 NULL 值
+	// 构建查询，types.DateTime 可以处理 NULL 值
 	query := `SELECT id, topic, payload, status, run_at, 
-	          COALESCE(locked_until, '') as locked_until, 
+	          locked_until, 
 	          retries, max_retries, 
 	          COALESCE(last_error, '') as last_error, 
 	          created, updated 

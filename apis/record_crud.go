@@ -80,7 +80,8 @@ func recordsList(e *core.RequestEvent) error {
 	searchProvider := search.NewProvider(fieldsResolver).Query(query)
 
 	// use rowid when available to minimize the need of a covering index with the "id" field
-	if !collection.IsView() {
+	// note: _rowid_ is SQLite-specific, PostgreSQL doesn't have implicit rowid
+	if !collection.IsView() && !e.App.IsPostgres() {
 		searchProvider.CountCol("_rowid_")
 	}
 

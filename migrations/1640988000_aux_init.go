@@ -20,7 +20,7 @@ func init() {
 
 					CREATE INDEX IF NOT EXISTS idx_logs_level ON "_logs" ("level");
 					CREATE INDEX IF NOT EXISTS idx_logs_message ON "_logs" ("message");
-					CREATE INDEX IF NOT EXISTS idx_logs_created_hour ON "_logs" (date_trunc('hour', "created"));
+					CREATE INDEX IF NOT EXISTS idx_logs_created ON "_logs" ("created");
 				`
 			} else {
 				sql = `

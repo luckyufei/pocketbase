@@ -260,7 +260,8 @@ func (s *Provider) Exec(items any) (*Result, error) {
 			return nil, err
 		}
 		if expr != "" {
-			// ensure that _rowid_ expressions are always prefixed with the first FROM table
+			// ensure that @rowid expressions are always prefixed with the first FROM table
+			// note: for PostgreSQL, @rowid is resolved to "id" instead of "_rowid_"
 			if sortField.Name == rowidSortKey && !strings.Contains(expr, ".") {
 				queryInfo := modelsQuery.Info()
 				if len(queryInfo.From) > 0 {

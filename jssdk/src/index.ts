@@ -10,6 +10,7 @@ export * from "@/services/RecordService";
 export * from "@/services/CrudService";
 export * from "@/services/BatchService";
 export * from "@/services/JobsService";
+export * from "@/services/SecretsService";
 export * from "@/stores/AsyncAuthStore";
 export * from "@/stores/BaseAuthStore";
 export * from "@/stores/LocalAuthStore";

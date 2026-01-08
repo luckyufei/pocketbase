@@ -38,7 +38,9 @@ func (app *BaseApp) FindAllCollections(collectionTypes ...string) ([]*Collection
 		q.AndWhere(dbx.In("type", list.ToInterfaceSlice(types)...))
 	}
 
-	err := q.OrderBy("rowid ASC").All(&collections)
+	// 注意: SQLite 有隐式 rowid 列，但 PostgreSQL 没有
+	// 使用 id 列排序以保持跨数据库兼容性
+	err := q.OrderBy("id ASC").All(&collections)
 	if err != nil {
 		return nil, err
 	}

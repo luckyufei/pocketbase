@@ -34,7 +34,7 @@ func bindKVApi(app core.App, rg *router.RouterGroup[*core.RequestEvent]) {
 	kvGroup.POST("/hset", kvHSetHandler(app))
 	kvGroup.GET("/hget", kvHGetHandler(app))
 	kvGroup.GET("/hgetall", kvHGetAllHandler(app))
-	kvGroup.DELETE("/hdel", kvHDelHandler(app))
+	kvGroup.POST("/hdel", kvHDelHandler(app))
 	kvGroup.POST("/hincrby", kvHIncrByHandler(app))
 
 	// 批量操作

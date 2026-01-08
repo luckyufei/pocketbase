@@ -132,6 +132,55 @@ class AppAuthStore extends LocalAuthStore {
 
 const pb = new PocketBase(import.meta.env.PB_BACKEND_URL, new AppAuthStore());
 
+// Add secrets service (not yet in the published SDK)
+pb.secrets = {
+    async list(options = {}) {
+        return pb.send("/api/secrets", { method: "GET", ...options });
+    },
+    async get(key, options = {}) {
+        return pb.send(`/api/secrets/${encodeURIComponent(key)}`, { method: "GET", ...options });
+    },
+    async create(data, options = {}) {
+        return pb.send("/api/secrets", { method: "POST", body: data, ...options });
+    },
+    async update(key, data, options = {}) {
+        return pb.send(`/api/secrets/${encodeURIComponent(key)}`, { method: "PUT", body: data, ...options });
+    },
+    async delete(key, options = {}) {
+        return pb.send(`/api/secrets/${encodeURIComponent(key)}`, { method: "DELETE", ...options });
+    },
+};
+
+// Add jobs service (not yet in the published SDK)
+pb.jobs = {
+    async list(options = {}) {
+        const query = {};
+        if (options.topic) query.topic = options.topic;
+        if (options.status) query.status = options.status;
+        if (options.limit !== undefined) query.limit = options.limit;
+        if (options.offset !== undefined) query.offset = options.offset;
+        return pb.send("/api/jobs", { method: "GET", query, ...options });
+    },
+    async get(id, options = {}) {
+        return pb.send(`/api/jobs/${encodeURIComponent(id)}`, { method: "GET", ...options });
+    },
+    async enqueue(topic, payload, options = {}) {
+        const body = { topic, payload };
+        if (options.run_at) body.run_at = options.run_at;
+        if (options.max_retries !== undefined) body.max_retries = options.max_retries;
+        return pb.send("/api/jobs/enqueue", { method: "POST", body, ...options });
+    },
+    async requeue(id, options = {}) {
+        return pb.send(`/api/jobs/${encodeURIComponent(id)}/requeue`, { method: "POST", ...options });
+    },
+    async delete(id, options = {}) {
+        return pb.send(`/api/jobs/${encodeURIComponent(id)}`, { method: "DELETE", ...options });
+    },
+    async stats(options = {}) {
+        return pb.send("/api/jobs/stats", { method: "GET", ...options });
+    },
+};
+
 if (pb.authStore.isValid) {
     pb.collection(pb.authStore.record.collectionName || "_superusers")
         .authRefresh()

@@ -39,9 +39,23 @@ func (idx Index) IsValid() bool {
 }
 
 // Build returns a "CREATE INDEX" SQL string from the current index parts.
+// Uses backticks for identifier quoting (SQLite/MySQL style).
 //
 // Returns empty string if idx.IsValid() is false.
 func (idx Index) Build() string {
+	return idx.build("`")
+}
+
+// BuildForPostgres returns a "CREATE INDEX" SQL string for PostgreSQL.
+// Uses double quotes for identifier quoting.
+//
+// Returns empty string if idx.IsValid() is false.
+func (idx Index) BuildForPostgres() string {
+	return idx.build(`"`)
+}
+
+// build is the internal implementation that accepts a quote character.
+func (idx Index) build(quote string) string {
 	if !idx.IsValid() {
 		return ""
 	}
@@ -61,18 +75,22 @@ func (idx Index) Build() string {
 	}
 
 	if idx.SchemaName != "" {
-		str.WriteString("`")
+		str.WriteString(quote)
 		str.WriteString(idx.SchemaName)
-		str.WriteString("`.")
+		str.WriteString(quote)
+		str.WriteString(".")
 	}
 
-	str.WriteString("`")
+	str.WriteString(quote)
 	str.WriteString(idx.IndexName)
-	str.WriteString("` ")
+	str.WriteString(quote)
+	str.WriteString(" ")
 
-	str.WriteString("ON `")
+	str.WriteString("ON ")
+	str.WriteString(quote)
 	str.WriteString(idx.TableName)
-	str.WriteString("` ")
+	str.WriteString(quote)
+	str.WriteString(" ")
 
 	// PostgreSQL USING method (GIN, GIST, BRIN, HASH, BTREE)
 	if idx.Method != "" {
@@ -103,9 +121,9 @@ func (idx Index) Build() string {
 			str.WriteString(trimmedColName)
 		} else {
 			// regular identifier
-			str.WriteString("`")
+			str.WriteString(quote)
 			str.WriteString(trimmedColName)
-			str.WriteString("`")
+			str.WriteString(quote)
 		}
 
 		// PostgreSQL operator class (e.g., jsonb_path_ops, gin_trgm_ops)
@@ -135,7 +153,16 @@ func (idx Index) Build() string {
 
 	if idx.Where != "" {
 		str.WriteString(" WHERE ")
-		str.WriteString(idx.Where)
+		// 转换 WHERE 子句中的引号以匹配目标数据库
+		whereClause := idx.Where
+		if quote == `"` {
+			// PostgreSQL: 将反引号转换为双引号
+			whereClause = strings.ReplaceAll(whereClause, "`", `"`)
+		} else if quote == "`" {
+			// SQLite/MySQL: 将双引号转换为反引号
+			whereClause = strings.ReplaceAll(whereClause, `"`, "`")
+		}
+		str.WriteString(whereClause)
 	}
 
 	return str.String()

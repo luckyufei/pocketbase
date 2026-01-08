@@ -232,6 +232,115 @@ func TestIndexBuild(t *testing.T) {
 	}
 }
 
+func TestIndexBuildForPostgres(t *testing.T) {
+	scenarios := []struct {
+		name     string
+		index    dbutils.Index
+		expected string
+	}{
+		{
+			"empty",
+			dbutils.Index{},
+			"",
+		},
+		{
+			"no index name",
+			dbutils.Index{
+				TableName: "table",
+				Columns:   []dbutils.IndexColumn{{Name: "col"}},
+			},
+			"",
+		},
+		{
+			"no table name",
+			dbutils.Index{
+				IndexName: "index",
+				Columns:   []dbutils.IndexColumn{{Name: "col"}},
+			},
+			"",
+		},
+		{
+			"no columns",
+			dbutils.Index{
+				IndexName: "index",
+				TableName: "table",
+			},
+			"",
+		},
+		{
+			"min valid - uses double quotes",
+			dbutils.Index{
+				IndexName: "index",
+				TableName: "table",
+				Columns:   []dbutils.IndexColumn{{Name: "col"}},
+			},
+			`CREATE INDEX "index" ON "table" ("col")`,
+		},
+		{
+			"all fields - PostgreSQL style",
+			dbutils.Index{
+				Optional:   true,
+				Unique:     true,
+				SchemaName: "schema",
+				IndexName:  "index",
+				TableName:  "table",
+				Columns: []dbutils.IndexColumn{
+					{Name: "col1", Collate: "NOCASE", Sort: "asc"},
+					{Name: "col2", Sort: "desc"},
+					{Name: `json_extract("col3", "$.a")`, Collate: "NOCASE"},
+				},
+				Where: "test = 1 OR test = 2",
+			},
+			`CREATE UNIQUE INDEX IF NOT EXISTS "schema"."index" ON "table" (
+  "col1" COLLATE NOCASE ASC,
+  "col2" DESC,
+  json_extract("col3", "$.a") COLLATE NOCASE
+) WHERE test = 1 OR test = 2`,
+		},
+		{
+			"with GIN method",
+			dbutils.Index{
+				IndexName: "idx_data_gin",
+				TableName: "records",
+				Columns:   []dbutils.IndexColumn{{Name: "data", OpClass: "jsonb_path_ops"}},
+				Method:    "GIN",
+			},
+			`CREATE INDEX "idx_data_gin" ON "records" USING GIN ("data" jsonb_path_ops)`,
+		},
+		{
+			"partial unique index",
+			dbutils.Index{
+				IndexName: "idx_email",
+				TableName: "users",
+				Columns:   []dbutils.IndexColumn{{Name: "email"}},
+				Unique:    true,
+				Where:     `"email" != ''`,
+			},
+			`CREATE UNIQUE INDEX "idx_email" ON "users" ("email") WHERE "email" != ''`,
+		},
+		{
+			"partial unique index with backticks in WHERE - should convert to double quotes",
+			dbutils.Index{
+				IndexName: "idx_email",
+				TableName: "users",
+				Columns:   []dbutils.IndexColumn{{Name: "email"}},
+				Unique:    true,
+				Where:     "`email` != ''",
+			},
+			`CREATE UNIQUE INDEX "idx_email" ON "users" ("email") WHERE "email" != ''`,
+		},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			result := s.index.BuildForPostgres()
+			if result != s.expected {
+				t.Fatalf("Expected \n%v \ngot \n%v", s.expected, result)
+			}
+		})
+	}
+}
+
 func TestHasSingleColumnUniqueIndex(t *testing.T) {
 	scenarios := []struct {
 		name     string

@@ -415,7 +415,8 @@ func TestKVHDel(t *testing.T) {
 			BeforeTestFunc: func(t testing.TB, app *tests.TestApp, e *core.ServeEvent) {
 				app.KV().HSet("hdel:hash1", "field1", "v1")
 			},
-			ExpectedStatus: 200,
+			ExpectedStatus:  200,
+			ExpectedContent: []string{`"ok":true`},
 		},
 	}
 

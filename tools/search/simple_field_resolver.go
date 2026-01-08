@@ -112,6 +112,43 @@ func (r *SimpleFieldResolver) Resolve(field string) (*ResolverResult, error) {
 	}
 
 	// treat as json path
+	// PostgreSQL 使用 -> 和 ->> 操作符，SQLite 使用 JSON_EXTRACT
+	if r.dbType.IsPostgres() {
+		// PostgreSQL: 使用 -> 和 ->> 操作符
+		// 例如: data->'auth' 或 data->>'auth' (返回文本)
+		var expr strings.Builder
+		expr.WriteString("[[")
+		expr.WriteString(inflector.Columnify(parts[0]))
+		expr.WriteString("]]")
+		for i, part := range parts[1:] {
+			isLast := i == len(parts[1:])-1
+			if _, err := strconv.Atoi(part); err == nil {
+				// 数组索引
+				if isLast {
+					expr.WriteString("->>")
+				} else {
+					expr.WriteString("->")
+				}
+				expr.WriteString(part)
+			} else {
+				// 对象键
+				if isLast {
+					expr.WriteString("->>")
+				} else {
+					expr.WriteString("->")
+				}
+				expr.WriteString("'")
+				expr.WriteString(inflector.Columnify(part))
+				expr.WriteString("'")
+			}
+		}
+		return &ResolverResult{
+			NoCoalesce: true,
+			Identifier: expr.String(),
+		}, nil
+	}
+
+	// SQLite: 使用 JSON_EXTRACT
 	var jsonPath strings.Builder
 	jsonPath.WriteString("$")
 	for _, part := range parts[1:] {

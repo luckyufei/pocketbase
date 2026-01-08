@@ -144,9 +144,12 @@ func (app *BaseApp) SyncRecordTableSchema(newCollection *Collection, oldCollecti
 
 	// run optimize per the SQLite recommendations
 	// (https://www.sqlite.org/pragma.html#pragma_optimize)
-	_, optimizeErr := app.NonconcurrentDB().NewQuery("PRAGMA optimize").Execute()
-	if optimizeErr != nil {
-		app.Logger().Warn("Failed to run PRAGMA optimize after record table sync", slog.String("error", optimizeErr.Error()))
+	// PostgreSQL 使用 ANALYZE 代替
+	if !app.IsPostgres() {
+		_, optimizeErr := app.NonconcurrentDB().NewQuery("PRAGMA optimize").Execute()
+		if optimizeErr != nil {
+			app.Logger().Warn("Failed to run PRAGMA optimize after record table sync", slog.String("error", optimizeErr.Error()))
+		}
 	}
 
 	return nil
@@ -187,11 +190,22 @@ func normalizeSingleVsMultipleFieldChanges(app App, newCollection *Collection, o
 				Name string `db:"name"`
 				SQL  string `db:"sql"`
 			}{}
-			err := txApp.DB().Select("name", "sql").
-				From("sqlite_master").
-				AndWhere(dbx.NewExp("sql is not null")).
-				AndWhere(dbx.HashExp{"type": "view"}).
-				All(&views)
+			var err error
+			if txApp.IsPostgres() {
+				// PostgreSQL: query views from information_schema
+				err = txApp.DB().NewQuery(`
+					SELECT table_name as name, view_definition as sql 
+					FROM information_schema.views 
+					WHERE table_schema = 'public'
+				`).All(&views)
+			} else {
+				// SQLite: query views from sqlite_master
+				err = txApp.DB().Select("name", "sql").
+					From("sqlite_master").
+					AndWhere(dbx.NewExp("sql is not null")).
+					AndWhere(dbx.HashExp{"type": "view"}).
+					All(&views)
+			}
 			if err != nil {
 				return err
 			}
@@ -346,7 +360,15 @@ func createCollectionIndexes(app App, collection *Collection) error {
 				continue
 			}
 
-			if _, err := txApp.DB().NewQuery(parsed.Build()).Execute(); err != nil {
+			// 根据数据库类型使用正确的索引构建方法
+			var indexSQL string
+			if txApp.IsPostgres() {
+				indexSQL = parsed.BuildForPostgres()
+			} else {
+				indexSQL = parsed.Build()
+			}
+
+			if _, err := txApp.DB().NewQuery(indexSQL).Execute(); err != nil {
 				errs[strconv.Itoa(i)] = validation.NewError(
 					"validation_invalid_index_expression",
 					fmt.Sprintf("Failed to create index %s - %v.", parsed.IndexName, err.Error()),

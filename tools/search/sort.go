@@ -3,6 +3,8 @@ package search
 import (
 	"fmt"
 	"strings"
+
+	"github.com/pocketbase/pocketbase/tools/dbutils"
 )
 
 const (
@@ -30,7 +32,15 @@ func (s *SortField) BuildExpr(fieldResolver FieldResolver) (string, error) {
 	}
 
 	// special case for the builtin SQLite rowid column
+	// note: PostgreSQL doesn't have implicit _rowid_, use "id" instead
 	if s.Name == rowidSortKey {
+		dbType := dbutils.DBTypeSQLite
+		if dbTypeResolver, ok := fieldResolver.(DBTypeResolver); ok {
+			dbType = dbTypeResolver.DBType()
+		}
+		if dbType.IsPostgres() {
+			return fmt.Sprintf("[[id]] %s", s.Direction), nil
+		}
 		return fmt.Sprintf("[[_rowid_]] %s", s.Direction), nil
 	}
 

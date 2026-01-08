@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/cmd"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/hook"
@@ -39,6 +40,15 @@ type PocketBase struct {
 	queryTimeout      int
 	hideStartBanner   bool
 
+	// PostgreSQL 相关配置
+	postgresDSN string // PostgreSQL 连接字符串
+
+	// 连接池配置
+	dataMaxOpenConns int
+	dataMaxIdleConns int
+	auxMaxOpenConns  int
+	auxMaxIdleConns  int
+
 	// RootCmd is the main console command
 	RootCmd *cobra.Command
 }
@@ -53,6 +63,11 @@ type Config struct {
 	DefaultDataDir       string // if not set, it will fallback to "./pb_data"
 	DefaultEncryptionEnv string
 	DefaultQueryTimeout  time.Duration // default to core.DefaultQueryTimeout (in seconds)
+
+	// PostgreSQL 配置
+	// 如果设置了 PostgresDSN，将使用 PostgreSQL 而不是 SQLite
+	// 格式: postgres://user:password@host:port/dbname?sslmode=disable
+	DefaultPostgresDSN string
 
 	// optional DB configurations
 	DataMaxOpenConns int                // default to core.DefaultDataMaxOpenConns
@@ -96,6 +111,11 @@ func NewWithConfig(config Config) *PocketBase {
 		config.DefaultQueryTimeout = core.DefaultQueryTimeout
 	}
 
+	// 检查环境变量中的 PostgreSQL DSN
+	if config.DefaultPostgresDSN == "" {
+		config.DefaultPostgresDSN = os.Getenv("PB_POSTGRES_DSN")
+	}
+
 	executableName := filepath.Base(os.Args[0])
 
 	pb := &PocketBase{
@@ -115,6 +135,11 @@ func NewWithConfig(config Config) *PocketBase {
 		dataDirFlag:       config.DefaultDataDir,
 		encryptionEnvFlag: config.DefaultEncryptionEnv,
 		hideStartBanner:   config.HideStartBanner,
+		postgresDSN:       config.DefaultPostgresDSN,
+		dataMaxOpenConns:  config.DataMaxOpenConns,
+		dataMaxIdleConns:  config.DataMaxIdleConns,
+		auxMaxOpenConns:   config.AuxMaxOpenConns,
+		auxMaxIdleConns:   config.AuxMaxIdleConns,
 	}
 
 	// replace with a colored stderr writer
@@ -124,18 +149,32 @@ func NewWithConfig(config Config) *PocketBase {
 	// (errors are ignored, since the full flags parsing happens on Execute())
 	pb.eagerParseFlags(&config)
 
+	// 确定使用哪个数据库连接函数
+	dbConnect := config.DBConnect
+	if dbConnect == nil && pb.postgresDSN != "" {
+		// 使用 PostgreSQL
+		dbConnect = func(dbPath string) (*dbx.DB, error) {
+			return core.PostgresDBConnect(core.DefaultPostgresConfig(pb.postgresDSN))
+		}
+	}
+
 	// initialize the app instance
 	pb.App = core.NewBaseApp(core.BaseAppConfig{
 		IsDev:            pb.devFlag,
 		DataDir:          pb.dataDirFlag,
 		EncryptionEnv:    pb.encryptionEnvFlag,
 		QueryTimeout:     time.Duration(pb.queryTimeout) * time.Second,
-		DataMaxOpenConns: config.DataMaxOpenConns,
-		DataMaxIdleConns: config.DataMaxIdleConns,
-		AuxMaxOpenConns:  config.AuxMaxOpenConns,
-		AuxMaxIdleConns:  config.AuxMaxIdleConns,
-		DBConnect:        config.DBConnect,
+		DataMaxOpenConns: pb.dataMaxOpenConns,
+		DataMaxIdleConns: pb.dataMaxIdleConns,
+		AuxMaxOpenConns:  pb.auxMaxOpenConns,
+		AuxMaxIdleConns:  pb.auxMaxIdleConns,
+		DBConnect:        dbConnect,
 	})
+
+	// 如果使用 PostgreSQL，设置适配器
+	if pb.postgresDSN != "" {
+		pb.App.(*core.BaseApp).SetDBAdapter(core.NewPostgresAdapter())
+	}
 
 	// hide the default help command (allow only `--help` flag)
 	pb.RootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
@@ -243,6 +282,43 @@ func (pb *PocketBase) eagerParseFlags(config *Config) error {
 		"queryTimeout",
 		int(config.DefaultQueryTimeout.Seconds()),
 		"the default SELECT queries timeout in seconds",
+	)
+
+	// PostgreSQL 连接参数
+	pb.RootCmd.PersistentFlags().StringVar(
+		&pb.postgresDSN,
+		"pg",
+		config.DefaultPostgresDSN,
+		"PostgreSQL connection string (e.g., postgres://user:pass@localhost:5432/dbname?sslmode=disable)\nWhen set, PocketBase will use PostgreSQL instead of SQLite.\nCan also be set via PB_POSTGRES_DSN environment variable.",
+	)
+
+	// 连接池配置参数
+	pb.RootCmd.PersistentFlags().IntVar(
+		&pb.dataMaxOpenConns,
+		"dataMaxOpenConns",
+		config.DataMaxOpenConns,
+		"maximum number of open connections to the main database",
+	)
+
+	pb.RootCmd.PersistentFlags().IntVar(
+		&pb.dataMaxIdleConns,
+		"dataMaxIdleConns",
+		config.DataMaxIdleConns,
+		"maximum number of idle connections to the main database",
+	)
+
+	pb.RootCmd.PersistentFlags().IntVar(
+		&pb.auxMaxOpenConns,
+		"auxMaxOpenConns",
+		config.AuxMaxOpenConns,
+		"maximum number of open connections to the auxiliary database (SQLite only)",
+	)
+
+	pb.RootCmd.PersistentFlags().IntVar(
+		&pb.auxMaxIdleConns,
+		"auxMaxIdleConns",
+		config.AuxMaxIdleConns,
+		"maximum number of idle connections to the auxiliary database (SQLite only)",
 	)
 
 	return pb.RootCmd.ParseFlags(os.Args[1:])

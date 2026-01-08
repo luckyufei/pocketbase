@@ -57,6 +57,15 @@
             <i class="ri-stack-line" aria-hidden="true"></i>
             <span class="txt">Jobs</span>
         </a>
+        <a
+            href="/settings/secrets"
+            class="sidebar-list-item"
+            use:active={{ path: "/settings/secrets/?.*" }}
+            use:link
+        >
+            <i class="ri-key-2-line" aria-hidden="true"></i>
+            <span class="txt">Secrets</span>
+        </a>
 
         {#if !$hideControls}
             <div class="sidebar-title">

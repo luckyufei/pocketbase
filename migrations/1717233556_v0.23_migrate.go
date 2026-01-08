@@ -26,6 +26,12 @@ func init() {
 			return nil
 		}
 
+		// 检查是否是新安装（没有 _admins 表表示是新安装，不需要迁移）
+		// 这对于 PostgreSQL 新安装特别重要，因为新的 _params 表结构不同
+		if !txApp.HasTable("_admins") {
+			return nil
+		}
+
 		oldSettings, err := loadOldSettings(txApp)
 		if err != nil {
 			return fmt.Errorf("failed to fetch old settings: %w", err)

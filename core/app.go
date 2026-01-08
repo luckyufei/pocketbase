@@ -97,6 +97,11 @@ type App interface {
 	// Provides native job queue with support for delayed jobs, retries, and crash recovery.
 	Jobs() JobStore
 
+	// Secrets returns the app SecretsStore instance for encrypted secret management.
+	// Provides AES-256-GCM encrypted storage for API keys, tokens, and other sensitive data.
+	// Returns nil if the Secrets feature is not enabled (PB_MASTER_KEY not set).
+	Secrets() SecretsStore
+
 	// NewMailClient creates and returns a new SMTP or Sendmail client
 	// based on the current app settings.
 	NewMailClient() mailer.Mailer

@@ -9,7 +9,14 @@
 
 ### Run the Application
 ```bash
+# SQLite 模式（默认）
 cd examples/base && go run main.go serve
+
+# PostgreSQL 模式
+cd examples/base && go run main.go serve --pg="postgres://user:pass@localhost:5432/pocketbase?sslmode=disable"
+
+# 或使用环境变量
+PB_POSTGRES_DSN="postgres://user:pass@localhost:5432/pocketbase?sslmode=disable" go run main.go serve
 ```
 Starts the server at `http://localhost:8090` with the embedded Admin UI. The `examples/base` directory contains the reference implementation used for prebuilt releases.
 
@@ -221,10 +228,20 @@ app.OnRecordCreate("posts").BindFunc(func(e *core.RecordEvent) error {
 
 ### Database Architecture
 
+PocketBase 支持两种数据库后端：
+
+#### SQLite（默认）
 - **data.db**: Main application data (collections, records, settings)
 - **auxiliary.db**: Logs and temporary data
 - Dual connection pools per database: concurrent (read) and nonconcurrent (write)
 - Pure Go SQLite driver enables CGO_ENABLED=0 builds
+
+#### PostgreSQL
+- 通过 `--pg` 命令行参数或 `PB_POSTGRES_DSN` 环境变量启用
+- 支持 PostgreSQL 15+ 版本
+- 完整的 JSONB 支持，GIN 索引优化
+- 行级安全策略 (RLS) 支持
+- 详细配置请参考 [PostgreSQL 使用指南](docs/POSTGRESQL.md)
 
 ## 开发规范
 

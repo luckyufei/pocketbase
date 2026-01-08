@@ -248,8 +248,9 @@ func (r *MigrationsRunner) initMigrationsTable() error {
 		return nil // already inited
 	}
 
+	// Use BIGINT for applied timestamp to support UnixMicro values (PostgreSQL compatibility)
 	rawQuery := fmt.Sprintf(
-		"CREATE TABLE IF NOT EXISTS {{%s}} (file VARCHAR(255) PRIMARY KEY NOT NULL, applied INTEGER NOT NULL)",
+		"CREATE TABLE IF NOT EXISTS {{%s}} (file VARCHAR(255) PRIMARY KEY NOT NULL, applied BIGINT NOT NULL)",
 		r.tableName,
 	)
 

@@ -87,6 +87,10 @@ type BaseApp struct {
 	// 数据库适配器，用于抽象 SQLite 和 PostgreSQL 的差异
 	dbAdapter DBAdapter
 
+	// Secrets 管理
+	secretsSettings *SecretsSettings
+	secretsStore    *secretsStore
+
 	// app event hooks
 	onBootstrap     *hook.Hook[*BootstrapEvent]
 	onServe         *hook.Hook[*ServeEvent]
@@ -457,6 +461,9 @@ func (app *BaseApp) Bootstrap() error {
 		// initialize Job store
 		app.initJobStore()
 
+		// initialize Secrets store
+		app.initSecretsStore()
+
 		// try to cleanup the pb_data temp directory (if any)
 		_ = os.RemoveAll(filepath.Join(app.DataDir(), LocalTempDirName))
 
@@ -483,15 +490,17 @@ func (app *BaseApp) ResetBootstrapState() error {
 
 	var errs []error
 
-	dbs := []*dbx.Builder{
+	// PostgreSQL 模式下 auxConcurrentDB/auxNonconcurrentDB 与主数据库共享连接，
+	// 需要避免重复关闭
+	isSharedAuxDB := app.auxConcurrentDB == app.concurrentDB
+
+	// 关闭主数据库连接
+	mainDbs := []*dbx.Builder{
 		&app.concurrentDB,
 		&app.nonconcurrentDB,
-		&app.auxConcurrentDB,
-		&app.auxNonconcurrentDB,
 	}
-
-	for _, db := range dbs {
-		if db == nil {
+	for _, db := range mainDbs {
+		if db == nil || *db == nil {
 			continue
 		}
 		if v, ok := (*db).(closer); ok {
@@ -500,6 +509,29 @@ func (app *BaseApp) ResetBootstrapState() error {
 			}
 		}
 		*db = nil
+	}
+
+	// 关闭辅助数据库连接（仅 SQLite 模式，PostgreSQL 模式共享主连接）
+	if !isSharedAuxDB {
+		auxDbs := []*dbx.Builder{
+			&app.auxConcurrentDB,
+			&app.auxNonconcurrentDB,
+		}
+		for _, db := range auxDbs {
+			if db == nil || *db == nil {
+				continue
+			}
+			if v, ok := (*db).(closer); ok {
+				if err := v.Close(); err != nil {
+					errs = append(errs, err)
+				}
+			}
+			*db = nil
+		}
+	} else {
+		// PostgreSQL 模式：只需清空引用，连接已在上面关闭
+		app.auxConcurrentDB = nil
+		app.auxNonconcurrentDB = nil
 	}
 
 	if len(errs) > 0 {
@@ -1301,14 +1333,18 @@ func normalizeSQLLog(sql string) string {
 func (app *BaseApp) initAuxDB() error {
 	// note: renamed to "auxiliary" because "aux" is a reserved Windows filename
 	// (see https://github.com/pocketbase/pocketbase/issues/5607)
-	// 检查 DataDir 是否为 PostgreSQL DSN
-	var dbPath string
+
+	// PostgreSQL 模式：共享主数据库连接池
+	// 因为 PostgreSQL 中所有表（包括辅助表如 _logs）都在同一个数据库中，
+	// 不需要创建额外的连接池，直接复用主数据库连接即可
 	if IsPostgresDSN(app.DataDir()) {
-		// PostgreSQL 使用相同的连接（辅助表在同一数据库中）
-		dbPath = app.DataDir()
-	} else {
-		dbPath = filepath.Join(app.DataDir(), "auxiliary.db")
+		app.auxConcurrentDB = app.concurrentDB
+		app.auxNonconcurrentDB = app.nonconcurrentDB
+		return nil
 	}
+
+	// SQLite 模式：使用独立的 auxiliary.db 文件
+	dbPath := filepath.Join(app.DataDir(), "auxiliary.db")
 
 	concurrentDB, err := app.config.DBConnect(dbPath)
 	if err != nil {
@@ -1431,6 +1467,11 @@ func (app *BaseApp) registerBaseHooks() {
 	})
 
 	app.Cron().Add("__pbDBOptimize__", "0 0 * * *", func() {
+		// SQLite 特有的优化命令，PostgreSQL 不需要
+		if app.IsPostgres() {
+			return
+		}
+
 		_, execErr := app.NonconcurrentDB().NewQuery("PRAGMA wal_checkpoint(TRUNCATE)").Execute()
 		if execErr != nil {
 			app.Logger().Warn("Failed to run periodic PRAGMA wal_checkpoint for the main DB", slog.String("error", execErr.Error()))

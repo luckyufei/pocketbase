@@ -160,6 +160,9 @@ func (f *TextField) ColumnType(app App) string {
 		// note: the default is just a last resort fallback to avoid empty
 		// string values in case the record was inserted with raw sql and
 		// it is not actually used when operating with the db abstraction
+		if app.IsPostgres() {
+			return "TEXT PRIMARY KEY DEFAULT ('r'||lower(encode(gen_random_bytes(7), 'hex'))) NOT NULL"
+		}
 		return "TEXT PRIMARY KEY DEFAULT ('r'||lower(hex(randomblob(7)))) NOT NULL"
 	}
 
