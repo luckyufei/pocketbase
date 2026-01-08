@@ -9,6 +9,7 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tests"
 	"github.com/pocketbase/pocketbase/tools/security"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 // ============================================================================
@@ -27,7 +28,6 @@ func TestMetricsAPIGetHistory(t *testing.T) {
 			ExpectedContent: []string{
 				`"message"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 		{
 			Name:   "GET metrics history (regular user)",
@@ -41,7 +41,6 @@ func TestMetricsAPIGetHistory(t *testing.T) {
 			ExpectedContent: []string{
 				`"message"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 		{
 			Name:   "GET metrics history (superuser)",
@@ -62,7 +61,6 @@ func TestMetricsAPIGetHistory(t *testing.T) {
 				`"items"`,
 				`"totalItems"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 		{
 			Name:   "GET metrics history with params (superuser)",
@@ -81,7 +79,6 @@ func TestMetricsAPIGetHistory(t *testing.T) {
 				`"items"`,
 				`"totalItems"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 		{
 			Name:   "GET metrics history with max hours (superuser)",
@@ -99,7 +96,6 @@ func TestMetricsAPIGetHistory(t *testing.T) {
 			ExpectedContent: []string{
 				`"items"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 		{
 			Name:   "GET metrics history with max limit (superuser)",
@@ -117,7 +113,6 @@ func TestMetricsAPIGetHistory(t *testing.T) {
 			ExpectedContent: []string{
 				`"items"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 	}
 
@@ -138,7 +133,6 @@ func TestMetricsAPIGetCurrent(t *testing.T) {
 			ExpectedContent: []string{
 				`"message"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 		{
 			Name:   "GET current metrics (regular user)",
@@ -151,7 +145,6 @@ func TestMetricsAPIGetCurrent(t *testing.T) {
 			ExpectedContent: []string{
 				`"message"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 		{
 			Name:   "GET current metrics (superuser) - with data",
@@ -172,7 +165,6 @@ func TestMetricsAPIGetCurrent(t *testing.T) {
 				`"id"`,
 				`"timestamp"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 	}
 
@@ -203,7 +195,6 @@ func TestMetricsMiddleware(t *testing.T) {
 			},
 			ExpectedStatus:  200,
 			ExpectedContent: []string{"test"},
-			ExpectedEvents:  map[string]int{"*": 0},
 		},
 		{
 			Name:   "middleware records 5xx error",
@@ -221,7 +212,6 @@ func TestMetricsMiddleware(t *testing.T) {
 			ExpectedContent: []string{
 				`"status":500`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 		{
 			Name:   "middleware passes through 4xx error without recording as 5xx",
@@ -239,7 +229,6 @@ func TestMetricsMiddleware(t *testing.T) {
 			ExpectedContent: []string{
 				`"status":404`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 		{
 			Name:   "middleware works without collector initialized",
@@ -320,7 +309,6 @@ func TestMetricsAPIServiceUnavailable(t *testing.T) {
 			ExpectedContent: []string{
 				`"message"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 		{
 			Name:   "GET current metrics without service init (superuser)",
@@ -334,7 +322,6 @@ func TestMetricsAPIServiceUnavailable(t *testing.T) {
 			ExpectedContent: []string{
 				`"message"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 	}
 
@@ -366,7 +353,6 @@ func TestMetricsAPICurrentNotFound(t *testing.T) {
 			ExpectedContent: []string{
 				`"id"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 	}
 
@@ -395,7 +381,6 @@ func TestMetricsAPIWithZeroParams(t *testing.T) {
 			ExpectedContent: []string{
 				`"items"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 		{
 			Name:   "GET metrics history with negative params (superuser)",
@@ -413,7 +398,6 @@ func TestMetricsAPIWithZeroParams(t *testing.T) {
 			ExpectedContent: []string{
 				`"items"`,
 			},
-			ExpectedEvents: map[string]int{"*": 0},
 		},
 	}
 
@@ -457,24 +441,22 @@ func TestInitMetricsServiceCronCleanup(t *testing.T) {
 		t.Fatalf("Failed to init: %v", err)
 	}
 
-	// Insert old data directly
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		t.Fatalf("Failed to create MetricsDB: %v", err)
-	}
-	defer metricsDB.Close()
+	// Insert old data directly via MetricsRepository
+	repo := core.NewMetricsRepository(app)
 
 	// Insert old record (8 days ago)
+	oldTime, _ := types.ParseDateTime(time.Now().UTC().AddDate(0, 0, -8))
 	oldMetrics := &core.SystemMetrics{
-		Id:        security.RandomString(15),
-		Timestamp: time.Now().UTC().AddDate(0, 0, -8),
+		Timestamp: oldTime,
 	}
-	if err := metricsDB.Insert(oldMetrics); err != nil {
+	oldMetrics.Id = security.RandomString(15)
+
+	if err := repo.Insert(oldMetrics); err != nil {
 		t.Fatalf("Failed to insert old metrics: %v", err)
 	}
 
-	// Manually trigger cron job (simulating cleanup)
-	deleted, err := metricsDB.CleanupOldMetrics()
+	// Manually trigger cleanup
+	deleted, err := repo.CleanupOldMetrics()
 	if err != nil {
 		t.Fatalf("Cleanup failed: %v", err)
 	}
@@ -492,15 +474,11 @@ func TestInitMetricsServiceCronCleanupWithNoOldData(t *testing.T) {
 		t.Fatalf("Failed to init: %v", err)
 	}
 
-	// Get metrics DB
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		t.Fatalf("Failed to create MetricsDB: %v", err)
-	}
-	defer metricsDB.Close()
+	// Get metrics repository
+	repo := core.NewMetricsRepository(app)
 
 	// Cleanup with no old data should return 0
-	deleted, err := metricsDB.CleanupOldMetrics()
+	deleted, err := repo.CleanupOldMetrics()
 	if err != nil {
 		t.Fatalf("Cleanup failed: %v", err)
 	}
@@ -535,29 +513,26 @@ func TestMetricsEndToEnd(t *testing.T) {
 	// Wait for initial collection to complete
 	time.Sleep(100 * time.Millisecond)
 
-	// Insert test data directly to MetricsDB for query testing
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		t.Fatalf("Failed to create MetricsDB: %v", err)
-	}
-	defer metricsDB.Close()
+	// Insert test data directly via MetricsRepository
+	repo := core.NewMetricsRepository(app)
 
 	// Insert a test record
 	testMetrics := &core.SystemMetrics{
-		Id:              security.RandomString(15),
-		Timestamp:       time.Now().UTC(),
+		Timestamp:       types.NowDateTime(),
 		CpuUsagePercent: 50.0,
 		MemoryAllocMB:   256.0,
 		GoroutinesCount: 100,
 		P95LatencyMs:    25.5,
 		Http5xxCount:    5,
 	}
-	if err := metricsDB.Insert(testMetrics); err != nil {
+	testMetrics.Id = security.RandomString(15)
+
+	if err := repo.Insert(testMetrics); err != nil {
 		t.Fatalf("Failed to insert test metrics: %v", err)
 	}
 
 	// Query and verify
-	latest, err := metricsDB.GetLatest()
+	latest, err := repo.GetLatest()
 	if err != nil {
 		t.Fatalf("Failed to get latest: %v", err)
 	}

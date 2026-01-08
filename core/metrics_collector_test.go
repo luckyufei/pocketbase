@@ -165,20 +165,14 @@ func TestLatencyBufferConcurrency(t *testing.T) {
 }
 
 // ============================================================================
-// MetricsCollector Tests
+// MetricsCollector Tests (使用 MetricsRepository)
 // ============================================================================
 
 func TestNewMetricsCollector(t *testing.T) {
 	app, _ := tests.NewTestApp()
 	defer app.Cleanup()
 
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		t.Fatalf("Failed to create MetricsDB: %v", err)
-	}
-	defer metricsDB.Close()
-
-	collector := core.NewMetricsCollector(app, metricsDB)
+	collector := core.NewMetricsCollector(app)
 	if collector == nil {
 		t.Fatal("Expected non-nil MetricsCollector")
 	}
@@ -192,13 +186,7 @@ func TestMetricsCollectorRecordLatency(t *testing.T) {
 	app, _ := tests.NewTestApp()
 	defer app.Cleanup()
 
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		t.Fatalf("Failed to create MetricsDB: %v", err)
-	}
-	defer metricsDB.Close()
-
-	collector := core.NewMetricsCollector(app, metricsDB)
+	collector := core.NewMetricsCollector(app)
 
 	// Record some latencies
 	collector.RecordLatency(10.5)
@@ -216,13 +204,7 @@ func TestMetricsCollectorRecordError(t *testing.T) {
 	app, _ := tests.NewTestApp()
 	defer app.Cleanup()
 
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		t.Fatalf("Failed to create MetricsDB: %v", err)
-	}
-	defer metricsDB.Close()
-
-	collector := core.NewMetricsCollector(app, metricsDB)
+	collector := core.NewMetricsCollector(app)
 
 	// Record various status codes - only 5xx should be counted
 	collector.RecordError(200) // Should not count
@@ -242,13 +224,7 @@ func TestMetricsCollectorStartStop(t *testing.T) {
 	app, _ := tests.NewTestApp()
 	defer app.Cleanup()
 
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		t.Fatalf("Failed to create MetricsDB: %v", err)
-	}
-	defer metricsDB.Close()
-
-	collector := core.NewMetricsCollector(app, metricsDB)
+	collector := core.NewMetricsCollector(app)
 
 	// Start collector
 	collector.Start()
@@ -270,13 +246,7 @@ func TestMetricsCollectorStartStopConcurrent(t *testing.T) {
 	app, _ := tests.NewTestApp()
 	defer app.Cleanup()
 
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		t.Fatalf("Failed to create MetricsDB: %v", err)
-	}
-	defer metricsDB.Close()
-
-	collector := core.NewMetricsCollector(app, metricsDB)
+	collector := core.NewMetricsCollector(app)
 
 	// Test multiple start/stop cycles sequentially
 	for i := 0; i < 5; i++ {
@@ -304,13 +274,7 @@ func TestMetricsCollectorRecordLatencyConcurrent(t *testing.T) {
 	app, _ := tests.NewTestApp()
 	defer app.Cleanup()
 
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		t.Fatalf("Failed to create MetricsDB: %v", err)
-	}
-	defer metricsDB.Close()
-
-	collector := core.NewMetricsCollector(app, metricsDB)
+	collector := core.NewMetricsCollector(app)
 
 	var wg sync.WaitGroup
 
@@ -336,13 +300,7 @@ func TestMetricsCollectorRecordErrorConcurrent(t *testing.T) {
 	app, _ := tests.NewTestApp()
 	defer app.Cleanup()
 
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		t.Fatalf("Failed to create MetricsDB: %v", err)
-	}
-	defer metricsDB.Close()
-
-	collector := core.NewMetricsCollector(app, metricsDB)
+	collector := core.NewMetricsCollector(app)
 
 	var wg sync.WaitGroup
 
@@ -422,13 +380,7 @@ func TestMetricsCollectorCollectionLoopWithCleanup(t *testing.T) {
 	app, _ := tests.NewTestApp()
 	defer app.Cleanup()
 
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		t.Fatalf("Failed to create MetricsDB: %v", err)
-	}
-	defer metricsDB.Close()
-
-	collector := core.NewMetricsCollector(app, metricsDB)
+	collector := core.NewMetricsCollector(app)
 
 	// 启动采集器
 	collector.Start()
@@ -439,8 +391,9 @@ func TestMetricsCollectorCollectionLoopWithCleanup(t *testing.T) {
 	// 停止采集器（触发 cleanup 分支）
 	collector.Stop()
 
-	// 验证数据已被采集
-	latest, err := metricsDB.GetLatest()
+	// 验证数据已被采集（通过 MetricsRepository）
+	repo := core.NewMetricsRepository(app)
+	latest, err := repo.GetLatest()
 	if err != nil {
 		t.Fatalf("Failed to get latest: %v", err)
 	}
@@ -453,13 +406,7 @@ func TestMetricsCollectorStopBeforeStart(t *testing.T) {
 	app, _ := tests.NewTestApp()
 	defer app.Cleanup()
 
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		t.Fatalf("Failed to create MetricsDB: %v", err)
-	}
-	defer metricsDB.Close()
-
-	collector := core.NewMetricsCollector(app, metricsDB)
+	collector := core.NewMetricsCollector(app)
 
 	// Stop without Start should be safe
 	collector.Stop()
@@ -470,25 +417,26 @@ func TestMetricsCollectorStopBeforeStart(t *testing.T) {
 	collector.Stop()
 }
 
-// TestMetricsCollectorCollectAndStoreError 测试 collectAndStore 错误路径
-func TestMetricsCollectorCollectAndStoreError(t *testing.T) {
+// TestMetricsCollectorUsesAuxDB 验证 Collector 使用 AuxDB 而非独立 DB
+func TestMetricsCollectorUsesAuxDB(t *testing.T) {
 	app, _ := tests.NewTestApp()
 	defer app.Cleanup()
 
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		t.Fatalf("Failed to create MetricsDB: %v", err)
-	}
-
-	collector := core.NewMetricsCollector(app, metricsDB)
-
-	// 关闭数据库以触发插入错误
-	metricsDB.Close()
-
-	// 启动采集器 - collectAndStore 会失败但不应 panic
+	collector := core.NewMetricsCollector(app)
 	collector.Start()
 	time.Sleep(100 * time.Millisecond)
 	collector.Stop()
+
+	// 通过 AuxModelQuery 验证数据存储在 AuxDB 中
+	var metrics []core.SystemMetrics
+	err := app.AuxModelQuery(&core.SystemMetrics{}).All(&metrics)
+	if err != nil {
+		t.Fatalf("Failed to query from AuxDB: %v", err)
+	}
+
+	if len(metrics) == 0 {
+		t.Fatal("Expected metrics to be stored in AuxDB")
+	}
 }
 
 // ============================================================================

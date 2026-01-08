@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	// metricsDBStoreKey 在 app.Store() 中存储 MetricsDB 的键
-	metricsDBStoreKey = "__pbMetricsDB__"
+	// metricsRepositoryStoreKey 在 app.Store() 中存储 MetricsRepository 的键
+	metricsRepositoryStoreKey = "__pbMetricsRepository__"
 
 	// metricsCollectorStoreKey 在 app.Store() 中存储 MetricsCollector 的键
 	metricsCollectorStoreKey = "__pbMetricsCollector__"
@@ -28,8 +28,8 @@ func bindMetricsApi(app core.App, rg *router.RouterGroup[*core.RequestEvent]) {
 
 	// GET /api/system/metrics - 获取历史监控数据
 	subGroup.GET("/metrics", func(e *core.RequestEvent) error {
-		metricsDB := getMetricsDB(e.App)
-		if metricsDB == nil {
+		repo := getMetricsRepository(e.App)
+		if repo == nil {
 			return e.JSON(http.StatusServiceUnavailable, map[string]any{
 				"message": "Metrics service is not available",
 			})
@@ -53,7 +53,7 @@ func bindMetricsApi(app core.App, rg *router.RouterGroup[*core.RequestEvent]) {
 		}
 
 		// 查询数据
-		items, totalItems, err := metricsDB.GetByTimeRange(hours, limit)
+		items, totalItems, err := repo.GetByTimeRange(hours, limit)
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]any{
 				"message": "Failed to query metrics",
@@ -69,14 +69,14 @@ func bindMetricsApi(app core.App, rg *router.RouterGroup[*core.RequestEvent]) {
 
 	// GET /api/system/metrics/current - 获取当前系统状态
 	subGroup.GET("/metrics/current", func(e *core.RequestEvent) error {
-		metricsDB := getMetricsDB(e.App)
-		if metricsDB == nil {
+		repo := getMetricsRepository(e.App)
+		if repo == nil {
 			return e.JSON(http.StatusServiceUnavailable, map[string]any{
 				"message": "Metrics service is not available",
 			})
 		}
 
-		metrics, err := metricsDB.GetLatest()
+		metrics, err := repo.GetLatest()
 		if err != nil {
 			return e.JSON(http.StatusInternalServerError, map[string]any{
 				"message": "Failed to query current metrics",
@@ -97,24 +97,20 @@ func bindMetricsApi(app core.App, rg *router.RouterGroup[*core.RequestEvent]) {
 // InitMetricsService 初始化监控服务
 // 应在 app.OnServe() 中调用
 func InitMetricsService(app core.App) error {
-	// 创建 MetricsDB
-	metricsDB, err := core.NewMetricsDB(app.DataDir(), core.DefaultDBConnect)
-	if err != nil {
-		app.Logger().Error("Failed to initialize metrics database", slog.String("error", err.Error()))
-		return err
-	}
+	// 创建 MetricsRepository（使用 AuxDB）
+	repo := core.NewMetricsRepository(app)
 
 	// 存储到 app.Store()
-	app.Store().Set(metricsDBStoreKey, metricsDB)
+	app.Store().Set(metricsRepositoryStoreKey, repo)
 
 	// 创建并启动 MetricsCollector
-	collector := core.NewMetricsCollector(app, metricsDB)
+	collector := core.NewMetricsCollector(app)
 	app.Store().Set(metricsCollectorStoreKey, collector)
 	collector.Start()
 
 	// 注册清理任务（每天 03:00 执行）
 	app.Cron().Add("__pbMetricsCleanup__", "0 3 * * *", func() {
-		rowsDeleted, err := metricsDB.CleanupOldMetrics()
+		rowsDeleted, err := repo.CleanupOldMetrics()
 		if err != nil {
 			app.Logger().Error("Failed to cleanup old metrics", slog.String("error", err.Error()))
 		} else if rowsDeleted > 0 {
@@ -130,12 +126,7 @@ func InitMetricsService(app core.App) error {
 			if c := getMetricsCollector(e.App); c != nil {
 				c.Stop()
 			}
-
-			// 关闭数据库
-			if db := getMetricsDB(e.App); db != nil {
-				db.Close()
-			}
-
+			// MetricsRepository 使用 AuxDB，无需单独关闭
 			return e.Next()
 		},
 		Priority: -998,
@@ -145,11 +136,11 @@ func InitMetricsService(app core.App) error {
 	return nil
 }
 
-// getMetricsDB 从 app.Store() 获取 MetricsDB
-func getMetricsDB(app core.App) *core.MetricsDB {
-	if v := app.Store().Get(metricsDBStoreKey); v != nil {
-		if db, ok := v.(*core.MetricsDB); ok {
-			return db
+// getMetricsRepository 从 app.Store() 获取 MetricsRepository
+func getMetricsRepository(app core.App) *core.MetricsRepository {
+	if v := app.Store().Get(metricsRepositoryStoreKey); v != nil {
+		if repo, ok := v.(*core.MetricsRepository); ok {
+			return repo
 		}
 	}
 	return nil

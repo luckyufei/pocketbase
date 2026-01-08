@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS system_metrics (
     http_5xx_count INTEGER DEFAULT 0
 );
 
-CREATE INDEX IF NOT EXISTS idx_system_metrics_timestamp 
+CREATE INDEX IF NOT EXISTS idx_metrics_timestamp 
 ON system_metrics(timestamp);
 ```
 

@@ -3,27 +3,124 @@ package core_test
 import (
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
+// ============================================================
+// Task 1: Model 接口实现测试 (TDD Red-Green)
+// ============================================================
+
+// TestSystemMetricsImplementsModel 验证 SystemMetrics 实现 Model 接口
+func TestSystemMetricsImplementsModel(t *testing.T) {
+	t.Parallel()
+
+	// 编译时检查：如果 SystemMetrics 没有实现 Model 接口，这行会编译失败
+	var _ core.Model = (*core.SystemMetrics)(nil)
+}
+
+// TestSystemMetricsTableName 验证表名为 _metrics
 func TestSystemMetricsTableName(t *testing.T) {
 	t.Parallel()
 
 	m := &core.SystemMetrics{}
-	if tableName := m.TableName(); tableName != "system_metrics" {
-		t.Fatalf("Expected table name 'system_metrics', got '%s'", tableName)
+	expected := "_metrics"
+	if tableName := m.TableName(); tableName != expected {
+		t.Fatalf("Expected table name '%s', got '%s'", expected, tableName)
 	}
 }
+
+// TestSystemMetricsPrimaryKey 验证 PK 方法返回 Id
+func TestSystemMetricsPrimaryKey(t *testing.T) {
+	t.Parallel()
+
+	m := &core.SystemMetrics{}
+	m.Id = "test_pk_123"
+
+	pk := m.PK()
+	if pk != "test_pk_123" {
+		t.Fatalf("Expected PK 'test_pk_123', got '%v'", pk)
+	}
+}
+
+// TestSystemMetricsIsNew 验证 IsNew 判断逻辑
+func TestSystemMetricsIsNew(t *testing.T) {
+	t.Parallel()
+
+	m := &core.SystemMetrics{}
+	m.Id = "test123"
+
+	// 新创建的模型应该是 IsNew
+	if !m.IsNew() {
+		t.Fatal("Expected new model to return IsNew() = true")
+	}
+
+	// 标记为非新后
+	m.MarkAsNotNew()
+	if m.IsNew() {
+		t.Fatal("Expected model after MarkAsNotNew() to return IsNew() = false")
+	}
+
+	// 重新标记为新
+	m.MarkAsNew()
+	if !m.IsNew() {
+		t.Fatal("Expected model after MarkAsNew() to return IsNew() = true")
+	}
+}
+
+// TestSystemMetricsLastSavedPK 验证 LastSavedPK 方法
+func TestSystemMetricsLastSavedPK(t *testing.T) {
+	t.Parallel()
+
+	m := &core.SystemMetrics{}
+	m.Id = "test456"
+
+	// 初始状态 LastSavedPK 应为空
+	if m.LastSavedPK() != "" {
+		t.Fatalf("Expected empty LastSavedPK, got '%v'", m.LastSavedPK())
+	}
+
+	// MarkAsNotNew 后 LastSavedPK 应等于 Id
+	m.MarkAsNotNew()
+	if m.LastSavedPK() != "test456" {
+		t.Fatalf("Expected LastSavedPK 'test456', got '%v'", m.LastSavedPK())
+	}
+}
+
+// TestSystemMetricsPostScan 验证 PostScan 方法（dbx.PostScanner 接口）
+func TestSystemMetricsPostScan(t *testing.T) {
+	t.Parallel()
+
+	m := &core.SystemMetrics{}
+	m.Id = "scanned_id"
+
+	// PostScan 前应该是 IsNew
+	if !m.IsNew() {
+		t.Fatal("Expected IsNew() = true before PostScan")
+	}
+
+	// 执行 PostScan
+	if err := m.PostScan(); err != nil {
+		t.Fatalf("PostScan failed: %v", err)
+	}
+
+	// PostScan 后应该不是 IsNew
+	if m.IsNew() {
+		t.Fatal("Expected IsNew() = false after PostScan")
+	}
+}
+
+// ============================================================
+// JSON 序列化测试
+// ============================================================
 
 func TestSystemMetricsJSONSerialization(t *testing.T) {
 	t.Parallel()
 
-	now := time.Now().UTC().Truncate(time.Second)
+	now := types.NowDateTime()
 
 	metrics := &core.SystemMetrics{
-		Id:              "test123",
 		Timestamp:       now,
 		CpuUsagePercent: 25.5,
 		MemoryAllocMB:   128.75,
@@ -33,6 +130,7 @@ func TestSystemMetricsJSONSerialization(t *testing.T) {
 		P95LatencyMs:    10.25,
 		Http5xxCount:    2,
 	}
+	metrics.Id = "test123"
 
 	// Serialize to JSON
 	data, err := json.Marshal(metrics)
@@ -77,8 +175,7 @@ func TestSystemMetricsJSONFieldNames(t *testing.T) {
 	t.Parallel()
 
 	metrics := &core.SystemMetrics{
-		Id:              "test123",
-		Timestamp:       time.Now().UTC(),
+		Timestamp:       types.NowDateTime(),
 		CpuUsagePercent: 25.5,
 		MemoryAllocMB:   128.75,
 		GoroutinesCount: 50,
@@ -87,6 +184,7 @@ func TestSystemMetricsJSONFieldNames(t *testing.T) {
 		P95LatencyMs:    10.25,
 		Http5xxCount:    2,
 	}
+	metrics.Id = "test123"
 
 	data, err := json.Marshal(metrics)
 	if err != nil {
@@ -120,21 +218,22 @@ func TestSystemMetricsJSONFieldNames(t *testing.T) {
 func TestSystemMetricsResponseJSONSerialization(t *testing.T) {
 	t.Parallel()
 
-	now := time.Now().UTC()
+	now := types.NowDateTime()
+
+	item1 := &core.SystemMetrics{
+		Timestamp:       now,
+		CpuUsagePercent: 10.0,
+	}
+	item1.Id = "item1"
+
+	item2 := &core.SystemMetrics{
+		Timestamp:       now,
+		CpuUsagePercent: 20.0,
+	}
+	item2.Id = "item2"
 
 	response := &core.SystemMetricsResponse{
-		Items: []*core.SystemMetrics{
-			{
-				Id:              "item1",
-				Timestamp:       now,
-				CpuUsagePercent: 10.0,
-			},
-			{
-				Id:              "item2",
-				Timestamp:       now,
-				CpuUsagePercent: 20.0,
-			},
-		},
+		Items:      []*core.SystemMetrics{item1, item2},
 		TotalItems: 2,
 	}
 

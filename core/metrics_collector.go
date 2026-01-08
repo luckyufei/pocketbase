@@ -12,6 +12,7 @@ import (
 
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/tools/security"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 const (
@@ -88,7 +89,7 @@ func (b *LatencyBuffer) Reset() {
 // MetricsCollector 系统指标采集器
 type MetricsCollector struct {
 	app           App
-	metricsDB     *MetricsDB
+	repository    *MetricsRepository
 	latencyBuffer *LatencyBuffer
 	http5xxCount  atomic.Int64
 	stopCh        chan struct{}
@@ -98,10 +99,10 @@ type MetricsCollector struct {
 }
 
 // NewMetricsCollector 创建指标采集器实例
-func NewMetricsCollector(app App, metricsDB *MetricsDB) *MetricsCollector {
+func NewMetricsCollector(app App) *MetricsCollector {
 	return &MetricsCollector{
 		app:           app,
-		metricsDB:     metricsDB,
+		repository:    NewMetricsRepository(app),
 		latencyBuffer: NewLatencyBuffer(LatencyBufferSize),
 	}
 }
@@ -171,7 +172,7 @@ func (c *MetricsCollector) collectionLoop() {
 func (c *MetricsCollector) collectAndStore() {
 	metrics := c.collectMetrics()
 
-	if err := c.metricsDB.Insert(metrics); err != nil {
+	if err := c.repository.Insert(metrics); err != nil {
 		c.app.Logger().Error(
 			"Failed to store metrics",
 			"error", err,
@@ -191,8 +192,7 @@ func (c *MetricsCollector) collectMetrics() *SystemMetrics {
 	allocMB := math.Round(float64(m.Alloc)/1024/1024*100) / 100
 
 	metrics := &SystemMetrics{
-		Id:              security.RandomString(15),
-		Timestamp:       time.Now().UTC(),
+		Timestamp:       types.NowDateTime(),
 		CpuUsagePercent: gcCPUPercent,
 		MemoryAllocMB:   allocMB,
 		GoroutinesCount: runtime.NumGoroutine(),
@@ -201,6 +201,8 @@ func (c *MetricsCollector) collectMetrics() *SystemMetrics {
 		P95LatencyMs:    c.collectP95Latency(),
 		Http5xxCount:    c.collectAndReset5xxCount(),
 	}
+	// 使用 BaseModel 的 Id 字段
+	metrics.Id = security.RandomString(15)
 
 	return metrics
 }
