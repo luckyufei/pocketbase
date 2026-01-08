@@ -43,6 +43,11 @@ type ServeConfig struct {
 
 	// AllowedOrigins is an optional list of CORS origins (default to "*").
 	AllowedOrigins []string
+
+	// DevProxy is the upstream URL for development proxy mode.
+	// When set, unmatched requests will be proxied to this address (e.g., Vite dev server).
+	// Example: "http://localhost:5173"
+	DevProxy string
 }
 
 // Serve starts a new app web server.
@@ -75,6 +80,13 @@ func Serve(app core.App, config ServeConfig) error {
 	pbRouter, err := NewRouter(app)
 	if err != nil {
 		return err
+	}
+
+	// 设置开发代理（如果配置了）
+	if config.DevProxy != "" {
+		if pm := app.ProxyManager(); pm != nil {
+			pm.SetDevProxy(config.DevProxy)
+		}
 	}
 
 	pbRouter.Bind(CORS(CORSConfig{

@@ -13,7 +13,7 @@ import (
 func TestCollectionsImport(t *testing.T) {
 	t.Parallel()
 
-	totalCollections := 16
+	totalCollections := 17 // 包含 _proxies 系统 collection
 
 	scenarios := []tests.ApiScenario{
 		{

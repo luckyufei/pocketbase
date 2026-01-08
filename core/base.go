@@ -192,6 +192,9 @@ type BaseApp struct {
 	onCollectionsImportRequest *hook.Hook[*CollectionsImportRequestEvent]
 
 	onBatchRequest *hook.Hook[*BatchRequestEvent]
+
+	// proxy manager for native gateway
+	proxyManager *ProxyManager
 }
 
 // NewBaseApp creates and returns a new BaseApp instance
@@ -427,6 +430,13 @@ func (app *BaseApp) Bootstrap() error {
 
 		if err := app.ReloadSettings(); err != nil {
 			return err
+		}
+
+		// initialize proxy manager and load proxies
+		app.initProxyManager()
+		if err := app.loadProxies(); err != nil {
+			// log warning but don't fail bootstrap
+			app.Logger().Warn("Failed to load proxies", "error", err)
 		}
 
 		// try to cleanup the pb_data temp directory (if any)
@@ -1415,6 +1425,7 @@ func (app *BaseApp) registerBaseHooks() {
 	app.registerMFAHooks()
 	app.registerOTPHooks()
 	app.registerAuthOriginHooks()
+	app.registerProxyHooks()
 }
 
 // getLoggerMinLevel returns the logger min level based on the

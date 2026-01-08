@@ -82,9 +82,9 @@ func TestFindAllCollections(t *testing.T) {
 		collectionTypes []string
 		expectTotal     int
 	}{
-		{nil, 16},
-		{[]string{}, 16},
-		{[]string{""}, 16},
+		{nil, 17}, // 包含 _proxies 系统 collection
+		{[]string{}, 17},
+		{[]string{""}, 17},
 		{[]string{"unknown"}, 0},
 		{[]string{"unknown", core.CollectionTypeAuth}, 4},
 		{[]string{core.CollectionTypeAuth, core.CollectionTypeView}, 7},

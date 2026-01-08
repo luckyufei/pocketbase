@@ -85,6 +85,10 @@ type App interface {
 	// SubscriptionsBroker returns the app realtime subscriptions broker instance.
 	SubscriptionsBroker() *subscriptions.Broker
 
+	// ProxyManager returns the app proxy manager instance
+	// for handling native gateway proxy routes.
+	ProxyManager() *ProxyManager
+
 	// NewMailClient creates and returns a new SMTP or Sendmail client
 	// based on the current app settings.
 	NewMailClient() mailer.Mailer
