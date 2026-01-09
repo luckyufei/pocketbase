@@ -324,6 +324,13 @@ func (t *Trace) startFlushWorkerLocked() {
 }
 
 func (t *Trace) flushBuffer() {
+	t.flushBufferInternal(true, false)
+}
+
+// flushBufferInternal 刷新缓冲区
+// canLog: 是否可以调用 debugLog（需要获取 RLock）
+// holdingLock: 调用者是否已持有 Lock（用于决定 recordError 的调用方式）
+func (t *Trace) flushBufferInternal(canLog bool, holdingLock bool) {
 	totalFlushed := 0
 	for {
 		spans := t.buffer.Flush(t.config.BatchSize)
@@ -332,17 +339,25 @@ func (t *Trace) flushBuffer() {
 		}
 
 		totalFlushed += len(spans)
-		t.debugLog("Flush: writing %d spans to repository", len(spans))
+		if canLog {
+			t.debugLog("Flush: writing %d spans to repository", len(spans))
+		}
 
 		if err := t.repo.BatchWrite(spans); err != nil {
-			t.debugLog("Flush: BatchWrite error: %v", err)
-			t.recordError(err)
+			if canLog {
+				t.debugLog("Flush: BatchWrite error: %v", err)
+			}
+			if holdingLock {
+				t.recordErrorLocked(err)
+			} else {
+				t.recordError(err)
+			}
 			// 发生错误时停止 flush，等待恢复
 			break
 		}
 	}
 
-	if totalFlushed > 0 {
+	if totalFlushed > 0 && canLog {
 		t.debugLog("Flush: completed, total spans flushed: %d", totalFlushed)
 	}
 }
@@ -463,11 +478,22 @@ func (t *Trace) UpdateConfig(newConfig *TraceConfig) error {
 	// 检查是否需要重建 buffer
 	needNewBuffer := t.config.BufferSize != newConfig.BufferSize
 
+	// 检查是否正在禁用追踪
+	disabling := t.config.Enabled && !newConfig.Enabled
+
 	if t.config.DebugLevel && t.logger != nil {
 		t.logger.Printf("[TRACE DEBUG] UpdateConfig: BufferSize %d->%d, FlushInterval %v->%v, SampleRate %f->%f",
 			t.config.BufferSize, newConfig.BufferSize,
 			t.config.FlushInterval, newConfig.FlushInterval,
 			t.config.SampleRate, newConfig.SampleRate)
+	}
+
+	// 如果正在禁用追踪或需要重建 buffer，先 flush 现有数据
+	if disabling || needNewBuffer || needRestart {
+		if t.config.DebugLevel && t.logger != nil {
+			t.logger.Printf("[TRACE DEBUG] UpdateConfig: flushing buffer before config change")
+		}
+		t.flushBufferInternal(false, true) // 使用不需要锁的版本
 	}
 
 	// 更新配置
@@ -483,13 +509,11 @@ func (t *Trace) UpdateConfig(newConfig *TraceConfig) error {
 		RecoveryRetries: newConfig.RecoveryRetries,
 	}
 
-	// 如果需要新 buffer，先 flush 旧数据再创建新 buffer
+	// 如果需要新 buffer，创建新 buffer
 	if needNewBuffer {
 		if t.config.DebugLevel && t.logger != nil {
-			t.logger.Printf("[TRACE DEBUG] UpdateConfig: rebuilding buffer, old size=%d, new size=%d",
-				t.buffer.capacity, newConfig.BufferSize)
+			t.logger.Printf("[TRACE DEBUG] UpdateConfig: rebuilding buffer, new size=%d", newConfig.BufferSize)
 		}
-		t.flushBuffer()
 		t.buffer = NewRingBuffer(newConfig.BufferSize)
 	}
 
@@ -600,14 +624,20 @@ func (t *Trace) getLastErrorString() string {
 func (t *Trace) recordError(err error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	t.recordErrorLocked(err)
+}
 
+// recordErrorLocked 在已持有锁的情况下记录错误
+func (t *Trace) recordErrorLocked(err error) {
 	t.errorCount++
 	t.lastError = err
 	t.health.Status = "unhealthy"
 	t.health.LastError = err.Error()
 	t.health.LastCheck = time.Now()
 
-	t.debugLog("recordError: error recorded, count=%d, error=%v", t.errorCount, err)
+	if t.config.DebugLevel && t.logger != nil {
+		t.logger.Printf("[TRACE DEBUG] recordError: error recorded, count=%d, error=%v", t.errorCount, err)
+	}
 
 	// 检查是否需要自动恢复
 	if t.config.AutoRecovery && !t.recovering {

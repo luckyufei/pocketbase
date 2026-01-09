@@ -12,7 +12,12 @@ import (
 
 // stubTracesData 创建测试用的 trace 数据
 func stubTracesData(app *tests.TestApp) error {
-	repo := core.NewSQLiteTraceRepository(app.AuxDB())
+	repo, err := core.NewSQLiteTraceRepository(app.DataDir() + "/traces_test.db")
+	if err != nil {
+		return err
+	}
+	defer repo.Close()
+
 	if err := repo.CreateSchema(); err != nil {
 		return err
 	}

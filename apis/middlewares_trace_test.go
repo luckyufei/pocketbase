@@ -62,6 +62,14 @@ func (m *mockTraceRepo) Close() error {
 	return nil
 }
 
+func (m *mockTraceRepo) IsHealthy() bool {
+	return true
+}
+
+func (m *mockTraceRepo) Recover() error {
+	return nil
+}
+
 func (m *mockTraceRepo) GetSpans() []*core.Span {
 	m.mu.Lock()
 	defer m.mu.Unlock()
