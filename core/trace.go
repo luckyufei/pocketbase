@@ -435,7 +435,10 @@ func (t *Trace) UpdateConfig(newConfig *TraceConfig) error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.debugLog("UpdateConfig: starting config update")
+	// 直接使用 config 而不调用 debugLog（避免死锁）
+	if t.config.DebugLevel && t.logger != nil {
+		t.logger.Printf("[TRACE DEBUG] UpdateConfig: starting config update")
+	}
 
 	// 验证并修正配置值
 	if newConfig.BufferSize <= 0 {
@@ -460,10 +463,12 @@ func (t *Trace) UpdateConfig(newConfig *TraceConfig) error {
 	// 检查是否需要重建 buffer
 	needNewBuffer := t.config.BufferSize != newConfig.BufferSize
 
-	t.debugLog("UpdateConfig: BufferSize %d->%d, FlushInterval %v->%v, SampleRate %f->%f",
-		t.config.BufferSize, newConfig.BufferSize,
-		t.config.FlushInterval, newConfig.FlushInterval,
-		t.config.SampleRate, newConfig.SampleRate)
+	if t.config.DebugLevel && t.logger != nil {
+		t.logger.Printf("[TRACE DEBUG] UpdateConfig: BufferSize %d->%d, FlushInterval %v->%v, SampleRate %f->%f",
+			t.config.BufferSize, newConfig.BufferSize,
+			t.config.FlushInterval, newConfig.FlushInterval,
+			t.config.SampleRate, newConfig.SampleRate)
+	}
 
 	// 更新配置
 	t.config = &TraceConfig{
@@ -480,15 +485,19 @@ func (t *Trace) UpdateConfig(newConfig *TraceConfig) error {
 
 	// 如果需要新 buffer，先 flush 旧数据再创建新 buffer
 	if needNewBuffer {
-		t.debugLog("UpdateConfig: rebuilding buffer, old size=%d, new size=%d",
-			t.buffer.capacity, newConfig.BufferSize)
+		if t.config.DebugLevel && t.logger != nil {
+			t.logger.Printf("[TRACE DEBUG] UpdateConfig: rebuilding buffer, old size=%d, new size=%d",
+				t.buffer.capacity, newConfig.BufferSize)
+		}
 		t.flushBuffer()
 		t.buffer = NewRingBuffer(newConfig.BufferSize)
 	}
 
 	// 如果需要重启 flush worker
 	if needRestart && t.running {
-		t.debugLog("UpdateConfig: restarting flush worker, new interval=%v", newConfig.FlushInterval)
+		if t.config.DebugLevel && t.logger != nil {
+			t.logger.Printf("[TRACE DEBUG] UpdateConfig: restarting flush worker, new interval=%v", newConfig.FlushInterval)
+		}
 		// 停止旧的 worker
 		t.running = false
 		close(t.stopCh)
@@ -501,7 +510,9 @@ func (t *Trace) UpdateConfig(newConfig *TraceConfig) error {
 		t.startFlushWorkerLocked()
 	}
 
-	t.debugLog("UpdateConfig: completed successfully")
+	if t.config.DebugLevel && t.logger != nil {
+		t.logger.Printf("[TRACE DEBUG] UpdateConfig: completed successfully")
+	}
 	return nil
 }
 
@@ -510,7 +521,9 @@ func (t *Trace) SetLogger(logger *log.Logger) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.logger = logger
-	t.debugLog("SetLogger: logger updated")
+	if t.config.DebugLevel && logger != nil {
+		logger.Printf("[TRACE DEBUG] SetLogger: logger updated")
+	}
 }
 
 // ============================================================================

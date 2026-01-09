@@ -13,6 +13,9 @@ import (
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
+// 使用 context 避免 unused import 错误
+var _ = context.Background
+
 // BenchmarkSQLiteTraceRepository 测试 SQLite Trace Repository 性能
 func BenchmarkSQLiteTraceRepository(b *testing.B) {
 	tempDir := b.TempDir()
@@ -52,14 +55,13 @@ func BenchmarkPostgreSQLTraceRepository(b *testing.B) {
 		b.Skip("Skipping PostgreSQL benchmark: TEST_POSTGRES_DSN not set")
 	}
 
-	repo, err := core.NewPostgreSQLTraceRepository(dsn)
+	repo, err := core.NewPgTraceRepository(dsn)
 	if err != nil {
 		b.Fatalf("Failed to create repository: %v", err)
 	}
 	defer repo.Close()
 
-	ctx := context.Background()
-	if err := repo.CreateSchema(ctx); err != nil {
+	if err := repo.CreateSchema(); err != nil {
 		b.Fatalf("Failed to create schema: %v", err)
 	}
 
@@ -127,7 +129,7 @@ func BenchmarkTrace(b *testing.B) {
 		BufferSize:    1000,
 		FlushInterval: 100 * time.Millisecond,
 		BatchSize:     50,
-		Retention:     24 * time.Hour,
+		RetentionDays: 1,
 	}
 
 	trace := core.NewTrace(repo, config)
@@ -265,75 +267,71 @@ func benchmarkStats(b *testing.B, repo *core.SQLiteTraceRepository) {
 }
 
 // PostgreSQL 基准测试函数
-func benchmarkBatchWritePG(b *testing.B, repo *core.PostgreSQLTraceRepository) {
+func benchmarkBatchWritePG(b *testing.B, repo *core.PgTraceRepository) {
 	spans := make([]*core.Span, 100)
 	for i := 0; i < 100; i++ {
 		spans[i] = createBenchmarkSpan("trace1", "span1", "", "test")
 	}
 
-	ctx := context.Background()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if err := repo.BatchWrite(ctx, spans); err != nil {
+		if err := repo.BatchWrite(spans); err != nil {
 			b.Fatalf("BatchWrite failed: %v", err)
 		}
 	}
 }
 
-func benchmarkQueryPG(b *testing.B, repo *core.PostgreSQLTraceRepository) {
+func benchmarkQueryPG(b *testing.B, repo *core.PgTraceRepository) {
 	// 先写入一些数据
 	spans := make([]*core.Span, 100)
 	for i := 0; i < 100; i++ {
 		spans[i] = createBenchmarkSpan("trace1", "span1", "", "test")
 	}
-	ctx := context.Background()
-	repo.BatchWrite(ctx, spans)
+	repo.BatchWrite(spans)
 
 	params := core.NewFilterParams()
 	params.Limit = 50
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _, err := repo.Query(ctx, params)
+		_, _, err := repo.Query(params)
 		if err != nil {
 			b.Fatalf("Query failed: %v", err)
 		}
 	}
 }
 
-func benchmarkGetTracePG(b *testing.B, repo *core.PostgreSQLTraceRepository) {
+func benchmarkGetTracePG(b *testing.B, repo *core.PgTraceRepository) {
 	// 先写入一些数据
 	spans := make([]*core.Span, 10)
 	for i := 0; i < 10; i++ {
 		spans[i] = createBenchmarkSpan("benchmark-trace", "span1", "", "test")
 	}
-	ctx := context.Background()
-	repo.BatchWrite(ctx, spans)
+	repo.BatchWrite(spans)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := repo.GetTrace(ctx, "benchmark-trace")
+		_, err := repo.GetTrace("benchmark-trace")
 		if err != nil {
 			b.Fatalf("GetTrace failed: %v", err)
 		}
 	}
 }
 
-func benchmarkStatsPG(b *testing.B, repo *core.PostgreSQLTraceRepository) {
+func benchmarkStatsPG(b *testing.B, repo *core.PgTraceRepository) {
 	// 先写入一些数据
 	spans := make([]*core.Span, 100)
 	for i := 0; i < 100; i++ {
 		spans[i] = createBenchmarkSpan("trace1", "span1", "", "test")
 	}
-	ctx := context.Background()
-	repo.BatchWrite(ctx, spans)
+	repo.BatchWrite(spans)
 
 	params := core.NewFilterParams()
 	params.RootOnly = true
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := repo.Stats(ctx, params)
+		_, err := repo.Stats(params)
 		if err != nil {
 			b.Fatalf("Stats failed: %v", err)
 		}

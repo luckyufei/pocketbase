@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 // TestJSONBQueryPostgreSQL 测试 PostgreSQL JSONB 查询功能
@@ -43,11 +44,11 @@ func TestJSONQuerySQLite(t *testing.T) {
 			Duration:  1000,
 			Status:    core.SpanStatusOK,
 			Attributes: map[string]any{
-				"http.method":     "GET",
+				"http.method":      "GET",
 				"http.status_code": 200,
-				"user.id":         "123",
+				"user.id":          "123",
 			},
-			Created: time.Now(),
+			Created: types.NowDateTime(),
 		},
 		{
 			TraceID:   "trace2",
@@ -58,11 +59,11 @@ func TestJSONQuerySQLite(t *testing.T) {
 			Duration:  2000,
 			Status:    core.SpanStatusError,
 			Attributes: map[string]any{
-				"http.method":     "POST",
+				"http.method":      "POST",
 				"http.status_code": 500,
-				"user.id":         "456",
+				"user.id":          "456",
 			},
-			Created: time.Now(),
+			Created: types.NowDateTime(),
 		},
 	}
 

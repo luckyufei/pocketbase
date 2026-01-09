@@ -198,3 +198,11 @@ func (m *mockTraceRepository) CreateSchema() error {
 func (m *mockTraceRepository) Close() error {
 	return nil
 }
+
+func (m *mockTraceRepository) IsHealthy() bool {
+	return true
+}
+
+func (m *mockTraceRepository) Recover() error {
+	return nil
+}

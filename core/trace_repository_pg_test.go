@@ -1,7 +1,6 @@
 package core_test
 
 import (
-	"context"
 	"os"
 	"testing"
 	"time"
@@ -11,20 +10,19 @@ import (
 )
 
 // setupPostgreSQLRepo 创建测试用的 PostgreSQL repository
-func setupPostgreSQLRepo(t *testing.T) (*core.PostgreSQLTraceRepository, func()) {
+func setupPostgreSQLRepo(t *testing.T) (*core.PgTraceRepository, func()) {
 	// 跳过测试如果没有 PostgreSQL 连接
 	dsn := os.Getenv("TEST_POSTGRES_DSN")
 	if dsn == "" {
 		t.Skip("Skipping PostgreSQL tests: TEST_POSTGRES_DSN not set")
 	}
 
-	repo, err := core.NewPostgreSQLTraceRepository(dsn)
+	repo, err := core.NewPgTraceRepository(dsn)
 	if err != nil {
 		t.Fatalf("Failed to create PostgreSQL repository: %v", err)
 	}
 
-	ctx := context.Background()
-	if err := repo.CreateSchema(ctx); err != nil {
+	if err := repo.CreateSchema(); err != nil {
 		t.Fatalf("Failed to create schema: %v", err)
 	}
 
@@ -40,8 +38,6 @@ func setupPostgreSQLRepo(t *testing.T) (*core.PostgreSQLTraceRepository, func())
 func TestPostgreSQLTraceRepositoryAttributeFilters(t *testing.T) {
 	repo, cleanup := setupPostgreSQLRepo(t)
 	defer cleanup()
-
-	ctx := context.Background()
 
 	// 创建多个测试 spans
 	spans := []*core.Span{
@@ -92,7 +88,7 @@ func TestPostgreSQLTraceRepositoryAttributeFilters(t *testing.T) {
 		},
 	}
 
-	if err := repo.BatchWrite(ctx, spans); err != nil {
+	if err := repo.BatchWrite(spans); err != nil {
 		t.Fatalf("BatchWrite() failed: %v", err)
 	}
 
@@ -101,7 +97,7 @@ func TestPostgreSQLTraceRepositoryAttributeFilters(t *testing.T) {
 	params.AttributeFilters = map[string]any{
 		"http.method": "GET",
 	}
-	results, total, err := repo.Query(ctx, params)
+	results, total, err := repo.Query(params)
 	if err != nil {
 		t.Fatalf("Query by http.method=GET failed: %v", err)
 	}
@@ -117,7 +113,7 @@ func TestPostgreSQLTraceRepositoryAttributeFilters(t *testing.T) {
 	params.AttributeFilters = map[string]any{
 		"user.id": "123",
 	}
-	results, total, err = repo.Query(ctx, params)
+	results, total, err = repo.Query(params)
 	if err != nil {
 		t.Fatalf("Query by user.id=123 failed: %v", err)
 	}
@@ -137,7 +133,7 @@ func TestPostgreSQLTraceRepositoryAttributeFilters(t *testing.T) {
 		"http.method": "GET",
 		"http.path":   "/api/posts",
 	}
-	results, total, err = repo.Query(ctx, params)
+	results, total, err = repo.Query(params)
 	if err != nil {
 		t.Fatalf("Query by multiple attributes failed: %v", err)
 	}
@@ -153,7 +149,7 @@ func TestPostgreSQLTraceRepositoryAttributeFilters(t *testing.T) {
 	params.AttributeFilters = map[string]any{
 		"http.method": "DELETE",
 	}
-	results, total, err = repo.Query(ctx, params)
+	results, total, err = repo.Query(params)
 	if err != nil {
 		t.Fatalf("Query by non-existent value failed: %v", err)
 	}
