@@ -5,6 +5,7 @@ import PageMonitor from "@/components/monitor/PageMonitor.svelte";
 import PageAnalytics from "@/components/analytics/PageAnalytics.svelte";
 import PageRecords from "@/components/records/PageRecords.svelte";
 import PageApplication from "@/components/settings/PageApplication.svelte";
+import PageAnalyticsSettings from "@/components/settings/PageAnalyticsSettings.svelte";
 import PageBackups from "@/components/settings/PageBackups.svelte";
 import PageCrons from "@/components/settings/PageCrons.svelte";
 import PageExportCollections from "@/components/settings/PageExportCollections.svelte";
@@ -107,6 +108,12 @@ const routes = {
 
     "/settings/secrets": wrap({
         component: PageSecrets,
+        conditions: [(_) => ApiClient.authStore.isValid],
+        userData: { showAppSidebar: true },
+    }),
+
+    "/settings/analytics": wrap({
+        component: PageAnalyticsSettings,
         conditions: [(_) => ApiClient.authStore.isValid],
         userData: { showAppSidebar: true },
     }),

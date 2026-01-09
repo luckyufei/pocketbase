@@ -120,14 +120,15 @@ var (
 )
 
 type settings struct {
-	SMTP         SMTPConfig         `form:"smtp" json:"smtp"`
-	Backups      BackupsConfig      `form:"backups" json:"backups"`
-	S3           S3Config           `form:"s3" json:"s3"`
-	Meta         MetaConfig         `form:"meta" json:"meta"`
-	RateLimits   RateLimitsConfig   `form:"rateLimits" json:"rateLimits"`
-	TrustedProxy TrustedProxyConfig `form:"trustedProxy" json:"trustedProxy"`
-	Batch        BatchConfig        `form:"batch" json:"batch"`
-	Logs         LogsConfig         `form:"logs" json:"logs"`
+	SMTP         SMTPConfig               `form:"smtp" json:"smtp"`
+	Backups      BackupsConfig            `form:"backups" json:"backups"`
+	S3           S3Config                 `form:"s3" json:"s3"`
+	Meta         MetaConfig               `form:"meta" json:"meta"`
+	RateLimits   RateLimitsConfig         `form:"rateLimits" json:"rateLimits"`
+	TrustedProxy TrustedProxyConfig       `form:"trustedProxy" json:"trustedProxy"`
+	Batch        BatchConfig              `form:"batch" json:"batch"`
+	Logs         LogsConfig               `form:"logs" json:"logs"`
+	Analytics    AnalyticsSettingsConfig  `form:"analytics" json:"analytics"`
 }
 
 // Settings defines the PocketBase app settings.
@@ -168,6 +169,10 @@ func newDefaultSettings() *Settings {
 				Enabled:     false,
 				MaxRequests: 50,
 				Timeout:     3,
+			},
+			Analytics: AnalyticsSettingsConfig{
+				Enabled:   true,
+				Retention: 90,
 			},
 			RateLimits: RateLimitsConfig{
 				Enabled: false, // @todo once tested enough enable by default for new installations
@@ -287,6 +292,7 @@ func (s *Settings) PostValidate(ctx context.Context, app App) error {
 		validation.Field(&s.Batch),
 		validation.Field(&s.RateLimits),
 		validation.Field(&s.TrustedProxy),
+		validation.Field(&s.Analytics),
 	)
 }
 
@@ -519,6 +525,29 @@ type LogsConfig struct {
 func (c LogsConfig) Validate() error {
 	return validation.ValidateStruct(&c,
 		validation.Field(&c.MaxDays, validation.Min(0)),
+	)
+}
+
+// -------------------------------------------------------------------
+
+// AnalyticsSettingsConfig 定义分析功能的系统设置。
+type AnalyticsSettingsConfig struct {
+	// Enabled 是否启用分析功能（默认 true）
+	Enabled bool `form:"enabled" json:"enabled"`
+
+	// Retention 数据保留天数（默认 90 天，最小 1 天）
+	Retention int `form:"retention" json:"retention"`
+
+	// S3Bucket S3 存储桶名称（PostgreSQL 模式用于存储原始日志，可选）
+	S3Bucket string `form:"s3Bucket" json:"s3Bucket"`
+}
+
+// Validate makes AnalyticsSettingsConfig validatable by implementing [validation.Validatable] interface.
+func (c AnalyticsSettingsConfig) Validate() error {
+	return validation.ValidateStruct(&c,
+		validation.Field(&c.Retention,
+			validation.When(c.Enabled, validation.Required, validation.Min(1)).Else(validation.Min(0)),
+		),
 	)
 }
 

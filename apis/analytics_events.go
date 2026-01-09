@@ -72,23 +72,27 @@ func analyticsEventsHandler(app core.App) func(*core.RequestEvent) error {
 				continue
 			}
 
-			// 推入缓冲区
-			if err := analytics.Push(&event); err != nil {
-				// 记录错误但继续处理
-				app.Logger().Warn("Failed to push analytics event",
-					"error", err,
-					"event", event.Event,
-					"path", event.Path,
-				)
-				continue
-			}
-
-			accepted++
+		// 推入缓冲区
+		if err := analytics.Push(&event); err != nil {
+			// 记录错误但继续处理
+			app.Logger().Warn("Failed to push analytics event",
+				"error", err,
+				"event", event.Event,
+				"path", event.Path,
+			)
+			continue
 		}
 
-		return e.JSON(http.StatusAccepted, map[string]any{
-			"accepted": accepted,
-			"total":    len(input.Events),
-		})
+		accepted++
+	}
+
+	// 记录事件数量到上下文，供日志中间件使用（不记录具体事件内容）
+	e.Set("analytics_events_count", len(input.Events))
+	e.Set("analytics_accepted_count", accepted)
+
+	return e.JSON(http.StatusAccepted, map[string]any{
+		"accepted": accepted,
+		"total":    len(input.Events),
+	})
 	}
 }

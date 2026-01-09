@@ -66,6 +66,15 @@
             <i class="ri-key-2-line" aria-hidden="true"></i>
             <span class="txt">Secrets</span>
         </a>
+        <a
+            href="/settings/analytics"
+            class="sidebar-list-item"
+            use:active={{ path: "/settings/analytics/?.*" }}
+            use:link
+        >
+            <i class="ri-line-chart-line" aria-hidden="true"></i>
+            <span class="txt">Analytics</span>
+        </a>
 
         {#if !$hideControls}
             <div class="sidebar-title">

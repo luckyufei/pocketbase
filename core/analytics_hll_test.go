@@ -277,3 +277,33 @@ func BenchmarkHLLBytes(b *testing.B) {
 		hll.Bytes()
 	}
 }
+
+// TestHLLMergeBytesInvalidData 测试 HLL 合并无效数据时返回错误（用于降级逻辑）
+func TestHLLMergeBytesInvalidData(t *testing.T) {
+	hll := NewHLL()
+	hll.Add("user_001")
+
+	// 尝试合并无效的字节数据
+	invalidData := []byte{0x01, 0x02, 0x03, 0x04, 0x05}
+	err := hll.MergeBytes(invalidData)
+
+	// 应该返回错误，触发降级逻辑
+	if err == nil {
+		t.Error("Expected error when merging invalid data, but got nil")
+	}
+
+	// 原始 HLL 应该保持不变
+	if hll.Count() != 1 {
+		t.Errorf("Original HLL count should remain 1, got %d", hll.Count())
+	}
+}
+
+// TestNewHLLFromBytesInvalidData 测试从无效数据创建 HLL 时返回错误
+func TestNewHLLFromBytesInvalidData(t *testing.T) {
+	invalidData := []byte{0xFF, 0xFE, 0xFD, 0xFC}
+	_, err := NewHLLFromBytes(invalidData)
+
+	if err == nil {
+		t.Error("Expected error when creating HLL from invalid data, but got nil")
+	}
+}
