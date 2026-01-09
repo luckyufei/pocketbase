@@ -208,11 +208,13 @@ func (r *SQLiteTraceRepository) Query(params *FilterParams) ([]*Span, int64, err
 	copy(countArgs, args)
 	
 	for key, value := range params.AttributeFilters {
-		jsonPath := "$." + key
+		// 使用 $."key" 语法来支持包含点号的键名
+		jsonPath := fmt.Sprintf(`$."%s"`, key)
 		query += " AND json_extract(attributes, ?) = ?"
 		countQuery += " AND json_extract(attributes, ?) = ?"
-		queryArgs = append(queryArgs, jsonPath, value)
-		countArgs = append(countArgs, jsonPath, value)
+		// 确保值是字符串类型
+		queryArgs = append(queryArgs, jsonPath, fmt.Sprintf("%v", value))
+		countArgs = append(countArgs, jsonPath, fmt.Sprintf("%v", value))
 	}
 
 	// 获取总数

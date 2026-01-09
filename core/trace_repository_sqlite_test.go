@@ -3,6 +3,7 @@
 package core_test
 
 import (
+	"database/sql"
 	"os"
 	"path/filepath"
 	"testing"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/types"
+	_ "modernc.org/sqlite"
 )
 
 // ============================================================================
@@ -409,17 +411,17 @@ func TestSQLiteTraceRepositoryAttributeFilters(t *testing.T) {
 	repo, cleanup := setupSQLiteRepo(t)
 	defer cleanup()
 
-	// 创建多个测试 spans
+	// 创建多个测试 spans（使用正确的 ID 格式）
 	spans := []*core.Span{
 		{
-			TraceID:   "trace1",
-			SpanID:    "span1",
+			TraceID:   "0123456789abcdef0123456789abcde1",
+			SpanID:    "0123456789abcde1",
 			Name:      "GET /api/users",
 			Kind:      core.SpanKindServer,
 			StartTime: time.Now().UnixMicro(),
 			Duration:  1000,
 			Status:    core.SpanStatusOK,
-			Attributes: map[string]any{
+			Attributes: types.JSONMap[any]{
 				"http.method": "GET",
 				"http.path":   "/api/users",
 				"user.id":     "123",
@@ -427,14 +429,14 @@ func TestSQLiteTraceRepositoryAttributeFilters(t *testing.T) {
 			Created: types.NowDateTime(),
 		},
 		{
-			TraceID:   "trace2",
-			SpanID:    "span2",
+			TraceID:   "0123456789abcdef0123456789abcde2",
+			SpanID:    "0123456789abcde2",
 			Name:      "POST /api/users",
 			Kind:      core.SpanKindServer,
 			StartTime: time.Now().UnixMicro(),
 			Duration:  2000,
 			Status:    core.SpanStatusError,
-			Attributes: map[string]any{
+			Attributes: types.JSONMap[any]{
 				"http.method": "POST",
 				"http.path":   "/api/users",
 				"user.id":     "456",
@@ -442,14 +444,14 @@ func TestSQLiteTraceRepositoryAttributeFilters(t *testing.T) {
 			Created: types.NowDateTime(),
 		},
 		{
-			TraceID:   "trace3",
-			SpanID:    "span3",
+			TraceID:   "0123456789abcdef0123456789abcde3",
+			SpanID:    "0123456789abcde3",
 			Name:      "GET /api/posts",
 			Kind:      core.SpanKindServer,
 			StartTime: time.Now().UnixMicro(),
 			Duration:  1500,
 			Status:    core.SpanStatusOK,
-			Attributes: map[string]any{
+			Attributes: types.JSONMap[any]{
 				"http.method": "GET",
 				"http.path":   "/api/posts",
 				"user.id":     "789",
@@ -525,5 +527,67 @@ func TestSQLiteTraceRepositoryAttributeFilters(t *testing.T) {
 	}
 	if total != 0 {
 		t.Errorf("Expected 0 results for non-existent value, got %d", total)
+	}
+}
+
+func TestSQLiteTraceRepositoryIsHealthy(t *testing.T) {
+	repo, cleanup := setupSQLiteRepo(t)
+	defer cleanup()
+
+	// 新创建的 repository 应该是健康的
+	if !repo.IsHealthy() {
+		t.Error("Expected repository to be healthy")
+	}
+}
+
+func TestSQLiteTraceRepositoryRecover(t *testing.T) {
+	repo, cleanup := setupSQLiteRepo(t)
+	defer cleanup()
+
+	// 调用 Recover 不应该返回错误
+	if err := repo.Recover(); err != nil {
+		t.Errorf("Recover() failed: %v", err)
+	}
+
+	// Recover 后 repository 应该仍然健康
+	if !repo.IsHealthy() {
+		t.Error("Expected repository to be healthy after recover")
+	}
+}
+
+func TestSQLiteTraceRepositoryNewWithDB(t *testing.T) {
+	// 创建一个内存数据库
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	// 使用现有连接创建 repository
+	repo := core.NewSQLiteTraceRepositoryWithDB(db)
+	if repo == nil {
+		t.Fatal("NewSQLiteTraceRepositoryWithDB returned nil")
+	}
+
+	// 创建 schema
+	if err := repo.CreateSchema(); err != nil {
+		t.Fatalf("CreateSchema() failed: %v", err)
+	}
+
+	// 验证可以正常使用
+	span := createTestSpanWithID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "1111111111111111", "", "test")
+	if err := repo.BatchWrite([]*core.Span{span}); err != nil {
+		t.Fatalf("BatchWrite() failed: %v", err)
+	}
+
+	results, total, err := repo.Query(core.NewFilterParams())
+	if err != nil {
+		t.Fatalf("Query() failed: %v", err)
+	}
+	if total != 1 {
+		t.Errorf("total = %d, want 1", total)
+	}
+	if len(results) != 1 {
+		t.Errorf("len(results) = %d, want 1", len(results))
 	}
 }

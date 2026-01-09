@@ -535,3 +535,118 @@ func TestNoopSpanBuilder(t *testing.T) {
 		t.Errorf("Expected 0 spans when disabled, got %d", len(spans))
 	}
 }
+
+func TestTraceSampleRate(t *testing.T) {
+	repo := &mockRepository{}
+	config := &core.TraceConfig{
+		Enabled:    true,
+		SampleRate: 0.0, // 0% 采样率
+	}
+	trace := core.NewTrace(repo, config)
+	defer trace.Stop()
+
+	// 记录多个 span
+	for i := 0; i < 10; i++ {
+		ctx := context.Background()
+		_, span := trace.StartSpan(ctx, "test")
+		span.End()
+	}
+
+	trace.Flush()
+	spans := repo.GetSpans()
+
+	// 0% 采样率应该不记录任何 span
+	if len(spans) != 0 {
+		t.Errorf("Expected 0 spans with 0%% sample rate, got %d", len(spans))
+	}
+}
+
+func TestRingBufferCapacityAndEmpty(t *testing.T) {
+	rb := core.NewRingBuffer(10)
+
+	if rb.Capacity() != 10 {
+		t.Errorf("Capacity() = %d, want 10", rb.Capacity())
+	}
+
+	if !rb.IsEmpty() {
+		t.Error("New buffer should be empty")
+	}
+
+	if rb.IsFull() {
+		t.Error("New buffer should not be full")
+	}
+
+	// 添加一个 span
+	span := &core.Span{
+		TraceID: "0123456789abcdef0123456789abcdef",
+		SpanID:  "0123456789abcdef",
+		Name:    "test",
+	}
+	rb.Push(span)
+
+	if rb.IsEmpty() {
+		t.Error("Buffer should not be empty after push")
+	}
+}
+
+func TestSpanHelperMethods(t *testing.T) {
+	span := &core.Span{
+		TraceID:   "0123456789abcdef0123456789abcdef",
+		SpanID:    "0123456789abcdef",
+		Name:      "test",
+		StartTime: time.Now().UnixMicro(),
+		Duration:  5000, // 5ms
+	}
+
+	// 测试 DurationMs
+	if span.DurationMs() != 5.0 {
+		t.Errorf("DurationMs() = %f, want 5.0", span.DurationMs())
+	}
+
+	// 测试 StartTimeTime
+	startTime := span.StartTimeTime()
+	if startTime.IsZero() {
+		t.Error("StartTimeTime() should not be zero")
+	}
+
+	// 测试 SetAttribute
+	span.SetAttribute("key", "value")
+	if span.Attributes["key"] != "value" {
+		t.Errorf("SetAttribute failed")
+	}
+
+	// 测试 GetAttribute
+	val, ok := span.GetAttribute("key")
+	if !ok || val != "value" {
+		t.Errorf("GetAttribute() = %v, want 'value'", val)
+	}
+
+	// 测试不存在的 attribute
+	val, ok = span.GetAttribute("nonexistent")
+	if ok || val != nil {
+		t.Errorf("GetAttribute() for nonexistent key should return nil, false")
+	}
+}
+
+func TestContextWithTraceContext(t *testing.T) {
+	ctx := context.Background()
+
+	// 设置 trace context
+	tc := &core.TraceContext{
+		TraceID:  "0123456789abcdef0123456789abcdef",
+		ParentID: "0123456789abcdef",
+	}
+	ctx = core.ContextWithTraceContext(ctx, tc)
+
+	// 获取 trace context
+	got := core.TraceContextFromContext(ctx)
+	if got == nil {
+		t.Fatal("TraceContextFromContext returned nil")
+	}
+	if got.TraceID != tc.TraceID {
+		t.Errorf("TraceID = %s, want %s", got.TraceID, tc.TraceID)
+	}
+	if got.ParentID != tc.ParentID {
+		t.Errorf("ParentID = %s, want %s", got.ParentID, tc.ParentID)
+	}
+}
