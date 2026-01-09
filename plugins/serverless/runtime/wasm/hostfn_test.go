@@ -7,7 +7,15 @@ import (
 	"testing"
 
 	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
+
+// setupWazeroWithWASI 创建带 WASI 支持的 wazero 运行时
+func setupWazeroWithWASI(ctx context.Context) wazero.Runtime {
+	r := wazero.NewRuntime(ctx)
+	wasi_snapshot_preview1.MustInstantiate(ctx, r)
+	return r
+}
 
 // TestNewHostFunctions 测试创建 HostFunctions
 func TestNewHostFunctions(t *testing.T) {
@@ -65,7 +73,7 @@ func TestHostFunctionsSetHandlers(t *testing.T) {
 // TestHostFunctionsRegisterTo 测试注册到 wazero
 func TestHostFunctionsRegisterTo(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := setupWazeroWithWASI(ctx)
 	defer r.Close(ctx)
 
 	hf := NewHostFunctions()
@@ -78,7 +86,7 @@ func TestHostFunctionsRegisterTo(t *testing.T) {
 // TestHostFunctionsWithModule 测试与 WASM 模块集成
 func TestHostFunctionsWithModule(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := setupWazeroWithWASI(ctx)
 	defer r.Close(ctx)
 
 	hf := NewHostFunctions()
@@ -271,7 +279,7 @@ func TestGetResponseLen(t *testing.T) {
 // TestHostFunctionsSetCurrentModule 测试设置当前模块
 func TestHostFunctionsSetCurrentModule(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := setupWazeroWithWASI(ctx)
 	defer r.Close(ctx)
 
 	hf := NewHostFunctions()
@@ -306,7 +314,7 @@ func TestHostFunctionsSetCurrentModule(t *testing.T) {
 // TestHostFunctionsNilHandlers 测试 nil 处理器
 func TestHostFunctionsNilHandlers(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := setupWazeroWithWASI(ctx)
 	defer r.Close(ctx)
 
 	hf := NewHostFunctions()
@@ -356,7 +364,7 @@ func TestHostFunctionsConcurrency(t *testing.T) {
 // TestHostRequestDirectCall 测试直接调用 hostRequest
 func TestHostRequestDirectCall(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := setupWazeroWithWASI(ctx)
 	defer r.Close(ctx)
 
 	hf := NewHostFunctions()
@@ -411,7 +419,7 @@ func TestHostRequestDirectCall(t *testing.T) {
 // TestHostRequestWithError 测试 hostRequest 错误处理
 func TestHostRequestWithError(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := setupWazeroWithWASI(ctx)
 	defer r.Close(ctx)
 
 	hf := NewHostFunctions()
@@ -454,7 +462,7 @@ func TestHostRequestWithError(t *testing.T) {
 // TestHostRequestNilHandler 测试 nil 处理器
 func TestHostRequestNilHandler(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := setupWazeroWithWASI(ctx)
 	defer r.Close(ctx)
 
 	hf := NewHostFunctions()
@@ -487,7 +495,7 @@ func TestHostRequestNilHandler(t *testing.T) {
 // TestHostLogDirectCall 测试直接调用 hostLog
 func TestHostLogDirectCall(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := setupWazeroWithWASI(ctx)
 	defer r.Close(ctx)
 
 	hf := NewHostFunctions()
@@ -548,7 +556,7 @@ func TestHostLogDirectCall(t *testing.T) {
 // TestHostLogNilHandler 测试 nil 日志处理器
 func TestHostLogNilHandler(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := setupWazeroWithWASI(ctx)
 	defer r.Close(ctx)
 
 	hf := NewHostFunctions()
@@ -578,7 +586,7 @@ func TestHostLogNilHandler(t *testing.T) {
 // TestHostErrorDirectCall 测试直接调用 hostError
 func TestHostErrorDirectCall(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := setupWazeroWithWASI(ctx)
 	defer r.Close(ctx)
 
 	hf := NewHostFunctions()
@@ -621,7 +629,7 @@ func TestHostErrorDirectCall(t *testing.T) {
 // TestHostErrorNilHandler 测试 nil 错误处理器
 func TestHostErrorNilHandler(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := setupWazeroWithWASI(ctx)
 	defer r.Close(ctx)
 
 	hf := NewHostFunctions()
@@ -651,7 +659,7 @@ func TestHostErrorNilHandler(t *testing.T) {
 // TestHostAllocAndFree 测试内存分配和释放
 func TestHostAllocAndFree(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := setupWazeroWithWASI(ctx)
 	defer r.Close(ctx)
 
 	hf := NewHostFunctions()
@@ -686,7 +694,7 @@ func TestHostAllocAndFree(t *testing.T) {
 // TestConsoleLogWarnError 测试 console 兼容函数
 func TestConsoleLogWarnError(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r := setupWazeroWithWASI(ctx)
 	defer r.Close(ctx)
 
 	hf := NewHostFunctions()

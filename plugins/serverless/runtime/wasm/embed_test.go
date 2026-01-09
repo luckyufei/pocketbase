@@ -5,7 +5,24 @@ import (
 	"testing"
 
 	"github.com/tetratelabs/wazero"
+	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
+
+// setupWazeroWithWASIForEmbed 创建带 WASI 支持的 wazero 运行时
+func setupWazeroWithWASIForEmbed(ctx context.Context) wazero.Runtime {
+	r := wazero.NewRuntime(ctx)
+	wasi_snapshot_preview1.MustInstantiate(ctx, r)
+	return r
+}
+
+// setupWazeroWithWASIAndHostFn 创建带 WASI 和 Host Functions 的 wazero 运行时
+func setupWazeroWithWASIAndHostFn(ctx context.Context) (wazero.Runtime, *HostFunctions) {
+	r := wazero.NewRuntime(ctx)
+	wasi_snapshot_preview1.MustInstantiate(ctx, r)
+	hf := NewHostFunctions()
+	hf.RegisterTo(ctx, r)
+	return r, hf
+}
 
 // TestRuntimeWasm 测试 WASM 二进制嵌入
 func TestRuntimeWasm(t *testing.T) {
@@ -30,7 +47,7 @@ func TestGetCompiledModule(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("编译成功", func(t *testing.T) {
-		r := wazero.NewRuntime(ctx)
+		r, _ := setupWazeroWithWASIAndHostFn(ctx)
 		defer r.Close(ctx)
 
 		// 清除缓存确保测试隔离
@@ -46,7 +63,7 @@ func TestGetCompiledModule(t *testing.T) {
 	})
 
 	t.Run("缓存命中", func(t *testing.T) {
-		r := wazero.NewRuntime(ctx)
+		r, _ := setupWazeroWithWASIAndHostFn(ctx)
 		defer r.Close(ctx)
 
 		ClearCache()
@@ -70,10 +87,10 @@ func TestGetCompiledModule(t *testing.T) {
 	})
 
 	t.Run("不同 runtime 不共享缓存", func(t *testing.T) {
-		r1 := wazero.NewRuntime(ctx)
+		r1, _ := setupWazeroWithWASIAndHostFn(ctx)
 		defer r1.Close(ctx)
 
-		r2 := wazero.NewRuntime(ctx)
+		r2, _ := setupWazeroWithWASIAndHostFn(ctx)
 		defer r2.Close(ctx)
 
 		ClearCache()
@@ -113,7 +130,7 @@ func TestInstantiateModule(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("实例化成功", func(t *testing.T) {
-		r := wazero.NewRuntime(ctx)
+		r, _ := setupWazeroWithWASIAndHostFn(ctx)
 		defer r.Close(ctx)
 
 		ClearCache()
@@ -138,7 +155,7 @@ func TestInstantiateModule(t *testing.T) {
 	})
 
 	t.Run("多实例并行", func(t *testing.T) {
-		r := wazero.NewRuntime(ctx)
+		r, _ := setupWazeroWithWASIAndHostFn(ctx)
 		defer r.Close(ctx)
 
 		ClearCache()
@@ -170,7 +187,7 @@ func TestInstantiateModule(t *testing.T) {
 // TestInstanceMemoryOperations 测试实例内存操作
 func TestInstanceMemoryOperations(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r, _ := setupWazeroWithWASIAndHostFn(ctx)
 	defer r.Close(ctx)
 
 	ClearCache()
@@ -256,7 +273,7 @@ func TestInstanceClose(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("正常关闭", func(t *testing.T) {
-		r := wazero.NewRuntime(ctx)
+		r, _ := setupWazeroWithWASIAndHostFn(ctx)
 		defer r.Close(ctx)
 
 		ClearCache()
@@ -289,7 +306,7 @@ func TestInstanceClose(t *testing.T) {
 // TestClearCache 测试缓存清除
 func TestClearCache(t *testing.T) {
 	ctx := context.Background()
-	r := wazero.NewRuntime(ctx)
+	r, _ := setupWazeroWithWASIAndHostFn(ctx)
 	defer r.Close(ctx)
 
 	// 先编译一次

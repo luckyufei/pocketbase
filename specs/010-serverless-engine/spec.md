@@ -94,6 +94,12 @@ graph TD
 
 本节详细描述 QuickJS WASM 运行时的技术实现，这是 Serverless Engine 的核心基础设施。
 
+> **📖 详细技术规格**: 完整的 QuickJS WASM 集成方案请参考 [`specs/_research/quickjs-wasm.md`](../_research/quickjs-wasm.md)，包含：
+> - 三层沙箱架构设计（套娃模型）
+> - C 代码编译指南（wasi-sdk + QuickJS）
+> - Host Function 实现细节
+> - 方案对比（QuickJS vs Javy vs Goja）
+
 **核心理念**: "Sandboxed Interpreter" - 在 WASM 容器内运行不可信的 JS 代码，实现近乎原生的启动速度。
 
 ### 5.1 The Matryoshka Model (套娃模型)
@@ -137,7 +143,7 @@ graph TD
 
 | 组件 | 描述 | 来源 |
 |------|------|------|
-| **QuickJS Core** | 2024 版本，开启 `BIGNUM` 支持 | [bellard/quickjs](https://github.com/nicholashuang/aspect-quickjs) |
+| **QuickJS Core** | 2024 版本，开启 `BIGNUM` 支持 | [bellard/quickjs](https://github.com/bellard/quickjs) |
 | **Bootloader** | C 代码，读取内存中的 JS 源码并求值 | 自研 |
 | **PB Bridge** | C 代码，定义 JS 调用 Go 的标准接口 | 自研 |
 

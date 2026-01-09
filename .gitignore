@@ -37,3 +37,4 @@ benchmarks/benchmark.db-shm
 benchmarks/benchmark-config.json
 
 /ui/dist/
+**/quickjs-src/quickjs

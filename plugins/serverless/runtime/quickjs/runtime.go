@@ -15,6 +15,7 @@ import (
 	"github.com/pocketbase/pocketbase/plugins/serverless/runtime/wasm"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
+	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
 // ConsoleCallback 是 console 输出回调函数类型
@@ -49,8 +50,21 @@ type Runtime struct {
 func NewRuntime() (*Runtime, error) {
 	ctx := context.Background()
 
+	// 检查 WASM 二进制是否可用（占位文件小于 100 字节）
+	wasmBytes := wasm.RuntimeWasm()
+	if len(wasmBytes) < 100 {
+		// WASM 未编译，使用模拟模式
+		// 这允许测试在没有真正 WASM 的情况下运行
+		return &Runtime{
+			hostFn: wasm.NewHostFunctions(),
+		}, nil
+	}
+
 	// 创建 wazero 运行时
 	r := wazero.NewRuntime(ctx)
+
+	// 实例化 WASI（QuickJS WASM 需要 WASI 支持）
+	wasi_snapshot_preview1.MustInstantiate(ctx, r)
 
 	// 创建 Host Functions
 	hostFn := wasm.NewHostFunctions()

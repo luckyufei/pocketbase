@@ -248,6 +248,8 @@ plugins/serverless/types/
 
 **Decision**: QuickJS + wazero (自研集成)
 
+> **📖 详细技术规格**: 完整的 QuickJS WASM 集成方案请参考 [`specs/_research/quickjs-wasm.md`](../_research/quickjs-wasm.md)
+
 **Rationale**:
 - QuickJS: 轻量级 JS 引擎，支持 ES2022+，启动快（< 2ms）
 - wazero: 纯 Go WASM 运行时，无 CGO 依赖
@@ -260,6 +262,8 @@ plugins/serverless/types/
 ### 2. 三层沙箱架构 (Matryoshka Model)
 
 **Decision**: Layer 1 (Go) → Layer 2 (WASM) → Layer 3 (JS)
+
+> **📖 详细架构图**: 参考 [`specs/_research/quickjs-wasm.md` Section 3](../_research/quickjs-wasm.md)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -310,6 +314,8 @@ plugins/serverless/types/
 ### 4. Host Functions 设计
 
 **Decision**: 万能网关模式 (`host_request`)
+
+> **📖 详细 ABI 规格**: 参考 [`specs/_research/quickjs-wasm.md` Section 4.3](../_research/quickjs-wasm.md)
 
 | Host Function | Signature | Description |
 |---------------|-----------|-------------|
@@ -576,8 +582,11 @@ interface CollectionService {
 
 ### QuickJS WASM 编译
 
+> **📖 完整编译指南**: 参考 [`specs/_research/quickjs-wasm.md` Section 5](../_research/quickjs-wasm.md)
+
 ```bash
 # 使用 wasi-sdk 编译 QuickJS 为 WASM
+# 详细参数和步骤请参考 quickjs-wasm.md
 wasi-sdk/bin/clang \
   -O3 \
   -D_WASI_EMULATED_MMAN \
@@ -587,6 +596,8 @@ wasi-sdk/bin/clang \
   pb_bridge.c \
   bootloader.c
 ```
+
+**⚠️ 当前状态**: 现有 WASM 实现为 **Demo 版本**，需按照 `quickjs-wasm.md` 规格重新编译
 
 ### 二进制嵌入
 

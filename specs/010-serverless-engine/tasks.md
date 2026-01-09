@@ -27,30 +27,38 @@
 
 **⚠️ CRITICAL**: 此阶段完成前，任何用户故事都无法开始
 
+> **📖 技术规格**: 详见 [`specs/_research/quickjs-wasm.md`](../_research/quickjs-wasm.md)
+
+**当前状态**: 
+- ✅ C 源码已编写 (`pb_bridge.c`, `bootloader.c`)
+- ✅ Makefile 已创建
+- ⏳ 等待 wasi-sdk 环境编译 WASM
+- ✅ Go 接口层已重构（支持 Mock 测试）
+
 ### 2.1 QuickJS WASM 编译 (P0)
 
-- [x] T005a 设置 wasi-sdk 编译环境
-- [x] T005b 编写 `pb_bridge.c` - PocketBase JS Bindings
-- [x] T005c 编写 `bootloader.c` - JS 源码加载器
-- [x] T005d 编译 QuickJS 为 WASM (`pb_runtime.wasm`)
-- [x] T005e 在 `plugins/serverless/runtime/wasm/embed.go` 中嵌入 WASM 二进制
+- [x] T005a 设置 wasi-sdk 编译环境 (`quickjs-src/Makefile`)
+- [x] T005b 编写 `pb_bridge.c` - PocketBase JS Bindings（实现 `host_request` 等导入函数）
+- [x] T005c 编写 `bootloader.c` - JS 源码加载器（实现 `run_handler` 导出函数）
+- [ ] T005d 编译 QuickJS 为 WASM (`pb_runtime.wasm`)（需 wasi-sdk 环境）
+- [x] T005e 在 `plugins/serverless/runtime/wasm/embed.go` 中嵌入 WASM 二进制（结构已就绪）
 
 ### 2.2 Wazero 集成 (P0)
 
-- [x] T006 在 `plugins/serverless/runtime/engine.go` 中集成 wazero 运行时
-- [x] T007 在 `plugins/serverless/runtime/engine.go` 中加载 QuickJS WASM 模块
-- [x] T007a 实现 WASM 模块编译缓存
-- [x] T008 在 `plugins/serverless/runtime/engine.go` 中实现基本 JS 执行能力
-- [x] T008a 编写 `plugins/serverless/runtime/engine_test.go` 基础执行测试
+- [x] T006 在 `plugins/serverless/runtime/wasm/runtime.go` 中定义 Runtime 接口
+- [x] T007 在 `plugins/serverless/runtime/wasm/runtime.go` 中实现 WazeroRuntime
+- [x] T007a 实现 WASM 模块编译缓存 (`embed.go` GetCompiledModule)
+- [x] T008 在 `plugins/serverless/runtime/wasm/runtime.go` 中实现 MockRuntime（测试用）
+- [x] T008a 编写 `plugins/serverless/runtime/wasm/runtime_test.go` 基础执行测试
 
 ### 2.3 Host Functions 实现 (P0)
 
-- [x] T009 在 `plugins/serverless/runtime/hostfn/hostfn.go` 中定义 Host Function 接口
-- [x] T009a 实现 `host_request` 万能网关
+- [x] T009 在 `plugins/serverless/runtime/wasm/hostfn.go` 中定义 Host Function 接口
+- [x] T009a 实现 `host_request` 万能网关（按 quickjs-wasm.md ABI 规格）
 - [x] T009b 实现 `host_log` 日志转发
 - [x] T009c 实现 `host_error` 错误处理
 - [x] T009d 实现 `host_alloc` / `host_free` 内存管理
-- [x] T009e 实现 JSON 序列化/反序列化的内存读写 Helper
+- [x] T009e 实现 JSON 序列化/反序列化的内存读写 Helper (`bridge.go`)
 
 ### 2.4 实例池管理
 
@@ -77,11 +85,15 @@
 - [x] T023 在 `plugins/serverless/polyfill/web_api.js` 中实现 Headers/Request/Response
 - [x] T024 在 `plugins/serverless/polyfill/stream.js` 中实现 ReadableStream 基础
 
+> **注意**: SDK 预加载代码已内嵌到 `bootloader.c` 的 `PB_SDK_PRELOAD` 常量中
+
 **Checkpoint**: WASM 运行时就绪 - 用户故事实现可以开始
 
 ---
 
 ## Phase 3: User Story 1 - HTTP Handler (Priority: P1) 🎯 MVP
+
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
 
 **Goal**: 支持 TypeScript 编写 HTTP 处理函数
 
@@ -106,6 +118,8 @@
 
 ## Phase 4: User Story 2 - Fetch API (Priority: P1) 🎯 MVP
 
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
+
 **Goal**: 支持标准 fetch API 调用外部服务
 
 **Independent Test**: 
@@ -128,6 +142,8 @@
 
 ## Phase 5: User Story 11 - Structured Logging (Priority: P1) 🎯 MVP
 
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
+
 **Goal**: 支持 console.log 输出结构化日志
 
 **Independent Test**: 
@@ -146,6 +162,8 @@
 ---
 
 ## Phase 6: User Story 3 - Vector Search (Priority: P1)
+
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
 
 **Goal**: 支持简洁的向量搜索 API
 
@@ -167,6 +185,8 @@
 
 ## Phase 7: User Story 4 - KV Storage (Priority: P1)
 
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
+
 **Goal**: 支持轻量级 KV 存储
 
 **Independent Test**: 
@@ -187,6 +207,8 @@
 
 ## Phase 8: User Story 5 - File API (Priority: P1)
 
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
+
 **Goal**: 支持文件读写
 
 **Independent Test**: 
@@ -205,6 +227,8 @@
 ---
 
 ## Phase 9: User Story 6 - Secrets Access (Priority: P1)
+
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
 
 **Goal**: 支持安全访问 API Key
 
@@ -226,6 +250,8 @@
 
 ## Phase 10: User Story 7 - Job Queue Integration (Priority: P1)
 
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
+
 **Goal**: 支持异步任务入队
 
 **Independent Test**: 
@@ -245,6 +271,8 @@
 
 ## Phase 11: User Story 10 - Transaction Support (Priority: P1) 🎯 MVP
 
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
+
 **Goal**: 支持事务操作
 
 **Independent Test**: 
@@ -263,6 +291,8 @@
 ---
 
 ## Phase 12: User Story 8 - DB Hooks (Priority: P1)
+
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
 
 **Goal**: 支持 TypeScript 编写数据库钩子
 
@@ -287,6 +317,8 @@
 
 ## Phase 13: User Story 9 - Cron Trigger (Priority: P2)
 
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
+
 **Goal**: 支持定时触发 Serverless 函数
 
 **Independent Test**: 
@@ -305,6 +337,8 @@
 ---
 
 ## Phase 14: User Story 12 - Utility Functions (Priority: P2)
+
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
 
 **Goal**: 支持高性能工具函数
 
@@ -326,6 +360,8 @@
 
 ## Phase 15: Security & Quotas
 
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
+
 **Purpose**: 安全隔离和资源限制
 
 - [x] T094 [P] 在 `plugins/serverless/security/sandbox.go` 中实现沙箱安全策略
@@ -338,6 +374,8 @@
 ---
 
 ## Phase 16: Polish & Cross-Cutting Concerns
+
+> ✅ **状态**: 代码已完成，待 WASM 编译后进行端到端验证
 
 **Purpose**: 影响多个用户故事的改进
 
@@ -475,24 +513,31 @@ Phase 15                                   Phase 16              │
 | Phase | Tasks | Est. Hours | Status |
 |-------|-------|------------|--------|
 | Phase 1: Setup | 4 | 1h | ✅ 完成 |
-| Phase 2: Foundational (QuickJS WASM) | 24 | 24h | ✅ 完成 |
-| Phase 3: US1 HTTP Handler | 9 | 8h | ✅ 完成 |
-| Phase 4: US2 Fetch | 8 | 6h | ✅ 完成 |
-| Phase 5: US11 Logging | 5 | 3h | ✅ 完成 |
-| Phase 6: US3 Vector | 6 | 5h | ✅ 完成 |
-| Phase 7: US4 KV | 4 | 3h | ✅ 完成 |
-| Phase 8: US5 File | 5 | 4h | ✅ 完成 |
-| Phase 9: US6 Secrets | 4 | 2h | ✅ 完成 |
-| Phase 10: US7 Jobs | 3 | 2h | ✅ 完成 |
-| Phase 11: US10 Transaction | 5 | 4h | ✅ 完成 |
-| Phase 12: US8 DB Hooks | 9 | 8h | ✅ 完成 |
-| Phase 13: US9 Cron | 5 | 4h | ✅ 完成 |
-| Phase 14: US12 Utils | 6 | 3h | ✅ 完成 |
-| Phase 15: Security | 6 | 5h | ✅ 完成 |
-| Phase 16: Polish | 17 | 12h | ✅ 完成 |
-| **Total** | **~120** | **~94h** | ✅ 全部完成 |
+| Phase 2: Foundational (QuickJS WASM) | 24 | 24h | ⏳ **90% 完成** (待 WASM 编译) |
+| Phase 3: US1 HTTP Handler | 9 | 8h | ✅ 完成 (待 WASM 验证) |
+| Phase 4: US2 Fetch | 8 | 6h | ✅ 完成 (待 WASM 验证) |
+| Phase 5: US11 Logging | 5 | 3h | ✅ 完成 (待 WASM 验证) |
+| Phase 6: US3 Vector | 6 | 5h | ✅ 完成 (待 WASM 验证) |
+| Phase 7: US4 KV | 4 | 3h | ✅ 完成 (待 WASM 验证) |
+| Phase 8: US5 File | 5 | 4h | ✅ 完成 (待 WASM 验证) |
+| Phase 9: US6 Secrets | 4 | 2h | ✅ 完成 (待 WASM 验证) |
+| Phase 10: US7 Jobs | 3 | 2h | ✅ 完成 (待 WASM 验证) |
+| Phase 11: US10 Transaction | 5 | 4h | ✅ 完成 (待 WASM 验证) |
+| Phase 12: US8 DB Hooks | 9 | 8h | ✅ 完成 (待 WASM 验证) |
+| Phase 13: US9 Cron | 5 | 4h | ✅ 完成 (待 WASM 验证) |
+| Phase 14: US12 Utils | 6 | 3h | ✅ 完成 (待 WASM 验证) |
+| Phase 15: Security | 6 | 5h | ✅ 完成 (待 WASM 验证) |
+| Phase 16: Polish | 17 | 12h | ✅ 完成 (待 WASM 验证) |
+| **Total** | **~120** | **~94h** | ⏳ 待 WASM 编译 |
 
-**所有任务已完成！**
+**当前阻塞点**: T005d - 需要 wasi-sdk 环境编译 `pb_runtime.wasm`
+
+**编译步骤**:
+```bash
+cd plugins/serverless/runtime/wasm/quickjs-src
+make download-quickjs  # 下载 QuickJS 源码
+make                   # 编译 WASM (需要 wasi-sdk)
+```
 
 ---
 

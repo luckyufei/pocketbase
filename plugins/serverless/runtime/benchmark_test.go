@@ -266,6 +266,10 @@ func TestBenchmark_MemoryUsage(t *testing.T) {
 
 // TestBenchmark_ConcurrencyScaling 测试并发扩展性
 func TestBenchmark_ConcurrencyScaling(t *testing.T) {
+	if testing.Short() {
+		t.Skip("跳过长时间运行的并发扩展测试")
+	}
+
 	concurrencyLevels := []int{1, 5, 10, 20, 50}
 
 	for _, concurrency := range concurrencyLevels {

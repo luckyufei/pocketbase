@@ -203,3 +203,152 @@ QuickJS 是单线程的，但 Hangar 业务是异步的（如 Fetch, DB Query）
 我们用 **QuickJS + WASM** 打造了一个**专属于 Hangar 的、纯净的、安全的** JavaScript 运行时。
 
 这就好比给 Docker 容器里装的不是笨重的 Ubuntu，而是一个精简的 Alpine Linux。极致的高效。
+
+
+飞将军，这是一个非常“工程师思维”的问题。
+
+现状是：市面上**没有**一个开箱即用、专为 PocketBase/Go 设计的 `quickjs-wasm` 插件包。
+大部分现存的方案（如 `quickjs-emscripten`）是为浏览器（JS 环境）设计的，而不是为 Go（Wazero 环境）设计的。
+
+为了符合 Hangar **"High Performance & Secure"** 的标准，我推荐以下**两条路径**。其中 **方案 A** 是最符合我们刚刚设计的 Hangar Spec 的“正道”。
+
+---
+
+### 方案 A: The "Hangar Native" Way (推荐)
+
+**自己编译 QuickJS 为 WASI (WebAssembly System Interface)**。
+
+这是最“Anti-Stupidity”的做法：不引入任何中间层的黑盒，完全掌控运行时。
+
+#### 1. 为什么选这条路？
+
+* **体积最小**: 仅包含 QuickJS Core + Hangar Bindings，无冗余代码。
+* **接口最对齐**: 可以直接按照我们 Spec 里的 `host_request` 定义导出函数。
+* **Wazero 友好**: 产出的 `.wasm` 文件是标准的 WASI 格式，Wazero 跑起来最顺滑。
+
+#### 2. 怎么做？(Actionable Guide)
+
+你需要使用 **WASI-SDK** 将 QuickJS 的 C 源码编译成 `.wasm`。
+
+**步骤 1: 准备 C 入口 (`main.c`)**
+这是运行时的“微内核”代码，负责初始化 JS 引擎并等待 Go 调用。
+
+```c
+// main.c (简化版示意)
+#include "quickjs.h"
+#include <string.h>
+#include <stdlib.h>
+
+// 导入 Go 的 Host Functions
+__attribute__((import_module("env"), import_name("host_request")))
+char* host_request(char* op, char* payload);
+
+JSRuntime *rt;
+JSContext *ctx;
+
+// 初始化引擎
+void init() {
+    rt = JS_NewRuntime();
+    ctx = JS_NewContext(rt);
+    // ... 在这里注册全局对象 'pb' 和桥接函数 ...
+}
+
+// 导出给 Go 调用的执行入口
+__attribute__((export_name("run_handler")))
+char* run_handler(char* source_code) {
+    JSValue val = JS_Eval(ctx, source_code, strlen(source_code), "<input>", JS_EVAL_TYPE_GLOBAL);
+    
+    if (JS_IsException(val)) {
+        // ... 处理错误并返回 JSON ...
+        return "{\"error\": \"...\"}";
+    }
+    
+    // ... 序列化结果并返回 ...
+    return "{\"data\": ...}";
+}
+
+int main() {
+    // 保持 WASM 实例存活，等待 invoke
+    return 0; 
+}
+
+```
+
+**步骤 2: 编译 (Makefile)**
+
+下载 [WASI-SDK](https://github.com/WebAssembly/wasi-sdk) 和 [QuickJS 源码](https://github.com/bellard/quickjs)。
+
+```makefile
+CC = /opt/wasi-sdk/bin/clang
+CFLAGS = -O3 -D_WASI_EMULATED_SIGNAL -D_WASI_EMULATED_MMAN
+
+# 关键：导出 malloc/free 给 Go 使用，以便 Go 往 WASM 内存写数据
+LDFLAGS = -Wl,--export=malloc -Wl,--export=free -Wl,--no-entry -Wl,--allow-undefined
+
+target:
+	$(CC) $(CFLAGS) $(LDFLAGS) \
+	-I quickjs/ \
+	quickjs/quickjs.c quickjs/libregexp.c quickjs/libunicode.c \
+	quickjs/cutils.c quickjs/libbf.c \
+	main.c \
+	-o runtime.wasm
+
+```
+
+**步骤 3: Go (Wazero) 调用**
+
+```go
+// 初始化 Wazero
+r := wazero.NewRuntime(ctx)
+_, _ = r.NewHostModuleBuilder("env").
+    NewFunctionBuilder().WithFunc(func(ctx context.Context, mod api.Module, opPtr, payloadPtr uint32) uint32 {
+        // 实现 host_request 逻辑
+        return resultPtr
+    }).Export("host_request").
+    Instantiate(ctx)
+
+// 加载编译好的 runtime.wasm
+mod, _ := r.Instantiate(ctx, compiledCode)
+
+// 调用 run_handler
+runHandler := mod.ExportedFunction("run_handler")
+resPtr, _ := runHandler.Call(ctx, sourcePtr)
+
+```
+
+---
+
+### 方案 B: The "Industry Standard" Way (Javy)
+
+**使用 Shopify 开源的 `Javy**`
+
+如果你不想自己折腾 C 代码编译，Shopify 的 [Javy](https://github.com/bytecodealliance/javy) 是目前业界最成熟的 "JS to WASM" 工具链。
+
+* **优点**: 极其成熟，Shopify 生产环境在用。
+* **缺点**: 它的模式是“预编译”（把 JS 转成 WASM），而不是 Hangar 想要的“动态求值”（Runtime 读取 JS 字符串执行）。这意味着用户每改一行代码，Hangar 都要在后台调用 Javy 编译一次，稍微重了一点。
+* **适用场景**: 如果你决定不让用户在 Admin UI 随便写脚本，而是类似 Git Push 发布流程，那用 Javy 很合适。
+
+---
+
+### 方案 C: The "Pure Go" Alternative (Goja)
+
+**使用 `dop251/goja**`
+
+虽然你指定了要 WASM，但我必须提及 **Goja**。它是纯 Go 实现的 JS 引擎（类似 k6 在用的）。
+
+* **优点**: **Zero CGO, Zero WASM**. 编译极其简单，和 Go 也就是同一个进程，交互性能（Data Passing）比 WASM 快 10 倍。
+* **缺点**: **没有强沙箱**。Goja 里的 `while(true)` 会卡死你的 Go 协程（虽然有 Interrupt 机制，但不如 WASM 彻底）。且没有 WASM 那种内存空间的物理隔离。
+* **决策建议**:
+* 如果脚本是**内部开发人员**写的（可信）：用 **Goja**。性能最好，开发最快。
+* 如果脚本是**外部租户/AI 生成**写的（不可信）：必须用 **方案 A (QuickJS + WASM)**。
+
+
+
+---
+
+### 飞将军的最终建议
+
+既然我们的愿景是 **"AI Native"** 且代码可能由 AI 生成（不可信），我强烈建议**方案 A**。
+
+虽然前期要写点 C 代码来编译 `runtime.wasm`，但这是一劳永逸的。
+你可以直接 fork 这个项目作为起点：[second-state/WasmEdge-quickjs](https://www.google.com/search?q=https://github.com/second-state/WasmEdge-quickjs) —— 这是一个很好的参考，虽然它是为 WasmEdge 优化的，但代码结构可以直接拿来改为标准 WASI 供 Wazero 使用。
