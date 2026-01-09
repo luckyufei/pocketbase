@@ -265,6 +265,8 @@ func (t *Trace) Close() error {
 // ============================================================================
 
 func (t *Trace) isEnabled() bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 	return t.config.Enabled
 }
 
@@ -551,6 +553,52 @@ func (t *Trace) SetLogger(logger *log.Logger) {
 }
 
 // ============================================================================
+// 启用/禁用开关 (T073)
+// ============================================================================
+
+// IsTraceEnabled 返回追踪是否启用
+func (t *Trace) IsTraceEnabled() bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.config.Enabled
+}
+
+// Enable 启用追踪
+func (t *Trace) Enable() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if t.config.Enabled {
+		return // 已经启用
+	}
+
+	if t.config.DebugLevel && t.logger != nil {
+		t.logger.Printf("[TRACE DEBUG] Enable: enabling trace")
+	}
+
+	t.config.Enabled = true
+}
+
+// Disable 禁用追踪（会先 flush 缓冲区中的数据）
+func (t *Trace) Disable() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if !t.config.Enabled {
+		return // 已经禁用
+	}
+
+	if t.config.DebugLevel && t.logger != nil {
+		t.logger.Printf("[TRACE DEBUG] Disable: disabling trace, flushing buffer first")
+	}
+
+	// 先 flush 缓冲区中的数据
+	t.flushBufferInternal(false, true)
+
+	t.config.Enabled = false
+}
+
+// ============================================================================
 // 健康检查和自动恢复 (T072)
 // ============================================================================
 
@@ -586,15 +634,21 @@ func (t *Trace) Recover() error {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.debugLog("Recover: starting manual recovery")
+	if t.config.DebugLevel && t.logger != nil {
+		t.logger.Printf("[TRACE DEBUG] Recover: starting manual recovery")
+	}
 
 	err := t.recoverLocked()
 	if err != nil {
-		t.debugLog("Recover: manual recovery failed: %v", err)
+		if t.config.DebugLevel && t.logger != nil {
+			t.logger.Printf("[TRACE DEBUG] Recover: manual recovery failed: %v", err)
+		}
 		return err
 	}
 
-	t.debugLog("Recover: manual recovery completed successfully")
+	if t.config.DebugLevel && t.logger != nil {
+		t.logger.Printf("[TRACE DEBUG] Recover: manual recovery completed successfully")
+	}
 	return nil
 }
 

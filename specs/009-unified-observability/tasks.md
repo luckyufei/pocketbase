@@ -212,16 +212,18 @@
 **Purpose**: 影响多个用户故事的改进
 
 - [ ] T067 [P] 实现数据库操作自动追踪（可选，P2）
-- [ ] T068 [P] 添加 Trace 配置热更新
-- [ ] T069 [P] 添加操作日志（Debug 级别）
+- [x] T068 [P] 添加 Trace 配置热更新
+- [x] T069 [P] 添加操作日志（Debug 级别）
 - [x] T070 编写 `core/trace_benchmark_test.go` 性能基准测试
   - [x] T070a PostgreSQL 基准测试
   - [x] T070b SQLite 基准测试
 - [x] T071 运行完整集成测试，验证所有功能正常
   - [x] T071a PostgreSQL 集成测试
   - [x] T071b SQLite 集成测试
-- [ ] T072 [P] 实现 auxiliary.db 自动重建（损坏时）
-- [ ] T073 [P] 添加 Trace 启用/禁用开关
+- [x] T072 [P] 实现 auxiliary.db 自动重建（损坏时）
+- [x] T073 [P] 添加 Trace 启用/禁用开关
+
+**✅ COMPLETED**: Phase 10 核心任务已完成（T067 为可选 P2 任务）
 
 ---
 
