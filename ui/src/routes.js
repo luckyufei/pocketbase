@@ -2,6 +2,7 @@ import PageIndex from "@/components/PageIndex.svelte";
 import PageLogs from "@/components/logs/PageLogs.svelte";
 import PageMonitoring from "@/components/monitoring/PageMonitoring.svelte";
 import PageMonitor from "@/components/monitor/PageMonitor.svelte";
+import PageAnalytics from "@/components/analytics/PageAnalytics.svelte";
 import PageRecords from "@/components/records/PageRecords.svelte";
 import PageApplication from "@/components/settings/PageApplication.svelte";
 import PageBackups from "@/components/settings/PageBackups.svelte";
@@ -118,6 +119,12 @@ const routes = {
 
     "/traces": wrap({
         component: PageMonitor,
+        conditions: [(_) => ApiClient.authStore.isValid],
+        userData: { showAppSidebar: true },
+    }),
+
+    "/analytics": wrap({
+        component: PageAnalytics,
         conditions: [(_) => ApiClient.authStore.isValid],
         userData: { showAppSidebar: true },
     }),

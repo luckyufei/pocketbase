@@ -51,6 +51,7 @@ func NewRouter(app core.App) (*router.Router[*core.RequestEvent], error) {
 	bindKVApi(app, apiGroup)
 	bindJobsApi(app, apiGroup)
 	bindTraceApi(app, apiGroup)
+	bindAnalyticsApi(app, apiGroup)
 	bindSecretsApi(app, pbRouter)
 
 	// 注册代理路由（/-/* 网关）

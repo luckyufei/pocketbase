@@ -208,6 +208,9 @@ type BaseApp struct {
 
 	// trace for distributed tracing
 	trace *Trace
+
+	// analytics for native user behavior analytics
+	analytics *Analytics
 }
 
 // NewBaseApp creates and returns a new BaseApp instance
@@ -468,6 +471,12 @@ func (app *BaseApp) Bootstrap() error {
 		if err := app.initTrace(); err != nil {
 			app.Logger().Warn("Failed to initialize trace system", "error", err)
 			// 不返回错误，Trace 初始化失败不应阻止应用启动
+		}
+
+		// initialize Analytics system
+		if err := app.initAnalytics(); err != nil {
+			app.Logger().Warn("Failed to initialize analytics system", "error", err)
+			// 不返回错误，Analytics 初始化失败不应阻止应用启动
 		}
 
 		// try to cleanup the pb_data temp directory (if any)

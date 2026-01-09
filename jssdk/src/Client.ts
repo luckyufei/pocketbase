@@ -13,6 +13,7 @@ import { CronService } from "@/services/CronService";
 import { BatchService } from "@/services/BatchService";
 import { JobsService } from "@/services/JobsService";
 import { SecretsService } from "@/services/SecretsService";
+import { AnalyticsService } from "@/services/AnalyticsService";
 import { RecordModel } from "@/tools/dtos";
 import {
     SendOptions,
@@ -170,6 +171,11 @@ export default class Client {
      */
     readonly secrets: SecretsService;
 
+    /**
+     * An instance of the service that handles the **Analytics APIs**.
+     */
+    readonly analytics: AnalyticsService;
+
     private cancelControllers: { [key: string]: AbortController } = {};
     private recordServices: { [key: string]: RecordService } = {};
     private enableAutoCancellation: boolean = true;
@@ -198,6 +204,7 @@ export default class Client {
         this.crons = new CronService(this);
         this.jobs = new JobsService(this);
         this.secrets = new SecretsService(this);
+        this.analytics = new AnalyticsService(this);
     }
 
     /**

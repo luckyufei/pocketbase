@@ -134,6 +134,16 @@
                     <i class="ri-radar-line" />
                 </a>
                 <a
+                    href="/analytics"
+                    class="menu-item"
+                    aria-label="Analytics"
+                    use:link
+                    use:active={{ path: "/analytics/?.*", className: "current-route" }}
+                    use:tooltip={{ text: "流量分析", position: "right" }}
+                >
+                    <i class="ri-bar-chart-box-line" />
+                </a>
+                <a
                     href="/settings"
                     class="menu-item"
                     aria-label="Settings"

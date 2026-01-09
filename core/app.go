@@ -107,6 +107,10 @@ type App interface {
 	// manual span creation, and configurable data retention.
 	Trace() *Trace
 
+	// Analytics returns the app Analytics instance for native user behavior analytics.
+	// Provides event collection, aggregation, and dashboard capabilities.
+	Analytics() *Analytics
+
 	// NewMailClient creates and returns a new SMTP or Sendmail client
 	// based on the current app settings.
 	NewMailClient() mailer.Mailer
