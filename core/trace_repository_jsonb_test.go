@@ -1,7 +1,6 @@
 package core_test
 
 import (
-	"os"
 	"testing"
 	"time"
 
@@ -19,11 +18,10 @@ func TestJSONBQueryPostgreSQL(t *testing.T) {
 
 // TestJSONQuerySQLite 测试 SQLite JSON 查询功能
 func TestJSONQuerySQLite(t *testing.T) {
-	const testDataDir = "./pb_trace_json_query_test/"
-	defer os.RemoveAll(testDataDir)
+	testDataDir := t.TempDir()
 
 	// 创建 SQLite repository
-	repo, err := core.NewSQLiteTraceRepository(testDataDir + "test.db")
+	repo, err := core.NewSQLiteTraceRepository(testDataDir + "/test.db")
 	if err != nil {
 		t.Fatal(err)
 	}

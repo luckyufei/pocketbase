@@ -214,6 +214,11 @@ func (t *Trace) Stats(params *FilterParams) (*TraceStats, error) {
 	return t.repo.Stats(params)
 }
 
+// Repository 返回底层的 TraceRepository（用于测试）
+func (t *Trace) Repository() TraceRepository {
+	return t.repo
+}
+
 // ============================================================================
 // Flush 和清理
 // ============================================================================

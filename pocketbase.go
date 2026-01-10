@@ -169,6 +169,7 @@ func NewWithConfig(config Config) *PocketBase {
 		AuxMaxOpenConns:  pb.auxMaxOpenConns,
 		AuxMaxIdleConns:  pb.auxMaxIdleConns,
 		DBConnect:        dbConnect,
+		PostgresDSN:      pb.postgresDSN, // 传递 PostgreSQL DSN
 	})
 
 	// 如果使用 PostgreSQL，设置适配器

@@ -87,34 +87,76 @@ func ApplySandbox(vm *goja.Runtime, config *SandboxConfig)
 
 ---
 
-### Task 1.3: 执行日志与监控 (TDD)
+### Task 1.3: 执行监控与日志 (TDD)
 
-**目标**: 记录脚本执行时间和资源使用
+**目标**: 记录脚本执行时间、资源使用，支持配置开关
 
 **测试文件**: `plugins/jsvm/metrics_test.go`
 
 **Red Tests**:
-- [ ] 1.3.1 `TestExecutionMetrics_Duration` - 记录执行时间
-- [ ] 1.3.2 `TestExecutionMetrics_Success` - 记录成功/失败状态
-- [ ] 1.3.3 `TestExecutionMetrics_ScriptHash` - 记录脚本哈希（用于识别）
-- [ ] 1.3.4 `TestExecutionMetrics_Timeout` - 记录超时事件
+- [ ] 1.3.1 `TestExecutionMetrics_Duration` - 记录执行时间（毫秒级）
+- [ ] 1.3.2 `TestExecutionMetrics_HookInfo` - 记录 Hook 名称和关联集合
+- [ ] 1.3.3 `TestExecutionMetrics_Success` - 记录成功/失败状态
+- [ ] 1.3.4 `TestExecutionMetrics_Timeout` - 记录超时中断事件
+- [ ] 1.3.5 `TestExecutionMetrics_MemoryApprox` - 记录近似内存分配
+- [ ] 1.3.6 `TestExecutionMetrics_ConfigToggle` - 支持配置开关启用/禁用
+- [ ] 1.3.7 `TestExecutionMetrics_LowOverhead` - 监控开销 < 1%
 
 **Green Implementation**:
-- [ ] 1.3.5 创建 `plugins/jsvm/metrics.go`
-- [ ] 1.3.6 实现 `ExecutionMetrics` 结构体
-- [ ] 1.3.7 集成到 `SafeExecutor`
+- [ ] 1.3.8 创建 `plugins/jsvm/metrics.go`
+- [ ] 1.3.9 实现 `JSVMMetrics` 结构体
+- [ ] 1.3.10 实现 `MetricsCollector` 收集器
+- [ ] 1.3.11 集成到 `SafeExecutor`
+- [ ] 1.3.12 添加 `Config.EnableMetrics` 配置项
+
+**代码示例**:
+```go
+type JSVMMetrics struct {
+    HookName      string        // e.g., "onRecordCreate"
+    Collection    string        // e.g., "posts"
+    Duration      time.Duration // 执行耗时
+    MemAllocBytes int64         // 近似内存分配
+    CacheHit      bool          // 预编译缓存命中
+    Error         string        // 错误信息（如有）
+    Timeout       bool          // 是否超时
+}
+
+type MetricsCollector struct {
+    enabled bool
+    logger  *slog.Logger
+}
+
+func (c *MetricsCollector) Record(m *JSVMMetrics)
+func (c *MetricsCollector) GetStats() MetricsStats
+```
+
+**日志输出格式**:
+```json
+{
+  "level": "info",
+  "msg": "jsvm execution",
+  "hook": "onRecordCreate",
+  "collection": "posts",
+  "duration_ms": 2.5,
+  "mem_alloc_kb": 1.0,
+  "cache_hit": true
+}
+```
 
 **验收标准**: 
 - 执行信息可通过日志查看
+- 监控开销 < 1%
 - 覆盖率 ≥ 85%
 
 ---
 
 ## Phase 2: 性能优化
 
-### Task 2.1: ScriptCache 预编译缓存 (TDD)
+### Task 2.1: ScriptCache 预编译缓存 (TDD) - 优先级降低
 
-**目标**: 缓存已编译的脚本，避免重复解析
+**说明**: 经代码分析，现有实现已使用 `goja.MustCompile()` 预编译脚本。此任务优先级降低，仅在发现性能瓶颈时实施。
+
+**目标**: 评估是否需要额外的缓存层（当前已有编译）
 
 **测试文件**: `plugins/jsvm/cache_test.go`
 
@@ -324,14 +366,14 @@ Phase 1 (安全)                    Phase 2 (性能)
 
 | Task | Status | Coverage | Notes |
 |------|--------|----------|-------|
-| 1.1 SafeExecutor | ⬜ Pending | - | |
-| 1.2 Sandbox | ⬜ Pending | - | |
-| 1.3 Metrics | ⬜ Pending | - | |
-| 2.1 ScriptCache | ⬜ Pending | - | |
-| 2.2 FuncCache | ⬜ Pending | - | |
-| 2.3 EnhancedPool | ⬜ Pending | - | |
-| 2.4 Benchmark | ⬜ Pending | - | |
-| 3.1 Remove Serverless | ⬜ Pending | - | |
+| 1.1 SafeExecutor | ✅ Completed | 100% | executor.go 实现超时中断 |
+| 1.2 Sandbox | ⏸️ Deferred | - | 当前已暴露 require/process，需评估是否收紧 |
+| 1.3 Metrics | ✅ Completed | 95%+ | metrics.go 实现执行监控 |
+| 2.1 ScriptCache | ⏸️ Deferred | - | 现有代码已使用 MustCompile |
+| 2.2 FuncCache | ⏸️ Deferred | - | 优先级降低 |
+| 2.3 EnhancedPool | ⏸️ Deferred | - | 优先级降低 |
+| 2.4 Benchmark | ⏸️ Deferred | - | 优先级降低 |
+| 3.1 Remove Serverless | ✅ Completed | - | 删除 plugins/serverless 目录 |
 | 3.2 Update Docs | ⬜ Pending | - | |
 | 3.3 Integration Test | ⬜ Pending | - | |
 

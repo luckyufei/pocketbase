@@ -252,6 +252,81 @@ func TestBatchHandlerWriteAll(t *testing.T) {
 	checkLogMessages([]string{"test1", "test2"}, writeLogs, t)
 }
 
+func TestBatchHandlerClear(t *testing.T) {
+	ctx := context.Background()
+
+	writeLogs := []*Log{}
+
+	h := NewBatchHandler(BatchOptions{
+		BatchSize: 10,
+		WriteFunc: func(_ context.Context, logs []*Log) error {
+			writeLogs = append(writeLogs, logs...)
+			return nil
+		},
+	})
+
+	// add some logs
+	h.Handle(ctx, slog.NewRecord(time.Now(), slog.LevelInfo, "test1", 0))
+	h.Handle(ctx, slog.NewRecord(time.Now(), slog.LevelInfo, "test2", 0))
+	h.Handle(ctx, slog.NewRecord(time.Now(), slog.LevelInfo, "test3", 0))
+
+	// verify logs are in cache
+	if len(h.logs) != 3 {
+		t.Fatalf("Expected 3 cached logs, got %d", len(h.logs))
+	}
+
+	// clear the cache
+	h.Clear()
+
+	// verify cache is empty
+	if len(h.logs) != 0 {
+		t.Fatalf("Expected 0 cached logs after Clear, got %d", len(h.logs))
+	}
+
+	// verify WriteFunc was NOT called (logs were discarded, not written)
+	if len(writeLogs) != 0 {
+		t.Fatalf("Expected 0 written logs, got %d", len(writeLogs))
+	}
+
+	// add more logs and verify normal operation continues
+	h.Handle(ctx, slog.NewRecord(time.Now(), slog.LevelInfo, "test4", 0))
+	h.Handle(ctx, slog.NewRecord(time.Now(), slog.LevelInfo, "test5", 0))
+
+	if len(h.logs) != 2 {
+		t.Fatalf("Expected 2 cached logs after new writes, got %d", len(h.logs))
+	}
+}
+
+func TestBatchHandlerClearWithParent(t *testing.T) {
+	ctx := context.Background()
+
+	h0 := NewBatchHandler(BatchOptions{
+		BatchSize: 10,
+		WriteFunc: func(_ context.Context, logs []*Log) error {
+			return nil
+		},
+	})
+
+	h1 := h0.WithAttrs([]slog.Attr{slog.Int("a", 1)}).(*BatchHandler)
+
+	// add logs through child handler
+	h1.Handle(ctx, slog.NewRecord(time.Now(), slog.LevelInfo, "test1", 0))
+	h1.Handle(ctx, slog.NewRecord(time.Now(), slog.LevelInfo, "test2", 0))
+
+	// verify logs are in parent cache
+	if len(h0.logs) != 2 {
+		t.Fatalf("Expected 2 cached logs in parent, got %d", len(h0.logs))
+	}
+
+	// clear through child handler
+	h1.Clear()
+
+	// verify parent cache is cleared
+	if len(h0.logs) != 0 {
+		t.Fatalf("Expected 0 cached logs in parent after Clear, got %d", len(h0.logs))
+	}
+}
+
 func TestBatchHandlerAttrsFormat(t *testing.T) {
 	ctx := context.Background()
 

@@ -226,6 +226,19 @@ func (h *BatchHandler) WriteAll(ctx context.Context) error {
 	return h.options.WriteFunc(ctx, logs)
 }
 
+// Clear discards all accumulated logs without writing them.
+// This is useful when logs retention is disabled and cached logs should be dropped.
+func (h *BatchHandler) Clear() {
+	if h.parent != nil {
+		h.parent.Clear()
+		return
+	}
+
+	h.mux.Lock()
+	h.logs = h.logs[:0]
+	h.mux.Unlock()
+}
+
 // resolveAttr writes attr into data.
 func (h *BatchHandler) resolveAttr(data map[string]any, attr slog.Attr) error {
 	// ensure that the attr value is resolved before doing anything else

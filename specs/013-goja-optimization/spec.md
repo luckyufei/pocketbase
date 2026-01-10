@@ -35,6 +35,140 @@
 
 ---
 
+## 需求澄清
+
+### Q1: 与现有 Goja Hook 代码的兼容性
+
+**结论: 100% 向后兼容，无需任何代码修改**
+
+现有 Hook API 保持不变：
+
+```javascript
+// 这些 API 完全不变
+onRecordCreate((e) => { ... }, "posts")
+onRecordUpdate((e) => { ... }, "posts")
+onModelUpdate((e) => { ... }, "demo1")
+routerAdd("GET", "/hello", (e) => { ... })
+cronAdd("job1", "*/5 * * * *", () => { ... })
+```
+
+**优化是内部实现层面的改进**：
+
+| 层级 | 变化 | 用户影响 |
+|------|------|----------|
+| 用户 JS 代码 | ❌ 无变化 | 无需修改 |
+| Hook API (`onRecordCreate` 等) | ❌ 无变化 | 无需修改 |
+| VM 池 (`vmsPool`) | ✅ 内部优化 | 透明，性能提升 |
+| 执行器 | ✅ 添加超时控制 | 透明，更安全 |
+
+**实现方式**：
+
+```go
+// 现有代码 (binds.go:80-92)
+err := executors.run(func(executor *goja.Runtime) error {
+    executor.Set("__args", handlerArgs)
+    res, err := executor.RunProgram(pr)  // 已经使用预编译！
+    executor.Set("__args", goja.Undefined())
+    return normalizeException(err)
+})
+
+// 优化后 (仅内部变化)
+err := executors.runWithTimeout(ctx, func(executor *goja.Runtime) error {
+    // 同样的逻辑，但增加超时控制
+    executor.Set("__args", handlerArgs)
+    res, err := executor.RunProgram(pr)
+    executor.Set("__args", goja.Undefined())
+    return normalizeException(err)
+})
+```
+
+**注意**: 现有代码已经使用 `goja.MustCompile()` 预编译脚本，我们的优化主要是：
+1. 添加超时控制（防止无限循环）
+2. 添加执行监控（记录耗时）
+3. 优化 VM 池管理
+
+### Q2: 执行过程监控（耗时/内存）
+
+**结论: 是的，这是重要需求，已纳入规划**
+
+**监控指标设计**：
+
+| 指标 | 类型 | 说明 |
+|------|------|------|
+| `jsvm_execution_duration_ms` | Histogram | 脚本执行耗时 |
+| `jsvm_execution_total` | Counter | 执行总次数 |
+| `jsvm_execution_errors` | Counter | 执行错误次数 |
+| `jsvm_timeout_total` | Counter | 超时中断次数 |
+| `jsvm_pool_size` | Gauge | VM 池当前大小 |
+| `jsvm_pool_busy` | Gauge | 正在使用的 VM 数量 |
+| `jsvm_cache_hits` | Counter | 预编译缓存命中 |
+| `jsvm_cache_misses` | Counter | 预编译缓存未命中 |
+
+**内存监控限制**：
+
+Goja 没有原生内存限制 API，但可以通过以下方式间接监控：
+
+```go
+// 方案 1: 执行前后对比 Go runtime 内存
+var m runtime.MemStats
+runtime.ReadMemStats(&m)
+beforeAlloc := m.Alloc
+
+// 执行脚本...
+
+runtime.ReadMemStats(&m)
+afterAlloc := m.Alloc
+memUsed := afterAlloc - beforeAlloc  // 近似值
+```
+
+```go
+// 方案 2: 定期采样 + 超时作为内存保护
+// 如果脚本执行时间过长，很可能是内存分配过多导致 GC 压力
+```
+
+**日志输出示例**：
+
+```json
+{
+  "level": "info",
+  "msg": "jsvm execution completed",
+  "hook": "onRecordCreate",
+  "collection": "posts",
+  "duration_ms": 2.5,
+  "mem_alloc_bytes": 1024,
+  "cache_hit": true
+}
+```
+
+```json
+{
+  "level": "warn",
+  "msg": "jsvm execution timeout",
+  "hook": "onRecordUpdate",
+  "collection": "posts",
+  "timeout_ms": 5000,
+  "script_hash": "abc123..."
+}
+```
+
+**集成到现有监控系统**：
+
+可以复用 `001-system-monitoring` 的 MetricsRepository，将 JSVM 指标写入 `_metrics` 表：
+
+```go
+type JSVMMetrics struct {
+    Timestamp       time.Time
+    HookName        string
+    Collection      string
+    DurationMs      float64
+    MemAllocBytes   int64
+    CacheHit        bool
+    Error           string
+}
+```
+
+---
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - 安全执行用户脚本 (Priority: P0)
@@ -102,32 +236,41 @@
 **安全增强**:
 - **FR-001**: 系统 MUST 支持配置脚本执行超时时间（默认 5 秒）
 - **FR-002**: 系统 MUST 在超时后通过 `vm.Interrupt()` 中断脚本执行
-- **FR-003**: 系统 MUST 默认不暴露 `require`, `process`, `fs` 等危险 API
+- **FR-003**: 系统 MUST 默认不暴露 `require`, `process`, `fs` 等危险 API（注：当前已暴露，需评估是否收紧）
 - **FR-004**: 系统 SHOULD 支持配置循环次数限制（可选，默认关闭）
 - **FR-005**: 系统 SHOULD 记录脚本执行时间和资源使用到日志
 
 **性能优化**:
-- **FR-006**: 系统 MUST 支持脚本预编译，缓存 `*goja.Program` 对象
-- **FR-007**: 系统 MUST 支持函数引用缓存，避免重复查找
+- **FR-006**: 系统 MUST 支持脚本预编译，缓存 `*goja.Program` 对象（注：当前已实现 `goja.MustCompile`）
+- **FR-007**: 系统 SHOULD 支持函数引用缓存，避免重复查找（优先级降低）
 - **FR-008**: 系统 SHOULD 优化 Go/JS 数据传递，减少 JSON 序列化
 - **FR-009**: 系统 MUST 保持现有 VM 池化机制
+
+**执行监控** (新增):
+- **FR-013**: 系统 MUST 记录每次 Hook 执行的耗时（毫秒级）
+- **FR-014**: 系统 SHOULD 记录执行的 Hook 名称和关联集合
+- **FR-015**: 系统 SHOULD 记录超时中断事件
+- **FR-016**: 系统 MAY 记录近似内存分配量（通过 runtime.MemStats）
+- **FR-017**: 系统 SHOULD 支持通过配置开关启用/禁用详细监控
 
 **代码清理**:
 - **FR-010**: 系统 MUST 移除 `plugins/serverless` 目录
 - **FR-011**: 系统 MUST 更新相关文档和测试
-- **FR-012**: 系统 MUST 保持 API 向后兼容
+- **FR-012**: 系统 MUST 保持 API 向后兼容（所有现有 Hook JS 代码无需修改）
 
 ### Non-Functional Requirements
 
 - **NFR-001**: 优化后 Hook 执行 P99 延迟不超过 10ms
 - **NFR-002**: 预编译缓存内存占用不超过 100MB
 - **NFR-003**: 代码覆盖率保持 90% 以上
+- **NFR-004**: 监控开销不超过执行时间的 1%
 
 ### Key Entities
 
 - **SafeExecutor**: 安全执行包装器，处理超时和中断
-- **ScriptCache**: 预编译脚本缓存，LRU 淘汰策略
-- **EnhancedPool**: 增强的 VM 池，支持预编译和函数缓存
+- **ScriptCache**: 预编译脚本缓存，LRU 淘汰策略（注：评估是否需要，当前已有编译）
+- **EnhancedPool**: 增强的 VM 池，支持超时控制和执行监控
+- **JSVMMetrics**: 执行监控指标收集器
 
 ---
 

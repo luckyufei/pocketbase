@@ -13,7 +13,6 @@ import (
 	"github.com/pocketbase/pocketbase/plugins/ghupdate"
 	"github.com/pocketbase/pocketbase/plugins/jsvm"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
-	"github.com/pocketbase/pocketbase/plugins/serverless"
 	"github.com/pocketbase/pocketbase/plugins/tofauth"
 	"github.com/pocketbase/pocketbase/tools/hook"
 	"github.com/pocketbase/pocketbase/tools/osutils"
@@ -120,14 +119,6 @@ func main() {
 
 	// GitHub selfupdate
 	ghupdate.MustRegister(app, app.RootCmd, ghupdate.Config{})
-
-	// Serverless 插件 - 支持 JS/TS 函数
-	// 构建 WASM: cd plugins/serverless/runtime/wasm/quickjs-src && make
-	// 或使用 Zig: cd plugins/serverless/runtime/wasm/quickjs-src && ./build.sh
-	serverless.MustRegister(app, serverless.Config{
-		FunctionsDir: "pb_serverless",
-		PoolSize:     4,
-	})
 
 	// static route to serves files from the provided public dir
 	// (if publicDir exists and the route path is not already defined)

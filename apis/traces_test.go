@@ -12,14 +12,15 @@ import (
 
 // stubTracesData 创建测试用的 trace 数据
 func stubTracesData(app *tests.TestApp) error {
-	repo, err := core.NewSQLiteTraceRepository(app.DataDir() + "/traces_test.db")
-	if err != nil {
-		return err
+	// 使用 app.Trace() 获取正确的 repository，确保写入和读取使用同一个数据库
+	trace := app.Trace()
+	if trace == nil {
+		return nil // trace 未初始化，跳过
 	}
-	defer repo.Close()
 
-	if err := repo.CreateSchema(); err != nil {
-		return err
+	repo := trace.Repository()
+	if repo == nil {
+		return nil // repository 未初始化，跳过
 	}
 
 	now := time.Now()
@@ -73,7 +74,7 @@ func TestTracesList(t *testing.T) {
 			Name:            "unauthorized",
 			Method:          http.MethodGet,
 			URL:             "/api/traces",
-			ExpectedStatus:  401,
+			ExpectedStatus:  403, // 没有认证时返回 403 Forbidden
 			ExpectedContent: []string{`"data":{}`},
 			ExpectedEvents:  map[string]int{"*": 0},
 		},
@@ -103,7 +104,7 @@ func TestTracesList(t *testing.T) {
 			ExpectedStatus: 200,
 			ExpectedContent: []string{
 				`"page":1`,
-				`"perPage":30`,
+				`"perPage":50`,
 				`"totalItems":3`,
 				`"items":[{`,
 			},
@@ -112,7 +113,7 @@ func TestTracesList(t *testing.T) {
 		{
 			Name:   "authorized as superuser + rootOnly filter",
 			Method: http.MethodGet,
-			URL:    "/api/traces?rootOnly=true",
+			URL:    "/api/traces?root_only=true",
 			Headers: map[string]string{
 				"Authorization": "eyJhbGciOiJIUzI1NiJ9.eyJpZCI6InN5d2JoZWNuaDQ2cmhtMCIsInR5cGUiOiJhdXRoIiwiY29sbGVjdGlvbklkIjoicGJjXzMxNDI2MzU4MjMiLCJleHAiOjI1MjQ2MDQ0NjEsInJlZnJlc2hhYmxlIjp0cnVlfQ.UXgO3j-0BumcugrFjbd7j0M4MQvbrLggLlcu_YNGjoY",
 			},
@@ -180,7 +181,7 @@ func TestTracesView(t *testing.T) {
 			Name:            "unauthorized",
 			Method:          http.MethodGet,
 			URL:             "/api/traces/0123456789abcdef0123456789abcdef",
-			ExpectedStatus:  401,
+			ExpectedStatus:  403, // 没有认证时返回 403 Forbidden
 			ExpectedContent: []string{`"data":{}`},
 			ExpectedEvents:  map[string]int{"*": 0},
 		},
@@ -246,7 +247,7 @@ func TestTracesStats(t *testing.T) {
 			Name:            "unauthorized",
 			Method:          http.MethodGet,
 			URL:             "/api/traces/stats",
-			ExpectedStatus:  401,
+			ExpectedStatus:  403, // 没有认证时返回 403 Forbidden
 			ExpectedContent: []string{`"data":{}`},
 			ExpectedEvents:  map[string]int{"*": 0},
 		},

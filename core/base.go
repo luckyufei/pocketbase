@@ -65,6 +65,7 @@ type BaseAppConfig struct {
 	AuxMaxOpenConns  int
 	AuxMaxIdleConns  int
 	IsDev            bool
+	PostgresDSN      string // PostgreSQL 连接字符串（仅在 PostgreSQL 模式下使用）
 }
 
 // ensures that the BaseApp implements the App interface.
@@ -584,6 +585,11 @@ func (app *BaseApp) IsPostgres() bool {
 // IsSQLite 检查当前是否使用 SQLite 数据库
 func (app *BaseApp) IsSQLite() bool {
 	return app.DBAdapter().Type().IsSQLite()
+}
+
+// PostgresDSN 返回 PostgreSQL 连接字符串（仅在 PostgreSQL 模式下有效）
+func (app *BaseApp) PostgresDSN() string {
+	return app.config.PostgresDSN
 }
 
 // DB returns the default app data.db builder instance.
@@ -1541,7 +1547,11 @@ func (app *BaseApp) initLogger() error {
 	ticker := time.NewTicker(duration)
 	done := make(chan bool, 1)
 
-	handler := logger.NewBatchHandler(logger.BatchOptions{
+	// track the previous MaxDays state to detect changes
+	var lastMaxDays int = -1 // -1 means uninitialized
+
+	var handler *logger.BatchHandler
+	handler = logger.NewBatchHandler(logger.BatchOptions{
 		Level:     getLoggerMinLevel(app),
 		BatchSize: 200,
 		BeforeAddFunc: func(ctx context.Context, log *logger.Log) bool {
@@ -1556,18 +1566,35 @@ func (app *BaseApp) initLogger() error {
 
 			ticker.Reset(duration)
 
-			return app.Settings().Logs.MaxDays > 0
+			currentMaxDays := app.Settings().Logs.MaxDays
+
+			// if MaxDays changed from > 0 to 0, clear the cached logs
+			if lastMaxDays > 0 && currentMaxDays == 0 {
+				handler.Clear()
+			}
+			lastMaxDays = currentMaxDays
+
+			return currentMaxDays > 0
 		},
 		WriteFunc: func(ctx context.Context, logs []*logger.Log) error {
 			if !app.IsBootstrapped() || app.Settings().Logs.MaxDays == 0 {
 				return nil
 			}
 
+			// get the current min level for filtering
+			minLevel := slog.Level(app.Settings().Logs.MinLevel)
+
 			// write the accumulated logs
 			// (note: based on several local tests there is no significant performance difference between small number of separate write queries vs 1 big INSERT)
 			app.AuxRunInTransaction(func(txApp App) error {
 				model := &Log{}
 				for _, l := range logs {
+					// filter out logs that don't meet the min level requirement
+					// (this handles logs that were cached before MinLevel was changed)
+					if l.Level < minLevel {
+						continue
+					}
+
 					model.MarkAsNew()
 					model.Id = GenerateDefaultRandomId()
 					model.Level = int(l.Level)
@@ -1633,6 +1660,11 @@ func (app *BaseApp) initLogger() error {
 			if e.App.Logger() != nil {
 				if h, ok := e.App.Logger().Handler().(*logger.BatchHandler); ok {
 					h.SetLevel(getLoggerMinLevel(e.App))
+
+					// if logs retention is disabled, clear the cached logs
+					if e.App.Settings().Logs.MaxDays == 0 {
+						h.Clear()
+					}
 				}
 			}
 

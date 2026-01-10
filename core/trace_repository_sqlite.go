@@ -212,9 +212,10 @@ func (r *SQLiteTraceRepository) Query(params *FilterParams) ([]*Span, int64, err
 		jsonPath := fmt.Sprintf(`$."%s"`, key)
 		query += " AND json_extract(attributes, ?) = ?"
 		countQuery += " AND json_extract(attributes, ?) = ?"
-		// 确保值是字符串类型
-		queryArgs = append(queryArgs, jsonPath, fmt.Sprintf("%v", value))
-		countArgs = append(countArgs, jsonPath, fmt.Sprintf("%v", value))
+		// 直接使用原始值，让 SQLite 处理类型转换
+		// json_extract 返回原生类型（text 或 integer），所以不需要转换为字符串
+		queryArgs = append(queryArgs, jsonPath, value)
+		countArgs = append(countArgs, jsonPath, value)
 	}
 
 	// 获取总数

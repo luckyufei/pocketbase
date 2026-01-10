@@ -9,8 +9,12 @@ func (app *BaseApp) initTrace() error {
 	var err error
 
 	if app.IsPostgres() {
-		// PostgreSQL: 使用 DSN 创建连接
-		repo, err = NewPgTraceRepository(app.DataDir())
+		// PostgreSQL: 使用配置中的 DSN 创建连接
+		dsn := app.PostgresDSN()
+		if dsn == "" {
+			return nil // 没有 DSN，跳过 trace 初始化
+		}
+		repo, err = NewPgTraceRepository(dsn)
 	} else {
 		// SQLite: 使用 auxiliary.db 存储 traces
 		dbPath := filepath.Join(app.DataDir(), "auxiliary.db")
