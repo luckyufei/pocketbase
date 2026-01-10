@@ -154,14 +154,135 @@ func (r *Runtime) Eval(ctx context.Context, code string, opts EvalOptions) (stri
 	r.currentConsole = opts.OnConsole
 	defer func() { r.currentConsole = nil }()
 
-	// 使用内置的简单 JS 解释器（MVP 阶段）
-	// TODO: 当真正的 QuickJS WASM 编译完成后，替换为 WASM 执行
+	// 如果有 WASM 模块，使用真正的 QuickJS 执行
+	if r.module != nil {
+		result, err := r.evalWasm(ctx, code, opts)
+		if err != nil {
+			return "", err
+		}
+		return result, nil
+	}
+
+	// 回退到简单模拟器（用于测试或 WASM 未编译的情况）
 	result, err := r.evalSimple(ctx, code, opts)
 	if err != nil {
 		return "", err
 	}
 
 	return result, nil
+}
+
+// evalWasm 使用 QuickJS WASM 执行 JavaScript 代码
+func (r *Runtime) evalWasm(ctx context.Context, code string, opts EvalOptions) (string, error) {
+	// 获取导出函数
+	runHandler := r.module.ExportedFunction("run_handler")
+	getResponsePtr := r.module.ExportedFunction("get_response_ptr")
+	getResponseLen := r.module.ExportedFunction("get_response_len")
+	malloc := r.module.ExportedFunction("malloc")
+
+	if runHandler == nil || getResponsePtr == nil || getResponseLen == nil || malloc == nil {
+		return "", errors.New("WASM 模块缺少必要的导出函数")
+	}
+
+	// 分配内存并写入代码
+	codeBytes := []byte(code)
+	codeLen := uint64(len(codeBytes))
+
+	// 调用 malloc 分配内存
+	results, err := malloc.Call(ctx, codeLen)
+	if err != nil {
+		return "", fmt.Errorf("malloc 失败: %w", err)
+	}
+	codePtr := uint32(results[0])
+
+	// 写入代码到 WASM 内存
+	mem := r.module.Memory()
+	if mem == nil {
+		return "", errors.New("无法访问 WASM 内存")
+	}
+	if !mem.Write(codePtr, codeBytes) {
+		return "", errors.New("写入代码到 WASM 内存失败")
+	}
+
+	// 创建超时通道
+	done := make(chan struct{})
+	var execResult []uint64
+	var execErr error
+
+	go func() {
+		defer close(done)
+		// 调用 run_handler
+		execResult, execErr = runHandler.Call(ctx, uint64(codePtr), codeLen)
+	}()
+
+	// 等待执行完成或超时
+	select {
+	case <-done:
+		if execErr != nil {
+			return "", fmt.Errorf("执行失败: %w", execErr)
+		}
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+
+	// 检查执行结果
+	if len(execResult) > 0 && int32(execResult[0]) != 0 {
+		// 执行失败，获取错误信息
+		ptrResults, _ := getResponsePtr.Call(ctx)
+		lenResults, _ := getResponseLen.Call(ctx)
+		if len(ptrResults) > 0 && len(lenResults) > 0 {
+			respPtr := uint32(ptrResults[0])
+			respLen := uint32(lenResults[0])
+			if respData, ok := mem.Read(respPtr, respLen); ok {
+				return "", fmt.Errorf("JS 执行错误: %s", string(respData))
+			}
+		}
+		return "", errors.New("JS 执行失败")
+	}
+
+	// 获取响应
+	ptrResults, err := getResponsePtr.Call(ctx)
+	if err != nil {
+		return "", fmt.Errorf("获取响应指针失败: %w", err)
+	}
+	lenResults, err := getResponseLen.Call(ctx)
+	if err != nil {
+		return "", fmt.Errorf("获取响应长度失败: %w", err)
+	}
+
+	if len(ptrResults) == 0 || len(lenResults) == 0 {
+		return "", errors.New("无法获取响应")
+	}
+
+	respPtr := uint32(ptrResults[0])
+	respLen := uint32(lenResults[0])
+
+	// 读取响应数据
+	respData, ok := mem.Read(respPtr, respLen)
+	if !ok {
+		return "", errors.New("读取响应数据失败")
+	}
+
+	// 解析响应 JSON
+	var resp struct {
+		Data  json.RawMessage `json:"data"`
+		Error string          `json:"error"`
+	}
+	if err := json.Unmarshal(respData, &resp); err != nil {
+		// 如果不是 JSON，直接返回原始数据
+		return string(respData), nil
+	}
+
+	if resp.Error != "" {
+		return "", errors.New(resp.Error)
+	}
+
+	// 返回 data 字段的字符串表示
+	if resp.Data != nil {
+		return string(resp.Data), nil
+	}
+
+	return "undefined", nil
 }
 
 // evalSimple 简单的 JS 表达式求值器（MVP 阶段使用）

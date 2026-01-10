@@ -122,6 +122,8 @@ func main() {
 	ghupdate.MustRegister(app, app.RootCmd, ghupdate.Config{})
 
 	// Serverless 插件 - 支持 JS/TS 函数
+	// 构建 WASM: cd plugins/serverless/runtime/wasm/quickjs-src && make
+	// 或使用 Zig: cd plugins/serverless/runtime/wasm/quickjs-src && ./build.sh
 	serverless.MustRegister(app, serverless.Config{
 		FunctionsDir: "pb_serverless",
 		PoolSize:     4,

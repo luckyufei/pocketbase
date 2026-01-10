@@ -1,0 +1,455 @@
+{
+  "meta": {
+    "timestamp": "2026-01-09T23:12:43.636114+08:00",
+    "total_duration": 557341463750,
+    "environment": {
+      "os": "darwin",
+      "cpu": "arm64",
+      "cpu_cores": 10,
+      "memory_gb": 0,
+      "go_version": "go1.24.0",
+      "pb_version": ""
+    },
+    "config": {
+      "base_url": "http://127.0.0.1:8090",
+      "scenarios": {
+        "enabled": [
+          "http_handler",
+          "db_hook",
+          "compute",
+          "io_intensive",
+          "memory_pressure",
+          "error_recovery"
+        ],
+        "http_handler": {
+          "duration": 30000000000,
+          "warmup": 100
+        },
+        "db_hook": {
+          "duration": 30000000000,
+          "preload_records": 1000
+        },
+        "compute": {
+          "fib_numbers": [
+            20,
+            25,
+            30
+          ],
+          "iterations": 100
+        },
+        "io_intensive": {
+          "query_counts": [
+            1,
+            5,
+            10,
+            20
+          ],
+          "duration": 30000000000
+        },
+        "memory_pressure": {
+          "sizes_mb": [
+            1,
+            5,
+            10,
+            50
+          ]
+        },
+        "stability": {
+          "duration": 3600000000000,
+          "sample_interval": 60000000000
+        },
+        "error_recovery": {
+          "test_cases": [
+            "syntax_error",
+            "runtime_error",
+            "infinite_loop",
+            "stack_overflow",
+            "memory_overflow"
+          ]
+        }
+      },
+      "concurrency": {
+        "levels": [
+          10,
+          50,
+          100,
+          200
+        ],
+        "default": 50
+      },
+      "output": {
+        "report_dir": "reports/serverless-vs-hooks",
+        "json": true,
+        "markdown": true,
+        "verbose": true
+      }
+    }
+  },
+  "scenarios": {
+    "compute": {
+      "scenario": "compute",
+      "jsvm": {
+        "scenario": "compute",
+        "runtime": "jsvm",
+        "params": {
+          "n": 30
+        },
+        "metrics": {
+          "total_requests": 100,
+          "success_requests": 0,
+          "failed_requests": 100,
+          "qps": 15643.434810209155,
+          "latency_p50_ms": 0,
+          "latency_p95_ms": 1,
+          "latency_p99_ms": 2,
+          "latency_avg_ms": 0.37,
+          "latency_max_ms": 2,
+          "latency_min_ms": 0,
+          "success_rate": 0,
+          "duration": 6392458
+        },
+        "start_time": "2026-01-09T23:17:46.057972+08:00",
+        "end_time": "2026-01-09T23:17:46.064366+08:00"
+      },
+      "serverless": {
+        "scenario": "compute",
+        "runtime": "serverless",
+        "params": {
+          "n": 30
+        },
+        "metrics": {
+          "total_requests": 100,
+          "success_requests": 0,
+          "failed_requests": 100,
+          "qps": 22587.599227323404,
+          "latency_p50_ms": 0,
+          "latency_p95_ms": 0,
+          "latency_p99_ms": 1,
+          "latency_avg_ms": 0.38,
+          "latency_max_ms": 1,
+          "latency_min_ms": 0,
+          "success_rate": 0,
+          "duration": 4427208
+        },
+        "start_time": "2026-01-09T23:17:46.064379+08:00",
+        "end_time": "2026-01-09T23:17:46.068808+08:00"
+      },
+      "comparison": {
+        "qps_ratio": 1.443902793814973,
+        "latency_p99_ratio": 0.5,
+        "success_rate_diff": 0,
+        "performance_winner": "serverless"
+      }
+    },
+    "db_hook": {
+      "scenario": "db_hook",
+      "jsvm": {
+        "scenario": "db_hook",
+        "runtime": "jsvm",
+        "params": null,
+        "metrics": {
+          "total_requests": 1274534,
+          "success_requests": 0,
+          "failed_requests": 1274534,
+          "qps": 42483.73830704751,
+          "latency_p50_ms": 0,
+          "latency_p95_ms": 3,
+          "latency_p99_ms": 8,
+          "latency_avg_ms": 1.173971035688338,
+          "latency_max_ms": 116,
+          "latency_min_ms": 0,
+          "success_rate": 0,
+          "duration": 30000514333
+        },
+        "start_time": "2026-01-09T23:16:45.373871+08:00",
+        "end_time": "2026-01-09T23:17:15.374589+08:00"
+      },
+      "serverless": {
+        "scenario": "db_hook",
+        "runtime": "serverless",
+        "params": null,
+        "metrics": {
+          "total_requests": 542780,
+          "success_requests": 0,
+          "failed_requests": 542780,
+          "qps": 18090.623003961115,
+          "latency_p50_ms": 1,
+          "latency_p95_ms": 10,
+          "latency_p99_ms": 18,
+          "latency_avg_ms": 2.7584988393087437,
+          "latency_max_ms": 157,
+          "latency_min_ms": 0,
+          "success_rate": 0,
+          "duration": 30003389042
+        },
+        "start_time": "2026-01-09T23:17:15.511465+08:00",
+        "end_time": "2026-01-09T23:17:45.515057+08:00"
+      },
+      "comparison": {
+        "qps_ratio": 0.425824650204102,
+        "latency_p99_ratio": 2.25,
+        "success_rate_diff": 0,
+        "performance_winner": "jsvm"
+      }
+    },
+    "error_recovery": {
+      "scenario": "error_recovery",
+      "jsvm": {
+        "scenario": "error_recovery",
+        "runtime": "jsvm",
+        "params": {
+          "error_type": "memory_overflow"
+        },
+        "metrics": {
+          "total_requests": 10,
+          "success_requests": 0,
+          "failed_requests": 10,
+          "qps": 5482.705627503883,
+          "latency_p50_ms": 0,
+          "latency_p95_ms": 0,
+          "latency_p99_ms": 0,
+          "latency_avg_ms": 0.1,
+          "latency_max_ms": 0,
+          "latency_min_ms": 0,
+          "success_rate": 0,
+          "duration": 1823917
+        },
+        "start_time": "2026-01-09T23:22:00.95636+08:00",
+        "end_time": "2026-01-09T23:22:00.958185+08:00"
+      },
+      "serverless": {
+        "scenario": "error_recovery",
+        "runtime": "serverless",
+        "params": {
+          "error_type": "memory_overflow"
+        },
+        "metrics": {
+          "total_requests": 10,
+          "success_requests": 0,
+          "failed_requests": 10,
+          "qps": 3484.927687750479,
+          "latency_p50_ms": 0,
+          "latency_p95_ms": 0,
+          "latency_p99_ms": 0,
+          "latency_avg_ms": 0.2,
+          "latency_max_ms": 0,
+          "latency_min_ms": 0,
+          "success_rate": 0,
+          "duration": 2869500
+        },
+        "start_time": "2026-01-09T23:22:00.95819+08:00",
+        "end_time": "2026-01-09T23:22:00.961061+08:00"
+      },
+      "comparison": {
+        "qps_ratio": 0.635621885345879,
+        "latency_p99_ratio": 0,
+        "success_rate_diff": 0,
+        "performance_winner": "jsvm"
+      }
+    },
+    "http_handler": {
+      "scenario": "http_handler",
+      "jsvm": {
+        "scenario": "http_handler",
+        "runtime": "jsvm",
+        "params": null,
+        "metrics": {
+          "total_requests": 1035487,
+          "success_requests": 0,
+          "failed_requests": 1035487,
+          "qps": 34514.87756938398,
+          "latency_p50_ms": 2,
+          "latency_p95_ms": 20,
+          "latency_p99_ms": 38,
+          "latency_avg_ms": 5.782805578437972,
+          "latency_max_ms": 580,
+          "latency_min_ms": 0,
+          "success_rate": 0,
+          "duration": 30001178417
+        },
+        "start_time": "2026-01-09T23:15:44.911238+08:00",
+        "end_time": "2026-01-09T23:16:15.011378+08:00"
+      },
+      "serverless": {
+        "scenario": "http_handler",
+        "runtime": "serverless",
+        "params": null,
+        "metrics": {
+          "total_requests": 783538,
+          "success_requests": 0,
+          "failed_requests": 783538,
+          "qps": 26101.96118046974,
+          "latency_p50_ms": 3,
+          "latency_p95_ms": 27,
+          "latency_p99_ms": 51,
+          "latency_avg_ms": 7.652489094338756,
+          "latency_max_ms": 860,
+          "latency_min_ms": 0,
+          "success_rate": 0,
+          "duration": 30018357417
+        },
+        "start_time": "2026-01-09T23:16:15.134518+08:00",
+        "end_time": "2026-01-09T23:16:45.168615+08:00"
+      },
+      "comparison": {
+        "qps_ratio": 0.7562524632456812,
+        "latency_p99_ratio": 1.3421052631578947,
+        "success_rate_diff": 0,
+        "performance_winner": "jsvm"
+      }
+    },
+    "io_intensive": {
+      "scenario": "io_intensive",
+      "jsvm": {
+        "scenario": "io_intensive",
+        "runtime": "jsvm",
+        "params": {
+          "count": 20
+        },
+        "metrics": {
+          "total_requests": 937209,
+          "success_requests": 0,
+          "failed_requests": 937209,
+          "qps": 31218.070868781993,
+          "latency_p50_ms": 0,
+          "latency_p95_ms": 5,
+          "latency_p99_ms": 11,
+          "latency_avg_ms": 1.5979007884047207,
+          "latency_max_ms": 584,
+          "latency_min_ms": 0,
+          "success_rate": 0,
+          "duration": 30021361792
+        },
+        "start_time": "2026-01-09T23:21:00.606131+08:00",
+        "end_time": "2026-01-09T23:21:30.627565+08:00"
+      },
+      "serverless": {
+        "scenario": "io_intensive",
+        "runtime": "serverless",
+        "params": {
+          "count": 20
+        },
+        "metrics": {
+          "total_requests": 955838,
+          "success_requests": 0,
+          "failed_requests": 955838,
+          "qps": 31857.92609763261,
+          "latency_p50_ms": 0,
+          "latency_p95_ms": 5,
+          "latency_p99_ms": 10,
+          "latency_avg_ms": 1.5669548605516834,
+          "latency_max_ms": 79,
+          "latency_min_ms": 0,
+          "success_rate": 0,
+          "duration": 30003145750
+        },
+        "start_time": "2026-01-09T23:21:30.803995+08:00",
+        "end_time": "2026-01-09T23:22:00.807213+08:00"
+      },
+      "comparison": {
+        "qps_ratio": 1.0204963090621488,
+        "latency_p99_ratio": 0.9090909090909091,
+        "success_rate_diff": 0,
+        "performance_winner": "serverless"
+      }
+    },
+    "memory_pressure": {
+      "scenario": "memory_pressure",
+      "jsvm": {
+        "scenario": "memory_pressure",
+        "runtime": "jsvm",
+        "params": {
+          "size_mb": 50
+        },
+        "metrics": {
+          "total_requests": 10,
+          "success_requests": 0,
+          "failed_requests": 10,
+          "qps": 5156.744402869625,
+          "latency_p50_ms": 0,
+          "latency_p95_ms": 1,
+          "latency_p99_ms": 1,
+          "latency_avg_ms": 0.3,
+          "latency_max_ms": 1,
+          "latency_min_ms": 0,
+          "success_rate": 0,
+          "duration": 1939208
+        },
+        "start_time": "2026-01-09T23:22:00.934521+08:00",
+        "end_time": "2026-01-09T23:22:00.936461+08:00"
+      },
+      "serverless": {
+        "scenario": "memory_pressure",
+        "runtime": "serverless",
+        "params": {
+          "size_mb": 50
+        },
+        "metrics": {
+          "total_requests": 10,
+          "success_requests": 0,
+          "failed_requests": 10,
+          "qps": 4537.120679696975,
+          "latency_p50_ms": 0,
+          "latency_p95_ms": 2,
+          "latency_p99_ms": 2,
+          "latency_avg_ms": 0.6,
+          "latency_max_ms": 2,
+          "latency_min_ms": 0,
+          "success_rate": 0,
+          "duration": 2204041
+        },
+        "start_time": "2026-01-09T23:22:00.936465+08:00",
+        "end_time": "2026-01-09T23:22:00.93867+08:00"
+      },
+      "comparison": {
+        "qps_ratio": 0.879842071903381,
+        "latency_p99_ratio": 2,
+        "success_rate_diff": 0,
+        "performance_winner": "jsvm"
+      }
+    }
+  },
+  "summary": {
+    "overall_performance_winner": "jsvm",
+    "overall_stability_winner": "",
+    "win_count": {
+      "jsvm": 24,
+      "serverless": 12
+    },
+    "recommendations": [
+      {
+        "scenario": "error_recovery",
+        "recommended": "serverless",
+        "reason": "serverless 提供内存限制和错误隔离，更适合不可信代码"
+      },
+      {
+        "scenario": "http_handler",
+        "recommended": "jsvm",
+        "reason": "jsvm 性能显著更高，适合对延迟敏感的场景"
+      },
+      {
+        "scenario": "db_hook",
+        "recommended": "jsvm",
+        "reason": "jsvm 性能显著更高，适合对延迟敏感的场景"
+      },
+      {
+        "scenario": "compute",
+        "recommended": "serverless",
+        "reason": "QuickJS 在计算密集型任务上表现更好"
+      },
+      {
+        "scenario": "io_intensive",
+        "recommended": "",
+        "reason": ""
+      },
+      {
+        "scenario": "memory_pressure",
+        "recommended": "serverless",
+        "reason": "serverless 提供内存限制和错误隔离，更适合不可信代码"
+      }
+    ],
+    "key_findings": [
+      "jsvm 在大多数性能测试中胜出，适合对延迟敏感的应用"
+    ]
+  }
+}

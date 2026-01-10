@@ -5,6 +5,7 @@
     import MetricsCard from "./MetricsCard.svelte";
     import MetricsChart from "./MetricsChart.svelte";
     import TimeRangeSelector from "./TimeRangeSelector.svelte";
+    import ServerlessMetrics from "./ServerlessMetrics.svelte";
 
     $pageTitle = "System Monitoring";
 
@@ -218,6 +219,11 @@
                 <p>暂无历史数据，请等待数据采集。</p>
             </div>
         {/if}
+
+        <!-- Serverless 指标 -->
+        <section class="serverless-section">
+            <ServerlessMetrics refreshInterval={REFRESH_INTERVAL} />
+        </section>
     {/if}
 </div>
 
@@ -308,6 +314,10 @@
         font-size: 2em;
         margin-bottom: 12px;
         opacity: 0.5;
+    }
+
+    .serverless-section {
+        margin-top: 24px;
     }
 
     @media (max-width: 768px) {
