@@ -26,9 +26,16 @@ func healthCheck(e *core.RequestEvent) error {
 	}
 
 	if e.HasSuperuserAuth() {
-		resp.Data = make(map[string]any, 3)
+		resp.Data = make(map[string]any, 4)
 		resp.Data["canBackup"] = !e.App.Store().Has(core.StoreKeyActiveBackup)
 		resp.Data["realIP"] = e.RealIP()
+
+		// 添加数据库类型信息
+		if e.App.IsPostgres() {
+			resp.Data["databaseType"] = "PostgreSQL"
+		} else {
+			resp.Data["databaseType"] = "SQLite"
+		}
 
 		// loosely check if behind a reverse proxy
 		// (usually used in the dashboard to remind superusers in case deployed behind reverse-proxy)

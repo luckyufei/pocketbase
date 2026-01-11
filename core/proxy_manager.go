@@ -30,8 +30,6 @@ type ProxyManager struct {
 
 	mu      sync.RWMutex
 	proxies []*ProxyConfig // 按路径长度降序排列
-
-	devProxy string // 开发代理地址（--dev-proxy 参数）
 }
 
 // NewProxyManager 创建代理管理器实例
@@ -62,20 +60,6 @@ func (pm *ProxyManager) SetProxies(proxies []*ProxyConfig) {
 	})
 
 	pm.proxies = active
-}
-
-// SetDevProxy 设置开发代理地址
-func (pm *ProxyManager) SetDevProxy(upstream string) {
-	pm.mu.Lock()
-	defer pm.mu.Unlock()
-	pm.devProxy = upstream
-}
-
-// GetDevProxy 获取开发代理地址
-func (pm *ProxyManager) GetDevProxy() string {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-	return pm.devProxy
 }
 
 // MatchProxy 匹配请求路径对应的代理配置
@@ -131,11 +115,6 @@ func (pm *ProxyManager) BuildUpstreamURL(proxy *ProxyConfig, requestPath string)
 func (pm *ProxyManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	proxy := pm.MatchProxy(r.URL.Path)
 	if proxy == nil {
-		// 检查是否有开发代理
-		if devProxy := pm.GetDevProxy(); devProxy != "" {
-			pm.serveDevProxy(w, r, devProxy)
-			return
-		}
 		http.NotFound(w, r)
 		return
 	}
@@ -196,25 +175,6 @@ func (pm *ProxyManager) serveProxy(w http.ResponseWriter, r *http.Request, proxy
 
 	// 记录请求日志
 	pm.logProxyRequest(r, proxy, rw.statusCode, time.Since(startTime))
-}
-
-// serveDevProxy 执行开发代理转发
-func (pm *ProxyManager) serveDevProxy(w http.ResponseWriter, r *http.Request, upstream string) {
-	target, err := url.Parse(upstream + r.URL.RequestURI())
-	if err != nil {
-		http.Error(w, "Bad Gateway: invalid dev proxy URL", http.StatusBadGateway)
-		return
-	}
-
-	reverseProxy := &httputil.ReverseProxy{
-		Director: func(req *http.Request) {
-			req.URL = target
-			req.Host = target.Host
-		},
-		FlushInterval: -1,
-	}
-
-	reverseProxy.ServeHTTP(w, r)
 }
 
 // getScheme 获取请求协议

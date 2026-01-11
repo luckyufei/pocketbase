@@ -136,41 +136,6 @@ func TestProxyRouteAccessControl(t *testing.T) {
 	}
 }
 
-func TestProxyRouteDevProxy(t *testing.T) {
-	// 不使用 t.Parallel() 因为需要修改全局状态
-
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	// 创建开发代理上游服务器
-	devServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Dev-Proxy", "true")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`<!DOCTYPE html><html><body>Dev Server</body></html>`))
-	}))
-	defer devServer.Close()
-
-	// 设置开发代理
-	pm := app.ProxyManager()
-	pm.SetDevProxy(devServer.URL)
-
-	// 测试开发代理 - 直接使用 ProxyManager
-	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/some-random-path.html", nil)
-
-	// 直接调用 ProxyManager.ServeHTTP 来测试 dev proxy 功能
-	pm.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Errorf("expected status %d, got %d", http.StatusOK, rec.Code)
-	}
-
-	// 检查是否被代理到开发服务器
-	if rec.Header().Get("X-Dev-Proxy") != "true" {
-		t.Errorf("expected request to be proxied to dev server, got headers: %v", rec.Header())
-	}
-}
-
 func TestProxyRouteHeaderInjection(t *testing.T) {
 	// 不使用 t.Parallel() 因为需要设置环境变量
 

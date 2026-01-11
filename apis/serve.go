@@ -43,11 +43,6 @@ type ServeConfig struct {
 
 	// AllowedOrigins is an optional list of CORS origins (default to "*").
 	AllowedOrigins []string
-
-	// DevProxy is the upstream URL for development proxy mode.
-	// When set, unmatched requests will be proxied to this address (e.g., Vite dev server).
-	// Example: "http://localhost:5173"
-	DevProxy string
 }
 
 // Serve starts a new app web server.
@@ -82,18 +77,12 @@ func Serve(app core.App, config ServeConfig) error {
 		return err
 	}
 
-	// 设置开发代理（如果配置了）
-	if config.DevProxy != "" {
-		if pm := app.ProxyManager(); pm != nil {
-			pm.SetDevProxy(config.DevProxy)
-		}
-	}
-
 	pbRouter.Bind(CORS(CORSConfig{
 		AllowOrigins: config.AllowedOrigins,
 		AllowMethods: []string{http.MethodGet, http.MethodHead, http.MethodPut, http.MethodPatch, http.MethodPost, http.MethodDelete},
 	}))
 
+	// 设置管理界面路由（使用嵌入的静态文件）
 	pbRouter.GET("/_/{path...}", Static(ui.DistDirFS, false)).
 		BindFunc(func(e *core.RequestEvent) error {
 			// ignore root path
@@ -287,6 +276,9 @@ func Serve(app core.App, config ServeConfig) error {
 	if config.ShowStartBanner {
 		date := new(strings.Builder)
 		log.New(date, "", log.LstdFlags).Print()
+
+		// 强制启用颜色输出（即使在非 TTY 环境下）
+		color.NoColor = false
 
 		bold := color.New(color.Bold).Add(color.FgGreen)
 		bold.Printf(
