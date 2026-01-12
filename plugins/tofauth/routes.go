@@ -131,11 +131,19 @@ func handleRedirect(e *core.RequestEvent, config Config) error {
 	}
 	qsURL = cleanURL(qsURL)
 
+	// 检查是否缺少 TOF headers
+	isMissingHeaders := taiID == "" || timestamp == "" || signature == "" || seq == ""
+
+	// 开发模式：如果缺少 headers 且配置了 DevMockUser，直接重定向到目标 URL
+	if isMissingHeaders && config.DevMockUser != "" {
+		return e.Redirect(http.StatusTemporaryRedirect, qsURL)
+	}
+
 	// 验证 headers
 	if config.AppToken == "" {
 		return apis.NewBadRequestError("TOF_APP_TOKEN not configured", nil)
 	}
-	if taiID == "" || timestamp == "" || signature == "" || seq == "" {
+	if isMissingHeaders {
 		return apis.NewBadRequestError("Missing x-tai-identity/timestamp/signature/x-rio-seq in request header", nil)
 	}
 

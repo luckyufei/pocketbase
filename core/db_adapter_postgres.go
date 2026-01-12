@@ -141,7 +141,7 @@ func (a *PostgresAdapter) Ping(ctx context.Context) error {
 	return a.db.DB().PingContext(ctx)
 }
 
-// TableColumns 返回表的所有列名
+// TableColumns 返回表的所有列名（大小写不敏感）
 func (a *PostgresAdapter) TableColumns(tableName string) ([]string, error) {
 	if a.db == nil {
 		return nil, fmt.Errorf("数据库未连接")
@@ -151,7 +151,7 @@ func (a *PostgresAdapter) TableColumns(tableName string) ([]string, error) {
 	err := a.db.NewQuery(`
 		SELECT column_name 
 		FROM information_schema.columns 
-		WHERE table_name = {:tableName}
+		WHERE LOWER(table_name) = LOWER({:tableName})
 		AND table_schema = 'public'
 		ORDER BY ordinal_position
 	`).Bind(dbx.Params{"tableName": tableName}).Column(&columns)
@@ -159,7 +159,7 @@ func (a *PostgresAdapter) TableColumns(tableName string) ([]string, error) {
 	return columns, err
 }
 
-// TableInfo 返回表的详细信息
+// TableInfo 返回表的详细信息（大小写不敏感）
 func (a *PostgresAdapter) TableInfo(tableName string) ([]*AdapterTableInfoRow, error) {
 	if a.db == nil {
 		return nil, fmt.Errorf("数据库未连接")
@@ -190,10 +190,10 @@ func (a *PostgresAdapter) TableInfo(tableName string) ([]*AdapterTableInfoRow, e
 				ON tc.constraint_name = kcu.constraint_name
 				AND tc.table_schema = kcu.table_schema
 			WHERE tc.constraint_type = 'PRIMARY KEY'
-			AND tc.table_name = {:tableName}
+			AND LOWER(tc.table_name) = LOWER({:tableName})
 			AND tc.table_schema = 'public'
 		) pk ON c.column_name = pk.column_name
-		WHERE c.table_name = {:tableName}
+		WHERE LOWER(c.table_name) = LOWER({:tableName})
 		AND c.table_schema = 'public'
 		ORDER BY c.ordinal_position
 	`).Bind(dbx.Params{"tableName": tableName}).All(&rows)
@@ -217,21 +217,21 @@ func (a *PostgresAdapter) TableInfo(tableName string) ([]*AdapterTableInfoRow, e
 	return result, nil
 }
 
-// TableIndexes 返回表的索引信息
+// TableIndexes 返回表的索引信息（大小写不敏感）
 func (a *PostgresAdapter) TableIndexes(tableName string) (map[string]string, error) {
 	if a.db == nil {
 		return nil, fmt.Errorf("数据库未连接")
 	}
 
 	var indexes []struct {
-		IndexName  string `db:"indexname"`
-		IndexDef   string `db:"indexdef"`
+		IndexName string `db:"indexname"`
+		IndexDef  string `db:"indexdef"`
 	}
 
 	err := a.db.NewQuery(`
 		SELECT indexname, indexdef 
 		FROM pg_indexes 
-		WHERE tablename = {:tableName}
+		WHERE LOWER(tablename) = LOWER({:tableName})
 		AND schemaname = 'public'
 	`).Bind(dbx.Params{"tableName": tableName}).All(&indexes)
 
@@ -247,7 +247,7 @@ func (a *PostgresAdapter) TableIndexes(tableName string) (map[string]string, err
 	return result, nil
 }
 
-// HasTable 检查表是否存在
+// HasTable 检查表是否存在（大小写不敏感）
 func (a *PostgresAdapter) HasTable(tableName string) (bool, error) {
 	if a.db == nil {
 		return false, fmt.Errorf("数据库未连接")
@@ -258,7 +258,7 @@ func (a *PostgresAdapter) HasTable(tableName string) (bool, error) {
 		SELECT EXISTS (
 			SELECT 1 
 			FROM information_schema.tables 
-			WHERE table_name = {:tableName}
+			WHERE LOWER(table_name) = LOWER({:tableName})
 			AND table_schema = 'public'
 		)
 	`).Bind(dbx.Params{"tableName": tableName}).Row(&exists)

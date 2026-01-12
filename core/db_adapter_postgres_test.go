@@ -116,6 +116,28 @@ func TestPostgresAdapterTableOperations(t *testing.T) {
 		}
 	})
 
+	// 测试 HasTable 大小写不敏感
+	t.Run("HasTable_CaseInsensitive", func(t *testing.T) {
+		// PostgreSQL 将未加引号的标识符转为小写存储
+		// 但查询时应该大小写不敏感
+		testCases := []string{
+			"pg_adapter_test",   // 全小写（与存储一致）
+			"PG_ADAPTER_TEST",   // 全大写
+			"Pg_Adapter_Test",   // 混合大小写
+			"PG_adapter_TEST",   // 混合大小写
+		}
+
+		for _, tableName := range testCases {
+			exists, err := adapter.HasTable(tableName)
+			if err != nil {
+				t.Errorf("HasTable(%q) 失败: %v", tableName, err)
+			}
+			if !exists {
+				t.Errorf("HasTable(%q) 应该返回 true（大小写不敏感）", tableName)
+			}
+		}
+	})
+
 	// 测试 TableColumns
 	t.Run("TableColumns", func(t *testing.T) {
 		columns, err := adapter.TableColumns("pg_adapter_test")

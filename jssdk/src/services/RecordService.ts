@@ -93,6 +93,39 @@ export interface OTPResponse {
     otpId: string;
 }
 
+export interface TofIdentity {
+    loginName: string;
+    staffId: number;
+    expiration: string;
+    ticket?: string;
+}
+
+export interface TofAuthConfig extends SendOptions {
+    /**
+     * TOF 身份标识（x-tai-identity header）
+     * 生产环境必需，开发模式（服务端配置 TOF_DEV_MOCK_USER）可省略
+     */
+    taiIdentity?: string;
+
+    /**
+     * 时间戳（timestamp header）
+     * 生产环境必需，开发模式可省略
+     */
+    timestamp?: string;
+
+    /**
+     * 签名（signature header）
+     * 生产环境必需，开发模式可省略
+     */
+    signature?: string;
+
+    /**
+     * 请求序列号（x-rio-seq header）
+     * 生产环境必需，开发模式可省略
+     */
+    seq?: string;
+}
+
 export class RecordService<M = RecordModel> extends CrudService<M> {
     readonly collectionIdOrName: string;
 
@@ -1103,6 +1136,48 @@ export class RecordService<M = RecordModel> extends CrudService<M> {
 
         return this.client
             .send(this.baseCollectionPath + "/auth-with-otp", options)
+            .then((data) => this.authResponse<T>(data));
+    }
+
+    /**
+     * Authenticate a single auth collection record via TOF (Tencent OAuth Framework).
+     *
+     * TOF headers (x-tai-identity, timestamp, signature, x-rio-seq) are required
+     * for production environments. In development mode with DevMockUser configured,
+     * these headers can be omitted.
+     *
+     * On success, this method also automatically updates
+     * the client's AuthStore data and returns:
+     * - the authentication token
+     * - the authenticated record model
+     * - the TOF identity info in meta.tofIdentity
+     *
+     * @throws {ClientResponseError}
+     */
+    async authWithTof<T = M>(
+        config?: TofAuthConfig,
+    ): Promise<RecordAuthResponse<T>> {
+        const { taiIdentity, timestamp, signature, seq, ...restOptions } = config || {};
+
+        const options: SendOptions = Object.assign(
+            {
+                method: "GET",
+            },
+            restOptions,
+        );
+
+        // 设置 TOF 认证所需的 headers（仅当提供时）
+        if (taiIdentity || timestamp || signature || seq) {
+            options.headers = Object.assign({}, options.headers, {
+                ...(taiIdentity && { "x-tai-identity": taiIdentity }),
+                ...(timestamp && { "timestamp": timestamp }),
+                ...(signature && { "signature": signature }),
+                ...(seq && { "x-rio-seq": seq }),
+            });
+        }
+
+        return this.client
+            .send(this.baseCollectionPath + "/auth-with-tof", options)
             .then((data) => this.authResponse<T>(data));
     }
 
