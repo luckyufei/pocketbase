@@ -106,6 +106,18 @@ func PostgresDBConnect(config PostgresConfig) (*dbx.DB, error) {
 		return nil, fmt.Errorf("PostgreSQL 连接验证失败: %w", err)
 	}
 
+	// 初始化必要的 PostgreSQL 扩展
+	// pgcrypto: 提供 gen_random_bytes() 用于生成随机 ID
+	// pg_trgm: 提供三元组索引用于模糊搜索
+	initSQL := `
+		CREATE EXTENSION IF NOT EXISTS pgcrypto;
+		CREATE EXTENSION IF NOT EXISTS pg_trgm;
+	`
+	if _, err := db.NewQuery(initSQL).Execute(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("初始化 PostgreSQL 扩展失败: %w", err)
+	}
+
 	return db, nil
 }
 
