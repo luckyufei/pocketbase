@@ -42,3 +42,4 @@ benchmarks/benchmark-config.json
 /site/cmd/dist
 /site/docs/.vitepress/cache
 /site/docs/.vitepress/dist
+/jssdk/dist

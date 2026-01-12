@@ -146,9 +146,17 @@ func (app *BaseApp) AuxHasTable(tableName string) bool {
 }
 
 func (app *BaseApp) hasTable(db dbx.Builder, tableName string) bool {
-	// 如果使用 PostgreSQL，通过适配器查询
+	// 如果使用 PostgreSQL，直接查询 information_schema
 	if app.IsPostgres() {
-		exists, err := app.DBAdapter().HasTable(tableName)
+		var exists bool
+		err := db.NewQuery(`
+			SELECT EXISTS (
+				SELECT 1 
+				FROM information_schema.tables 
+				WHERE LOWER(table_name) = LOWER({:tableName})
+				AND table_schema = 'public'
+			)
+		`).Bind(dbx.Params{"tableName": tableName}).Row(&exists)
 		return err == nil && exists
 	}
 

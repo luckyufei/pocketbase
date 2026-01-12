@@ -146,6 +146,99 @@ pb.authStore.clear();
 
 You can also authenticate your users with an OAuth2 provider (Google, GitHub, Microsoft, etc.). See the [Web API reference](/api/records#auth-with-oauth2) for more details.
 
+## Authenticate with TOF (Tencent Internal)
+
+TOF (Tencent Open Framework) is Tencent's internal unified authentication gateway. This authentication method is only available for Tencent internal applications.
+
+### Server Configuration
+
+First, register the TOF plugin in your Go application:
+
+```go
+import "github.com/pocketbase/pocketbase/plugins/tofauth"
+
+func main() {
+    app := pocketbase.New()
+
+    // Register TOF plugin
+    tofauth.MustRegister(app, tofauth.Config{
+        SafeMode:       tofauth.Bool(true),  // Recommended for production
+        CheckTimestamp: tofauth.Bool(true),  // Check timestamp expiration
+    })
+
+    app.Start()
+}
+```
+
+Configure the following environment variables:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `TOF_APP_KEY` | No | Taihu application key (for logout redirect) |
+| `TOF_APP_TOKEN` | Yes | Taihu application token (for signature verification) |
+| `TOF_DEV_MOCK_USER` | No | Mock user for development (e.g., `testuser`) |
+
+::: warning
+The `TOF_DEV_MOCK_USER` is only for local development. Never set it in production!
+:::
+
+### Client Usage
+
+<CodeTabs :tabs="['JavaScript']">
+
+<template #tab-0>
+
+```javascript
+import PocketBase from 'pocketbase';
+
+const pb = new PocketBase('http://127.0.0.1:8090');
+
+// Authenticate with TOF (requires TOF gateway headers)
+const authData = await pb.collection('users').authWithTof({
+    taiIdentity: 'x-tai-identity-value',  // from x-tai-identity header
+    timestamp: 'timestamp-value',          // from timestamp header
+    signature: 'signature-value',          // from signature header
+    seq: 'x-rio-seq-value',               // from x-rio-seq header
+});
+
+// Access auth data
+console.log(pb.authStore.isValid);
+console.log(pb.authStore.token);
+console.log(pb.authStore.record.id);
+
+// Access TOF identity info
+console.log(authData.meta.tofIdentity);
+// { loginName: "username", staffId: 12345, expiration: "...", ticket: "..." }
+
+// "logout"
+pb.authStore.clear();
+```
+
+</template>
+
+</CodeTabs>
+
+### API Routes
+
+The TOF plugin registers the following routes:
+
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/api/collections/{collection}/auth-with-tof` | GET | TOF authentication |
+| `/api/tof/logout?url={redirect_url}` | GET | TOF logout |
+| `/api/tof/redirect?url={redirect_url}` | GET | TOF redirect verification |
+| `/api/tof/status` | GET | TOF config status (superuser only) |
+
+### Development Mode
+
+For local development without TOF gateway, set `TOF_DEV_MOCK_USER` environment variable:
+
+```bash
+TOF_DEV_MOCK_USER=testuser go run main.go serve
+```
+
+When TOF headers are missing and `TOF_DEV_MOCK_USER` is set, the plugin will authenticate using a mock identity with the specified username.
+
 ## Multi-factor Authentication
 
 PocketBase v0.23+ introduced optional Multi-factor authentication (MFA).

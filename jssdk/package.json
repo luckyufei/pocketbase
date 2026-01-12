@@ -1,12 +1,12 @@
 {
-    "version": "0.26.5",
-    "name": "@pocket3as/pocketbase-jssdk",
+    "version": "0.26.5-beta.02",
+    "name": "@tencent/pocketbase-jssdk",
     "description": "PocketBase JavaScript SDK",
     "author": "Gani Georgiev",
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "git://github.com/pocketbase/js-sdk.git"
+        "url": "git://github.com/luckyufei/pocketbase.git"
     },
     "exports": {
         ".": "./dist/pocketbase.es.mjs",
@@ -30,17 +30,16 @@
         "bracketSameLine": true
     },
     "scripts": {
-        "format": "npx prettier ./src ./tests --write",
-        "build": "rm -rf dist && rollup -c",
-        "dev": "rollup -c -w",
-        "test": "vitest",
-        "prepublishOnly": "npm run build"
+        "format": "bunx prettier ./src ./tests --write",
+        "build": "NODE_ENV=production bun run build.ts",
+        "dev": "BUN_WATCH=1 bun --watch run build.ts",
+        "test": "bunx vitest",
+        "prepublishOnly": "bun run build"
     },
     "devDependencies": {
-        "@rollup/plugin-terser": "^0.4.3",
+        "bun-plugin-dts": "^0.3.0",
+        "bun-types": "latest",
         "prettier": "3.2.4",
-        "rollup": "^4.0.0",
-        "rollup-plugin-ts": "^3.0.0",
         "typescript": "^5.1.6",
         "vitest": "^2.0.0"
     }

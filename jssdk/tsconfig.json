@@ -2,21 +2,23 @@
   "compilerOptions": {
     "declaration": true,
     "declarationDir": "./dist",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "sourceMap": true,
-    "target": "es2021",
-    "lib": ["dom", "es2021", "es2022.error"],
-    "module": "esnext",
+    "target": "ES2021",
+    "lib": ["DOM", "ES2021", "ES2022.Error"],
+    "module": "ESNext",
     "strict": true,
     "esModuleInterop": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"],
+      "@/*": ["./src/*"]
     },
+    "types": ["bun-types"]
   },
-  "include": ["./src", "./tests"]
+  "include": ["./src", "./tests", "./build.ts"]
 }

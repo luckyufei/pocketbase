@@ -501,3 +501,108 @@ null
 ## Auth record actions
 
 For auth record specific actions (authentication, verification, password reset, etc.), please refer to the [Authentication](/authentication) documentation.
+
+---
+
+### Auth with TOF
+
+Authenticates a single auth collection record via TOF (Tencent Open Framework) gateway.
+
+This endpoint is only available when the `tofauth` plugin is registered on the server.
+
+<CodeTabs>
+<template #js>
+
+```javascript
+import PocketBase from 'pocketbase';
+
+const pb = new PocketBase('http://127.0.0.1:8090');
+
+// Authenticate with TOF (requires TOF gateway headers)
+const authData = await pb.collection('users').authWithTof({
+    taiIdentity: 'x-tai-identity-value',
+    timestamp: 'timestamp-value',
+    signature: 'signature-value',
+    seq: 'x-rio-seq-value',
+});
+
+console.log(authData.token);
+console.log(authData.record);
+console.log(authData.meta.tofIdentity);
+```
+
+</template>
+</CodeTabs>
+
+#### API details
+
+::: info GET
+`/api/collections/{collectionIdOrName}/auth-with-tof`
+:::
+
+**Path parameters**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| collectionIdOrName | String | ID or name of the auth collection. |
+
+**Request Headers**
+
+| Header | Type | Description |
+|--------|------|-------------|
+| x-tai-identity | String | TOF identity token (JWE encrypted). |
+| timestamp | String | Request timestamp. |
+| signature | String | Request signature. |
+| x-rio-seq | String | Request sequence number. |
+
+**Responses**
+
+::: code-group
+```json [200]
+{
+  "token": "JWT_AUTH_TOKEN",
+  "record": {
+    "id": "8171022dc95a4ed",
+    "collectionId": "a98f514eb05f454",
+    "collectionName": "users",
+    "email": "username@tencent.com",
+    "name": "username",
+    "verified": true,
+    "created": "2024-01-01 00:00:00.000Z",
+    "updated": "2024-01-01 00:00:00.000Z"
+  },
+  "meta": {
+    "tofIdentity": {
+      "loginName": "username",
+      "staffId": 12345,
+      "expiration": "2024-01-01T12:00:00Z",
+      "ticket": "TOF_TICKET"
+    }
+  }
+}
+```
+
+```json [400]
+{
+  "status": 400,
+  "message": "Missing TOF params in http header",
+  "data": {}
+}
+```
+
+```json [401]
+{
+  "status": 401,
+  "message": "TOF identity verification failed: ...",
+  "data": {}
+}
+```
+
+```json [404]
+{
+  "status": 404,
+  "message": "Collection 'xxx' not found",
+  "data": {}
+}
+```
+:::
