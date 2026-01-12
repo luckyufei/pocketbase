@@ -181,6 +181,13 @@ pb.jobs = {
     },
 };
 
+// Add TOF auth service
+pb.tof = {
+    async status(options = {}) {
+        return pb.send("/api/tof/status", { method: "GET", ...options });
+    },
+};
+
 if (pb.authStore.isValid) {
     pb.collection(pb.authStore.record.collectionName || "_superusers")
         .authRefresh()

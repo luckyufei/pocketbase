@@ -23,7 +23,9 @@
         isLoading = true;
 
         try {
-            secrets = await ApiClient.secrets.list();
+            const result = await ApiClient.secrets.list();
+            // 确保返回值是数组
+            secrets = Array.isArray(result) ? result : (result?.secrets || result?.items || []);
             isEnabled = true;
             isLoading = false;
         } catch (err) {

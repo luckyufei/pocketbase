@@ -1,6 +1,6 @@
 {
     "version": "0.26.5",
-    "name": "pocketbase",
+    "name": "@pocket3as/pocketbase-jssdk",
     "description": "PocketBase JavaScript SDK",
     "author": "Gani Georgiev",
     "license": "MIT",

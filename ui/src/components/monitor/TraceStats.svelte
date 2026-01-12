@@ -1,5 +1,6 @@
 <script>
     export let stats;
+    export let compact = false;
 
     function formatNumber(value) {
         if (value === null || value === undefined) return "-";
@@ -33,7 +34,7 @@
         : 0;
 </script>
 
-<div class="trace-stats">
+<div class="trace-stats" class:compact>
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-icon">
@@ -41,7 +42,7 @@
             </div>
             <div class="stat-content">
                 <div class="stat-value">{formatNumber(stats?.total_requests)}</div>
-                <div class="stat-label">总请求数</div>
+                <div class="stat-label">总请求</div>
             </div>
         </div>
 
@@ -51,8 +52,7 @@
             </div>
             <div class="stat-content">
                 <div class="stat-value">{formatNumber(stats?.success_count)}</div>
-                <div class="stat-label">成功请求</div>
-                <div class="stat-percentage">{formatPercentage(successRate)}</div>
+                <div class="stat-label">成功 <span class="stat-percentage">{formatPercentage(successRate)}</span></div>
             </div>
         </div>
 
@@ -62,8 +62,7 @@
             </div>
             <div class="stat-content">
                 <div class="stat-value">{formatNumber(stats?.error_count)}</div>
-                <div class="stat-label">错误请求</div>
-                <div class="stat-percentage">{formatPercentage(errorRate)}</div>
+                <div class="stat-label">错误 <span class="stat-percentage">{formatPercentage(errorRate)}</span></div>
             </div>
         </div>
 
@@ -73,7 +72,7 @@
             </div>
             <div class="stat-content">
                 <div class="stat-value">{formatDuration(stats?.p50_latency)}</div>
-                <div class="stat-label">P50 延迟</div>
+                <div class="stat-label">P50</div>
             </div>
         </div>
 
@@ -83,7 +82,7 @@
             </div>
             <div class="stat-content">
                 <div class="stat-value">{formatDuration(stats?.p95_latency)}</div>
-                <div class="stat-label">P95 延迟</div>
+                <div class="stat-label">P95</div>
             </div>
         </div>
 
@@ -93,7 +92,7 @@
             </div>
             <div class="stat-content">
                 <div class="stat-value">{formatDuration(stats?.p99_latency)}</div>
-                <div class="stat-label">P99 延迟</div>
+                <div class="stat-label">P99</div>
             </div>
         </div>
     </div>
@@ -104,29 +103,48 @@
         background: var(--baseColor);
         border-radius: var(--baseRadius);
         border: 1px solid var(--baseAlt2Color);
-        padding: 20px;
+        padding: 12px;
+    }
+
+    .trace-stats.compact {
+        padding: 8px;
     }
 
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 16px;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 10px;
+    }
+
+    .compact .stats-grid {
+        gap: 8px;
+    }
+
+    @media (max-width: 1200px) {
+        .stats-grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 
     .stat-card {
         display: flex;
         align-items: center;
-        gap: 12px;
-        padding: 16px;
+        gap: 8px;
+        padding: 10px 12px;
         background: var(--baseAlt1Color);
         border-radius: var(--baseRadius);
         border: 1px solid var(--baseAlt2Color);
-        transition: all 0.2s ease;
     }
 
-    .stat-card:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    .compact .stat-card {
+        padding: 8px 10px;
+        gap: 6px;
     }
 
     .stat-card.success {
@@ -146,9 +164,13 @@
     }
 
     .stat-icon {
-        font-size: 1.5em;
+        font-size: 1.25em;
         color: var(--txtHintColor);
         flex-shrink: 0;
+    }
+
+    .compact .stat-icon {
+        font-size: 1.1em;
     }
 
     .stat-content {
@@ -157,22 +179,23 @@
     }
 
     .stat-value {
-        font-size: 1.25em;
+        font-size: 1.1em;
         font-weight: 600;
         color: var(--txtPrimaryColor);
         line-height: 1.2;
     }
 
+    .compact .stat-value {
+        font-size: 1em;
+    }
+
     .stat-label {
-        font-size: 0.875em;
+        font-size: 0.75em;
         color: var(--txtHintColor);
-        margin-top: 2px;
     }
 
     .stat-percentage {
-        font-size: 0.75em;
-        color: var(--txtHintColor);
-        margin-top: 2px;
+        color: inherit;
     }
 
     .success .stat-percentage {
@@ -181,25 +204,5 @@
 
     .error .stat-percentage {
         color: var(--dangerColor);
-    }
-
-    @media (max-width: 768px) {
-        .stats-grid {
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 12px;
-        }
-
-        .stat-card {
-            padding: 12px;
-            gap: 8px;
-        }
-
-        .stat-icon {
-            font-size: 1.25em;
-        }
-
-        .stat-value {
-            font-size: 1.1em;
-        }
     }
 </style>

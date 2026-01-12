@@ -4,20 +4,23 @@
 
     export let date = "";
 
-    $: dateOnly = date ? date.substring(0, 10) : null;
+    // 确保 date 是字符串类型
+    $: dateStr = typeof date === 'string' ? date : (date ? String(date) : "");
 
-    $: timeOnly = date ? date.substring(10, 19) : null;
+    $: dateOnly = dateStr ? dateStr.substring(0, 10) : null;
+
+    $: timeOnly = dateStr ? dateStr.substring(10, 19) : null;
 
     const tooltipData = {
         // generate the tooltip text as getter to speed up the initial load
         // in case the component is used with large number of items
         get text() {
-            return CommonHelper.formatToLocalDate(date) + " Local";
+            return CommonHelper.formatToLocalDate(dateStr) + " Local";
         },
     };
 </script>
 
-{#if date}
+{#if dateStr}
     <div class="datetime" use:tooltip={tooltipData}>
         <div class="date">{dateOnly}</div>
         <div class="time">{timeOnly} UTC</div>

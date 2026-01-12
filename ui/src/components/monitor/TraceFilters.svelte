@@ -2,6 +2,7 @@
     import { createEventDispatcher } from "svelte";
     
     export let filters;
+    export let compact = false;
 
     const dispatch = createEventDispatcher();
 
@@ -9,39 +10,31 @@
 
     // 预设时间范围
     const timeRanges = [
-        { label: "最近 1 小时", value: "1h", hours: 1 },
-        { label: "最近 6 小时", value: "6h", hours: 6 },
-        { label: "最近 24 小时", value: "24h", hours: 24 },
-        { label: "最近 7 天", value: "7d", hours: 168 },
-        { label: "自定义", value: "custom", hours: 0 }
+        { label: "1小时", value: "1h", hours: 1 },
+        { label: "6小时", value: "6h", hours: 6 },
+        { label: "24小时", value: "24h", hours: 24 },
+        { label: "7天", value: "7d", hours: 168 },
     ];
 
     // 状态选项
     const statusOptions = [
-        { label: "全部状态", value: "" },
-        { label: "成功 (OK)", value: "OK" },
-        { label: "错误 (ERROR)", value: "ERROR" },
-        { label: "取消 (CANCELLED)", value: "CANCELLED" }
+        { label: "全部", value: "" },
+        { label: "成功", value: "OK" },
+        { label: "错误", value: "ERROR" },
     ];
 
     let selectedTimeRange = "24h";
-    let showCustomTime = false;
 
     function handleTimeRangeChange() {
         const range = timeRanges.find(r => r.value === selectedTimeRange);
         if (range) {
-            if (range.value === "custom") {
-                showCustomTime = true;
-            } else {
-                showCustomTime = false;
-                const now = new Date();
-                const startTime = new Date(now.getTime() - range.hours * 60 * 60 * 1000);
-                
-                localFilters.start_time = startTime.toISOString().slice(0, 16);
-                localFilters.end_time = now.toISOString().slice(0, 16);
-                
-                applyFilters();
-            }
+            const now = new Date();
+            const startTime = new Date(now.getTime() - range.hours * 60 * 60 * 1000);
+            
+            localFilters.start_time = startTime.toISOString().slice(0, 16);
+            localFilters.end_time = now.toISOString().slice(0, 16);
+            
+            applyFilters();
         }
     }
 
@@ -60,12 +53,10 @@
             perPage: 50
         };
         selectedTimeRange = "24h";
-        showCustomTime = false;
         handleTimeRangeChange();
     }
 
     function handleInputChange() {
-        // 延迟应用筛选，避免频繁请求
         clearTimeout(handleInputChange.timeout);
         handleInputChange.timeout = setTimeout(applyFilters, 500);
     }
@@ -76,70 +67,40 @@
     }
 </script>
 
-<div class="trace-filters">
-    <div class="filters-header">
-        <h3>筛选条件</h3>
-        <button type="button" class="btn btn-sm btn-secondary" on:click={resetFilters}>
-            <i class="ri-refresh-line" />
-            重置
-        </button>
-    </div>
-
-    <div class="filters-grid">
-        <!-- 时间范围选择 -->
-        <div class="filter-group">
-            <label class="filter-label">时间范围</label>
-            <select 
-                class="form-field" 
-                bind:value={selectedTimeRange} 
-                on:change={handleTimeRangeChange}
-            >
+<div class="trace-filters" class:compact>
+    <div class="filters-row">
+        <!-- 时间范围 -->
+        <div class="filter-group time-range">
+            <div class="btn-group">
                 {#each timeRanges as range}
-                    <option value={range.value}>{range.label}</option>
+                    <button 
+                        type="button"
+                        class="btn btn-xs"
+                        class:btn-primary={selectedTimeRange === range.value}
+                        class:btn-secondary={selectedTimeRange !== range.value}
+                        on:click={() => { selectedTimeRange = range.value; handleTimeRangeChange(); }}
+                    >
+                        {range.label}
+                    </button>
                 {/each}
-            </select>
+            </div>
         </div>
 
-        <!-- 自定义时间范围 -->
-        {#if showCustomTime}
-            <div class="filter-group">
-                <label class="filter-label">开始时间</label>
-                <input 
-                    type="datetime-local" 
-                    class="form-field"
-                    bind:value={localFilters.start_time}
-                    on:change={applyFilters}
-                />
-            </div>
-
-            <div class="filter-group">
-                <label class="filter-label">结束时间</label>
-                <input 
-                    type="datetime-local" 
-                    class="form-field"
-                    bind:value={localFilters.end_time}
-                    on:change={applyFilters}
-                />
-            </div>
-        {/if}
-
         <!-- 操作名称 -->
-        <div class="filter-group">
-            <label class="filter-label">操作名称</label>
+        <div class="filter-group flex-grow">
             <input 
                 type="text" 
-                class="form-field"
-                placeholder="如: GET /api/collections"
+                class="form-field form-field-sm"
+                placeholder="操作名称..."
                 bind:value={localFilters.operation}
                 on:input={handleInputChange}
             />
         </div>
 
-        <!-- 状态筛选 -->
+        <!-- 状态 -->
         <div class="filter-group">
-            <label class="filter-label">状态</label>
             <select 
-                class="form-field" 
+                class="form-field form-field-sm" 
                 bind:value={localFilters.status}
                 on:change={applyFilters}
             >
@@ -149,17 +110,21 @@
             </select>
         </div>
 
-        <!-- Trace ID 搜索 -->
+        <!-- Trace ID -->
         <div class="filter-group">
-            <label class="filter-label">Trace ID</label>
             <input 
                 type="text" 
-                class="form-field"
-                placeholder="输入完整的 Trace ID"
+                class="form-field form-field-sm"
+                placeholder="Trace ID..."
                 bind:value={localFilters.trace_id}
                 on:input={handleInputChange}
             />
         </div>
+
+        <!-- 重置 -->
+        <button type="button" class="btn btn-xs btn-hint" on:click={resetFilters}>
+            <i class="ri-refresh-line" />
+        </button>
     </div>
 </div>
 
@@ -168,69 +133,69 @@
         background: var(--baseColor);
         border-radius: var(--baseRadius);
         border: 1px solid var(--baseAlt2Color);
-        padding: 20px;
+        padding: 10px 12px;
     }
 
-    .filters-header {
+    .trace-filters.compact {
+        padding: 8px 10px;
+    }
+
+    .filters-row {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 16px;
-    }
-
-    .filters-header h3 {
-        margin: 0;
-        font-size: 1.1em;
-        color: var(--txtPrimaryColor);
-    }
-
-    .filters-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 16px;
+        gap: 10px;
+        flex-wrap: wrap;
     }
 
     .filter-group {
         display: flex;
-        flex-direction: column;
-        gap: 6px;
+        align-items: center;
     }
 
-    .filter-label {
-        font-size: 0.875em;
-        font-weight: 500;
-        color: var(--txtPrimaryColor);
+    .filter-group.flex-grow {
+        flex: 1;
+        min-width: 150px;
     }
 
-    .form-field {
-        padding: 8px 12px;
-        border: 1px solid var(--baseAlt2Color);
-        border-radius: var(--baseRadius);
-        background: var(--baseAlt1Color);
-        color: var(--txtPrimaryColor);
-        font-size: 0.875em;
-        transition: border-color 0.2s ease;
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
     }
 
-    .form-field:focus {
-        outline: none;
-        border-color: var(--primaryColor);
+    .filter-group select {
+        min-width: 80px;
     }
 
-    .form-field::placeholder {
-        color: var(--txtHintColor);
+    .filter-group input[placeholder="Trace ID..."] {
+        width: 140px;
     }
 
-    @media (max-width: 768px) {
-        .filters-grid {
-            grid-template-columns: 1fr;
-            gap: 12px;
+    .btn-group {
+        display: flex;
+        gap: 2px;
+    }
+
+    .form-field-sm {
+        padding: 6px 10px;
+        font-size: var(--smFontSize);
+        height: auto;
+    }
+
+    @media (max-width: 900px) {
+        .filters-row {
+            gap: 8px;
         }
 
-        .filters-header {
-            flex-direction: column;
-            gap: 12px;
-            align-items: flex-start;
+        .filter-group.time-range {
+            width: 100%;
+        }
+
+        .filter-group.time-range .btn-group {
+            flex: 1;
+        }
+
+        .filter-group.time-range .btn-group .btn {
+            flex: 1;
         }
     }
 </style>

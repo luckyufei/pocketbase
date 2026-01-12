@@ -231,26 +231,6 @@
                         </div>
                     </div>
 
-                    <!-- 数据库信息显示 -->
-                    <div class="col-lg-12">
-                        <div class="database-info-panel">
-                            <h6 class="m-b-xs">数据库信息</h6>
-                            <div class="database-info-content">
-                                <div class="info-item">
-                                    <span class="info-label">数据库类型:</span>
-                                    <span class="info-value">
-                                        {#if healthData.databaseType}
-                                            <i class={healthData.databaseType === 'PostgreSQL' ? 'ri-database-line' : 'ri-file-line'}></i>
-                                            {healthData.databaseType}
-                                        {:else}
-                                            <span class="txt-hint">未知</span>
-                                        {/if}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <div class="col-lg-12">
                         <Field class="form-field form-field-toggle m-0" name="meta.hideControls" let:uniqueId>
                             <input

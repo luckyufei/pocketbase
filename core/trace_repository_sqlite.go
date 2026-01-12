@@ -3,13 +3,12 @@
 package core
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 	"time"
 
+	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
@@ -18,42 +17,14 @@ import (
 // ============================================================================
 
 // SQLiteTraceRepository 是 SQLite 的 TraceRepository 实现
-// 使用独立的 auxiliary.db 文件存储 trace 数据
+// 使用 auxiliary.db 存储 trace 数据，与 Logs、Metrics、Analytics 共享数据库
 type SQLiteTraceRepository struct {
-	db *sql.DB
+	db dbx.Builder
 }
 
 // NewSQLiteTraceRepository 创建 SQLite TraceRepository
-func NewSQLiteTraceRepository(dbPath string) (*SQLiteTraceRepository, error) {
-	// 构建 DSN
-	dsn := dbPath
-	if !strings.Contains(dsn, "?") {
-		dsn += "?"
-	}
-
-	// 添加 WAL 模式和其他优化参数
-	params := []string{
-		"_pragma=journal_mode(WAL)",
-		"_pragma=synchronous(NORMAL)",
-		"_pragma=busy_timeout(10000)",
-		"_pragma=cache_size(-64000)",
-	}
-	dsn += strings.Join(params, "&")
-
-	db, err := sql.Open("sqlite", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("打开 SQLite 连接失败: %w", err)
-	}
-
-	// SQLite 使用单连接模式
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-
-	return &SQLiteTraceRepository{db: db}, nil
-}
-
-// NewSQLiteTraceRepositoryWithDB 使用现有连接创建 TraceRepository
-func NewSQLiteTraceRepositoryWithDB(db *sql.DB) *SQLiteTraceRepository {
+// 使用 dbx.Builder 以便与 PocketBase 的 AuxDB 集成
+func NewSQLiteTraceRepository(db dbx.Builder) *SQLiteTraceRepository {
 	return &SQLiteTraceRepository{db: db}
 }
 
@@ -76,7 +47,7 @@ func (r *SQLiteTraceRepository) CreateSchema() error {
 		)
 	`
 
-	_, err := r.db.Exec(createTableSQL)
+	_, err := r.db.NewQuery(createTableSQL).Execute()
 	if err != nil {
 		return fmt.Errorf("创建 _traces 表失败: %w", err)
 	}
@@ -90,7 +61,7 @@ func (r *SQLiteTraceRepository) CreateSchema() error {
 	}
 
 	for _, idx := range indexes {
-		if _, err := r.db.Exec(idx); err != nil {
+		if _, err := r.db.NewQuery(idx).Execute(); err != nil {
 			return fmt.Errorf("创建索引失败: %w", err)
 		}
 	}
@@ -104,24 +75,9 @@ func (r *SQLiteTraceRepository) BatchWrite(spans []*Span) error {
 		return nil
 	}
 
-	tx, err := r.db.Begin()
-	if err != nil {
-		return fmt.Errorf("开始事务失败: %w", err)
-	}
-	defer tx.Rollback()
-
-	// 准备语句
-	stmt, err := tx.Prepare(`
-		INSERT OR REPLACE INTO _traces 
-		(trace_id, span_id, parent_id, name, kind, start_time, duration, status, attributes, created)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`)
-	if err != nil {
-		return fmt.Errorf("准备语句失败: %w", err)
-	}
-	defer stmt.Close()
-
-	// 批量插入
+	// 使用 dbx 的事务支持
+	// 注意：dbx.Builder 不直接支持事务，需要逐条插入
+	// 对于高性能场景，可以考虑使用批量 INSERT
 	for _, span := range spans {
 		attrsJSON, _ := json.Marshal(span.Attributes)
 		created := span.Created
@@ -134,120 +90,139 @@ func (r *SQLiteTraceRepository) BatchWrite(spans []*Span) error {
 			parentID = span.ParentID
 		}
 
-		_, err := stmt.Exec(
-			span.TraceID,
-			span.SpanID,
-			parentID,
-			span.Name,
-			string(span.Kind),
-			span.StartTime,
-			span.Duration,
-			string(span.Status),
-			string(attrsJSON),
-			created.String(),
-		)
+		// 使用 INSERT OR REPLACE 语法
+		_, err := r.db.NewQuery(`
+			INSERT OR REPLACE INTO _traces 
+			(trace_id, span_id, parent_id, name, kind, start_time, duration, status, attributes, created)
+			VALUES ({:trace_id}, {:span_id}, {:parent_id}, {:name}, {:kind}, {:start_time}, {:duration}, {:status}, {:attributes}, {:created})
+		`).Bind(dbx.Params{
+			"trace_id":   span.TraceID,
+			"span_id":    span.SpanID,
+			"parent_id":  parentID,
+			"name":       span.Name,
+			"kind":       string(span.Kind),
+			"start_time": span.StartTime,
+			"duration":   span.Duration,
+			"status":     string(span.Status),
+			"attributes": string(attrsJSON),
+			"created":    created.String(),
+		}).Execute()
+
 		if err != nil {
 			return fmt.Errorf("插入 Span 失败: %w", err)
 		}
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 // Query 查询 Span 列表
 func (r *SQLiteTraceRepository) Query(params *FilterParams) ([]*Span, int64, error) {
 	// 构建查询
-	query := `
-		SELECT trace_id, span_id, parent_id, name, kind, start_time, duration, status, attributes, created
-		FROM _traces
-		WHERE 1=1
-	`
-	countQuery := `SELECT COUNT(*) FROM _traces WHERE 1=1`
-	args := []any{}
+	query := r.db.Select("trace_id", "span_id", "parent_id", "name", "kind", "start_time", "duration", "status", "attributes", "created").
+		From("_traces")
+
+	countQuery := r.db.Select("COUNT(*)").From("_traces")
+
+	// 构建条件
+	var conditions []dbx.Expression
 
 	if params.TraceID != "" {
-		query += " AND trace_id = ?"
-		countQuery += " AND trace_id = ?"
-		args = append(args, params.TraceID)
+		conditions = append(conditions, dbx.HashExp{"trace_id": params.TraceID})
 	}
 	if params.SpanID != "" {
-		query += " AND span_id = ?"
-		countQuery += " AND span_id = ?"
-		args = append(args, params.SpanID)
+		conditions = append(conditions, dbx.HashExp{"span_id": params.SpanID})
 	}
 	if params.Operation != "" {
-		query += " AND name = ?"
-		countQuery += " AND name = ?"
-		args = append(args, params.Operation)
+		conditions = append(conditions, dbx.HashExp{"name": params.Operation})
 	}
 	if params.Status != "" {
-		query += " AND status = ?"
-		countQuery += " AND status = ?"
-		args = append(args, string(params.Status))
+		conditions = append(conditions, dbx.HashExp{"status": string(params.Status)})
 	}
 	if params.StartTime > 0 {
-		query += " AND start_time >= ?"
-		countQuery += " AND start_time >= ?"
-		args = append(args, params.StartTime)
+		conditions = append(conditions, dbx.NewExp("start_time >= {:start_time}", dbx.Params{"start_time": params.StartTime}))
 	}
 	if params.EndTime > 0 {
-		query += " AND start_time <= ?"
-		countQuery += " AND start_time <= ?"
-		args = append(args, params.EndTime)
+		conditions = append(conditions, dbx.NewExp("start_time <= {:end_time}", dbx.Params{"end_time": params.EndTime}))
 	}
 	if params.RootOnly {
-		query += " AND parent_id IS NULL"
-		countQuery += " AND parent_id IS NULL"
+		conditions = append(conditions, dbx.NewExp("parent_id IS NULL"))
 	}
 
 	// 添加 AttributeFilters 支持（SQLite JSON 查询）
-	// 需要为 query 和 countQuery 分别构建参数
-	queryArgs := make([]any, len(args))
-	copy(queryArgs, args)
-	countArgs := make([]any, len(args))
-	copy(countArgs, args)
-	
+	attrIdx := 0
 	for key, value := range params.AttributeFilters {
 		// 使用 $."key" 语法来支持包含点号的键名
 		jsonPath := fmt.Sprintf(`$."%s"`, key)
-		query += " AND json_extract(attributes, ?) = ?"
-		countQuery += " AND json_extract(attributes, ?) = ?"
-		// 直接使用原始值，让 SQLite 处理类型转换
-		// json_extract 返回原生类型（text 或 integer），所以不需要转换为字符串
-		queryArgs = append(queryArgs, jsonPath, value)
-		countArgs = append(countArgs, jsonPath, value)
+		paramName := fmt.Sprintf("attr_%d", attrIdx)
+		conditions = append(conditions, dbx.NewExp(
+			fmt.Sprintf("json_extract(attributes, '%s') = {:%s}", jsonPath, paramName),
+			dbx.Params{paramName: value},
+		))
+		attrIdx++
+	}
+
+	// 应用条件
+	if len(conditions) > 0 {
+		query = query.Where(dbx.And(conditions...))
+		countQuery = countQuery.Where(dbx.And(conditions...))
 	}
 
 	// 获取总数
 	var total int64
-	if err := r.db.QueryRow(countQuery, countArgs...).Scan(&total); err != nil {
+	if err := countQuery.Row(&total); err != nil {
 		return nil, 0, fmt.Errorf("查询总数失败: %w", err)
 	}
 
 	// 添加排序和分页
-	query += " ORDER BY start_time DESC"
+	query = query.OrderBy("start_time DESC")
 	if params.Limit > 0 {
-		query += " LIMIT ?"
-		queryArgs = append(queryArgs, params.Limit)
+		query = query.Limit(int64(params.Limit))
 	}
 	if params.Offset > 0 {
-		query += " OFFSET ?"
-		queryArgs = append(queryArgs, params.Offset)
+		query = query.Offset(int64(params.Offset))
 	}
 
 	// 执行查询
-	rows, err := r.db.Query(query, queryArgs...)
-	if err != nil {
+	var results []struct {
+		TraceID    string  `db:"trace_id"`
+		SpanID     string  `db:"span_id"`
+		ParentID   *string `db:"parent_id"`
+		Name       string  `db:"name"`
+		Kind       string  `db:"kind"`
+		StartTime  int64   `db:"start_time"`
+		Duration   int64   `db:"duration"`
+		Status     string  `db:"status"`
+		Attributes *string `db:"attributes"`
+		Created    string  `db:"created"`
+	}
+
+	if err := query.All(&results); err != nil {
 		return nil, 0, fmt.Errorf("查询失败: %w", err)
 	}
-	defer rows.Close()
 
-	spans := []*Span{}
-	for rows.Next() {
-		span, err := scanSpanSQLite(rows)
-		if err != nil {
-			return nil, 0, err
+	spans := make([]*Span, 0, len(results))
+	for _, row := range results {
+		span := &Span{
+			TraceID:   row.TraceID,
+			SpanID:    row.SpanID,
+			Name:      row.Name,
+			Kind:      SpanKind(row.Kind),
+			StartTime: row.StartTime,
+			Duration:  row.Duration,
+			Status:    SpanStatus(row.Status),
 		}
+
+		if row.ParentID != nil {
+			span.ParentID = *row.ParentID
+		}
+
+		span.Created, _ = types.ParseDateTime(row.Created)
+
+		if row.Attributes != nil && *row.Attributes != "" {
+			_ = json.Unmarshal([]byte(*row.Attributes), &span.Attributes)
+		}
+
 		spans = append(spans, span)
 	}
 
@@ -256,25 +231,51 @@ func (r *SQLiteTraceRepository) Query(params *FilterParams) ([]*Span, int64, err
 
 // GetTrace 获取完整调用链
 func (r *SQLiteTraceRepository) GetTrace(traceID string) ([]*Span, error) {
-	query := `
-		SELECT trace_id, span_id, parent_id, name, kind, start_time, duration, status, attributes, created
-		FROM _traces
-		WHERE trace_id = ?
-		ORDER BY start_time ASC
-	`
+	var results []struct {
+		TraceID    string  `db:"trace_id"`
+		SpanID     string  `db:"span_id"`
+		ParentID   *string `db:"parent_id"`
+		Name       string  `db:"name"`
+		Kind       string  `db:"kind"`
+		StartTime  int64   `db:"start_time"`
+		Duration   int64   `db:"duration"`
+		Status     string  `db:"status"`
+		Attributes *string `db:"attributes"`
+		Created    string  `db:"created"`
+	}
 
-	rows, err := r.db.Query(query, traceID)
+	err := r.db.Select("trace_id", "span_id", "parent_id", "name", "kind", "start_time", "duration", "status", "attributes", "created").
+		From("_traces").
+		Where(dbx.HashExp{"trace_id": traceID}).
+		OrderBy("start_time ASC").
+		All(&results)
+
 	if err != nil {
 		return nil, fmt.Errorf("查询失败: %w", err)
 	}
-	defer rows.Close()
 
-	spans := []*Span{}
-	for rows.Next() {
-		span, err := scanSpanSQLite(rows)
-		if err != nil {
-			return nil, err
+	spans := make([]*Span, 0, len(results))
+	for _, row := range results {
+		span := &Span{
+			TraceID:   row.TraceID,
+			SpanID:    row.SpanID,
+			Name:      row.Name,
+			Kind:      SpanKind(row.Kind),
+			StartTime: row.StartTime,
+			Duration:  row.Duration,
+			Status:    SpanStatus(row.Status),
 		}
+
+		if row.ParentID != nil {
+			span.ParentID = *row.ParentID
+		}
+
+		span.Created, _ = types.ParseDateTime(row.Created)
+
+		if row.Attributes != nil && *row.Attributes != "" {
+			_ = json.Unmarshal([]byte(*row.Attributes), &span.Attributes)
+		}
+
 		spans = append(spans, span)
 	}
 
@@ -283,7 +284,7 @@ func (r *SQLiteTraceRepository) GetTrace(traceID string) ([]*Span, error) {
 
 // Stats 获取统计数据
 func (r *SQLiteTraceRepository) Stats(params *FilterParams) (*TraceStats, error) {
-	// 基础统计
+	// 基础统计查询
 	baseQuery := `
 		SELECT 
 			COUNT(*) as total_requests,
@@ -292,19 +293,19 @@ func (r *SQLiteTraceRepository) Stats(params *FilterParams) (*TraceStats, error)
 		FROM _traces
 		WHERE parent_id IS NULL
 	`
-	args := []any{}
+	bindings := dbx.Params{}
 
 	if params != nil && params.StartTime > 0 {
-		baseQuery += " AND start_time >= ?"
-		args = append(args, params.StartTime)
+		baseQuery += " AND start_time >= {:start_time}"
+		bindings["start_time"] = params.StartTime
 	}
 	if params != nil && params.EndTime > 0 {
-		baseQuery += " AND start_time <= ?"
-		args = append(args, params.EndTime)
+		baseQuery += " AND start_time <= {:end_time}"
+		bindings["end_time"] = params.EndTime
 	}
 
 	var stats TraceStats
-	err := r.db.QueryRow(baseQuery, args...).Scan(
+	err := r.db.NewQuery(baseQuery).Bind(bindings).Row(
 		&stats.TotalRequests,
 		&stats.SuccessCount,
 		&stats.ErrorCount,
@@ -319,31 +320,29 @@ func (r *SQLiteTraceRepository) Stats(params *FilterParams) (*TraceStats, error)
 		FROM _traces
 		WHERE parent_id IS NULL
 	`
-	dArgs := []any{}
+	dBindings := dbx.Params{}
 
 	if params != nil && params.StartTime > 0 {
-		durationQuery += " AND start_time >= ?"
-		dArgs = append(dArgs, params.StartTime)
+		durationQuery += " AND start_time >= {:start_time}"
+		dBindings["start_time"] = params.StartTime
 	}
 	if params != nil && params.EndTime > 0 {
-		durationQuery += " AND start_time <= ?"
-		dArgs = append(dArgs, params.EndTime)
+		durationQuery += " AND start_time <= {:end_time}"
+		dBindings["end_time"] = params.EndTime
 	}
 	durationQuery += " ORDER BY duration ASC"
 
-	rows, err := r.db.Query(durationQuery, dArgs...)
-	if err != nil {
+	var durations []int64
+	rows := []struct {
+		Duration int64 `db:"duration"`
+	}{}
+
+	if err := r.db.NewQuery(durationQuery).Bind(dBindings).All(&rows); err != nil {
 		return nil, fmt.Errorf("查询延迟失败: %w", err)
 	}
-	defer rows.Close()
 
-	var durations []int64
-	for rows.Next() {
-		var d int64
-		if err := rows.Scan(&d); err != nil {
-			return nil, fmt.Errorf("扫描延迟失败: %w", err)
-		}
-		durations = append(durations, d)
+	for _, row := range rows {
+		durations = append(durations, row.Duration)
 	}
 
 	// 计算百分位
@@ -356,7 +355,9 @@ func (r *SQLiteTraceRepository) Stats(params *FilterParams) (*TraceStats, error)
 
 // Prune 清理过期数据
 func (r *SQLiteTraceRepository) Prune(before time.Time) (int64, error) {
-	result, err := r.db.Exec(`DELETE FROM _traces WHERE start_time < ?`, before.UnixMicro())
+	result, err := r.db.NewQuery(`DELETE FROM _traces WHERE start_time < {:before}`).
+		Bind(dbx.Params{"before": before.UnixMicro()}).
+		Execute()
 	if err != nil {
 		return 0, fmt.Errorf("清理失败: %w", err)
 	}
@@ -367,21 +368,23 @@ func (r *SQLiteTraceRepository) Prune(before time.Time) (int64, error) {
 
 // Close 关闭连接
 func (r *SQLiteTraceRepository) Close() error {
-	return r.db.Close()
+	// 使用 AuxDB 共享连接，不需要单独关闭
+	return nil
 }
 
-// IsHealthy 检查 SQLite 数据库是否健康
+// IsHealthy 检查数据库是否健康
 func (r *SQLiteTraceRepository) IsHealthy() bool {
 	if r.db == nil {
 		return false
 	}
-	
-	// 简单的 ping 测试
-	err := r.db.Ping()
+
+	// 简单的查询测试
+	var result int
+	err := r.db.NewQuery("SELECT 1").Row(&result)
 	return err == nil
 }
 
-// Recover 恢复 SQLite 数据库（重建 schema）
+// Recover 恢复数据库（重建 schema）
 func (r *SQLiteTraceRepository) Recover() error {
 	// 尝试重新创建 schema
 	return r.CreateSchema()
@@ -390,49 +393,6 @@ func (r *SQLiteTraceRepository) Recover() error {
 // ============================================================================
 // 辅助函数
 // ============================================================================
-
-type sqlScannable interface {
-	Scan(dest ...any) error
-}
-
-func scanSpanSQLite(row sqlScannable) (*Span, error) {
-	var span Span
-	var parentID sql.NullString
-	var kind, status string
-	var attrsJSON sql.NullString
-	var created string
-
-	err := row.Scan(
-		&span.TraceID,
-		&span.SpanID,
-		&parentID,
-		&span.Name,
-		&kind,
-		&span.StartTime,
-		&span.Duration,
-		&status,
-		&attrsJSON,
-		&created,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("扫描 Span 失败: %w", err)
-	}
-
-	if parentID.Valid {
-		span.ParentID = parentID.String
-	}
-	span.Kind = SpanKind(kind)
-	span.Status = SpanStatus(status)
-
-	// 解析时间
-	span.Created, _ = types.ParseDateTime(created)
-
-	if attrsJSON.Valid && attrsJSON.String != "" {
-		_ = json.Unmarshal([]byte(attrsJSON.String), &span.Attributes)
-	}
-
-	return &span, nil
-}
 
 func calculatePercentileSQLite(durations []int64, p float64) int64 {
 	if len(durations) == 0 {

@@ -1,7 +1,5 @@
 package core
 
-import "path/filepath"
-
 // initTrace 初始化 Trace 追踪系统
 func (app *BaseApp) initTrace() error {
 	// 创建 trace repository
@@ -16,9 +14,11 @@ func (app *BaseApp) initTrace() error {
 		}
 		repo, err = NewPgTraceRepository(dsn)
 	} else {
-		// SQLite: 使用 auxiliary.db 存储 traces
-		dbPath := filepath.Join(app.DataDir(), "auxiliary.db")
-		repo, err = NewSQLiteTraceRepository(dbPath)
+		// SQLite: 使用 auxiliary.db 存储 traces（与 Logs、Metrics、Analytics 共享）
+		if app.auxConcurrentDB == nil {
+			return nil // AuxDB 未初始化，跳过 trace 初始化
+		}
+		repo = NewSQLiteTraceRepository(app.AuxDB())
 	}
 
 	if err != nil {

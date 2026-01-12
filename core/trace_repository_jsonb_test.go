@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tests"
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
@@ -18,18 +19,19 @@ func TestJSONBQueryPostgreSQL(t *testing.T) {
 
 // TestJSONQuerySQLite 测试 SQLite JSON 查询功能
 func TestJSONQuerySQLite(t *testing.T) {
-	testDataDir := t.TempDir()
-
-	// 创建 SQLite repository
-	repo, err := core.NewSQLiteTraceRepository(testDataDir + "/test.db")
+	app, err := tests.NewTestApp()
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Failed to create test app: %v", err)
 	}
-	defer repo.Close()
+	defer app.Cleanup()
 
-	if err := repo.CreateSchema(); err != nil {
-		t.Fatal(err)
+	// 创建 _traces 表
+	if err := createTracesTable(app); err != nil {
+		t.Fatalf("Failed to create traces table: %v", err)
 	}
+
+	// 使用 AuxDB 创建 repository
+	repo := core.NewSQLiteTraceRepository(app.AuxDB())
 
 	// 创建测试数据
 	spans := []*core.Span{

@@ -2,6 +2,8 @@
     import { onMount, onDestroy } from "svelte";
     import { pageTitle } from "@/stores/app";
     import ApiClient from "@/utils/ApiClient";
+    import PageWrapper from "@/components/base/PageWrapper.svelte";
+    import RefreshButton from "@/components/base/RefreshButton.svelte";
     import TraceStats from "./TraceStats.svelte";
     import TraceFilters from "./TraceFilters.svelte";
     import TraceList from "./TraceList.svelte";
@@ -118,73 +120,88 @@
             isLoading = false;
         });
     }
+
+    $: totalPages = Math.ceil(totalItems / filters.perPage);
 </script>
 
-<div class="page-monitor">
+<PageWrapper class="flex-content">
     <header class="page-header">
-        <h1>Trace 监控中心</h1>
-        <div class="header-actions">
-            <button 
-                type="button" 
-                class="btn btn-secondary btn-sm" 
-                on:click={handleRefresh} 
-                disabled={isLoading}
-            >
-                <i class="ri-refresh-line" />
-                刷新
-            </button>
+        <nav class="breadcrumbs">
+            <div class="breadcrumb-item">Trace 监控中心</div>
+        </nav>
+
+        <RefreshButton on:refresh={handleRefresh} />
+
+        <div class="btns-group">
+            {#if stats}
+                <span class="label label-success m-r-5">
+                    成功: {stats.success_count?.toLocaleString() || 0}
+                </span>
+                <span class="label label-danger">
+                    错误: {stats.error_count?.toLocaleString() || 0}
+                </span>
+            {/if}
         </div>
     </header>
 
     {#if error}
-        <div class="alert alert-danger m-b-base">
+        <div class="alert alert-danger m-b-sm">
             <i class="ri-error-warning-line" />
             <span>{error}</span>
         </div>
     {/if}
 
     {#if isLoading && !stats}
-        <div class="loading-placeholder">
-            <div class="loader" />
-            <span>加载中...</span>
+        <div class="placeholder-section">
+            <span class="loader loader-lg" />
+            <h1>加载中...</h1>
         </div>
     {:else if !stats && traces.length === 0}
-        <div class="empty-state">
-            <i class="ri-line-chart-line" />
-            <h3>暂无 Trace 数据</h3>
-            <p>系统正在采集 Trace 数据，请稍后刷新页面。</p>
-            <p class="txt-hint">Trace 数据会在有 HTTP 请求时自动生成</p>
+        <div class="placeholder-section">
+            <div class="icon">
+                <i class="ri-line-chart-line" />
+            </div>
+            <h1 class="m-b-10">暂无 Trace 数据</h1>
+            <p class="txt-hint">系统正在采集 Trace 数据，请稍后刷新页面。</p>
         </div>
     {:else}
-        <!-- 统计卡片 -->
+        <!-- 统计卡片 - 压缩显示 -->
         {#if stats}
-            <section class="stats-section">
-                <TraceStats {stats} />
-            </section>
+            <div class="stats-bar m-b-sm">
+                <TraceStats {stats} compact={true} />
+            </div>
         {/if}
 
-        <!-- 筛选器 -->
-        <section class="filters-section">
+        <!-- 筛选器 - 内联显示 -->
+        <div class="filters-bar m-b-sm">
             <TraceFilters 
                 {filters} 
+                compact={true}
                 on:change={handleFiltersChange}
             />
-        </section>
+        </div>
 
-        <!-- Trace 列表 -->
-        <section class="traces-section">
-            <TraceList 
-                {traces}
-                {totalItems}
-                {isLoading}
-                currentPage={filters.page}
-                perPage={filters.perPage}
-                on:pageChange={handlePageChange}
-                on:traceSelect={handleTraceSelect}
-            />
-        </section>
+        <!-- Trace 列表 - 占据剩余空间并内部滚动 -->
+        <TraceList 
+            {traces}
+            {totalItems}
+            {isLoading}
+            currentPage={filters.page}
+            perPage={filters.perPage}
+            on:pageChange={handlePageChange}
+            on:traceSelect={handleTraceSelect}
+        />
     {/if}
-</div>
+
+    <svelte:fragment slot="footer">
+        <span class="txt-sm txt-hint m-r-auto">
+            共 {totalItems.toLocaleString()} 条记录
+            {#if totalPages > 1}
+                · 第 {filters.page} / {totalPages} 页
+            {/if}
+        </span>
+    </svelte:fragment>
+</PageWrapper>
 
 <!-- Trace 详情弹窗 -->
 {#if selectedTrace}
@@ -195,78 +212,32 @@
 {/if}
 
 <style>
-    .page-monitor {
-        padding: 20px;
-        max-width: 1400px;
-        margin: 0 auto;
+    .stats-bar {
+        flex-shrink: 0;
     }
 
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
+    .filters-bar {
+        flex-shrink: 0;
     }
 
-    .page-header h1 {
-        margin: 0;
-        font-size: 1.5em;
-        color: var(--txtPrimaryColor);
-    }
-
-    .header-actions {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-    }
-
-    .stats-section {
-        margin-bottom: 24px;
-    }
-
-    .filters-section {
-        margin-bottom: 24px;
-    }
-
-    .traces-section {
-        margin-bottom: 24px;
-    }
-
-    .loading-placeholder {
+    .placeholder-section {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 60px 20px;
-        color: var(--txtHintColor);
-    }
-
-    .empty-state {
+        flex-grow: 1;
         text-align: center;
-        padding: 60px 20px;
         color: var(--txtHintColor);
     }
 
-    .empty-state i {
+    .placeholder-section .icon {
         font-size: 4em;
-        margin-bottom: 16px;
         opacity: 0.5;
+        margin-bottom: 16px;
     }
 
-    .empty-state h3 {
-        margin: 0 0 8px 0;
-        color: var(--txtPrimaryColor);
-    }
-
-    .empty-state p {
-        margin: 0 0 8px 0;
-    }
-
-    @media (max-width: 768px) {
-        .page-header {
-            flex-direction: column;
-            gap: 16px;
-            align-items: flex-start;
-        }
+    .placeholder-section h1 {
+        margin: 0;
+        font-size: 1.25rem;
     }
 </style>

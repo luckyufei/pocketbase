@@ -279,12 +279,16 @@
 <style>
     .page-analytics {
         padding: var(--baseSpacing);
+        max-width: 1400px;
+        margin: 0 auto;
     }
     .page-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: var(--baseSpacing);
+        flex-wrap: wrap;
+        gap: 1rem;
     }
     .page-header h1 {
         margin: 0;
@@ -297,9 +301,19 @@
     }
     .metrics-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(4, 1fr);
         gap: var(--baseSpacing);
         margin-bottom: var(--baseSpacing);
+    }
+    @media (max-width: 1200px) {
+        .metrics-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (max-width: 600px) {
+        .metrics-grid {
+            grid-template-columns: 1fr;
+        }
     }
     .chart-section {
         background: var(--baseAlt1Color);
@@ -314,8 +328,18 @@
     }
     .lists-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        grid-template-columns: repeat(3, 1fr);
         gap: var(--baseSpacing);
+    }
+    @media (max-width: 1200px) {
+        .lists-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    @media (max-width: 768px) {
+        .lists-grid {
+            grid-template-columns: 1fr;
+        }
     }
     .list-section {
         background: var(--baseAlt1Color);

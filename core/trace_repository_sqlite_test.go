@@ -3,49 +3,72 @@
 package core_test
 
 import (
-	"database/sql"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tests"
 	"github.com/pocketbase/pocketbase/tools/types"
-	_ "modernc.org/sqlite"
 )
 
 // ============================================================================
 // Phase 6 & 7: SQLite Repository 集成测试
 // ============================================================================
 
-func setupSQLiteRepo(t *testing.T) (*core.SQLiteTraceRepository, func()) {
+// createTracesTable 在测试数据库中创建 _traces 表
+func createTracesTable(app *tests.TestApp) error {
+	sql := `
+		CREATE TABLE IF NOT EXISTS _traces (
+			trace_id   TEXT NOT NULL,
+			span_id    TEXT NOT NULL,
+			parent_id  TEXT,
+			name       TEXT NOT NULL,
+			kind       TEXT NOT NULL DEFAULT 'INTERNAL',
+			start_time INTEGER NOT NULL,
+			duration   INTEGER NOT NULL DEFAULT 0,
+			status     TEXT NOT NULL DEFAULT 'UNSET',
+			attributes TEXT,
+			created    TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
+			PRIMARY KEY (trace_id, span_id)
+		);
+		CREATE INDEX IF NOT EXISTS idx_traces_start_time ON _traces (start_time DESC);
+		CREATE INDEX IF NOT EXISTS idx_traces_name ON _traces (name);
+		CREATE INDEX IF NOT EXISTS idx_traces_status ON _traces (status);
+		CREATE INDEX IF NOT EXISTS idx_traces_parent_id ON _traces (parent_id);
+	`
+	_, err := app.AuxDB().NewQuery(sql).Execute()
+	return err
+}
+
+// cleanupTracesTable 清理测试数据
+func cleanupTracesTable(app *tests.TestApp) error {
+	_, err := app.AuxDB().NewQuery("DELETE FROM _traces").Execute()
+	return err
+}
+
+func setupSQLiteRepo(t *testing.T) (*core.SQLiteTraceRepository, *tests.TestApp, func()) {
 	t.Helper()
 
-	// 创建临时目录
-	tmpDir, err := os.MkdirTemp("", "trace_test_*")
+	app, err := tests.NewTestApp()
 	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
+		t.Fatalf("Failed to create test app: %v", err)
 	}
 
-	dbPath := filepath.Join(tmpDir, "traces.db")
-	repo, err := core.NewSQLiteTraceRepository(dbPath)
-	if err != nil {
-		os.RemoveAll(tmpDir)
-		t.Fatalf("Failed to create SQLite repo: %v", err)
+	// 创建 _traces 表
+	if err := createTracesTable(app); err != nil {
+		app.Cleanup()
+		t.Fatalf("Failed to create traces table: %v", err)
 	}
 
-	if err := repo.CreateSchema(); err != nil {
-		repo.Close()
-		os.RemoveAll(tmpDir)
-		t.Fatalf("Failed to create schema: %v", err)
-	}
+	// 使用 AuxDB 创建 repository
+	repo := core.NewSQLiteTraceRepository(app.AuxDB())
 
 	cleanup := func() {
-		repo.Close()
-		os.RemoveAll(tmpDir)
+		cleanupTracesTable(app)
+		app.Cleanup()
 	}
 
-	return repo, cleanup
+	return repo, app, cleanup
 }
 
 func createTestSpanWithID(traceID, spanID, parentID, name string) *core.Span {
@@ -62,17 +85,25 @@ func createTestSpanWithID(traceID, spanID, parentID, name string) *core.Span {
 }
 
 func TestSQLiteTraceRepositoryCreateSchema(t *testing.T) {
-	repo, cleanup := setupSQLiteRepo(t)
-	defer cleanup()
+	app, err := tests.NewTestApp()
+	if err != nil {
+		t.Fatalf("Failed to create test app: %v", err)
+	}
+	defer app.Cleanup()
 
-	// Schema 已在 setup 中创建，这里验证可以再次调用（幂等）
+	repo := core.NewSQLiteTraceRepository(app.AuxDB())
+
+	// CreateSchema 应该是幂等的
+	if err := repo.CreateSchema(); err != nil {
+		t.Errorf("CreateSchema() first call failed: %v", err)
+	}
 	if err := repo.CreateSchema(); err != nil {
 		t.Errorf("CreateSchema() should be idempotent: %v", err)
 	}
 }
 
 func TestSQLiteTraceRepositoryBatchWrite(t *testing.T) {
-	repo, cleanup := setupSQLiteRepo(t)
+	repo, _, cleanup := setupSQLiteRepo(t)
 	defer cleanup()
 
 	spans := []*core.Span{
@@ -99,7 +130,7 @@ func TestSQLiteTraceRepositoryBatchWrite(t *testing.T) {
 }
 
 func TestSQLiteTraceRepositoryBatchWriteEmpty(t *testing.T) {
-	repo, cleanup := setupSQLiteRepo(t)
+	repo, _, cleanup := setupSQLiteRepo(t)
 	defer cleanup()
 
 	// 空写入不应该报错
@@ -112,7 +143,7 @@ func TestSQLiteTraceRepositoryBatchWriteEmpty(t *testing.T) {
 }
 
 func TestSQLiteTraceRepositoryQuery(t *testing.T) {
-	repo, cleanup := setupSQLiteRepo(t)
+	repo, _, cleanup := setupSQLiteRepo(t)
 	defer cleanup()
 
 	// 写入测试数据
@@ -212,7 +243,7 @@ func TestSQLiteTraceRepositoryQuery(t *testing.T) {
 }
 
 func TestSQLiteTraceRepositoryGetTrace(t *testing.T) {
-	repo, cleanup := setupSQLiteRepo(t)
+	repo, _, cleanup := setupSQLiteRepo(t)
 	defer cleanup()
 
 	traceID := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -248,7 +279,7 @@ func TestSQLiteTraceRepositoryGetTrace(t *testing.T) {
 }
 
 func TestSQLiteTraceRepositoryStats(t *testing.T) {
-	repo, cleanup := setupSQLiteRepo(t)
+	repo, _, cleanup := setupSQLiteRepo(t)
 	defer cleanup()
 
 	// 写入测试数据
@@ -290,7 +321,7 @@ func TestSQLiteTraceRepositoryStats(t *testing.T) {
 }
 
 func TestSQLiteTraceRepositoryPrune(t *testing.T) {
-	repo, cleanup := setupSQLiteRepo(t)
+	repo, _, cleanup := setupSQLiteRepo(t)
 	defer cleanup()
 
 	now := time.Now()
@@ -335,7 +366,7 @@ func TestSQLiteTraceRepositoryPrune(t *testing.T) {
 }
 
 func TestSQLiteTraceRepositoryQueryTimeRange(t *testing.T) {
-	repo, cleanup := setupSQLiteRepo(t)
+	repo, _, cleanup := setupSQLiteRepo(t)
 	defer cleanup()
 
 	now := time.Now()
@@ -370,7 +401,7 @@ func TestSQLiteTraceRepositoryQueryTimeRange(t *testing.T) {
 }
 
 func TestSQLiteTraceRepositoryWithAttributes(t *testing.T) {
-	repo, cleanup := setupSQLiteRepo(t)
+	repo, _, cleanup := setupSQLiteRepo(t)
 	defer cleanup()
 
 	span := createTestSpanWithID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "1111111111111111", "", "test")
@@ -408,7 +439,7 @@ func TestSQLiteTraceRepositoryWithAttributes(t *testing.T) {
 
 // TestSQLiteTraceRepositoryAttributeFilters 测试 AttributeFilters 查询功能
 func TestSQLiteTraceRepositoryAttributeFilters(t *testing.T) {
-	repo, cleanup := setupSQLiteRepo(t)
+	repo, _, cleanup := setupSQLiteRepo(t)
 	defer cleanup()
 
 	// 创建多个测试 spans（使用正确的 ID 格式）
@@ -531,7 +562,7 @@ func TestSQLiteTraceRepositoryAttributeFilters(t *testing.T) {
 }
 
 func TestSQLiteTraceRepositoryIsHealthy(t *testing.T) {
-	repo, cleanup := setupSQLiteRepo(t)
+	repo, _, cleanup := setupSQLiteRepo(t)
 	defer cleanup()
 
 	// 新创建的 repository 应该是健康的
@@ -541,7 +572,7 @@ func TestSQLiteTraceRepositoryIsHealthy(t *testing.T) {
 }
 
 func TestSQLiteTraceRepositoryRecover(t *testing.T) {
-	repo, cleanup := setupSQLiteRepo(t)
+	repo, _, cleanup := setupSQLiteRepo(t)
 	defer cleanup()
 
 	// 调用 Recover 不应该返回错误
@@ -555,39 +586,12 @@ func TestSQLiteTraceRepositoryRecover(t *testing.T) {
 	}
 }
 
-func TestSQLiteTraceRepositoryNewWithDB(t *testing.T) {
-	// 创建一个内存数据库
-	db, err := sql.Open("sqlite", ":memory:")
-	if err != nil {
-		t.Fatalf("Failed to open database: %v", err)
-	}
-	defer db.Close()
+func TestSQLiteTraceRepositoryClose(t *testing.T) {
+	repo, _, cleanup := setupSQLiteRepo(t)
+	defer cleanup()
 
-	// 使用现有连接创建 repository
-	repo := core.NewSQLiteTraceRepositoryWithDB(db)
-	if repo == nil {
-		t.Fatal("NewSQLiteTraceRepositoryWithDB returned nil")
-	}
-
-	// 创建 schema
-	if err := repo.CreateSchema(); err != nil {
-		t.Fatalf("CreateSchema() failed: %v", err)
-	}
-
-	// 验证可以正常使用
-	span := createTestSpanWithID("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "1111111111111111", "", "test")
-	if err := repo.BatchWrite([]*core.Span{span}); err != nil {
-		t.Fatalf("BatchWrite() failed: %v", err)
-	}
-
-	results, total, err := repo.Query(core.NewFilterParams())
-	if err != nil {
-		t.Fatalf("Query() failed: %v", err)
-	}
-	if total != 1 {
-		t.Errorf("total = %d, want 1", total)
-	}
-	if len(results) != 1 {
-		t.Errorf("len(results) = %d, want 1", len(results))
+	// Close 应该不返回错误（因为使用共享的 AuxDB）
+	if err := repo.Close(); err != nil {
+		t.Errorf("Close() failed: %v", err)
 	}
 }

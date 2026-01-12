@@ -5,11 +5,11 @@ package core_test
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tests"
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
@@ -18,15 +18,13 @@ var _ = context.Background
 
 // BenchmarkSQLiteTraceRepository 测试 SQLite Trace Repository 性能
 func BenchmarkSQLiteTraceRepository(b *testing.B) {
-	tempDir := b.TempDir()
-	dbPath := filepath.Join(tempDir, "benchmark.db")
-
-	repo, err := core.NewSQLiteTraceRepository(dbPath)
+	app, err := tests.NewTestApp()
 	if err != nil {
-		b.Fatalf("Failed to create repository: %v", err)
+		b.Fatalf("Failed to create test app: %v", err)
 	}
-	defer repo.Close()
+	defer app.Cleanup()
 
+	repo := core.NewSQLiteTraceRepository(app.AuxDB())
 	if err := repo.CreateSchema(); err != nil {
 		b.Fatalf("Failed to create schema: %v", err)
 	}
@@ -112,15 +110,13 @@ func BenchmarkTraceBuffer(b *testing.B) {
 
 // BenchmarkTrace 测试完整 Trace 系统性能
 func BenchmarkTrace(b *testing.B) {
-	tempDir := b.TempDir()
-	dbPath := filepath.Join(tempDir, "benchmark.db")
-
-	repo, err := core.NewSQLiteTraceRepository(dbPath)
+	app, err := tests.NewTestApp()
 	if err != nil {
-		b.Fatalf("Failed to create repository: %v", err)
+		b.Fatalf("Failed to create test app: %v", err)
 	}
-	defer repo.Close()
+	defer app.Cleanup()
 
+	repo := core.NewSQLiteTraceRepository(app.AuxDB())
 	if err := repo.CreateSchema(); err != nil {
 		b.Fatalf("Failed to create schema: %v", err)
 	}

@@ -6,6 +6,7 @@
     import OAuth2Accordion from "@/components/collections/OAuth2Accordion.svelte";
     import OTPAccordion from "@/components/collections/OTPAccordion.svelte";
     import PasswordAuthAccordion from "@/components/collections/PasswordAuthAccordion.svelte";
+    import TofAuthAccordion from "@/components/collections/TofAuthAccordion.svelte";
     import EmailTestPopup from "@/components/settings/EmailTestPopup.svelte";
 
     export let collection;
@@ -93,6 +94,8 @@
     <OTPAccordion bind:collection />
 
     <MFAAccordion bind:collection />
+
+    <TofAuthAccordion bind:collection />
 </div>
 
 <h4 class="section-title">

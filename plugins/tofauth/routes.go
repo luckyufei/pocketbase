@@ -17,6 +17,7 @@ import (
 //   - /api/collections/{collection}/auth-with-tof - TOF 认证（标准认证路由格式）
 //   - {prefix}/logout - TOF 登出
 //   - {prefix}/redirect - TOF 重定向验证
+//   - {prefix}/status - TOF 配置状态（需要超级管理员权限）
 func registerRoutes(app core.App, config Config) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		prefix := config.RoutePrefix
@@ -31,6 +32,11 @@ func registerRoutes(app core.App, config Config) {
 			return handleRedirect(e, config)
 		})
 
+		// GET {prefix}/status - TOF 配置状态（需要超级管理员权限）
+		se.Router.GET(prefix+"/status", func(e *core.RequestEvent) error {
+			return handleStatus(e, config)
+		}).Bind(apis.RequireSuperuserAuth())
+
 		// GET /api/collections/{collection}/auth-with-tof - TOF 认证
 		// 遵循 PocketBase 认证路由规范：/api/collections/{collection}/auth-*
 		se.Router.GET("/api/collections/{collection}/auth-with-tof", func(e *core.RequestEvent) error {
@@ -39,6 +45,41 @@ func registerRoutes(app core.App, config Config) {
 
 		return se.Next()
 	})
+}
+
+// TofStatus TOF 配置状态响应
+type TofStatus struct {
+	Enabled     bool   `json:"enabled"`
+	AppKey      string `json:"appKey"`
+	AppToken    string `json:"appToken"`
+	DevMockUser string `json:"devMockUser,omitempty"`
+}
+
+// handleStatus 返回 TOF 配置状态（仅供超级管理员查看）
+func handleStatus(e *core.RequestEvent, config Config) error {
+	// 对敏感信息进行脱敏处理
+	maskedAppKey := maskSecret(config.AppKey)
+	maskedAppToken := maskSecret(config.AppToken)
+
+	status := TofStatus{
+		Enabled:     config.AppToken != "",
+		AppKey:      maskedAppKey,
+		AppToken:    maskedAppToken,
+		DevMockUser: config.DevMockUser,
+	}
+
+	return e.JSON(http.StatusOK, status)
+}
+
+// maskSecret 对敏感信息进行脱敏，只显示前4位和后4位
+func maskSecret(s string) string {
+	if s == "" {
+		return ""
+	}
+	if len(s) <= 8 {
+		return "****"
+	}
+	return s[:4] + "****" + s[len(s)-4:]
 }
 
 // handleLogout 处理 TOF 登出请求

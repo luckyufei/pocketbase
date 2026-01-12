@@ -1,5 +1,6 @@
 <script>
     import { createEventDispatcher } from "svelte";
+    import Scroller from "@/components/base/Scroller.svelte";
     import FormattedDate from "@/components/base/FormattedDate.svelte";
     
     export let traces = [];
@@ -82,18 +83,10 @@
     }
 </script>
 
-<div class="trace-list">
-    <div class="list-header">
-        <h3>Trace 列表</h3>
-        <div class="list-info">
-            共 {totalItems.toLocaleString()} 条记录
-        </div>
-    </div>
-
+<div class="trace-list-wrapper">
     {#if isLoading}
         <div class="loading-overlay">
             <div class="loader" />
-            <span>加载中...</span>
         </div>
     {/if}
 
@@ -103,16 +96,16 @@
             <p>没有找到符合条件的 Trace 记录</p>
         </div>
     {:else}
-        <div class="table-wrapper">
-            <table class="traces-table">
+        <Scroller class="trace-scroller">
+            <table class="table">
                 <thead>
                     <tr>
-                        <th>Trace ID</th>
-                        <th>操作名称</th>
-                        <th>状态</th>
-                        <th>开始时间</th>
-                        <th>持续时间</th>
-                        <th>Spans 数量</th>
+                        <th class="col-id">Trace ID</th>
+                        <th class="col-name">操作名称</th>
+                        <th class="col-status">状态</th>
+                        <th class="col-time">开始时间</th>
+                        <th class="col-duration">耗时</th>
+                        <th class="col-spans">Spans</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -123,51 +116,50 @@
                             role="button"
                             tabindex="0"
                         >
-                            <td class="trace-id">
-                                <code>{trace.trace_id.slice(0, 8)}...</code>
+                            <td class="col-id">
+                                <code class="txt-mono">{trace.trace_id.slice(0, 8)}...</code>
                             </td>
-                            <td class="operation-name">
+                            <td class="col-name txt-ellipsis" title={trace.name}>
                                 {trace.name || "-"}
                             </td>
-                            <td class="status">
-                                <span class="status-badge {getStatusClass(trace.status)}">
+                            <td class="col-status">
+                                <span class="label {getStatusClass(trace.status)}">
                                     <i class="{getStatusIcon(trace.status)}" />
                                     {trace.status}
                                 </span>
                             </td>
-                            <td class="start-time">
+                            <td class="col-time">
                                 <FormattedDate date={trace.start_time} />
                             </td>
-                            <td class="duration">
+                            <td class="col-duration txt-mono">
                                 {formatDuration(trace.duration)}
                             </td>
-                            <td class="span-count">
+                            <td class="col-spans txt-center">
                                 {trace.span_count || 1}
                             </td>
                         </tr>
                     {/each}
                 </tbody>
             </table>
-        </div>
+        </Scroller>
 
         <!-- 分页控件 -->
         {#if totalPages > 1}
-            <div class="pagination">
+            <div class="pagination-footer">
                 <button 
                     type="button"
-                    class="btn btn-sm btn-secondary"
+                    class="btn btn-xs btn-secondary"
                     disabled={currentPage === 1}
                     on:click={() => handlePageChange(currentPage - 1)}
                 >
-                    <i class="ri-arrow-left-line" />
-                    上一页
+                    <i class="ri-arrow-left-s-line" />
                 </button>
 
                 <div class="page-numbers">
                     {#each getPageNumbers() as page}
                         <button 
                             type="button"
-                            class="btn btn-sm {page === currentPage ? 'btn-primary' : 'btn-secondary'}"
+                            class="btn btn-xs {page === currentPage ? 'btn-primary' : 'btn-hint'}"
                             on:click={() => handlePageChange(page)}
                         >
                             {page}
@@ -177,12 +169,11 @@
 
                 <button 
                     type="button"
-                    class="btn btn-sm btn-secondary"
+                    class="btn btn-xs btn-secondary"
                     disabled={currentPage === totalPages}
                     on:click={() => handlePageChange(currentPage + 1)}
                 >
-                    下一页
-                    <i class="ri-arrow-right-line" />
+                    <i class="ri-arrow-right-s-line" />
                 </button>
             </div>
         {/if}
@@ -190,30 +181,20 @@
 </div>
 
 <style>
-    .trace-list {
+    .trace-list-wrapper {
+        display: flex;
+        flex-direction: column;
+        flex-grow: 1;
+        min-height: 0;
         background: var(--baseColor);
         border-radius: var(--baseRadius);
         border: 1px solid var(--baseAlt2Color);
         position: relative;
     }
 
-    .list-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 20px;
-        border-bottom: 1px solid var(--baseAlt2Color);
-    }
-
-    .list-header h3 {
-        margin: 0;
-        font-size: 1.1em;
-        color: var(--txtPrimaryColor);
-    }
-
-    .list-info {
-        font-size: 0.875em;
-        color: var(--txtHintColor);
+    .trace-list-wrapper :global(.trace-scroller) {
+        flex-grow: 1;
+        min-height: 0;
     }
 
     .loading-overlay {
@@ -222,81 +203,93 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.7);
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 12px;
         z-index: 10;
         border-radius: var(--baseRadius);
     }
 
     .empty-list {
-        text-align: center;
-        padding: 60px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        flex-grow: 1;
+        padding: 40px 20px;
         color: var(--txtHintColor);
     }
 
     .empty-list i {
-        font-size: 3em;
-        margin-bottom: 16px;
+        font-size: 2.5em;
+        margin-bottom: 12px;
         opacity: 0.5;
     }
 
-    .table-wrapper {
-        overflow-x: auto;
-    }
-
-    .traces-table {
+    .table {
         width: 100%;
         border-collapse: collapse;
+        table-layout: fixed;
     }
 
-    .traces-table th {
+    .table th {
+        position: sticky;
+        top: 0;
         background: var(--baseAlt1Color);
-        padding: 12px 16px;
+        padding: 10px 12px;
         text-align: left;
         font-weight: 600;
-        color: var(--txtPrimaryColor);
+        font-size: var(--smFontSize);
+        color: var(--txtHintColor);
         border-bottom: 1px solid var(--baseAlt2Color);
-        font-size: 0.875em;
+        white-space: nowrap;
+        z-index: 1;
     }
+
+    .table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--baseAlt2Color);
+        font-size: var(--smFontSize);
+    }
+
+    .col-id { width: 100px; }
+    .col-name { width: auto; }
+    .col-status { width: 90px; }
+    .col-time { width: 150px; }
+    .col-duration { width: 80px; }
+    .col-spans { width: 60px; }
 
     .trace-row {
         cursor: pointer;
-        transition: background-color 0.2s ease;
+        transition: background-color 0.15s ease;
     }
 
     .trace-row:hover {
         background: var(--baseAlt1Color);
     }
 
-    .traces-table td {
-        padding: 12px 16px;
-        border-bottom: 1px solid var(--baseAlt2Color);
-        font-size: 0.875em;
+    .txt-mono {
+        font-family: var(--monospaceFontFamily);
+        font-size: 0.85em;
     }
 
-    .trace-id code {
-        background: var(--baseAlt1Color);
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-family: monospace;
-        font-size: 0.8em;
+    .txt-ellipsis {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
-    .operation-name {
-        font-weight: 500;
-        color: var(--txtPrimaryColor);
+    .txt-center {
+        text-align: center;
     }
 
-    .status-badge {
+    .label {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
-        padding: 4px 8px;
-        border-radius: 12px;
+        gap: 3px;
+        padding: 3px 6px;
+        border-radius: var(--baseRadius);
         font-size: 0.75em;
         font-weight: 500;
     }
@@ -311,60 +304,36 @@
         color: var(--dangerColor);
     }
 
-    .status-cancelled {
-        background: rgba(156, 163, 175, 0.1);
-        color: var(--txtHintColor);
-    }
-
+    .status-cancelled,
     .status-unknown {
-        background: rgba(156, 163, 175, 0.1);
+        background: var(--baseAlt2Color);
         color: var(--txtHintColor);
     }
 
-    .duration {
-        font-family: monospace;
-        color: var(--txtHintColor);
-    }
-
-    .span-count {
-        text-align: center;
-        color: var(--txtHintColor);
-    }
-
-    .pagination {
+    .pagination-footer {
         display: flex;
         justify-content: center;
         align-items: center;
-        gap: 8px;
-        padding: 20px;
+        gap: 6px;
+        padding: 10px;
         border-top: 1px solid var(--baseAlt2Color);
+        flex-shrink: 0;
     }
 
     .page-numbers {
         display: flex;
-        gap: 4px;
+        gap: 3px;
     }
 
     @media (max-width: 768px) {
-        .list-header {
-            flex-direction: column;
-            gap: 8px;
-            align-items: flex-start;
+        .col-time,
+        .col-spans {
+            display: none;
         }
 
-        .traces-table th,
-        .traces-table td {
-            padding: 8px 12px;
-        }
-
-        .pagination {
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .page-numbers {
-            flex-wrap: wrap;
-            justify-content: center;
+        .table th,
+        .table td {
+            padding: 8px 10px;
         }
     }
 </style>
