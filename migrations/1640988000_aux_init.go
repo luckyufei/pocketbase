@@ -10,6 +10,8 @@ func init() {
 			var sql string
 			if txApp.IsPostgres() {
 				sql = `
+					CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 					CREATE TABLE IF NOT EXISTS "_logs" (
 						"id"      TEXT PRIMARY KEY DEFAULT ('r'||lower(encode(gen_random_bytes(7), 'hex'))) NOT NULL,
 						"level"   INTEGER DEFAULT 0 NOT NULL,
