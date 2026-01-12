@@ -113,7 +113,8 @@ func init() {
 func createParamsTable(txApp core.App) error {
 	var sql string
 	if txApp.IsPostgres() {
-		sql = PostgresParamsTableSQL()
+		// 先初始化 PostgreSQL 扩展和辅助函数
+		sql = PostgresInitSQL() + PostgresParamsTableSQL()
 	} else {
 		sql = `
 			CREATE TABLE {{_params}} (
