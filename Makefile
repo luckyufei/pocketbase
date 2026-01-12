@@ -35,37 +35,5 @@ test-report:
 	go test ./... -v --cover -coverprofile=coverage.out
 	go tool cover -html=coverage.out
 
-# ============================================================================
-# Serverless WASM 构建 (使用 Zig)
-# ============================================================================
-
-SERVERLESS_DIR = plugins/serverless/runtime/wasm/quickjs-src
-
-# 构建 serverless WASM
-serverless-wasm:
-	@echo "Building Serverless WASM with Zig..."
-	cd $(SERVERLESS_DIR) && ./build.sh
-
-# 下载 QuickJS 源码
-serverless-fetch:
-	cd $(SERVERLESS_DIR) && ./build.sh fetch
-
-# 清理 WASM 构建产物
-serverless-clean:
-	cd $(SERVERLESS_DIR) && ./build.sh clean
-
-# 生成占位 WASM (用于不需要 serverless 的构建)
-serverless-stub:
-	cd $(SERVERLESS_DIR) && ./build.sh stub
-
-# 安装 Zig (如未安装)
-serverless-install-zig:
-	cd $(SERVERLESS_DIR) && ./build.sh install-zig
-
-# 构建带 serverless 的完整版本
-build-full: serverless-wasm
-	cd examples/base && go build -o pocketbase .
-
-# 构建不带 serverless 的精简版本
-build-lite: serverless-stub
+build:
 	cd examples/base && go build -o pocketbase .

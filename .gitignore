@@ -36,5 +36,9 @@ benchmarks/benchmark.db-wal
 benchmarks/benchmark.db-shm
 benchmarks/benchmark-config.json
 
-/ui/dist/
 **/quickjs-src/quickjs
+**/node_modules/
+/site/pocket3as-site
+/site/cmd/dist
+/site/docs/.vitepress/cache
+/site/docs/.vitepress/dist
