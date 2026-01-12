@@ -3,10 +3,10 @@ name: basebuild
 on:
   pull_request:
     branches:
-      - master-main
+      - main
   push:
     branches:
-      - master-main
+      - main
     tags:
       - 'v*'
 
