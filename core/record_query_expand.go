@@ -107,14 +107,15 @@ func (app *BaseApp) expandRecords(records []*Record, expandPath string, fetchFun
 				From(indirectRel.Name).
 				Limit(1000) // the limit is arbitrary chosen and may change in the future
 
-			if indirectRelField.IsMultiple() {
-				q.AndWhere(dbx.Exists(dbx.NewExp(fmt.Sprintf(
-					"SELECT 1 FROM %s je WHERE je.value = {:id}",
-					dbutils.JSONEach(indirectRelField.Name),
-				))))
-			} else {
-				q.AndWhere(dbx.NewExp("[[" + indirectRelField.Name + "]] = {:id}"))
-			}
+		if indirectRelField.IsMultiple() {
+			jsonFuncs := app.DBAdapter().JSONFunctions()
+			q.AndWhere(dbx.Exists(dbx.NewExp(fmt.Sprintf(
+				"SELECT 1 FROM %s je WHERE je.value = {:id}",
+				jsonFuncs.Each(indirectRelField.Name),
+			))))
+		} else {
+			q.AndWhere(dbx.NewExp("[[" + indirectRelField.Name + "]] = {:id}"))
+		}
 
 			pq := q.Build().Prepare()
 

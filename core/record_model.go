@@ -15,7 +15,6 @@ import (
 	validation "github.com/go-ozzo/ozzo-validation/v4"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core/validators"
-	"github.com/pocketbase/pocketbase/tools/dbutils"
 	"github.com/pocketbase/pocketbase/tools/filesystem"
 	"github.com/pocketbase/pocketbase/tools/hook"
 	"github.com/pocketbase/pocketbase/tools/inflector"
@@ -1527,16 +1526,17 @@ func cascadeRecordDelete(app App, mainRecord *Record, refs map[*Collection][]Fie
 
 			query := app.RecordQuery(refCollection)
 
-			if opt, ok := field.(MultiValuer); !ok || !opt.IsMultiple() {
-				query.AndWhere(dbx.HashExp{prefixedFieldName: mainRecord.Id})
-			} else {
-				query.AndWhere(dbx.Exists(dbx.NewExp(fmt.Sprintf(
-					`SELECT 1 FROM %s {{__je__}} WHERE [[__je__.value]]={:jevalue}`,
-					dbutils.JSONEach(prefixedFieldName),
-				), dbx.Params{
-					"jevalue": mainRecord.Id,
-				})))
-			}
+		if opt, ok := field.(MultiValuer); !ok || !opt.IsMultiple() {
+			query.AndWhere(dbx.HashExp{prefixedFieldName: mainRecord.Id})
+		} else {
+			jsonFuncs := app.DBAdapter().JSONFunctions()
+			query.AndWhere(dbx.Exists(dbx.NewExp(fmt.Sprintf(
+				`SELECT 1 FROM %s {{__je__}} WHERE [[__je__.value]]={:jevalue}`,
+				jsonFuncs.Each(prefixedFieldName),
+			), dbx.Params{
+				"jevalue": mainRecord.Id,
+			})))
+		}
 
 			if refCollection.Id == mainRecord.Collection().Id {
 				query.AndWhere(dbx.Not(dbx.HashExp{recordTableName + ".id": mainRecord.Id}))
