@@ -242,6 +242,113 @@ PocketBase 支持两种数据库后端：
 - 行级安全策略 (RLS) 支持
 - 详细配置请参考 [PostgreSQL 使用指南](docs/POSTGRESQL.md)
 
+## Using PocketBase as a Library
+
+When using PocketBase as a Go library in your own project, you need to explicitly import and register the plugins you want to use. Unlike the prebuilt binary which includes all plugins by default, the library approach follows a modular design where you only include what you need.
+
+### Required Imports for Full Functionality
+
+To get the complete PocketBase experience similar to the prebuilt binary, you need these imports:
+
+```go
+package main
+
+import (
+    "log"
+    
+    "github.com/pocketbase/pocketbase"
+    "github.com/pocketbase/pocketbase/core"
+    
+    // Plugin imports - these are NOT automatically included
+    "github.com/pocketbase/pocketbase/plugins/jsvm"      // JavaScript/TypeScript support
+    "github.com/pocketbase/pocketbase/plugins/migratecmd" // Migration CLI commands  
+    "github.com/pocketbase/pocketbase/plugins/tofauth"   // TOF authentication (Tencent)
+    
+    // System migrations - required for system tables (_jobs, _secrets, etc.)
+    _ "github.com/pocketbase/pocketbase/migrations"
+)
+
+func main() {
+    app := pocketbase.New()
+    
+    // Register plugins explicitly
+    jsvm.MustRegister(app, jsvm.Config{
+        MigrationsDir: "./pb_migrations",
+        HooksDir:      "./pb_hooks",
+    })
+    
+    migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
+        TemplateLang: migratecmd.TemplateLangJS,
+        Automigrate:  true,
+    })
+    
+    // TOF plugin (only if environment variables are configured)
+    if os.Getenv("TOF_APP_TOKEN") != "" {
+        tofauth.MustRegister(app, tofauth.Config{
+            SafeMode:       tofauth.Bool(true),
+            CheckTimestamp: tofauth.Bool(true),
+        })
+    }
+    
+    if err := app.Start(); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+### Plugin Descriptions
+
+| Plugin | Import Path | Purpose | Required For |
+|--------|-------------|---------|--------------|
+| **jsvm** | `github.com/pocketbase/pocketbase/plugins/jsvm` | JavaScript/TypeScript runtime for hooks and migrations | JS/TS hooks, JS migrations |
+| **migratecmd** | `github.com/pocketbase/pocketbase/plugins/migratecmd` | CLI migration commands and auto-migration | `migrate` command, auto-migrations |
+| **tofauth** | `github.com/pocketbase/pocketbase/plugins/tofauth` | Tencent Open Framework authentication | TOF SSO integration |
+| **migrations** | `_ "github.com/pocketbase/pocketbase/migrations"` | System table migrations | `_jobs`, `_secrets`, `_kv` tables |
+
+### Why Plugins Are Not Auto-Imported
+
+This modular design provides several benefits:
+
+1. **Smaller Binaries**: Only include dependencies you actually use
+2. **Reduced Attack Surface**: Fewer dependencies mean fewer potential vulnerabilities  
+3. **Dependency Flexibility**: Avoid version conflicts with existing project dependencies
+4. **Conditional Loading**: Enable plugins based on environment or configuration
+
+### Common Plugin Combinations
+
+**Minimal Setup** (REST API + Admin UI only):
+```go
+import "github.com/pocketbase/pocketbase"
+// No additional plugins needed
+```
+
+**JavaScript Development** (hooks + migrations):
+```go
+import (
+    "github.com/pocketbase/pocketbase/plugins/jsvm"
+    _ "github.com/pocketbase/pocketbase/migrations"
+)
+```
+
+**Full Featured** (equivalent to prebuilt binary):
+```go
+import (
+    "github.com/pocketbase/pocketbase/plugins/jsvm"
+    "github.com/pocketbase/pocketbase/plugins/migratecmd"
+    "github.com/pocketbase/pocketbase/plugins/tofauth"
+    _ "github.com/pocketbase/pocketbase/migrations"
+)
+```
+
+### Troubleshooting Missing Features
+
+If you're missing expected functionality:
+
+- **Missing system tables** (`_jobs`, `_secrets`): Add `_ "github.com/pocketbase/pocketbase/migrations"`
+- **JS/TS hooks not working**: Add `"github.com/pocketbase/pocketbase/plugins/jsvm"`
+- **TOF auth routes 404**: Add `"github.com/pocketbase/pocketbase/plugins/tofauth"` and configure environment variables
+- **Migration commands missing**: Add `"github.com/pocketbase/pocketbase/plugins/migratecmd"`
+
 ## 开发规范
 
 ### 测试驱动开发 (TDD)

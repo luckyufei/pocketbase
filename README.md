@@ -86,6 +86,53 @@ Here is a minimal example:
 
 4. To build a statically linked executable, you can run `CGO_ENABLED=0 go build` and then start the created executable with `./myapp serve`.
 
+#### Plugin Imports for Extended Functionality
+
+When using PocketBase as a library, plugins are **not automatically imported**. To get functionality equivalent to the prebuilt binary, you need to explicitly import the plugins you want:
+
+```go
+package main
+
+import (
+    "log"
+    
+    "github.com/pocketbase/pocketbase"
+    "github.com/pocketbase/pocketbase/core"
+    
+    // Optional plugins - import only what you need
+    "github.com/pocketbase/pocketbase/plugins/jsvm"      // JavaScript/TypeScript support
+    "github.com/pocketbase/pocketbase/plugins/migratecmd" // Migration CLI commands
+    "github.com/pocketbase/pocketbase/plugins/tofauth"   // TOF authentication
+    
+    // System migrations - required for system tables (_jobs, _secrets, etc.)
+    _ "github.com/pocketbase/pocketbase/migrations"
+)
+
+func main() {
+    app := pocketbase.New()
+    
+    // Register plugins
+    jsvm.MustRegister(app, jsvm.Config{
+        MigrationsDir: "./pb_migrations",
+        HooksDir:      "./pb_hooks",
+    })
+    
+    migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
+        TemplateLang: migratecmd.TemplateLangJS,
+    })
+    
+    if err := app.Start(); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+**Key Plugin Imports:**
+- `jsvm` - Enables JavaScript/TypeScript hooks and migrations
+- `migratecmd` - Adds migration CLI commands (`migrate create`, `migrate up`, etc.)
+- `tofauth` - Tencent Open Framework authentication (enterprise)
+- `migrations` - Creates system tables (`_jobs`, `_secrets`, `_kv`)
+
 _For more details please refer to [Extend with Go](https://pocketbase.io/docs/go-overview/)._
 
 ### Building and running the repo main.go example

@@ -6,6 +6,7 @@
     import MetricsChart from "./MetricsChart.svelte";
     import TimeRangeSelector from "./TimeRangeSelector.svelte";
     import ServerlessMetrics from "./ServerlessMetrics.svelte";
+    import DatabaseStats from "./DatabaseStats.svelte";
 
     $pageTitle = "System Monitoring";
 
@@ -117,7 +118,7 @@
             <p class="txt-hint">数据采集间隔为 1 分钟</p>
         </div>
     {:else}
-        <!-- 实时指标卡片 -->
+        <!-- 系统指标卡片 -->
         <section class="metrics-cards">
             <MetricsCard
                 title="CPU 使用率"
@@ -137,17 +138,6 @@
                 icon="ri-stack-line"
             />
             <MetricsCard
-                title="WAL 大小"
-                value={formatValue(currentMetrics?.sqlite_wal_size_mb)}
-                unit="MB"
-                icon="ri-database-2-line"
-            />
-            <MetricsCard
-                title="数据库连接"
-                value={currentMetrics?.sqlite_open_conns || "-"}
-                icon="ri-links-line"
-            />
-            <MetricsCard
                 title="P95 延迟"
                 value={formatValue(currentMetrics?.p95_latency_ms)}
                 unit="ms"
@@ -159,6 +149,15 @@
                 unit="/min"
                 icon="ri-error-warning-line"
             />
+        </section>
+
+        <!-- 数据库统计 -->
+        <section class="database-section">
+            <h2 class="section-title">
+                <i class="ri-database-2-line" />
+                数据库状态
+            </h2>
+            <DatabaseStats refreshInterval={REFRESH_INTERVAL} />
         </section>
 
         <!-- 趋势图表 -->
@@ -197,13 +196,6 @@
                     />
                 </div>
                 <div class="chart-row">
-                    <MetricsChart
-                        data={historyData}
-                        metric="sqlite_wal_size_mb"
-                        title="WAL 文件大小趋势"
-                        unit="MB"
-                        color="#06b6d4"
-                    />
                     <MetricsChart
                         data={historyData}
                         metric="http_5xx_count"
@@ -257,6 +249,25 @@
         flex-wrap: wrap;
         gap: 16px;
         margin-bottom: 24px;
+    }
+
+    .database-section {
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 16px 0;
+        font-size: 1.1em;
+        font-weight: 600;
+        color: var(--txtPrimaryColor);
+    }
+
+    .section-title i {
+        font-size: 1.2em;
+        color: var(--txtHintColor);
     }
 
     .metrics-charts {
