@@ -5,6 +5,7 @@
     import PageWrapper from "@/components/base/PageWrapper.svelte";
     import RefreshButton from "@/components/base/RefreshButton.svelte";
     import TraceStats from "./TraceStats.svelte";
+    import DatabaseStats from "./DatabaseStats.svelte";
     import TraceFilters from "./TraceFilters.svelte";
     import TraceList from "./TraceList.svelte";
     import TraceDetail from "./TraceDetail.svelte";
@@ -165,12 +166,28 @@
             <p class="txt-hint">系统正在采集 Trace 数据，请稍后刷新页面。</p>
         </div>
     {:else}
-        <!-- 统计卡片 - 压缩显示 -->
-        {#if stats}
-            <div class="stats-bar m-b-sm">
-                <TraceStats {stats} compact={true} />
+        <!-- 统计卡片区域 -->
+        <div class="stats-section m-b-sm">
+            <!-- Trace 统计 -->
+            {#if stats}
+                <div class="stats-card">
+                    <h3 class="stats-title">
+                        <i class="ri-pulse-line" />
+                        <span>请求统计</span>
+                    </h3>
+                    <TraceStats {stats} compact={true} />
+                </div>
+            {/if}
+            
+            <!-- 数据库统计 -->
+            <div class="stats-card">
+                <h3 class="stats-title">
+                    <i class="ri-database-2-line" />
+                    <span>数据库状态</span>
+                </h3>
+                <DatabaseStats compact={true} />
             </div>
-        {/if}
+        </div>
 
         <!-- 筛选器 - 内联显示 -->
         <div class="filters-bar m-b-sm">
@@ -212,8 +229,43 @@
 {/if}
 
 <style>
-    .stats-bar {
+    .stats-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
         flex-shrink: 0;
+    }
+
+    @media (max-width: 1024px) {
+        .stats-section {
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+    }
+
+    .stats-card {
+        background: var(--baseColor);
+        border-radius: var(--baseRadius);
+        border: 1px solid var(--baseAlt2Color);
+        overflow: hidden;
+    }
+
+    .stats-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        margin: 0;
+        font-size: 0.85em;
+        font-weight: 600;
+        color: var(--txtPrimaryColor);
+        background: var(--baseAlt1Color);
+        border-bottom: 1px solid var(--baseAlt2Color);
+    }
+
+    .stats-title i {
+        font-size: 1.1em;
+        color: var(--txtHintColor);
     }
 
     .filters-bar {

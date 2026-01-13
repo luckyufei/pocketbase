@@ -46,6 +46,99 @@ func main() {
 3. To start the application, run `go run . serve`.
 4. To build a statically linked executable, run `go build` and then you can start the created executable with `./myapp serve`.
 
+## Plugin Imports
+
+When using PocketBase as a library, plugins are **not automatically imported**. The minimal example above provides only the core REST API and Admin UI functionality. To get features equivalent to the prebuilt PocketBase binary, you need to explicitly import and register the plugins you want to use.
+
+### Available Plugins
+
+| Plugin | Import Path | Purpose |
+|--------|-------------|---------|
+| **jsvm** | `github.com/pocketbase/pocketbase/plugins/jsvm` | JavaScript/TypeScript runtime for hooks and migrations |
+| **migratecmd** | `github.com/pocketbase/pocketbase/plugins/migratecmd` | CLI migration commands and auto-migration support |
+| **tofauth** | `github.com/pocketbase/pocketbase/plugins/tofauth` | Tencent Open Framework authentication |
+| **ghupdate** | `github.com/pocketbase/pocketbase/plugins/ghupdate` | GitHub-based self-update functionality |
+
+### System Migrations
+
+Additionally, you need to import the system migrations to create built-in system tables:
+
+```go
+import _ "github.com/pocketbase/pocketbase/migrations"
+```
+
+This creates system tables like `_jobs`, `_secrets`, `_kv`, etc.
+
+### Full-Featured Example
+
+Here's an example that includes the most commonly used plugins:
+
+```go
+package main
+
+import (
+    "log"
+    "os"
+
+    "github.com/pocketbase/pocketbase"
+    "github.com/pocketbase/pocketbase/core"
+    
+    // Plugin imports
+    "github.com/pocketbase/pocketbase/plugins/jsvm"
+    "github.com/pocketbase/pocketbase/plugins/migratecmd"
+    "github.com/pocketbase/pocketbase/plugins/tofauth"
+    
+    // System migrations (creates _jobs, _secrets, _kv tables)
+    _ "github.com/pocketbase/pocketbase/migrations"
+)
+
+func main() {
+    app := pocketbase.New()
+
+    // Register JavaScript VM plugin
+    jsvm.MustRegister(app, jsvm.Config{
+        MigrationsDir: "./pb_migrations",
+        HooksDir:      "./pb_hooks",
+    })
+
+    // Register migration commands
+    migratecmd.MustRegister(app, app.RootCmd, migratecmd.Config{
+        TemplateLang: migratecmd.TemplateLangJS,
+        Automigrate:  true,
+    })
+
+    // Register TOF authentication (if configured)
+    if os.Getenv("TOF_APP_TOKEN") != "" {
+        tofauth.MustRegister(app, tofauth.Config{
+            SafeMode:       tofauth.Bool(true),
+            CheckTimestamp: tofauth.Bool(true),
+        })
+    }
+
+    // Your custom routes
+    app.OnServe().BindFunc(func(se *core.ServeEvent) error {
+        se.Router.GET("/hello", func(re *core.RequestEvent) error {
+            return re.String(200, "Hello world!")
+        })
+        return se.Next()
+    })
+
+    if err := app.Start(); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+### Plugin Selection Guide
+
+Choose plugins based on your needs:
+
+- **Minimal setup**: No additional imports (just core PocketBase)
+- **JavaScript development**: Import `jsvm` + `migrations`
+- **Full CLI experience**: Import `jsvm` + `migratecmd` + `migrations`
+- **Enterprise auth**: Add `tofauth` for Tencent SSO integration
+- **Auto-updates**: Add `ghupdate` for GitHub-based updates
+
 ## Custom SQLite driver
 
 ::: info

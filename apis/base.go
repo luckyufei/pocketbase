@@ -52,6 +52,7 @@ func NewRouter(app core.App) (*router.Router[*core.RequestEvent], error) {
 	bindJobsApi(app, apiGroup)
 	bindTraceApi(app, apiGroup)
 	bindAnalyticsApi(app, apiGroup)
+	bindDatabaseStatsRoutes(apiGroup)
 	bindSecretsApi(app, pbRouter)
 
 	// 注册代理路由（/-/* 网关）
