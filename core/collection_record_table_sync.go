@@ -232,58 +232,112 @@ func normalizeSingleVsMultipleFieldChanges(app App, newCollection *Collection, o
 			}
 
 			var copyQuery *dbx.Query
+			jsonFuncs := txApp.DBAdapter().JSONFunctions()
 
 			if !isOldMultiple && isNewMultiple {
 				// single -> multiple (convert to array)
-				copyQuery = txApp.DB().NewQuery(fmt.Sprintf(
-					`UPDATE {{%s}} set [[%s]] = (
+				// 使用数据库适配器生成兼容的 SQL
+				if txApp.IsPostgres() {
+					// PostgreSQL: 使用 jsonb 函数
+					copyQuery = txApp.DB().NewQuery(fmt.Sprintf(
+						`UPDATE {{%s}} SET [[%s]] = (
+							CASE
+								WHEN COALESCE([[%s]]::text, '') = ''
+								THEN '[]'::jsonb
+								ELSE (
+									CASE
+										WHEN jsonb_typeof([[%s]]::jsonb) = 'array'
+										THEN [[%s]]::jsonb
+										ELSE jsonb_build_array([[%s]])
+									END
+								)
+							END
+						)`,
+						newCollection.Name,
+						originalName,
+						oldTempName,
+						oldTempName,
+						oldTempName,
+						oldTempName,
+					))
+				} else {
+					// SQLite: 使用 json 函数
+					copyQuery = txApp.DB().NewQuery(fmt.Sprintf(
+						`UPDATE {{%s}} set [[%s]] = (
 							CASE
 								WHEN COALESCE([[%s]], '') = ''
 								THEN '[]'
 								ELSE (
 									CASE
-										WHEN json_valid([[%s]]) AND json_type([[%s]]) == 'array'
+										WHEN %s AND %s = 'array'
 										THEN [[%s]]
-										ELSE json_array([[%s]])
+										ELSE %s
 									END
 								)
 							END
 						)`,
-					newCollection.Name,
-					originalName,
-					oldTempName,
-					oldTempName,
-					oldTempName,
-					oldTempName,
-					oldTempName,
-				))
+						newCollection.Name,
+						originalName,
+						oldTempName,
+						jsonFuncs.Valid(oldTempName),
+						jsonFuncs.Type(oldTempName),
+						oldTempName,
+						jsonFuncs.BuildArray("[["+oldTempName+"]]"),
+					))
+				}
 			} else {
 				// multiple -> single (keep only the last element)
 				//
 				// note: for file fields the actual file objects are not
 				// deleted allowing additional custom handling via migration
-				copyQuery = txApp.DB().NewQuery(fmt.Sprintf(
-					`UPDATE {{%s}} set [[%s]] = (
-						CASE
-							WHEN COALESCE([[%s]], '[]') = '[]'
-							THEN ''
-							ELSE (
-								CASE
-									WHEN json_valid([[%s]]) AND json_type([[%s]]) == 'array'
-									THEN COALESCE(json_extract([[%s]], '$[#-1]'), '')
-									ELSE [[%s]]
-								END
-							)
-						END
-					)`,
-					newCollection.Name,
-					originalName,
-					oldTempName,
-					oldTempName,
-					oldTempName,
-					oldTempName,
-					oldTempName,
-				))
+				if txApp.IsPostgres() {
+					// PostgreSQL: 使用 jsonb 函数获取最后一个元素
+					copyQuery = txApp.DB().NewQuery(fmt.Sprintf(
+						`UPDATE {{%s}} SET [[%s]] = (
+							CASE
+								WHEN COALESCE([[%s]]::text, '[]') = '[]'
+								THEN ''
+								ELSE (
+									CASE
+										WHEN jsonb_typeof([[%s]]::jsonb) = 'array'
+										THEN COALESCE([[%s]]::jsonb->>-1, '')
+										ELSE [[%s]]::text
+									END
+								)
+							END
+						)`,
+						newCollection.Name,
+						originalName,
+						oldTempName,
+						oldTempName,
+						oldTempName,
+						oldTempName,
+					))
+				} else {
+					// SQLite: 使用 json_extract 获取最后一个元素
+					copyQuery = txApp.DB().NewQuery(fmt.Sprintf(
+						`UPDATE {{%s}} set [[%s]] = (
+							CASE
+								WHEN COALESCE([[%s]], '[]') = '[]'
+								THEN ''
+								ELSE (
+									CASE
+										WHEN %s AND %s = 'array'
+										THEN COALESCE(json_extract([[%s]], '$[#-1]'), '')
+										ELSE [[%s]]
+									END
+								)
+							END
+						)`,
+						newCollection.Name,
+						originalName,
+						oldTempName,
+						jsonFuncs.Valid(oldTempName),
+						jsonFuncs.Type(oldTempName),
+						oldTempName,
+						oldTempName,
+					))
+				}
 			}
 
 			// copy the normalized values

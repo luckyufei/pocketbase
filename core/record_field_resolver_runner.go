@@ -58,6 +58,11 @@ type runner struct {
 	multiMatch                 *multiMatchSubquery // the multi-match subquery expression generated from the fieldName
 }
 
+// jsonFuncs 返回当前数据库类型对应的 JSON 函数适配器
+func (r *runner) jsonFuncs() *dbutils.JSONFunctions {
+	return r.resolver.app.DBAdapter().JSONFunctions()
+}
+
 func (r *runner) run() (*search.ResolverResult, error) {
 	if r.used {
 		return nil, errors.New("the runner was already used")
@@ -340,7 +345,7 @@ func (r *runner) processRequestBodyEachModifier(bodyField Field) (*search.Resolv
 
 	placeholder := "dataEach" + security.PseudorandomString(6)
 	cleanFieldName := inflector.Columnify(bodyField.GetName())
-	jeTable := fmt.Sprintf("json_each({:%s})", placeholder)
+	jeTable := r.jsonFuncs().EachParam(placeholder)
 	jeAlias := "__dataEach_je_" + cleanFieldName + r.resolver.joinAliasSuffix
 
 	err = r.resolver.registerJoin(jeTable, jeAlias, nil)
@@ -359,7 +364,7 @@ func (r *runner) processRequestBodyEachModifier(bodyField Field) (*search.Resolv
 
 	if r.withMultiMatch {
 		placeholder2 := "mm" + placeholder
-		jeTable2 := fmt.Sprintf("json_each({:%s})", placeholder2)
+		jeTable2 := r.jsonFuncs().EachParam(placeholder2)
 		jeAlias2 := "__mm_" + jeAlias
 
 		r.multiMatch.joins = append(r.multiMatch.joins, &join{
@@ -476,15 +481,15 @@ func (r *runner) processActiveProps() (*search.ResolverResult, error) {
 			}
 			jsonPathStr := jsonPath.String()
 
-			result := &search.ResolverResult{
-				NoCoalesce: true,
-				Identifier: dbutils.JSONExtract(r.activeTableAlias+"."+inflector.Columnify(prop), jsonPathStr),
-			}
+		result := &search.ResolverResult{
+			NoCoalesce: true,
+			Identifier: r.jsonFuncs().Extract(r.activeTableAlias+"."+inflector.Columnify(prop), jsonPathStr),
+		}
 
-			if r.withMultiMatch {
-				r.multiMatch.valueIdentifier = dbutils.JSONExtract(r.multiMatchActiveTableAlias+"."+inflector.Columnify(prop), jsonPathStr)
-				result.MultiMatchSubQuery = r.multiMatch
-			}
+		if r.withMultiMatch {
+			r.multiMatch.valueIdentifier = r.jsonFuncs().Extract(r.multiMatchActiveTableAlias+"."+inflector.Columnify(prop), jsonPathStr)
+			result.MultiMatchSubQuery = r.multiMatch
+		}
 
 			return result, nil
 		}
@@ -566,19 +571,19 @@ func (r *runner) processActiveProps() (*search.ResolverResult, error) {
 				if err != nil {
 					return nil, err
 				}
-			} else {
-				jeAlias := "__je_" + newTableAlias
-				err := r.resolver.registerJoin(
-					newCollectionName,
-					newTableAlias,
-					dbx.NewExp(fmt.Sprintf(
-						"[[%s.id]] IN (SELECT [[%s.value]] FROM %s {{%s}})",
-						r.activeTableAlias,
-						jeAlias,
-						dbutils.JSONEach(newTableAlias+"."+cleanBackFieldName),
-						jeAlias,
-					)),
-				)
+		} else {
+			jeAlias := "__je_" + newTableAlias
+			err := r.resolver.registerJoin(
+				newCollectionName,
+				newTableAlias,
+				dbx.NewExp(fmt.Sprintf(
+					"[[%s.id]] IN (SELECT [[%s.value]] FROM %s {{%s}})",
+					r.activeTableAlias,
+					jeAlias,
+					r.jsonFuncs().Each(newTableAlias+"."+cleanBackFieldName),
+					jeAlias,
+				)),
+			)
 				if err != nil {
 					return nil, err
 				}
@@ -605,23 +610,23 @@ func (r *runner) processActiveProps() (*search.ResolverResult, error) {
 						on:         dbx.NewExp(fmt.Sprintf("[[%s.%s]] = [[%s.id]]", newTableAlias2, cleanBackFieldName, r.multiMatchActiveTableAlias)),
 					},
 				)
-			} else {
-				jeAlias2 := "__je_" + newTableAlias2
-				r.multiMatch.joins = append(
-					r.multiMatch.joins,
-					&join{
-						tableName:  newCollectionName,
-						tableAlias: newTableAlias2,
-						on: dbx.NewExp(fmt.Sprintf(
-							"[[%s.id]] IN (SELECT [[%s.value]] FROM %s {{%s}})",
-							r.multiMatchActiveTableAlias,
-							jeAlias2,
-							dbutils.JSONEach(newTableAlias2+"."+cleanBackFieldName),
-							jeAlias2,
-						)),
-					},
-				)
-			}
+		} else {
+			jeAlias2 := "__je_" + newTableAlias2
+			r.multiMatch.joins = append(
+				r.multiMatch.joins,
+				&join{
+					tableName:  newCollectionName,
+					tableAlias: newTableAlias2,
+					on: dbx.NewExp(fmt.Sprintf(
+						"[[%s.id]] IN (SELECT [[%s.value]] FROM %s {{%s}})",
+						r.multiMatchActiveTableAlias,
+						jeAlias2,
+						r.jsonFuncs().Each(newTableAlias2+"."+cleanBackFieldName),
+						jeAlias2,
+					)),
+				},
+			)
+		}
 
 			r.multiMatchActiveTableAlias = newTableAlias2
 			// ---
@@ -669,13 +674,13 @@ func (r *runner) processActiveProps() (*search.ResolverResult, error) {
 			if err != nil {
 				return nil, err
 			}
-		} else {
-			jeAlias := "__je_" + newTableAlias
+	} else {
+		jeAlias := "__je_" + newTableAlias
 
-			err := r.resolver.registerJoin(dbutils.JSONEach(prefixedFieldName), jeAlias, nil)
-			if err != nil {
-				return nil, err
-			}
+		err := r.resolver.registerJoin(r.jsonFuncs().Each(prefixedFieldName), jeAlias, nil)
+		if err != nil {
+			return nil, err
+		}
 
 			err = r.resolver.registerJoin(
 				inflector.Columnify(newCollectionName),
@@ -709,21 +714,21 @@ func (r *runner) processActiveProps() (*search.ResolverResult, error) {
 					on:         dbx.NewExp(fmt.Sprintf("[[%s.id]] = [[%s]]", newTableAlias2, prefixedFieldName2)),
 				},
 			)
-		} else {
-			jeAlias2 := r.multiMatchActiveTableAlias + "_" + cleanFieldName + "_je"
-			r.multiMatch.joins = append(
-				r.multiMatch.joins,
-				&join{
-					tableName:  dbutils.JSONEach(prefixedFieldName2),
-					tableAlias: jeAlias2,
-				},
-				&join{
-					tableName:  inflector.Columnify(newCollectionName),
-					tableAlias: newTableAlias2,
-					on:         dbx.NewExp(fmt.Sprintf("[[%s.id]] = [[%s.value]]", newTableAlias2, jeAlias2)),
-				},
-			)
-		}
+	} else {
+		jeAlias2 := r.multiMatchActiveTableAlias + "_" + cleanFieldName + "_je"
+		r.multiMatch.joins = append(
+			r.multiMatch.joins,
+			&join{
+				tableName:  r.jsonFuncs().Each(prefixedFieldName2),
+				tableAlias: jeAlias2,
+			},
+			&join{
+				tableName:  inflector.Columnify(newCollectionName),
+				tableAlias: newTableAlias2,
+				on:         dbx.NewExp(fmt.Sprintf("[[%s.id]] = [[%s.value]]", newTableAlias2, jeAlias2)),
+			},
+		)
+	}
 
 		r.multiMatchActiveTableAlias = newTableAlias2
 		// ---
@@ -760,12 +765,12 @@ func (r *runner) finalizeActivePropsProcessing(collection *Collection, prop stri
 		jePair := r.activeTableAlias + "." + cleanFieldName
 
 		result := &search.ResolverResult{
-			Identifier: dbutils.JSONArrayLength(jePair),
+			Identifier: r.jsonFuncs().ArrayLength(jePair),
 		}
 
 		if r.withMultiMatch {
 			jePair2 := r.multiMatchActiveTableAlias + "." + cleanFieldName
-			r.multiMatch.valueIdentifier = dbutils.JSONArrayLength(jePair2)
+			r.multiMatch.valueIdentifier = r.jsonFuncs().ArrayLength(jePair2)
 			result.MultiMatchSubQuery = r.multiMatch
 		}
 
@@ -778,7 +783,7 @@ func (r *runner) finalizeActivePropsProcessing(collection *Collection, prop stri
 		jePair := r.activeTableAlias + "." + cleanFieldName
 		jeAlias := "__je_" + r.activeTableAlias + "_" + cleanFieldName + r.resolver.joinAliasSuffix
 
-		err := r.resolver.registerJoin(dbutils.JSONEach(jePair), jeAlias, nil)
+		err := r.resolver.registerJoin(r.jsonFuncs().Each(jePair), jeAlias, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -796,7 +801,7 @@ func (r *runner) finalizeActivePropsProcessing(collection *Collection, prop stri
 			jeAlias2 := "__je_" + r.multiMatchActiveTableAlias + "_" + cleanFieldName + r.resolver.joinAliasSuffix
 
 			r.multiMatch.joins = append(r.multiMatch.joins, &join{
-				tableName:  dbutils.JSONEach(jePair2),
+				tableName:  r.jsonFuncs().Each(jePair2),
 				tableAlias: jeAlias2,
 			})
 			r.multiMatch.valueIdentifier = fmt.Sprintf("[[%s.value]]", jeAlias2)
@@ -834,9 +839,9 @@ func (r *runner) finalizeActivePropsProcessing(collection *Collection, prop stri
 	// (https://github.com/pocketbase/pocketbase/issues/4068)
 	if field.Type() == FieldTypeJSON {
 		result.NoCoalesce = true
-		result.Identifier = dbutils.JSONExtract(r.activeTableAlias+"."+cleanFieldName, "")
+		result.Identifier = r.jsonFuncs().Extract(r.activeTableAlias+"."+cleanFieldName, "")
 		if r.withMultiMatch {
-			r.multiMatch.valueIdentifier = dbutils.JSONExtract(r.multiMatchActiveTableAlias+"."+cleanFieldName, "")
+			r.multiMatch.valueIdentifier = r.jsonFuncs().Extract(r.multiMatchActiveTableAlias+"."+cleanFieldName, "")
 		}
 	}
 

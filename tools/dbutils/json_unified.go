@@ -24,6 +24,15 @@ func (j *JSONFunctions) Each(column string) string {
 	return JSONEach(column)
 }
 
+// EachParam 返回带参数占位符的 JSON 数组展开表达式
+// 用于 @request.body 等动态数据的处理
+func (j *JSONFunctions) EachParam(placeholder string) string {
+	if j.dbType.IsPostgres() {
+		return fmt.Sprintf("jsonb_array_elements({:%s}::jsonb)", placeholder)
+	}
+	return fmt.Sprintf("json_each({:%s})", placeholder)
+}
+
 // ArrayLength 返回 JSON 数组长度表达式
 func (j *JSONFunctions) ArrayLength(column string) string {
 	if j.dbType.IsPostgres() {
