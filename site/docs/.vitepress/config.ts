@@ -97,6 +97,7 @@ export default defineConfig({
             { text: 'PostgreSQL', link: '/postgresql' },
             { text: 'Jobs 任务队列', link: '/jobs' },
             { text: 'Secrets 密钥管理', link: '/secrets' },
+            { text: 'Proxy 代理网关', link: '/proxy' },
           ]
         },
         {
