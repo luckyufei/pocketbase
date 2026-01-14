@@ -295,12 +295,19 @@ func recordCreate(responseWriteAfterTx bool, optFinalizer func(data any) error) 
 			for k, v := range dummyExport {
 				k = inflector.Columnify(k) // columnify is just as extra measure in case of custom fields
 				param = "__pb_create__" + k
-				dummyParams[param] = v
+				field := collection.Fields.GetByName(k)
 				// PostgreSQL 需要显式类型转换，否则无法推断参数类型
 				if isPostgres {
-					pgType := pgTypeForValue(v, collection.Fields.GetByName(k))
+					pgType := pgTypeForValue(v, field)
+					// 对于日期类型，空字符串需要转换为 NULL，否则 PostgreSQL 无法解析
+					if isEmptyDateValue(v, field) {
+						dummyParams[param] = nil
+					} else {
+						dummyParams[param] = v
+					}
 					selects = append(selects, "{:"+param+"}"+pgType+" AS [["+k+"]]")
 				} else {
+					dummyParams[param] = v
 					selects = append(selects, "{:"+param+"} AS [["+k+"]]")
 				}
 			}
@@ -771,6 +778,23 @@ func hasAuthManageAccess(app core.App, requestInfo *core.RequestInfo, collection
 	err = query.Limit(1).Row(&exists)
 
 	return err == nil && exists > 0
+}
+
+// isEmptyDateValue 检查是否是日期类型字段的空值
+// PostgreSQL 无法将空字符串转换为 timestamptz，需要使用 NULL
+func isEmptyDateValue(v any, field core.Field) bool {
+	if field == nil {
+		return false
+	}
+	fieldType := field.Type()
+	if fieldType != core.FieldTypeDate && fieldType != core.FieldTypeAutodate {
+		return false
+	}
+	// 检查是否为空字符串
+	if s, ok := v.(string); ok && s == "" {
+		return true
+	}
+	return false
 }
 
 // pgTypeForValue 根据值和字段类型返回 PostgreSQL 的类型转换后缀
