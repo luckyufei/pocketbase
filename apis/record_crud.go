@@ -18,6 +18,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/router"
 	"github.com/pocketbase/pocketbase/tools/search"
 	"github.com/pocketbase/pocketbase/tools/security"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 // bindRecordCrudApi registers the record crud api endpoints and
@@ -782,7 +783,7 @@ func hasAuthManageAccess(app core.App, requestInfo *core.RequestInfo, collection
 }
 
 // isEmptyDateValue 检查是否是日期类型字段的空值
-// PostgreSQL 无法将空字符串转换为 timestamptz，需要使用 NULL
+// PostgreSQL 无法将空字符串或零值 DateTime 转换为 timestamptz，需要使用 NULL
 func isEmptyDateValue(v any, field core.Field) bool {
 	if field == nil {
 		return false
@@ -793,6 +794,10 @@ func isEmptyDateValue(v any, field core.Field) bool {
 	}
 	// 检查是否为空字符串
 	if s, ok := v.(string); ok && s == "" {
+		return true
+	}
+	// 检查是否为零值 DateTime
+	if dt, ok := v.(types.DateTime); ok && dt.IsZero() {
 		return true
 	}
 	return false
