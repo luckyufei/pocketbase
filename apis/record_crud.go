@@ -290,12 +290,19 @@ func recordCreate(responseWriteAfterTx bool, optFinalizer func(data any) error) 
 
 			dummyParams := make(dbx.Params, len(dummyExport))
 			selects := make([]string, 0, len(dummyExport))
+			isPostgres := e.App.IsPostgres()
 			var param string
 			for k, v := range dummyExport {
 				k = inflector.Columnify(k) // columnify is just as extra measure in case of custom fields
 				param = "__pb_create__" + k
 				dummyParams[param] = v
-				selects = append(selects, "{:"+param+"} AS [["+k+"]]")
+				// PostgreSQL 需要显式类型转换，否则无法推断参数类型
+				if isPostgres {
+					pgType := pgTypeForValue(v, collection.Fields.GetByName(k))
+					selects = append(selects, "{:"+param+"}"+pgType+" AS [["+k+"]]")
+				} else {
+					selects = append(selects, "{:"+param+"} AS [["+k+"]]")
+				}
 			}
 
 			// shallow clone the current collection
@@ -764,4 +771,43 @@ func hasAuthManageAccess(app core.App, requestInfo *core.RequestInfo, collection
 	err = query.Limit(1).Row(&exists)
 
 	return err == nil && exists > 0
+}
+
+// pgTypeForValue 根据值和字段类型返回 PostgreSQL 的类型转换后缀
+// 用于在 WITH ... AS (SELECT {:param}::type AS column) 中提供显式类型
+func pgTypeForValue(v any, field core.Field) string {
+	// 优先根据字段类型判断
+	if field != nil {
+		switch field.Type() {
+		case core.FieldTypeText, core.FieldTypeEmail, core.FieldTypeURL, core.FieldTypeEditor, core.FieldTypePassword:
+			return "::text"
+		case core.FieldTypeNumber:
+			return "::numeric"
+		case core.FieldTypeBool:
+			return "::boolean"
+		case core.FieldTypeDate, core.FieldTypeAutodate:
+			return "::timestamptz"
+		case core.FieldTypeJSON, core.FieldTypeGeoPoint, core.FieldTypeVector:
+			return "::jsonb"
+		case core.FieldTypeSelect, core.FieldTypeRelation, core.FieldTypeFile:
+			// 这些字段可能是单值(text)或多值(jsonb)
+			if mv, ok := field.(core.MultiValuer); ok && mv.IsMultiple() {
+				return "::jsonb"
+			}
+			return "::text"
+		}
+	}
+
+	// 根据值类型推断
+	switch v.(type) {
+	case string:
+		return "::text"
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, float32, float64:
+		return "::numeric"
+	case bool:
+		return "::boolean"
+	default:
+		// 对于 nil 或其他类型，尝试使用 text
+		return "::text"
+	}
 }
