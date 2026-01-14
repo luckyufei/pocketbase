@@ -185,3 +185,77 @@ func TestPgTypeForValue(t *testing.T) {
 		})
 	}
 }
+
+func TestIsEmptyDateValue(t *testing.T) {
+	t.Parallel()
+
+	scenarios := []struct {
+		name     string
+		value    any
+		field    core.Field
+		expected bool
+	}{
+		// 日期字段空字符串
+		{
+			name:     "DateField with empty string",
+			value:    "",
+			field:    &core.DateField{Name: "date"},
+			expected: true,
+		},
+		{
+			name:     "AutodateField with empty string",
+			value:    "",
+			field:    &core.AutodateField{Name: "created"},
+			expected: true,
+		},
+		// 日期字段非空值
+		{
+			name:     "DateField with value",
+			value:    "2024-01-01 00:00:00.000Z",
+			field:    &core.DateField{Name: "date"},
+			expected: false,
+		},
+		{
+			name:     "AutodateField with value",
+			value:    "2024-01-01 00:00:00.000Z",
+			field:    &core.AutodateField{Name: "created"},
+			expected: false,
+		},
+		// 非日期字段
+		{
+			name:     "TextField with empty string",
+			value:    "",
+			field:    &core.TextField{Name: "text"},
+			expected: false,
+		},
+		{
+			name:     "NumberField with zero",
+			value:    float64(0),
+			field:    &core.NumberField{Name: "number"},
+			expected: false,
+		},
+		// 无字段信息
+		{
+			name:     "nil field with empty string",
+			value:    "",
+			field:    nil,
+			expected: false,
+		},
+		// nil 值
+		{
+			name:     "DateField with nil",
+			value:    nil,
+			field:    &core.DateField{Name: "date"},
+			expected: false,
+		},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			result := isEmptyDateValue(s.value, s.field)
+			if result != s.expected {
+				t.Errorf("Expected %v, got %v", s.expected, result)
+			}
+		})
+	}
+}
