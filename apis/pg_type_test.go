@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 func TestPgTypeForValue(t *testing.T) {
@@ -208,6 +209,19 @@ func TestIsEmptyDateValue(t *testing.T) {
 			field:    &core.AutodateField{Name: "created"},
 			expected: true,
 		},
+		// 日期字段零值 DateTime（DBExport 返回的实际类型）
+		{
+			name:     "DateField with zero DateTime",
+			value:    types.DateTime{},
+			field:    &core.DateField{Name: "date"},
+			expected: true,
+		},
+		{
+			name:     "AutodateField with zero DateTime",
+			value:    types.DateTime{},
+			field:    &core.AutodateField{Name: "created"},
+			expected: true,
+		},
 		// 日期字段非空值
 		{
 			name:     "DateField with value",
@@ -219,6 +233,13 @@ func TestIsEmptyDateValue(t *testing.T) {
 			name:     "AutodateField with value",
 			value:    "2024-01-01 00:00:00.000Z",
 			field:    &core.AutodateField{Name: "created"},
+			expected: false,
+		},
+		// 日期字段非零 DateTime
+		{
+			name:     "DateField with non-zero DateTime",
+			value:    types.NowDateTime(),
+			field:    &core.DateField{Name: "date"},
 			expected: false,
 		},
 		// 非日期字段
