@@ -293,9 +293,10 @@ func recordCreate(responseWriteAfterTx bool, optFinalizer func(data any) error) 
 			isPostgres := e.App.IsPostgres()
 			var param string
 			for k, v := range dummyExport {
+				// 先获取字段（使用原始键名）
+				field := collection.Fields.GetByName(k)
 				k = inflector.Columnify(k) // columnify is just as extra measure in case of custom fields
 				param = "__pb_create__" + k
-				field := collection.Fields.GetByName(k)
 				// PostgreSQL 需要显式类型转换，否则无法推断参数类型
 				if isPostgres {
 					pgType := pgTypeForValue(v, field)
