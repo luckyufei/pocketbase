@@ -83,7 +83,8 @@ func Serve(app core.App, config ServeConfig) error {
 	}))
 
 	// 设置管理界面路由（使用嵌入的静态文件）
-	pbRouter.GET("/_/{path...}", Static(ui.DistDirFS, false)).
+	// indexFallback=true 支持 SPA history route，所有未匹配的路径返回 index.html
+	pbRouter.GET("/_/{path...}", Static(ui.DistDirFS, true)).
 		BindFunc(func(e *core.RequestEvent) error {
 			// ignore root path
 			if e.Request.PathValue(StaticWildcardParam) != "" {

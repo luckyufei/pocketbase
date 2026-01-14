@@ -245,6 +245,113 @@ PocketBase 支持两种数据库后端：
 
 ## 开发规范
 
+### UI 设计规范 - 苹果式黑白灰审美
+
+**设计理念**：黑白灰为主基调，保持简洁；在关键交互处使用精致的蓝色点缀，营造苹果式的优雅与细腻。
+
+**核心原则**：
+- ✅ 主体使用 `slate` 系列（黑白灰）
+- ✅ 交互关键点使用 `blue` 系列（苹果蓝）
+- ✅ 精致阴影 + 大圆角 + 细腻动效
+- ❌ 避免使用 `purple`、`green`、`emerald`、`amber`、`red` 等其他彩色
+
+**标准色板**：
+
+| 用途 | Tailwind Class | 说明 |
+|------|---------------|------|
+| 主色调 | `slate-900` | 深黑色，用于文字、图标 |
+| **强调色** | `blue-500` | **苹果蓝**，用于激活、交互 |
+| 选中背景 | `blue-50` | 极浅蓝背景（精致） |
+| 选中文字 | `blue-600` | 蓝色文字，`font-semibold` |
+| 未选中文字 | `slate-500/600/700` | 中灰色，按层级递增 |
+| 悬停背景 | `slate-50` | 极浅灰 |
+| 边框 | `slate-200` | 浅灰边框 |
+| 图标 | `slate-400` | 中灰图标 |
+| 禁用状态 | `slate-300` | 浅灰禁用 |
+
+**组件状态规范**：
+
+```typescript
+// ✅ 选中态（侧边栏菜单、列表项）
+className="bg-blue-50 text-blue-600 font-semibold shadow-sm"
+
+// ✅ 未选中态
+className="text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+
+// ✅ 激活指示器
+className="bg-blue-500"  // 圆点、边条（苹果蓝）
+
+// ✅ 按钮主色
+className="bg-blue-500 text-white hover:bg-blue-600 shadow-md shadow-blue-200/50"
+
+// ✅ 标签/徽章
+className="bg-slate-100 text-slate-600"
+// 选中态
+className="bg-blue-100 text-blue-700"
+
+// ✅ 链接/文本按钮
+className="text-blue-600 font-semibold hover:underline"
+
+// ❌ 错误示例 - 避免使用其他彩色
+className="bg-purple-50 text-purple-600"  // 不要这样
+className="hover:bg-green-50"             // 不要这样
+className="border-amber-200"              // 不要这样
+```
+
+**关键区域统一规范**：
+
+| 区域 | 元素 | 颜色规范 |
+|------|------|---------|
+| Logo/品牌 | 背景色 | `bg-blue-500`（苹果蓝）|
+| 主侧边栏 | 选中态 | `bg-blue-50 text-blue-600` |
+| 主侧边栏 | 激活指示条 | `bg-blue-500` |
+| 二级侧边栏 | 选中态 | `bg-blue-50 text-blue-600` |
+| 列表项 | 激活指示点 | `bg-blue-500` |
+| 主按钮 | 背景 | `bg-blue-500 hover:bg-blue-600` |
+| 卡片悬停 | 边框 | `hover:border-blue-300 hover:shadow-md` |
+| 状态徽章 | 背景 | `bg-slate-100 text-slate-600` |
+| 状态徽章（激活）| 背景 | `bg-blue-100 text-blue-700` |
+| 链接/文本按钮 | 颜色 | `text-blue-600 font-semibold` |
+
+**圆角与阴影规范**：
+- **圆角**：使用 `rounded-xl`（12px）或 `rounded-2xl`（16px），营造柔和流畅感
+- **阴影**：在卡片和悬浮元素上使用 `shadow-sm`/`shadow-md`，增加景深
+- **按钮阴影**：`shadow-md shadow-blue-200/50`（蓝色投影，50% 透明度）
+
+**对齐规范（苹果式精确对齐）**：
+
+对齐是苹果设计的核心原则之一，所有相邻区域的元素必须严格对齐。
+
+| 规范 | 值 | 说明 |
+|------|-----|------|
+| **头部高度** | `h-14`（56px） | 所有页面/面板的头部统一高度 |
+| **二级侧边栏头部** | `h-14`（56px） | 与主侧边栏 Logo 区域对齐 |
+| **内容区头部** | `h-14`（56px） | 与侧边栏头部水平对齐 |
+| **头部内边距** | `px-3` 或 `px-4` | 保持一致的水平内边距 |
+
+```typescript
+// ✅ 正确：头部高度统一为 h-14
+<div className="h-14 px-3 border-b border-slate-200 flex items-center">
+  {/* 头部内容 */}
+</div>
+
+// ❌ 错误：使用 padding 代替固定高度（会导致不对齐）
+<div className="px-4 py-3 border-b border-slate-200">
+  {/* 头部内容 */}
+</div>
+
+// ❌ 错误：使用不同高度（h-12 与 h-14 不对齐）
+<div className="h-12 px-3 border-b border-slate-200">
+  {/* 头部内容 */}
+</div>
+```
+
+**关键对齐检查点**：
+1. 主侧边栏 Logo 区域：`h-14`
+2. 二级侧边栏（TableExplorer、ChatsView 等）头部：`h-14`
+3. 内容区页面（DataSourcesView、AgentsView 等）头部：`h-14`
+4. 所有相邻区域的头部必须在同一水平线上
+
 ### 测试驱动开发 (TDD)
 
 - 采用测试驱动开发流程，先编写测试再实现功能

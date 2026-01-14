@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * T145: WCAG 颜色对比度标准
+ * - 普通文本: 4.5:1 对比度 (AA 标准)
+ * - 大文本 (18px+): 3:1 对比度
+ * - UI 组件和图形: 3:1 对比度
+ */
+
+@layer base {
+  :root {
+    /* 苹果式黑白灰审美 + 蓝色点缀 */
+    --background: 0 0% 100%;
+    --foreground: 215 25% 9%; /* slate-900 */
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 9%;
+
+    /* 主色调：苹果蓝 (blue-500) */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    /* 次要色：浅灰 */
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 215 25% 27%;
+
+    /* 静音色 */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%; /* slate-500 */
+
+    /* 强调色 */
+    --accent: 214 100% 97%; /* blue-50 */
+    --accent-foreground: 217 91% 60%; /* blue-500 */
+
+    /* 错误色 */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* 边框 */
+    --border: 214 32% 91%; /* slate-200 */
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%; /* blue-500 */
+    --radius: 0.75rem; /* 大圆角 */
+
+    /* 焦点环颜色 */
+    --focus-ring: 217 91% 60%;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    /* 主色调：苹果蓝 */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 217 91% 70%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 217 91% 60%;
+
+    --focus-ring: 217 91% 60%;
+  }
+
+  /* 高对比度模式 - 用于辅助功能 */
+  @media (prefers-contrast: high) {
+    :root {
+      --muted-foreground: 215.4 16.3% 30%;
+      --border: 214.3 31.8% 70%;
+    }
+
+    .dark {
+      --muted-foreground: 215 20.2% 80%;
+      --border: 217.2 32.6% 40%;
+    }
+  }
+
+  /* 减少动画 - 用于辅助功能 */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family:
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      Roboto,
+      Oxygen,
+      Ubuntu,
+      Cantarell,
+      'Open Sans',
+      'Helvetica Neue',
+      sans-serif;
+  }
+}
