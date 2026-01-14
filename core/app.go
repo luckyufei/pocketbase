@@ -102,6 +102,10 @@ type App interface {
 	// Returns nil if the Secrets feature is not enabled (PB_MASTER_KEY not set).
 	Secrets() SecretsStore
 
+	// SecretsSettings returns the app SecretsSettings instance for accessing the CryptoEngine.
+	// Used internally by SecretField for encryption/decryption operations.
+	SecretsSettings() *SecretsSettings
+
 	// Trace returns the app Trace instance for distributed tracing operations.
 	// Provides OpenTelemetry-compatible tracing with automatic HTTP request tracking,
 	// manual span creation, and configurable data retention.

@@ -110,13 +110,20 @@ func replaceSecretVars(app App, template string) (string, error) {
 	return result, lastErr
 }
 
-// findSecret 从 _secrets 表查找密钥
-// 如果 _secrets 表不存在，返回错误
+// findSecret 从 SecretsStore 查找密钥
+// 如果 SecretsStore 不可用，返回错误
 func findSecret(app App, name string) (string, error) {
-	// 尝试查找 _secrets collection
-	// 注意：_secrets 表可能还未实现，这里先返回错误
-	// 后续可以扩展实现
-	return "", fmt.Errorf("_secrets table not implemented yet")
+	secrets := app.Secrets()
+	if secrets == nil || !secrets.IsEnabled() {
+		return "", fmt.Errorf("secrets store not available")
+	}
+
+	value, err := secrets.Get(name)
+	if err != nil {
+		return "", fmt.Errorf("secret %q not found: %w", name, err)
+	}
+
+	return value, nil
 }
 
 // replaceAuthVars 替换认证上下文变量
