@@ -1,0 +1,28 @@
+---
+description: 
+alwaysApply: true
+enabled: true
+updatedAt: 2026-01-14T04:03:22.409Z
+provider: 
+---
+
+# 禁止自动 Git 提交
+
+## 规则
+
+**禁止** 在未经用户明确请求的情况下执行 `git commit` 命令。
+
+## 说明
+
+- ❌ 不要自动执行 `git add` + `git commit`
+- ❌ 不要在完成代码修改后自动提交
+- ✅ 只有当用户明确要求提交时才执行 `git commit`
+- ✅ 可以执行 `git status`、`git diff` 等只读命令
+
+## 原因
+
+用户希望在提交前有机会：
+1. 审查所有更改
+2. 编写自己的提交信息
+3. 决定是否需要拆分提交
+4. 进行额外的测试验证
