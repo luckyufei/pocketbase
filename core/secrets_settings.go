@@ -34,6 +34,16 @@ var (
 // hexPattern 用于验证 hex 字符串格式
 var hexPattern = regexp.MustCompile(`^[0-9a-fA-F]+$`)
 
+// globalCryptoEngine 全局加密引擎实例
+// 用于在没有 App 引用的场景下（如 SecretField 的 Getter）访问加密引擎
+var globalCryptoEngine *CryptoEngine
+
+// GetGlobalCryptoEngine 获取全局加密引擎实例
+// 用于 SecretField 在 Getter 中进行解密（Getter 没有 App 参数）
+func GetGlobalCryptoEngine() *CryptoEngine {
+	return globalCryptoEngine
+}
+
 // LoadMasterKey 从环境变量加载 Master Key
 // 返回 32 字节的密钥或错误
 func LoadMasterKey() ([]byte, error) {
@@ -115,6 +125,9 @@ func (s *SecretsSettings) Initialize() error {
 	s.cryptoEngine = engine
 	s.enabled = true
 	s.initError = nil
+
+	// 设置全局加密引擎（用于 SecretField Getter）
+	globalCryptoEngine = engine
 
 	return nil
 }

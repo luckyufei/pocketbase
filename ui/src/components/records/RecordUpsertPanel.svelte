@@ -24,6 +24,7 @@
     import TextField from "@/components/records/fields/TextField.svelte";
     import UrlField from "@/components/records/fields/UrlField.svelte";
     import GeoPointField from "@/components/records/fields/GeoPointField.svelte";
+    import SecretField from "@/components/records/fields/SecretField.svelte";
     import ImpersonatePopup from "@/components/records/ImpersonatePopup.svelte";
     import { confirm } from "@/stores/confirmation";
     import { setErrors } from "@/stores/errors";
@@ -731,6 +732,8 @@
                     <RelationField {field} {original} {record} bind:value={record[field.name]} />
                 {:else if field.type === "password"}
                     <PasswordField {field} {original} {record} bind:value={record[field.name]} />
+                {:else if field.type === "secret"}
+                    <SecretField {field} bind:value={record[field.name]} />
                 {:else if field.type === "geoPoint"}
                     <GeoPointField {field} {original} {record} bind:value={record[field.name]} />
                 {/if}

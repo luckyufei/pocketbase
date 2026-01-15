@@ -28,3 +28,9 @@ func (app *BaseApp) initSecretsStore() {
 func (app *BaseApp) Secrets() SecretsStore {
 	return app.secretsStore
 }
+
+// SecretsSettings 返回 Secrets 配置实例
+// 用于 SecretField 访问 CryptoEngine 进行加解密操作
+func (app *BaseApp) SecretsSettings() *SecretsSettings {
+	return app.secretsSettings
+}
