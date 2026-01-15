@@ -44,3 +44,4 @@ benchmarks/benchmark-config.json
 /site/docs/.vitepress/dist
 /jssdk/dist
 /pb_data/
+/examples/test/
