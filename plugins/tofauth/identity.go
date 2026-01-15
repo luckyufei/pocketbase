@@ -73,6 +73,20 @@ func GetTofIdentityFromHeaders(token string, headers map[string]string, safeMode
 	)
 }
 
+// SignatureMismatchError 签名不匹配错误，包含调试信息
+type SignatureMismatchError struct {
+	ReceivedSignature string
+	ExpectedSignature string
+	TimestampStr      string
+	SafeMode          bool
+	ExtHeaders        []string
+}
+
+func (e *SignatureMismatchError) Error() string {
+	return fmt.Sprintf("invalid signature: received=%s, expected=%s, timestamp=%s, safeMode=%v, extHeaders=%v",
+		e.ReceivedSignature, e.ExpectedSignature, e.TimestampStr, e.SafeMode, e.ExtHeaders)
+}
+
 // checkSignature 校验网关签名
 func checkSignature(key string, headers map[string]string, safeMode, checkTimestamp bool) (bool, error) {
 	timestampStr := headers["timestamp"]
@@ -92,7 +106,8 @@ func checkSignature(key string, headers map[string]string, safeMode, checkTimest
 
 	// 检查时间戳是否过期（180秒）
 	if checkTimestamp && time.Now().Unix()-int64(timestamp) > 180 {
-		return false, errors.New("timestamp expired")
+		return false, fmt.Errorf("timestamp expired: timestamp=%d, now=%d, diff=%d seconds",
+			timestamp, time.Now().Unix(), time.Now().Unix()-int64(timestamp))
 	}
 
 	// 计算签名
@@ -100,7 +115,13 @@ func checkSignature(key string, headers map[string]string, safeMode, checkTimest
 	localSignature := fmt.Sprintf("%x", sha256.Sum256([]byte(str)))
 
 	if !strings.EqualFold(signature, localSignature) {
-		return false, errors.New("invalid signature")
+		return false, &SignatureMismatchError{
+			ReceivedSignature: signature,
+			ExpectedSignature: localSignature,
+			TimestampStr:      timestampStr,
+			SafeMode:          safeMode,
+			ExtHeaders:        extHeaders,
+		}
 	}
 
 	return true, nil

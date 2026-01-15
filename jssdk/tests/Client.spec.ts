@@ -1,4 +1,5 @@
-import { describe, assert, expect, test, beforeAll, afterAll, afterEach } from "vitest";
+import { describe, expect, test, beforeAll, afterAll, afterEach } from "bun:test";
+import { assert } from "./assert-helpers";
 import Client from "@/Client";
 import { LocalAuthStore } from "@/stores/LocalAuthStore";
 import { RecordService } from "@/services/RecordService";
@@ -238,7 +239,7 @@ describe("Client", function () {
                 url: "test_base_url/123?queryA=456",
                 additionalMatcher: (_, config: any): boolean => {
                     assert.equal(config.body, `{"test":123}`);
-                    return  true;
+                    return true;
                 },
                 replyCode: 200,
                 replyBody: "successPost",
@@ -249,7 +250,7 @@ describe("Client", function () {
                 url: "test_base_url/123?queryA=456",
                 additionalMatcher: (_, config: any): boolean => {
                     assert.equal(config.body, `{"test":123}`);
-                    return  true;
+                    return true;
                 },
                 replyCode: 200,
                 replyBody: "successPut",
@@ -323,14 +324,23 @@ describe("Client", function () {
                 [
                     client.send(
                         "/123",
-                        Object.assign({ method: "POST", body: {test: 123}}, testQueryParams),
+                        Object.assign(
+                            { method: "POST", body: { test: 123 } },
+                            testQueryParams,
+                        ),
                     ),
                     "successPost",
                 ],
                 [
                     client.send(
                         "/123",
-                        Object.assign({ method: "PUT", body: Object.assign(Object.create(null), {test: 123})}, testQueryParams),
+                        Object.assign(
+                            {
+                                method: "PUT",
+                                body: Object.assign(Object.create(null), { test: 123 }),
+                            },
+                            testQueryParams,
+                        ),
                     ),
                     "successPut",
                 ],
@@ -566,7 +576,7 @@ describe("Client", function () {
                 url: "test_base_url/abc",
                 replyCode: 200,
                 replyBody: () => {
-                    throw new DOMException("", "AbortError")
+                    throw new DOMException("", "AbortError");
                 },
             });
 
@@ -593,7 +603,10 @@ describe("Client", function () {
 
             client.cancelRequest("testKey");
 
-            await expect(response).rejects.toThrow();
+            // 使用 try-catch 模式来验证 abort 错误（Bun 的 rejects.toThrow() 有兼容性问题）
+            let error: any = null;
+            try { await response; } catch (e) { error = e; }
+            expect(error?.isAbort).toBe(true);
         });
     });
 
@@ -620,8 +633,14 @@ describe("Client", function () {
 
             client.cancelAllRequests();
 
-            await expect(requestA).rejects.toThrow();
-            await expect(requestB).rejects.toThrow();
+            // 使用 try-catch 模式来验证 abort 错误（Bun 的 rejects.toThrow() 有兼容性问题）
+            let errorA: any = null;
+            let errorB: any = null;
+            try { await requestA; } catch (e) { errorA = e; }
+            try { await requestB; } catch (e) { errorB = e; }
+            
+            expect(errorA?.isAbort).toBe(true);
+            expect(errorB?.isAbort).toBe(true);
         });
     });
 
@@ -659,8 +678,14 @@ describe("Client", function () {
             const requestB = client.send("/123", { method: "GET" });
             const requestC = client.send("/123", { method: "GET" });
 
-            await expect(requestA).rejects.toThrow();
-            await expect(requestB).rejects.toThrow();
+            // 使用 try-catch 模式来验证 abort 错误（Bun 的 rejects.toThrow() 有兼容性问题）
+            let errorA: any = null;
+            let errorB: any = null;
+            try { await requestA; } catch (e) { errorA = e; }
+            try { await requestB; } catch (e) { errorB = e; }
+            
+            expect(errorA?.isAbort).toBe(true);
+            expect(errorB?.isAbort).toBe(true);
             await expect(requestC).resolves.toBeDefined();
         });
 
@@ -704,7 +729,10 @@ describe("Client", function () {
             });
             const requestC = client.send("/123", { method: "GET" });
 
-            await expect(requestA).rejects.toThrow();
+            // 使用 try-catch 模式来验证 abort 错误（Bun 的 rejects.toThrow() 有兼容性问题）
+            let errorA: any = null;
+            try { await requestA; } catch (e) { errorA = e; }
+            expect(errorA?.isAbort).toBe(true);
             await expect(requestB).resolves.toBeDefined();
             await expect(requestC).resolves.toBeDefined();
         });

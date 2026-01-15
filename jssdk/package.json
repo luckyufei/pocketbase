@@ -33,14 +33,13 @@
         "format": "bunx prettier ./src ./tests --write",
         "build": "NODE_ENV=production bun run build.ts",
         "dev": "BUN_WATCH=1 bun --watch run build.ts",
-        "test": "bunx vitest",
+        "test": "bun test",
         "prepublishOnly": "bun run build"
     },
     "devDependencies": {
         "bun-plugin-dts": "^0.3.0",
         "bun-types": "latest",
         "prettier": "3.2.4",
-        "typescript": "^5.1.6",
-        "vitest": "^2.0.0"
+        "typescript": "^5.1.6"
     }
 }

@@ -77,20 +77,42 @@ export class FetchMock {
                     statusText: "test",
                     json: async () => {
                         if (typeof mock.replyBody == "function") {
-                           return mock.replyBody();
+                            return mock.replyBody();
                         }
 
-                        return mock.replyBody || {}
-                    }
+                        return mock.replyBody || {};
+                    },
                 } as Response;
 
                 return new Promise((resolve, reject) => {
-                    setTimeout(() => {
-                        if (!!config?.signal?.aborted) {
-                            reject(new ClientResponseError());
+                    const signal = config?.signal as AbortSignal | undefined;
+                    const abortError = new ClientResponseError({ isAbort: true });
+
+                    // 如果已经 abort，立即 reject
+                    if (signal?.aborted) {
+                        reject(abortError);
+                        return;
+                    }
+
+                    const timeoutId = setTimeout(() => {
+                        if (signal?.aborted) {
+                            reject(abortError);
+                        } else {
+                            resolve(response);
                         }
-                        resolve(response);
                     }, mock.delay || 0);
+
+                    // 监听 abort 事件
+                    if (signal) {
+                        signal.addEventListener(
+                            "abort",
+                            () => {
+                                clearTimeout(timeoutId);
+                                reject(abortError);
+                            },
+                            { once: true },
+                        );
+                    }
                 });
             }
 

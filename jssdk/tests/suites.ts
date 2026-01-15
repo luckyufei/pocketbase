@@ -1,4 +1,5 @@
-import { describe, assert, expect, test, beforeAll, afterAll } from "vitest";
+import { describe, expect, test, beforeAll, afterAll } from "bun:test";
+import { assert } from "./assert-helpers";
 import { CrudService } from "@/services/CrudService";
 import { FetchMock } from "./mocks";
 

@@ -76,10 +76,7 @@ export class SecretsService extends BaseService {
      * @param options 请求选项
      * @throws {ClientResponseError} 401 未认证 / 403 非 Superuser / 503 功能未启用
      */
-    async create(
-        params: SecretCreateParams,
-        options?: CommonOptions,
-    ): Promise<Secret> {
+    async create(params: SecretCreateParams, options?: CommonOptions): Promise<Secret> {
         const body: Record<string, any> = {
             key: params.key,
             value: params.value,
@@ -119,10 +116,7 @@ export class SecretsService extends BaseService {
             options,
         );
 
-        return this.client.send(
-            `/api/secrets/${encodeURIComponent(key)}`,
-            sendOptions,
-        );
+        return this.client.send(`/api/secrets/${encodeURIComponent(key)}`, sendOptions);
     }
 
     /**
@@ -195,10 +189,7 @@ export class SecretsService extends BaseService {
             options,
         );
 
-        return this.client.send(
-            `/api/secrets/${encodeURIComponent(key)}`,
-            sendOptions,
-        );
+        return this.client.send(`/api/secrets/${encodeURIComponent(key)}`, sendOptions);
     }
 
     /**

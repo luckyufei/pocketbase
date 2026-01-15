@@ -132,7 +132,7 @@ func TestCheckSignature_Invalid(t *testing.T) {
 	if ok {
 		t.Error("expected invalid signature to fail")
 	}
-	if err == nil || err.Error() != "invalid signature" {
+	if err == nil || !strings.Contains(err.Error(), "invalid signature") {
 		t.Errorf("expected 'invalid signature' error, got %v", err)
 	}
 }
@@ -161,7 +161,7 @@ func TestCheckSignature_ExpiredTimestamp(t *testing.T) {
 	if ok {
 		t.Error("expected expired timestamp to fail when checkTimestamp=true")
 	}
-	if err == nil || err.Error() != "timestamp expired" {
+	if err == nil || !strings.Contains(err.Error(), "timestamp expired") {
 		t.Errorf("expected 'timestamp expired' error, got %v", err)
 	}
 

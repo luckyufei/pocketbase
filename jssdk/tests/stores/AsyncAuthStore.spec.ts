@@ -1,4 +1,5 @@
-import { describe, assert, expect, test } from "vitest";
+import { describe, expect, test } from "bun:test";
+import { assert } from "../assert-helpers";
 import { AsyncAuthStore } from "@/stores/AsyncAuthStore";
 
 describe("AsyncAuthStore", function () {

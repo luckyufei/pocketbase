@@ -1,4 +1,5 @@
-import { describe, assert, test } from "vitest";
+import { describe, test } from "bun:test";
+import { assert } from "../assert-helpers";
 import { serializeQueryParams } from "@/tools/options";
 
 describe("serializeQueryParams()", function () {

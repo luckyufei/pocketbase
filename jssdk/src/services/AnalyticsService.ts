@@ -39,20 +39,20 @@ const STORAGE_KEY_VISITOR_ID = "pb_analytics_visitor_id";
 
 /**
  * AnalyticsService 提供用户行为分析功能。
- * 
+ *
  * 使用示例：
  * ```js
  * const pb = new PocketBase("http://127.0.0.1:8090");
- * 
+ *
  * // 初始化 Analytics（自动采集 page_view）
  * pb.analytics.init();
- * 
+ *
  * // 手动埋点
  * pb.analytics.track("click_buy", { price: 99, productId: "123" });
- * 
+ *
  * // 关联登录用户
  * pb.analytics.identify({ userId: "user123", plan: "pro" });
- * 
+ *
  * // GDPR 合规：用户选择退出
  * pb.analytics.optOut();
  * ```
@@ -73,7 +73,7 @@ export class AnalyticsService extends BaseService {
 
     /**
      * 初始化 Analytics 服务。
-     * 
+     *
      * @param config 可选配置
      */
     async init(config?: AnalyticsConfig): Promise<void> {
@@ -122,7 +122,7 @@ export class AnalyticsService extends BaseService {
 
     /**
      * 跟踪自定义事件。
-     * 
+     *
      * @param event 事件名称
      * @param props 事件属性
      */
@@ -160,7 +160,7 @@ export class AnalyticsService extends BaseService {
 
     /**
      * 关联用户属性。
-     * 
+     *
      * @param props 用户属性
      */
     identify(props: UserProps): void {
@@ -210,7 +210,7 @@ export class AnalyticsService extends BaseService {
 
     /**
      * 立即发送所有缓存的事件。
-     * 
+     *
      * @param useBeacon 是否使用 Beacon API（页面卸载时使用）
      */
     async flush(useBeacon = false): Promise<void> {

@@ -12,6 +12,7 @@ export * from "@/services/BatchService";
 export * from "@/services/JobsService";
 export * from "@/services/SecretsService";
 export * from "@/services/AnalyticsService";
+export * from "@/services/TraceService";
 export * from "@/stores/AsyncAuthStore";
 export * from "@/stores/BaseAuthStore";
 export * from "@/stores/LocalAuthStore";

@@ -14,6 +14,7 @@ import { BatchService } from "@/services/BatchService";
 import { JobsService } from "@/services/JobsService";
 import { SecretsService } from "@/services/SecretsService";
 import { AnalyticsService } from "@/services/AnalyticsService";
+import { TraceService } from "@/services/TraceService";
 import { RecordModel } from "@/tools/dtos";
 import {
     SendOptions,
@@ -176,6 +177,11 @@ export default class Client {
      */
     readonly analytics: AnalyticsService;
 
+    /**
+     * An instance of the service that handles the **Trace APIs**.
+     */
+    readonly traces: TraceService;
+
     private cancelControllers: { [key: string]: AbortController } = {};
     private recordServices: { [key: string]: RecordService } = {};
     private enableAutoCancellation: boolean = true;
@@ -205,6 +211,7 @@ export default class Client {
         this.jobs = new JobsService(this);
         this.secrets = new SecretsService(this);
         this.analytics = new AnalyticsService(this);
+        this.traces = new TraceService(this);
     }
 
     /**
@@ -451,11 +458,10 @@ export default class Client {
                     // with exception of the realtime events and 204
                     if (
                         options.signal?.aborted ||
-                        (
-                            typeof DOMException !== "undefined" && err instanceof DOMException &&
+                        (typeof DOMException !== "undefined" &&
+                            err instanceof DOMException &&
                             // https://developer.mozilla.org/en-US/docs/Web/API/DOMException#aborterror
-                            (err.name == "AbortError" || err.code == 20)
-                        )
+                            (err.name == "AbortError" || err.code == 20))
                     ) {
                         throw err;
                     }

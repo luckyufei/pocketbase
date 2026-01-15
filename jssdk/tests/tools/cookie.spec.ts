@@ -1,4 +1,5 @@
-import { describe, assert, test } from "vitest";
+import { describe, test } from "bun:test";
+import { assert } from "../assert-helpers";
 import { cookieParse, cookieSerialize } from "@/tools/cookie";
 
 describe("cookie", function () {

@@ -6,7 +6,7 @@ import {
     afterAll,
     beforeEach,
     afterEach,
-} from "vitest";
+} from "bun:test";
 import { crudServiceTestsSuite } from "../suites";
 import { FetchMock } from "../mocks";
 import Client from "@/Client";

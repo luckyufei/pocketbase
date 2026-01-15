@@ -1,4 +1,5 @@
-import { describe, assert, expect, test, beforeAll, afterAll, afterEach } from "vitest";
+import { describe, expect, test, beforeAll, afterAll, afterEach } from "bun:test";
+import { assert } from "../assert-helpers";
 import { FetchMock } from "../mocks";
 import Client from "@/Client";
 import { LogService } from "@/services/LogService";

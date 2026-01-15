@@ -1154,9 +1154,7 @@ export class RecordService<M = RecordModel> extends CrudService<M> {
      *
      * @throws {ClientResponseError}
      */
-    async authWithTof<T = M>(
-        config?: TofAuthConfig,
-    ): Promise<RecordAuthResponse<T>> {
+    async authWithTof<T = M>(config?: TofAuthConfig): Promise<RecordAuthResponse<T>> {
         const { taiIdentity, timestamp, signature, seq, ...restOptions } = config || {};
 
         const options: SendOptions = Object.assign(
@@ -1170,8 +1168,8 @@ export class RecordService<M = RecordModel> extends CrudService<M> {
         if (taiIdentity || timestamp || signature || seq) {
             options.headers = Object.assign({}, options.headers, {
                 ...(taiIdentity && { "x-tai-identity": taiIdentity }),
-                ...(timestamp && { "timestamp": timestamp }),
-                ...(signature && { "signature": signature }),
+                ...(timestamp && { timestamp: timestamp }),
+                ...(signature && { signature: signature }),
                 ...(seq && { "x-rio-seq": seq }),
             });
         }
