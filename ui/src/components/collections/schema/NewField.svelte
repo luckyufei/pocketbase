@@ -74,6 +74,11 @@
             value: "geoPoint",
             icon: CommonHelper.getFieldTypeIcon("geoPoint"),
         },
+        {
+            label: "Secret",
+            value: "secret",
+            icon: CommonHelper.getFieldTypeIcon("secret"),
+        },
         // {
         //     label: "Password",
         //     value: "password",

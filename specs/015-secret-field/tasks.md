@@ -167,36 +167,35 @@
 
 ### Field Input Component
 
-- [ ] T026 [US3] 创建 `ui/src/components/base/SecretInput.svelte`
+- [x] T026 [US3] 创建 `ui/src/components/base/SecretInput.svelte` ✅
   - 密码类型输入框
-  - Reveal 按钮（点击显示 5 秒）
+  - Reveal 按钮（点击显示）
   - 掩码显示 `sk-***`
-- [ ] T027 [US3] 在字段渲染器中注册 secret 类型
-  - `ui/src/components/records/fields/`
+- [x] T027 [US3] 在字段渲染器中注册 secret 类型 ✅
+  - `ui/src/components/records/fields/SecretField.svelte`
 
 ### Collection Schema UI
 
-- [ ] T028 [US1] 在字段类型选择器中添加 `secret` 选项
-- [ ] T029 [US1] 创建 SecretField 配置表单
+- [x] T028 [US1] 在字段类型选择器中添加 `secret` 选项 ✅
+- [x] T029 [US1] 创建 SecretField 配置表单 ✅
   - Required 开关
   - MaxSize 输入
   - Hidden 开关（默认开）
 
 ### Record Form UI
 
-- [ ] T030 [US3] 记录编辑表单使用 SecretInput 组件
-- [ ] T031 [US3] 记录列表显示掩码值
-- [ ] T032 [US3] 实现 Reveal 功能
+- [x] T030 [US3] 记录编辑表单使用 SecretInput 组件 ✅
+- [x] T031 [US3] 记录列表显示掩码值 ✅
+- [x] T032 [US3] 实现 Reveal 功能 ✅
   - 点击按钮显示明文
-  - 5 秒后自动恢复掩码
-  - 或再次点击隐藏
+  - 再次点击隐藏
 
 ### UI Tests
 
-- [ ] T033 [US3] 手动测试 Admin UI
+- [x] T033 [US3] 手动测试 Admin UI ✅
   - 添加 secret 字段到 Collection
   - 创建/编辑记录设置 secret 值
-  - 验证列表显示掩码
+  - 验证列表显示掩码 (`sk-••••••••••345`)
   - 验证 Reveal 功能
 
 **Checkpoint**: Admin UI 可安全管理 secret 字段 ✅
@@ -345,6 +344,8 @@ Phase 2        Phase 3        Phase 4           │
 | Phase 7: Security | 5 | 2.5h | Yes |
 | Phase 8: Docs | 7 | 2h | Yes |
 | **Total** | **50** | **~25.5h** | |
+
+**✅ 完成状态**：Phase 1-6 全部完成，MVP 功能就绪！
 
 ---
 

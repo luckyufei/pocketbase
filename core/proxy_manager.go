@@ -2,8 +2,9 @@ package core
 
 import (
 	"context"
+	"io"
+	"net"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"sort"
 	"strings"
@@ -28,15 +29,30 @@ type ProxyConfig struct {
 type ProxyManager struct {
 	app App
 
-	mu      sync.RWMutex
-	proxies []*ProxyConfig // 按路径长度降序排列
+	mu        sync.RWMutex
+	proxies   []*ProxyConfig // 按路径长度降序排列
+	transport *http.Transport
 }
 
 // NewProxyManager 创建代理管理器实例
 func NewProxyManager(app App) *ProxyManager {
+	// 创建共享的 HTTP Transport
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
 	return &ProxyManager{
-		app:     app,
-		proxies: make([]*ProxyConfig, 0),
+		app:       app,
+		proxies:   make([]*ProxyConfig, 0),
+		transport: transport,
 	}
 }
 
@@ -122,59 +138,116 @@ func (pm *ProxyManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	pm.serveProxy(w, r, proxy)
 }
 
-// serveProxy 执行代理转发
+// serveProxy 执行代理转发（直接使用 http.Client，完全控制请求响应）
 func (pm *ProxyManager) serveProxy(w http.ResponseWriter, r *http.Request, proxy *ProxyConfig) {
 	startTime := time.Now()
 	upstreamURL := pm.BuildUpstreamURL(proxy, r.URL.RequestURI())
-
-	target, err := url.Parse(upstreamURL)
-	if err != nil {
-		pm.logProxyError(r, proxy, "invalid upstream URL", err)
-		http.Error(w, "Bad Gateway: invalid upstream URL", http.StatusBadGateway)
-		return
-	}
-
-	// 创建响应记录器以捕获状态码
-	rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-
-	// 创建反向代理
-	reverseProxy := &httputil.ReverseProxy{
-		Director: func(req *http.Request) {
-			req.URL = target
-			req.Host = target.Host
-
-			// 保留原始请求头
-			if r.Header.Get("X-Forwarded-For") == "" {
-				req.Header.Set("X-Forwarded-For", r.RemoteAddr)
-			}
-			req.Header.Set("X-Forwarded-Host", r.Host)
-			req.Header.Set("X-Forwarded-Proto", pm.getScheme(r))
-		},
-		FlushInterval: -1, // 立即 flush，支持 Streaming
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			if err == context.DeadlineExceeded {
-				pm.logProxyError(r, proxy, "gateway timeout", err)
-				http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
-				return
-			}
-			pm.logProxyError(r, proxy, "bad gateway", err)
-			http.Error(w, "Bad Gateway", http.StatusBadGateway)
-		},
-	}
 
 	// 设置超时
 	timeout := proxy.Timeout
 	if timeout <= 0 {
 		timeout = 30
 	}
-
 	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeout)*time.Second)
 	defer cancel()
 
-	reverseProxy.ServeHTTP(rw, r.WithContext(ctx))
+	// 创建上游请求
+	upstreamReq, err := http.NewRequestWithContext(ctx, r.Method, upstreamURL, r.Body)
+	if err != nil {
+		pm.logProxyError(r, proxy, "failed to create upstream request", err)
+		http.Error(w, "Bad Gateway", http.StatusBadGateway)
+		return
+	}
 
-	// 记录请求日志
-	pm.logProxyRequest(r, proxy, rw.statusCode, time.Since(startTime))
+	// 复制请求头
+	for key, values := range r.Header {
+		for _, value := range values {
+			upstreamReq.Header.Add(key, value)
+		}
+	}
+
+	// 设置代理相关头
+	if r.Header.Get("X-Forwarded-For") == "" {
+		upstreamReq.Header.Set("X-Forwarded-For", r.RemoteAddr)
+	}
+	upstreamReq.Header.Set("X-Forwarded-Host", r.Host)
+	upstreamReq.Header.Set("X-Forwarded-Proto", pm.getScheme(r))
+
+	// 设置正确的 Host 头
+	parsedURL, _ := url.Parse(upstreamURL)
+	if parsedURL != nil {
+		upstreamReq.Host = parsedURL.Host
+	}
+
+	// 发送请求
+	client := &http.Client{Transport: pm.transport}
+	resp, err := client.Do(upstreamReq)
+	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			pm.logProxyError(r, proxy, "gateway timeout", err)
+			http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
+		} else {
+			pm.logProxyError(r, proxy, "bad gateway", err)
+			http.Error(w, "Bad Gateway", http.StatusBadGateway)
+		}
+		return
+	}
+	defer resp.Body.Close()
+
+	// 复制响应头（排除 hop-by-hop 头）
+	for key, values := range resp.Header {
+		if !isHopByHopHeader(key) {
+			for _, value := range values {
+				w.Header().Add(key, value)
+			}
+		}
+	}
+
+	// 写入状态码
+	w.WriteHeader(resp.StatusCode)
+
+	// 流式复制响应体
+	if flusher, ok := w.(http.Flusher); ok {
+		// 支持 streaming：小块读取并立即 flush
+		buf := make([]byte, 32*1024)
+		for {
+			n, readErr := resp.Body.Read(buf)
+			if n > 0 {
+				if _, writeErr := w.Write(buf[:n]); writeErr != nil {
+					break
+				}
+				flusher.Flush()
+			}
+			if readErr != nil {
+				break
+			}
+		}
+	} else {
+		io.Copy(w, resp.Body)
+	}
+
+	pm.logProxyRequest(r, proxy, resp.StatusCode, time.Since(startTime))
+}
+
+// IsHopByHopHeader 检查是否为 hop-by-hop 头（不应转发）
+// 这些头是针对单个传输层连接的，不应该被代理转发
+func IsHopByHopHeader(header string) bool {
+	hopByHop := map[string]bool{
+		"Connection":          true,
+		"Keep-Alive":          true,
+		"Proxy-Authenticate":  true,
+		"Proxy-Authorization": true,
+		"Te":                  true,
+		"Trailers":            true,
+		"Transfer-Encoding":   true,
+		"Upgrade":             true,
+	}
+	return hopByHop[http.CanonicalHeaderKey(header)]
+}
+
+// isHopByHopHeader 内部使用的别名
+func isHopByHopHeader(header string) bool {
+	return IsHopByHopHeader(header)
 }
 
 // getScheme 获取请求协议
@@ -231,77 +304,101 @@ func (pm *ProxyManager) ServeHTTPWithAuth(w http.ResponseWriter, r *http.Request
 	startTime := time.Now()
 	upstreamURL := pm.BuildUpstreamURL(proxy, r.URL.RequestURI())
 
-	target, err := url.Parse(upstreamURL)
-	if err != nil {
-		pm.logProxyError(r, proxy, "invalid upstream URL", err)
-		http.Error(w, "Bad Gateway: invalid upstream URL", http.StatusBadGateway)
-		return
-	}
-
-	// 创建响应记录器以捕获状态码
-	rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-
-	// 创建反向代理
-	reverseProxy := &httputil.ReverseProxy{
-		Director: func(req *http.Request) {
-			req.URL = target
-			req.Host = target.Host
-
-			// 保留原始请求头
-			if r.Header.Get("X-Forwarded-For") == "" {
-				req.Header.Set("X-Forwarded-For", r.RemoteAddr)
-			}
-			req.Header.Set("X-Forwarded-Host", r.Host)
-			req.Header.Set("X-Forwarded-Proto", pm.getScheme(r))
-
-			// 注入自定义请求头
-			if len(proxy.Headers) > 0 {
-				headers, err := BuildProxyHeaders(pm.app, proxy.Headers, authRecord)
-				if err == nil {
-					for key, value := range headers {
-						if value != "" {
-							req.Header.Set(key, value)
-						}
-					}
-				}
-			}
-		},
-		FlushInterval: -1, // 立即 flush，支持 Streaming
-		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
-			if err == context.DeadlineExceeded {
-				pm.logProxyError(r, proxy, "gateway timeout", err)
-				http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
-				return
-			}
-			pm.logProxyError(r, proxy, "bad gateway", err)
-			http.Error(w, "Bad Gateway", http.StatusBadGateway)
-		},
-	}
-
 	// 设置超时
 	timeout := proxy.Timeout
 	if timeout <= 0 {
 		timeout = 30
 	}
-
 	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeout)*time.Second)
 	defer cancel()
 
-	reverseProxy.ServeHTTP(rw, r.WithContext(ctx))
+	// 创建上游请求
+	upstreamReq, err := http.NewRequestWithContext(ctx, r.Method, upstreamURL, r.Body)
+	if err != nil {
+		pm.logProxyError(r, proxy, "failed to create upstream request", err)
+		http.Error(w, "Bad Gateway", http.StatusBadGateway)
+		return
+	}
 
-	// 记录请求日志
-	pm.logProxyRequest(r, proxy, rw.statusCode, time.Since(startTime))
-}
+	// 复制请求头
+	for key, values := range r.Header {
+		for _, value := range values {
+			upstreamReq.Header.Add(key, value)
+		}
+	}
 
-// responseWriter 包装 http.ResponseWriter 以捕获状态码
-type responseWriter struct {
-	http.ResponseWriter
-	statusCode int
-}
+	// 设置代理相关头
+	if r.Header.Get("X-Forwarded-For") == "" {
+		upstreamReq.Header.Set("X-Forwarded-For", r.RemoteAddr)
+	}
+	upstreamReq.Header.Set("X-Forwarded-Host", r.Host)
+	upstreamReq.Header.Set("X-Forwarded-Proto", pm.getScheme(r))
 
-func (rw *responseWriter) WriteHeader(code int) {
-	rw.statusCode = code
-	rw.ResponseWriter.WriteHeader(code)
+	// 设置正确的 Host 头
+	parsedURL, _ := url.Parse(upstreamURL)
+	if parsedURL != nil {
+		upstreamReq.Host = parsedURL.Host
+	}
+
+	// 注入自定义请求头
+	if len(proxy.Headers) > 0 {
+		headers, err := BuildProxyHeaders(pm.app, proxy.Headers, authRecord)
+		if err == nil {
+			for key, value := range headers {
+				if value != "" {
+					upstreamReq.Header.Set(key, value)
+				}
+			}
+		}
+	}
+
+	// 发送请求
+	client := &http.Client{Transport: pm.transport}
+	resp, err := client.Do(upstreamReq)
+	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			pm.logProxyError(r, proxy, "gateway timeout", err)
+			http.Error(w, "Gateway Timeout", http.StatusGatewayTimeout)
+		} else {
+			pm.logProxyError(r, proxy, "bad gateway", err)
+			http.Error(w, "Bad Gateway", http.StatusBadGateway)
+		}
+		return
+	}
+	defer resp.Body.Close()
+
+	// 复制响应头（排除 hop-by-hop 头）
+	for key, values := range resp.Header {
+		if !isHopByHopHeader(key) {
+			for _, value := range values {
+				w.Header().Add(key, value)
+			}
+		}
+	}
+
+	// 写入状态码
+	w.WriteHeader(resp.StatusCode)
+
+	// 流式复制响应体
+	if flusher, ok := w.(http.Flusher); ok {
+		buf := make([]byte, 32*1024)
+		for {
+			n, readErr := resp.Body.Read(buf)
+			if n > 0 {
+				if _, writeErr := w.Write(buf[:n]); writeErr != nil {
+					break
+				}
+				flusher.Flush()
+			}
+			if readErr != nil {
+				break
+			}
+		}
+	} else {
+		io.Copy(w, resp.Body)
+	}
+
+	pm.logProxyRequest(r, proxy, resp.StatusCode, time.Since(startTime))
 }
 
 // logProxyRequest 记录代理请求日志（不包含敏感 headers）
