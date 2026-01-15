@@ -33,6 +33,7 @@ import { RelationFieldOptions } from './schema/RelationFieldOptions'
 import { PasswordFieldOptions } from './schema/PasswordFieldOptions'
 import { AutodateFieldOptions } from './schema/AutodateFieldOptions'
 import { GeoPointFieldOptions } from './schema/GeoPointFieldOptions'
+import { SecretFieldOptions } from './schema/SecretFieldOptions'
 
 // 字段类型图标映射
 const FIELD_TYPE_ICONS: Record<string, string> = {
@@ -50,6 +51,7 @@ const FIELD_TYPE_ICONS: Record<string, string> = {
   json: 'ri-code-s-slash-line',
   geoPoint: 'ri-map-pin-line',
   password: 'ri-lock-line',
+  secret: 'ri-shield-keyhole-line',
 }
 
 // Required 标签的自定义文本
@@ -326,6 +328,8 @@ function FieldTypeOptions({
       return <AutodateFieldOptions field={field as any} onChange={handleChange} />
     case 'geoPoint':
       return <GeoPointFieldOptions field={field as any} onChange={handleChange} />
+    case 'secret':
+      return <SecretFieldOptions field={field as any} onChange={handleChange} />
     default:
       return null
   }

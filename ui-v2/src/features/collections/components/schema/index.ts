@@ -13,6 +13,7 @@ export { RelationFieldOptions, type RelationField } from './RelationFieldOptions
 export { PasswordFieldOptions, type PasswordField } from './PasswordFieldOptions'
 export { AutodateFieldOptions, type AutodateField } from './AutodateFieldOptions'
 export { GeoPointFieldOptions, type GeoPointField } from './GeoPointFieldOptions'
+export { SecretFieldOptions, type SecretField } from './SecretFieldOptions'
 
 // 字段类型到组件的映射
 export const FIELD_TYPE_OPTIONS: Record<string, React.ComponentType<any>> = {
@@ -30,4 +31,5 @@ export const FIELD_TYPE_OPTIONS: Record<string, React.ComponentType<any>> = {
   password: require('./PasswordFieldOptions').PasswordFieldOptions,
   autodate: require('./AutodateFieldOptions').AutodateFieldOptions,
   geoPoint: require('./GeoPointFieldOptions').GeoPointFieldOptions,
+  secret: require('./SecretFieldOptions').SecretFieldOptions,
 }

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { SecretInput } from '@/components/SecretInput'
 
 interface UpsertPanelProps {
   open: boolean
@@ -160,6 +161,16 @@ export function UpsertPanel({ open, onClose, record, fields, onSave }: UpsertPan
             value={(value as string) || ''}
             onChange={(e) => handleFieldChange(field.name, e.target.value)}
             placeholder="email@example.com"
+          />
+        )
+
+      case 'secret':
+        return (
+          <SecretInput
+            id={field.name}
+            value={(value as string) || ''}
+            onChange={(val) => handleFieldChange(field.name, val)}
+            required={field.required}
           />
         )
 

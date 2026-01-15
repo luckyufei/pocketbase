@@ -47,6 +47,20 @@
     "created": "Created",
     "updated": "Updated"
   },
+  "fields": {
+    "secret": {
+      "label": "Secret",
+      "hidden": "Secret field - hidden",
+      "reveal": "Reveal",
+      "hide": "Hide",
+      "generate": "Generate",
+      "generateLength": "Generate secret with length",
+      "maxSize": "Max Size",
+      "maxSizeDefault": "Default: 4096",
+      "encryptionWarning": "Secret fields are encrypted with AES-256-GCM using the PB_MASTER_KEY. Values cannot be retrieved after creation - only replaced.",
+      "filterWarning": "Cannot be used for filtering or searching."
+    }
+  },
   "settings": {
     "title": "Settings",
     "application": {
@@ -84,6 +98,36 @@
       "accessKey": "Access Key",
       "secretKey": "Secret Key",
       "saveSuccess": "Storage settings saved"
+    },
+    "secrets": {
+      "title": "Secrets",
+      "description": "Manage encrypted secrets",
+      "new": "New Secret",
+      "refresh": "Refresh",
+      "noSecrets": "No secrets found. Click \"New Secret\" to create one.",
+      "disabled": "Secrets feature is disabled",
+      "disabledHint": "To enable encrypted secret storage, set the PB_MASTER_KEY environment variable with a 64-character hex string (32 bytes).",
+      "disabledExample": "Example: export PB_MASTER_KEY=$(openssl rand -hex 32)",
+      "encryptionNotice": "Secrets are encrypted with AES-256-GCM. Values are never exposed in the UI.",
+      "key": "Key",
+      "keyPlaceholder": "MY_SECRET_KEY",
+      "keyFormat": "Key must start with uppercase letter and contain only uppercase letters, numbers and underscores",
+      "value": "Value",
+      "valuePlaceholder": "Secret value",
+      "env": "Environment",
+      "envGlobal": "Global (all environments)",
+      "envDevelopment": "Development",
+      "envProduction": "Production",
+      "description": "Description (optional)",
+      "descriptionPlaceholder": "What is this secret used for?",
+      "updated": "Updated",
+      "create": "Create",
+      "update": "Update",
+      "overwriteValue": "Overwrite value",
+      "deleteConfirm": "Are you sure you want to delete this secret? This action cannot be undone.",
+      "createSuccess": "Secret created successfully",
+      "updateSuccess": "Secret updated successfully",
+      "deleteSuccess": "Secret deleted successfully"
     },
     "backups": {
       "title": "Backup Management",

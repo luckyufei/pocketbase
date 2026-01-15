@@ -11,8 +11,14 @@ import {
 } from '@/components/ui/table'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn, maskSecret } from '@/lib/utils'
 import type { SortState } from '../store'
 
 interface RecordsTableProps {
@@ -77,6 +83,21 @@ export const RecordsTable = memo(function RecordsTable({
         return Array.isArray(value) ? `${value.length} 条关联` : value
       case 'select':
         return Array.isArray(value) ? value.join(', ') : value
+      case 'secret':
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-muted-foreground font-mono text-xs">
+                  {value ? maskSecret(String(value)) : 'N/A'}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Secret field - hidden</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
       default:
         return String(value).slice(0, 100)
     }

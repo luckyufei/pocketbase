@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
-import { truncate, toArray, isEmpty, plainText } from '@/lib/utils'
+import { truncate, toArray, isEmpty, plainText, maskSecret } from '@/lib/utils'
 import { formatDate } from '@/lib/dateUtils'
 import { RecordInfo } from './RecordInfo'
 import { RecordFileThumb } from './RecordFileThumb'
@@ -189,6 +189,25 @@ export function RecordFieldValue({ record, field, short = false }: RecordFieldVa
       <Badge variant="outline">
         {value?.lon?.toFixed(6)}, {value?.lat?.toFixed(6)}
       </Badge>
+    )
+  }
+
+  // Secret 字段
+  if (field.type === 'secret') {
+    const maskedValue = rawValue ? maskSecret(String(rawValue)) : ''
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="text-muted-foreground font-mono text-xs">
+              {maskedValue || 'N/A'}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Secret field - hidden</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     )
   }
 

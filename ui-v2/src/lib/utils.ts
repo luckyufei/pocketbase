@@ -106,3 +106,63 @@ export function sentenize(str: string): string {
   if (!str) return ''
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
+
+/**
+ * 生成随机密钥
+ * @param length 密钥长度，默认 15
+ */
+export function randomSecret(length: number = 15): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const arr = new Uint8Array(length)
+    crypto.getRandomValues(arr)
+    return Array.from(arr, (byte) => chars[byte % chars.length]).join('')
+  }
+  // Fallback for environments without crypto
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
+}
+
+/**
+ * 对密钥进行掩码处理
+ * - 长度 <= 8: 全部用 • 掩盖
+ * - 长度 > 8: 显示前后各 3 个字符，中间用 • 填充（最多 10 个）
+ */
+export function maskSecret(value: string): string {
+  if (!value) return ''
+  if (value.length <= 8) {
+    return '•'.repeat(value.length)
+  }
+  const prefix = value.slice(0, 3)
+  const suffix = value.slice(-3)
+  const middleLength = Math.min(value.length - 6, 10)
+  const middle = '•'.repeat(middleLength)
+  return `${prefix}${middle}${suffix}`
+}
+
+/**
+ * 获取字段类型对应的图标
+ */
+export function getFieldTypeIcon(type: string): string {
+  const iconMap: Record<string, string> = {
+    text: 'ri-text',
+    editor: 'ri-edit-2-line',
+    number: 'ri-hashtag',
+    bool: 'ri-toggle-line',
+    email: 'ri-mail-line',
+    url: 'ri-link',
+    date: 'ri-calendar-line',
+    autodate: 'ri-calendar-check-line',
+    select: 'ri-list-check',
+    file: 'ri-file-line',
+    relation: 'ri-mind-map',
+    json: 'ri-code-s-slash-line',
+    geoPoint: 'ri-map-pin-line',
+    password: 'ri-lock-password-line',
+    secret: 'ri-shield-keyhole-line',
+  }
+  return iconMap[type] || 'ri-file-text-line'
+}

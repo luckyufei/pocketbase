@@ -47,6 +47,20 @@
     "created": "创建时间",
     "updated": "更新时间"
   },
+  "fields": {
+    "secret": {
+      "label": "Secret",
+      "hidden": "Secret 字段 - 已隐藏",
+      "reveal": "显示",
+      "hide": "隐藏",
+      "generate": "生成",
+      "generateLength": "生成指定长度的密钥",
+      "maxSize": "最大长度",
+      "maxSizeDefault": "默认: 4096",
+      "encryptionWarning": "Secret 字段使用 PB_MASTER_KEY 进行 AES-256-GCM 加密。创建后无法检索值，只能替换。",
+      "filterWarning": "不能用于筛选或搜索。"
+    }
+  },
   "settings": {
     "title": "设置",
     "application": {
@@ -84,6 +98,36 @@
       "accessKey": "Access Key",
       "secretKey": "Secret Key",
       "saveSuccess": "存储设置已保存"
+    },
+    "secrets": {
+      "title": "密钥管理",
+      "description": "管理加密密钥",
+      "new": "新建密钥",
+      "refresh": "刷新",
+      "noSecrets": "暂无密钥。点击「新建密钥」创建。",
+      "disabled": "密钥功能已禁用",
+      "disabledHint": "要启用加密密钥存储，请设置 PB_MASTER_KEY 环境变量，值为 64 字符的十六进制字符串（32 字节）。",
+      "disabledExample": "示例: export PB_MASTER_KEY=$(openssl rand -hex 32)",
+      "encryptionNotice": "密钥使用 AES-256-GCM 加密。值不会在 UI 中显示。",
+      "key": "密钥名",
+      "keyPlaceholder": "MY_SECRET_KEY",
+      "keyFormat": "密钥名必须以大写字母开头，只能包含大写字母、数字和下划线",
+      "value": "值",
+      "valuePlaceholder": "密钥值",
+      "env": "环境",
+      "envGlobal": "全局（所有环境）",
+      "envDevelopment": "开发环境",
+      "envProduction": "生产环境",
+      "description": "描述（可选）",
+      "descriptionPlaceholder": "这个密钥用于什么？",
+      "updated": "更新时间",
+      "create": "创建",
+      "update": "更新",
+      "overwriteValue": "覆盖值",
+      "deleteConfirm": "确定要删除此密钥吗？此操作不可撤销。",
+      "createSuccess": "密钥创建成功",
+      "updateSuccess": "密钥更新成功",
+      "deleteSuccess": "密钥删除成功"
     },
     "backups": {
       "title": "备份管理",
