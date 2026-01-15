@@ -123,6 +123,11 @@
     </div>
 {:else if field.type === "geoPoint"}
     <div class="label"><GeoPointValue value={rawValue} /></div>
+{:else if field.type === "secret"}
+    {@const maskedValue = rawValue ? (rawValue.length <= 8 ? "•".repeat(rawValue.length) : rawValue.slice(0, 3) + "•".repeat(Math.min(rawValue.length - 6, 10)) + rawValue.slice(-3)) : ""}
+    <span class="txt txt-hint" use:tooltip={"Secret field - hidden"}>
+        {maskedValue || "N/A"}
+    </span>
 {:else if short}
     <span class="txt txt-ellipsis" title={CommonHelper.truncate(rawValue)}>
         {CommonHelper.truncate(rawValue)}

@@ -1202,6 +1202,8 @@ export default class CommonHelper {
                 return "ri-calendar-check-line";
             case "geoPoint":
                 return "ri-map-pin-2-line";
+            case "secret":
+                return "ri-shield-keyhole-line";
             default:
                 return "ri-star-s-line";
         }
