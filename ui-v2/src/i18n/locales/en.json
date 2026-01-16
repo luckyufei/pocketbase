@@ -1,0 +1,316 @@
+{
+  "nav": {
+    "title": "PocketBase",
+    "home": "Home",
+    "about": "About",
+    "collections": "Collections",
+    "logs": "Logs",
+    "monitoring": "Monitoring",
+    "traces": "Traces",
+    "analytics": "Analytics",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "login": {
+    "subtitle": "Admin Dashboard",
+    "email": "Email",
+    "emailPlaceholder": "Enter your email",
+    "password": "Password",
+    "passwordPlaceholder": "Enter your password",
+    "submit": "Login",
+    "loading": "Logging in..."
+  },
+  "collections": {
+    "title": "Collections",
+    "search": "Search...",
+    "new": "New Collection",
+    "empty": "No collections yet",
+    "noResults": "No matching collections found",
+    "loadError": "Failed to load collections",
+    "base": "Base",
+    "auth": "Auth",
+    "view": "View",
+    "system": "System",
+    "deleteConfirm": "Are you sure you want to delete this collection?",
+    "deleteSuccess": "Collection deleted",
+    "saveSuccess": "Collection saved"
+  },
+  "records": {
+    "selectCollection": "Please select a collection",
+    "new": "New Record",
+    "empty": "No records yet",
+    "loadError": "Failed to load records",
+    "deleteConfirm": "Are you sure you want to delete this record?",
+    "deleteSuccess": "Record deleted",
+    "saveSuccess": "Record saved",
+    "id": "ID",
+    "created": "Created",
+    "updated": "Updated"
+  },
+  "settings": {
+    "title": "Settings",
+    "application": {
+      "title": "Application Settings",
+      "description": "Configure application basics",
+      "name": "Application Name",
+      "namePlaceholder": "Enter application name",
+      "url": "Application URL",
+      "urlPlaceholder": "Enter application URL",
+      "hideControls": "Hide default controls",
+      "saveSuccess": "Application settings saved"
+    },
+    "mail": {
+      "title": "Mail Settings",
+      "description": "Configure SMTP mail service",
+      "enabled": "Enable mail service",
+      "host": "SMTP Host",
+      "port": "SMTP Port",
+      "username": "Username",
+      "password": "Password",
+      "senderName": "Sender Name",
+      "senderAddress": "Sender Address",
+      "testEmail": "Send Test Email",
+      "saveSuccess": "Mail settings saved"
+    },
+    "storage": {
+      "title": "Storage Settings",
+      "description": "Configure file storage service",
+      "provider": "Storage Provider",
+      "local": "Local Storage",
+      "s3": "S3 Compatible Storage",
+      "bucket": "Bucket Name",
+      "region": "Region",
+      "endpoint": "Endpoint",
+      "accessKey": "Access Key",
+      "secretKey": "Secret Key",
+      "saveSuccess": "Storage settings saved"
+    },
+    "backups": {
+      "title": "Backup Management",
+      "description": "Manage database backups",
+      "create": "Create Backup",
+      "restore": "Restore Backup",
+      "download": "Download",
+      "delete": "Delete",
+      "autoBackup": "Auto Backup",
+      "interval": "Backup Interval",
+      "retention": "Retention Count",
+      "lastBackup": "Last Backup",
+      "noBackups": "No backups yet",
+      "createSuccess": "Backup created successfully",
+      "restoreSuccess": "Backup restored successfully",
+      "deleteSuccess": "Backup deleted"
+    },
+    "admins": {
+      "title": "Administrators",
+      "description": "Manage system administrators",
+      "new": "New Administrator",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "deleteConfirm": "Are you sure you want to delete this administrator?",
+      "saveSuccess": "Administrator saved",
+      "deleteSuccess": "Administrator deleted"
+    },
+    "export": {
+      "title": "Export",
+      "description": "Export collections and data",
+      "collections": "Export Collections",
+      "data": "Export Data",
+      "all": "Export All",
+      "success": "Export successful"
+    },
+    "import": {
+      "title": "Import",
+      "description": "Import collections and data",
+      "selectFile": "Select File",
+      "dropHint": "Drop file here or click to select",
+      "success": "Import successful",
+      "error": "Import failed"
+    }
+  },
+  "logs": {
+    "title": "Logs",
+    "description": "View system logs",
+    "filter": "Filter logs...",
+    "level": "Level",
+    "message": "Message",
+    "time": "Time",
+    "data": "Data",
+    "refresh": "Refresh",
+    "loadMore": "Load More",
+    "noLogs": "No logs yet",
+    "levels": {
+      "debug": "Debug",
+      "info": "Info",
+      "warn": "Warning",
+      "error": "Error"
+    },
+    "sort": {
+      "newest": "Newest First",
+      "oldest": "Oldest First"
+    }
+  },
+  "monitoring": {
+    "title": "System Monitoring",
+    "description": "View system performance metrics",
+    "cpu": "CPU Usage",
+    "memory": "Memory Usage",
+    "disk": "Disk Usage",
+    "connections": "Active Connections",
+    "requests": "Requests",
+    "uptime": "Uptime",
+    "timeRange": "Time Range",
+    "refresh": "Refresh",
+    "autoRefresh": "Auto Refresh",
+    "ranges": {
+      "1h": "Last 1 Hour",
+      "6h": "Last 6 Hours",
+      "24h": "Last 24 Hours",
+      "7d": "Last 7 Days"
+    }
+  },
+  "traces": {
+    "title": "Request Traces",
+    "description": "View request trace records",
+    "filter": "Filter traces...",
+    "method": "Method",
+    "path": "Path",
+    "status": "Status",
+    "duration": "Duration",
+    "time": "Time",
+    "ip": "IP Address",
+    "userAgent": "User Agent",
+    "refresh": "Refresh",
+    "loadMore": "Load More",
+    "noTraces": "No traces yet",
+    "details": "Details"
+  },
+  "analytics": {
+    "title": "Traffic Analytics",
+    "description": "View website traffic statistics",
+    "pageViews": "Page Views",
+    "uniqueVisitors": "Unique Visitors",
+    "avgDuration": "Avg. Duration",
+    "bounceRate": "Bounce Rate",
+    "topPages": "Top Pages",
+    "topSources": "Traffic Sources",
+    "devices": "Device Distribution",
+    "timeRange": "Time Range",
+    "refresh": "Refresh",
+    "noData": "No data available"
+  },
+  "theme": {
+    "light": "Light Mode",
+    "dark": "Dark Mode",
+    "system": "System"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "description": "Sorry, an error occurred.",
+    "retry": "Retry",
+    "goHome": "Go Home",
+    "details": "Error Details"
+  },
+  "common": {
+    "loading": "Loading...",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "update": "Update",
+    "prev": "Previous",
+    "next": "Next",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "actions": "Actions",
+    "noData": "No data",
+    "success": "Operation successful",
+    "error": "Operation failed",
+    "required": "Required",
+    "optional": "Optional"
+  },
+  "footer": {
+    "editHint": "Edit the file and save to test HMR"
+  },
+  "home": {
+    "title": "Home Page",
+    "subtitle": "Welcome to the home page with a counter component",
+    "badges": {
+      "react": "React 19",
+      "typescript": "TypeScript",
+      "tailwind": "Tailwind CSS"
+    },
+    "counter": {
+      "title": "Counter Demo",
+      "description": "Try the counter component with Jotai state management"
+    }
+  },
+  "about": {
+    "title": "About Page",
+    "subtitle": "Learn more about this application",
+    "badges": {
+      "modernStack": "Modern Stack",
+      "productionReady": "Production Ready"
+    },
+    "techStack": {
+      "title": "Tech Stack",
+      "description": "A modern React development stack with all the tools you need",
+      "items": {
+        "vite": {
+          "name": "Vite",
+          "description": "Fast build tool"
+        },
+        "react": {
+          "name": "React 19",
+          "description": "UI library"
+        },
+        "typescript": {
+          "name": "TypeScript",
+          "description": "Type safety"
+        },
+        "tailwind": {
+          "name": "Tailwind CSS",
+          "description": "Utility-first CSS"
+        },
+        "shadcn": {
+          "name": "shadcn/ui",
+          "description": "Beautiful components"
+        },
+        "jotai": {
+          "name": "Jotai",
+          "description": "State management"
+        },
+        "router": {
+          "name": "React Router",
+          "description": "Client-side routing"
+        }
+      }
+    }
+  },
+  "counter": {
+    "title": "Jotai Counter",
+    "status": {
+      "zero": "Zero",
+      "positive": "Positive",
+      "negative": "Negative"
+    },
+    "buttons": {
+      "increment": "Increment",
+      "decrement": "Decrement"
+    }
+  },
+  "language": {
+    "switch": "Switch Language",
+    "english": "English",
+    "chinese": "中文"
+  },
+  "notFound": {
+    "title": "Page Not Found",
+    "description": "The page you are looking for does not exist or has been moved.",
+    "goHome": "Go Home"
+  }
+}

@@ -13,8 +13,8 @@ import (
 
 const (
 	oauth2SubscriptionTopic               string = "@oauth2"
-	oauth2RedirectFailurePath             string = "../_/#/auth/oauth2-redirect-failure"
-	oauth2RedirectSuccessPath             string = "../_/#/auth/oauth2-redirect-success"
+	oauth2RedirectFailurePath             string = "../_/auth/oauth2-redirect-failure"
+	oauth2RedirectSuccessPath             string = "../_/auth/oauth2-redirect-success"
 	oauth2RedirectAppleNameStoreKeyPrefix string = "@redirect_name_"
 )
 

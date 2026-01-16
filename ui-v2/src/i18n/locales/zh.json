@@ -1,0 +1,316 @@
+{
+  "nav": {
+    "title": "PocketBase",
+    "home": "首页",
+    "about": "关于",
+    "collections": "Collections",
+    "logs": "日志",
+    "monitoring": "监控",
+    "traces": "追踪",
+    "analytics": "分析",
+    "settings": "设置",
+    "logout": "退出登录"
+  },
+  "login": {
+    "subtitle": "管理后台",
+    "email": "邮箱",
+    "emailPlaceholder": "请输入邮箱",
+    "password": "密码",
+    "passwordPlaceholder": "请输入密码",
+    "submit": "登录",
+    "loading": "登录中..."
+  },
+  "collections": {
+    "title": "Collections",
+    "search": "搜索...",
+    "new": "新建 Collection",
+    "empty": "暂无 Collection",
+    "noResults": "没有找到匹配的 Collection",
+    "loadError": "加载 Collections 失败",
+    "base": "Base",
+    "auth": "Auth",
+    "view": "View",
+    "system": "系统",
+    "deleteConfirm": "确定要删除此 Collection 吗？",
+    "deleteSuccess": "Collection 已删除",
+    "saveSuccess": "Collection 已保存"
+  },
+  "records": {
+    "selectCollection": "请选择一个 Collection",
+    "new": "新建记录",
+    "empty": "暂无记录",
+    "loadError": "加载记录失败",
+    "deleteConfirm": "确定要删除此记录吗？",
+    "deleteSuccess": "记录已删除",
+    "saveSuccess": "记录已保存",
+    "id": "ID",
+    "created": "创建时间",
+    "updated": "更新时间"
+  },
+  "settings": {
+    "title": "设置",
+    "application": {
+      "title": "应用设置",
+      "description": "配置应用基本信息",
+      "name": "应用名称",
+      "namePlaceholder": "请输入应用名称",
+      "url": "应用 URL",
+      "urlPlaceholder": "请输入应用 URL",
+      "hideControls": "隐藏默认控件",
+      "saveSuccess": "应用设置已保存"
+    },
+    "mail": {
+      "title": "邮件设置",
+      "description": "配置 SMTP 邮件服务",
+      "enabled": "启用邮件服务",
+      "host": "SMTP 主机",
+      "port": "SMTP 端口",
+      "username": "用户名",
+      "password": "密码",
+      "senderName": "发件人名称",
+      "senderAddress": "发件人地址",
+      "testEmail": "发送测试邮件",
+      "saveSuccess": "邮件设置已保存"
+    },
+    "storage": {
+      "title": "存储设置",
+      "description": "配置文件存储服务",
+      "provider": "存储提供商",
+      "local": "本地存储",
+      "s3": "S3 兼容存储",
+      "bucket": "Bucket 名称",
+      "region": "区域",
+      "endpoint": "端点",
+      "accessKey": "Access Key",
+      "secretKey": "Secret Key",
+      "saveSuccess": "存储设置已保存"
+    },
+    "backups": {
+      "title": "备份管理",
+      "description": "管理数据库备份",
+      "create": "创建备份",
+      "restore": "恢复备份",
+      "download": "下载",
+      "delete": "删除",
+      "autoBackup": "自动备份",
+      "interval": "备份间隔",
+      "retention": "保留数量",
+      "lastBackup": "上次备份",
+      "noBackups": "暂无备份",
+      "createSuccess": "备份创建成功",
+      "restoreSuccess": "备份恢复成功",
+      "deleteSuccess": "备份已删除"
+    },
+    "admins": {
+      "title": "管理员",
+      "description": "管理系统管理员",
+      "new": "新建管理员",
+      "email": "邮箱",
+      "password": "密码",
+      "confirmPassword": "确认密码",
+      "deleteConfirm": "确定要删除此管理员吗？",
+      "saveSuccess": "管理员已保存",
+      "deleteSuccess": "管理员已删除"
+    },
+    "export": {
+      "title": "导出",
+      "description": "导出 Collections 和数据",
+      "collections": "导出 Collections",
+      "data": "导出数据",
+      "all": "导出全部",
+      "success": "导出成功"
+    },
+    "import": {
+      "title": "导入",
+      "description": "导入 Collections 和数据",
+      "selectFile": "选择文件",
+      "dropHint": "拖拽文件到此处或点击选择",
+      "success": "导入成功",
+      "error": "导入失败"
+    }
+  },
+  "logs": {
+    "title": "日志",
+    "description": "查看系统日志",
+    "filter": "筛选日志...",
+    "level": "级别",
+    "message": "消息",
+    "time": "时间",
+    "data": "数据",
+    "refresh": "刷新",
+    "loadMore": "加载更多",
+    "noLogs": "暂无日志",
+    "levels": {
+      "debug": "调试",
+      "info": "信息",
+      "warn": "警告",
+      "error": "错误"
+    },
+    "sort": {
+      "newest": "最新优先",
+      "oldest": "最旧优先"
+    }
+  },
+  "monitoring": {
+    "title": "系统监控",
+    "description": "查看系统性能指标",
+    "cpu": "CPU 使用率",
+    "memory": "内存使用",
+    "disk": "磁盘使用",
+    "connections": "活动连接",
+    "requests": "请求数",
+    "uptime": "运行时间",
+    "timeRange": "时间范围",
+    "refresh": "刷新",
+    "autoRefresh": "自动刷新",
+    "ranges": {
+      "1h": "最近 1 小时",
+      "6h": "最近 6 小时",
+      "24h": "最近 24 小时",
+      "7d": "最近 7 天"
+    }
+  },
+  "traces": {
+    "title": "请求追踪",
+    "description": "查看请求追踪记录",
+    "filter": "筛选追踪...",
+    "method": "方法",
+    "path": "路径",
+    "status": "状态",
+    "duration": "耗时",
+    "time": "时间",
+    "ip": "IP 地址",
+    "userAgent": "User Agent",
+    "refresh": "刷新",
+    "loadMore": "加载更多",
+    "noTraces": "暂无追踪记录",
+    "details": "详情"
+  },
+  "analytics": {
+    "title": "流量分析",
+    "description": "查看网站流量统计",
+    "pageViews": "页面浏览量",
+    "uniqueVisitors": "独立访客",
+    "avgDuration": "平均停留时间",
+    "bounceRate": "跳出率",
+    "topPages": "热门页面",
+    "topSources": "流量来源",
+    "devices": "设备分布",
+    "timeRange": "时间范围",
+    "refresh": "刷新",
+    "noData": "暂无数据"
+  },
+  "theme": {
+    "light": "浅色模式",
+    "dark": "深色模式",
+    "system": "跟随系统"
+  },
+  "error": {
+    "title": "出错了",
+    "description": "抱歉，发生了一个错误。",
+    "retry": "重试",
+    "goHome": "返回首页",
+    "details": "错误详情"
+  },
+  "common": {
+    "loading": "加载中...",
+    "cancel": "取消",
+    "confirm": "确定",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "create": "创建",
+    "update": "更新",
+    "prev": "上一页",
+    "next": "下一页",
+    "search": "搜索",
+    "filter": "筛选",
+    "sort": "排序",
+    "actions": "操作",
+    "noData": "暂无数据",
+    "success": "操作成功",
+    "error": "操作失败",
+    "required": "必填",
+    "optional": "可选"
+  },
+  "footer": {
+    "editHint": "编辑文件并保存以测试热更新"
+  },
+  "home": {
+    "title": "首页",
+    "subtitle": "欢迎来到带有计数器组件的首页",
+    "badges": {
+      "react": "React 19",
+      "typescript": "TypeScript",
+      "tailwind": "Tailwind CSS"
+    },
+    "counter": {
+      "title": "计数器演示",
+      "description": "试试使用 Jotai 状态管理的计数器组件"
+    }
+  },
+  "about": {
+    "title": "关于页面",
+    "subtitle": "了解更多关于此应用的信息",
+    "badges": {
+      "modernStack": "现代技术栈",
+      "productionReady": "生产就绪"
+    },
+    "techStack": {
+      "title": "技术栈",
+      "description": "一个现代化的 React 开发技术栈，包含所有你需要的工具",
+      "items": {
+        "vite": {
+          "name": "Vite",
+          "description": "快速构建工具"
+        },
+        "react": {
+          "name": "React 19",
+          "description": "用户界面库"
+        },
+        "typescript": {
+          "name": "TypeScript",
+          "description": "类型安全"
+        },
+        "tailwind": {
+          "name": "Tailwind CSS",
+          "description": "实用优先的 CSS 框架"
+        },
+        "shadcn": {
+          "name": "shadcn/ui",
+          "description": "精美的组件库"
+        },
+        "jotai": {
+          "name": "Jotai",
+          "description": "状态管理"
+        },
+        "router": {
+          "name": "React Router",
+          "description": "客户端路由"
+        }
+      }
+    }
+  },
+  "counter": {
+    "title": "Jotai 计数器",
+    "status": {
+      "zero": "零",
+      "positive": "正数",
+      "negative": "负数"
+    },
+    "buttons": {
+      "increment": "增加",
+      "decrement": "减少"
+    }
+  },
+  "language": {
+    "switch": "切换语言",
+    "english": "English",
+    "chinese": "中文"
+  },
+  "notFound": {
+    "title": "页面未找到",
+    "description": "您访问的页面不存在或已被移动。",
+    "goHome": "返回首页"
+  }
+}

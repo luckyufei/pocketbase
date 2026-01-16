@@ -1,0 +1,12 @@
+[test]
+preload = ["./src/test/setup.ts"]
+
+# 每个测试文件使用独立的模块缓存
+# 这有助于避免 vi.mock 之间的冲突
+
+# 设置超时时间
+timeout = 30000
+
+# 使用独立的 worker 运行每个测试文件
+# 这可以帮助解决 mock 隔离问题
+smol = true
