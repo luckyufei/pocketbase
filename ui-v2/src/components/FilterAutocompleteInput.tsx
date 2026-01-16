@@ -1,256 +1,277 @@
-// T029: 筛选自动完成输入组件
-import { useState, useCallback, useRef, useEffect, forwardRef, useMemo } from 'react'
-import { Textarea } from '@/components/ui/textarea'
+/**
+ * Filter Autocomplete Input
+ * 支持 PocketBase filter 语法的自动补全输入框
+ * 使用原生 input + 自定义下拉菜单实现，避免 CodeMirror 多实例问题
+ */
+import { useCallback, useMemo, useState, useRef, useEffect, type KeyboardEvent } from 'react'
 import { cn } from '@/lib/utils'
-
-interface FilterOption {
-  value: string
-  label: string
-  description?: string
-}
-
-interface BaseCollection {
-  name: string
-  type: string
-  fields?: Array<{ name: string; type: string; hidden?: boolean }>
-}
+import type { CollectionModel } from 'pocketbase'
+import {
+  getAllAutocompleteKeys,
+  FILTER_MACROS,
+} from '@/lib/filterAutocomplete'
 
 interface FilterAutocompleteInputProps {
-  value?: string
-  onChange?: (value: string) => void
-  options?: FilterOption[]
-  baseCollection?: BaseCollection
+  value: string
+  onChange: (value: string) => void
+  onSubmit?: (value: string) => void
+  collections: CollectionModel[]
+  baseCollection?: CollectionModel | null
   placeholder?: string
-  className?: string
   disabled?: boolean
+  className?: string
 }
 
-// 生成基于 collection 的自动完成选项
-function generateOptions(collection?: BaseCollection): FilterOption[] {
-  if (!collection) return []
-
-  const options: FilterOption[] = []
-
-  // 添加字段名
-  collection.fields?.forEach((field) => {
-    if (!field.hidden) {
-      options.push({
-        value: field.name,
-        label: field.name,
-        description: `${field.type} field`,
-      })
-    }
-  })
-
-  // 添加 @request 选项
-  options.push(
-    {
-      value: '@request.auth.id',
-      label: '@request.auth.id',
-      description: 'Current authenticated user ID',
-    },
-    {
-      value: '@request.auth.email',
-      label: '@request.auth.email',
-      description: 'Current authenticated user email',
-    },
-    { value: '@request.body.', label: '@request.body.*', description: 'Request body fields' },
-    { value: '@request.query.', label: '@request.query.*', description: 'Query parameters' },
-    { value: '@request.headers.', label: '@request.headers.*', description: 'Request headers' }
-  )
-
-  // 添加操作符
-  options.push(
-    { value: '&&', label: '&&', description: 'AND operator' },
-    { value: '||', label: '||', description: 'OR operator' },
-    { value: '=', label: '=', description: 'Equal' },
-    { value: '!=', label: '!=', description: 'Not equal' },
-    { value: '>', label: '>', description: 'Greater than' },
-    { value: '>=', label: '>=', description: 'Greater than or equal' },
-    { value: '<', label: '<', description: 'Less than' },
-    { value: '<=', label: '<=', description: 'Less than or equal' },
-    { value: '~', label: '~', description: 'Like/Contains' },
-    { value: '!~', label: '!~', description: 'Not like/Contains' }
-  )
-
-  return options
+interface AutocompleteOption {
+  label: string
+  type?: string
+  info?: string
 }
 
-/**
- * 筛选自动完成输入组件
- * 用于 PocketBase 查询语法的自动完成
- */
-export const FilterAutocompleteInput = forwardRef<
-  HTMLTextAreaElement,
-  FilterAutocompleteInputProps
->(function FilterAutocompleteInput(
-  {
-    value: controlledValue,
-    onChange,
-    options: externalOptions,
-    baseCollection,
-    placeholder = 'Leave empty to grant everyone access...',
-    className,
-    disabled = false,
-  },
-  ref
-) {
-  const [internalValue, setInternalValue] = useState(controlledValue ?? '')
+export function FilterAutocompleteInput({
+  value,
+  onChange,
+  onSubmit,
+  collections,
+  baseCollection,
+  placeholder = 'Filter records, e.g. created > @now',
+  disabled = false,
+  className,
+}: FilterAutocompleteInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const [isOpen, setIsOpen] = useState(false)
-  const [highlightedIndex, setHighlightedIndex] = useState(0)
-  const internalRef = useRef<HTMLTextAreaElement>(null)
-  const listRef = useRef<HTMLUListElement>(null)
+  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [cursorPosition, setCursorPosition] = useState(0)
 
-  // 使用传入的 ref 或内部 ref
-  const textareaRef = (ref as React.RefObject<HTMLTextAreaElement>) || internalRef
+  // 计算自动补全键
+  const autocompleteKeys = useMemo(() => {
+    return getAllAutocompleteKeys(collections, baseCollection)
+  }, [collections, baseCollection])
 
-  const value = controlledValue ?? internalValue
+  // 获取当前光标位置的词
+  const getCurrentWord = useCallback((text: string, position: number): { word: string; start: number; end: number } => {
+    // 查找词的开始和结束位置
+    let start = position
+    let end = position
 
-  // 生成选项
-  const options = useMemo(() => {
-    return externalOptions || generateOptions(baseCollection)
-  }, [externalOptions, baseCollection])
-
-  // 获取当前输入的最后一个词
-  const currentWord = useMemo(() => {
-    const words = value.split(/\s+/)
-    return words[words.length - 1] || ''
-  }, [value])
-
-  // 过滤选项
-  const filteredOptions = useMemo(() => {
-    if (!currentWord) return options.slice(0, 10)
-    return options
-      .filter(
-        (opt) =>
-          opt.label.toLowerCase().includes(currentWord.toLowerCase()) ||
-          opt.value.toLowerCase().includes(currentWord.toLowerCase())
-      )
-      .slice(0, 10)
-  }, [options, currentWord])
-
-  // 同步受控值
-  useEffect(() => {
-    if (controlledValue !== undefined) {
-      setInternalValue(controlledValue)
+    // 向左查找词的开始
+    while (start > 0 && /[\w@.:_]/.test(text[start - 1])) {
+      start--
     }
-  }, [controlledValue])
 
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-      const newValue = e.target.value
-      setInternalValue(newValue)
-      onChange?.(newValue)
-      setIsOpen(true)
-      setHighlightedIndex(0)
-    },
-    [onChange]
-  )
+    // 向右查找词的结束
+    while (end < text.length && /[\w@.:_]/.test(text[end])) {
+      end++
+    }
 
-  const handleSelect = useCallback(
-    (option: FilterOption) => {
-      // 替换当前词
-      const words = value.split(/\s+/)
-      words[words.length - 1] = option.value
-      const newValue = words.join(' ')
-      setInternalValue(newValue)
-      onChange?.(newValue)
-      setIsOpen(false)
-      textareaRef.current?.focus()
-    },
-    [value, onChange, textareaRef]
-  )
+    return {
+      word: text.slice(start, end),
+      start,
+      end,
+    }
+  }, [])
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (!isOpen || filteredOptions.length === 0) {
-        return
+  // 计算补全选项
+  const options = useMemo((): AutocompleteOption[] => {
+    const { word } = getCurrentWord(value, cursorPosition)
+    if (!word) return []
+
+    const lowerWord = word.toLowerCase()
+    const result: AutocompleteOption[] = []
+
+    // 添加宏
+    for (const macro of FILTER_MACROS) {
+      if (macro.label.toLowerCase().includes(lowerWord)) {
+        result.push({
+          label: macro.label,
+          type: macro.type,
+          info: macro.info,
+        })
       }
+    }
 
-      switch (e.key) {
-        case 'ArrowDown':
-          e.preventDefault()
-          setHighlightedIndex((i) => (i < filteredOptions.length - 1 ? i + 1 : 0))
-          break
-        case 'ArrowUp':
-          e.preventDefault()
-          setHighlightedIndex((i) => (i > 0 ? i - 1 : filteredOptions.length - 1))
-          break
-        case 'Tab':
-        case 'Enter':
-          if (filteredOptions[highlightedIndex] && currentWord) {
-            e.preventDefault()
-            handleSelect(filteredOptions[highlightedIndex])
-          }
-          break
-        case 'Escape':
-          setIsOpen(false)
-          break
+    // 添加基础字段
+    for (const key of autocompleteKeys.baseKeys) {
+      if (key.toLowerCase().includes(lowerWord)) {
+        result.push({
+          label: key,
+          type: 'property',
+        })
       }
-    },
-    [isOpen, filteredOptions, highlightedIndex, handleSelect, currentWord]
-  )
+    }
 
-  // 点击外部关闭
+    // @request 键
+    if (lowerWord.startsWith('@r')) {
+      for (const key of autocompleteKeys.requestKeys) {
+        if (key.toLowerCase().includes(lowerWord)) {
+          result.push({
+            label: key,
+            type: 'property',
+          })
+        }
+      }
+    }
+
+    // @collection 键
+    if (lowerWord.startsWith('@c')) {
+      result.push({
+        label: '@collection.*',
+        type: 'keyword',
+        info: '跨集合查询',
+      })
+      for (const key of autocompleteKeys.collectionJoinKeys) {
+        if (key.toLowerCase().includes(lowerWord)) {
+          result.push({
+            label: key,
+            type: 'property',
+          })
+        }
+      }
+    }
+
+    return result.slice(0, 20) // 限制最多显示 20 个选项
+  }, [value, cursorPosition, autocompleteKeys, getCurrentWord])
+
+  // 选择补全选项
+  const selectOption = useCallback((option: AutocompleteOption) => {
+    const { start, end } = getCurrentWord(value, cursorPosition)
+    const newValue = value.slice(0, start) + option.label + value.slice(end)
+    onChange(newValue)
+    setIsOpen(false)
+
+    // 设置光标位置到插入内容之后
+    setTimeout(() => {
+      if (inputRef.current) {
+        const newPosition = start + option.label.length
+        inputRef.current.setSelectionRange(newPosition, newPosition)
+        inputRef.current.focus()
+      }
+    }, 0)
+  }, [value, cursorPosition, onChange, getCurrentWord])
+
+  // 键盘事件处理
+  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
+    if (!isOpen || options.length === 0) {
+      if (e.key === 'Enter' && onSubmit) {
+        e.preventDefault()
+        onSubmit(value)
+      }
+      return
+    }
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault()
+        setSelectedIndex((prev) => (prev + 1) % options.length)
+        break
+      case 'ArrowUp':
+        e.preventDefault()
+        setSelectedIndex((prev) => (prev - 1 + options.length) % options.length)
+        break
+      case 'Enter':
+      case 'Tab':
+        e.preventDefault()
+        selectOption(options[selectedIndex])
+        break
+      case 'Escape':
+        setIsOpen(false)
+        break
+    }
+  }, [isOpen, options, selectedIndex, selectOption, onSubmit, value])
+
+  // 输入变化处理
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value
+    onChange(newValue)
+    setCursorPosition(e.target.selectionStart || 0)
+    setIsOpen(true)
+    setSelectedIndex(0)
+  }, [onChange])
+
+  // 光标位置变化
+  const handleSelect = useCallback((e: React.SyntheticEvent<HTMLInputElement>) => {
+    const target = e.target as HTMLInputElement
+    setCursorPosition(target.selectionStart || 0)
+  }, [])
+
+  // 点击外部关闭下拉菜单
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
-        textareaRef.current &&
-        !textareaRef.current.contains(e.target as Node) &&
-        listRef.current &&
-        !listRef.current.contains(e.target as Node)
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(e.target as Node)
       ) {
         setIsOpen(false)
       }
     }
+
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [textareaRef])
+  }, [])
+
+  // 滚动选中项到可见区域
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+      const selectedEl = dropdownRef.current.querySelector('[data-selected="true"]')
+      if (selectedEl) {
+        selectedEl.scrollIntoView({ block: 'nearest' })
+      }
+    }
+  }, [selectedIndex, isOpen])
 
   return (
     <div className={cn('relative', className)}>
-      <Textarea
-        ref={textareaRef}
+      <input
+        ref={inputRef}
+        type="text"
         value={value}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        onFocus={() => !disabled && setIsOpen(true)}
+        onSelect={handleSelect}
+        onFocus={() => setIsOpen(true)}
         placeholder={placeholder}
         disabled={disabled}
-        rows={2}
-        className="font-mono text-sm resize-none"
+        className={cn(
+          'w-full h-9 px-3 py-2 text-sm rounded-md border border-input bg-background',
+          'placeholder:text-muted-foreground',
+          'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0',
+          'disabled:cursor-not-allowed disabled:opacity-50'
+        )}
       />
 
-      {isOpen && !disabled && filteredOptions.length > 0 && currentWord && (
-        <ul
-          ref={listRef}
-          className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-md border bg-popover p-1 shadow-md"
-          role="listbox"
+      {/* 自动补全下拉菜单 */}
+      {isOpen && options.length > 0 && (
+        <div
+          ref={dropdownRef}
+          className={cn(
+            'absolute z-50 top-full left-0 mt-1 w-full min-w-[200px] max-h-[300px]',
+            'overflow-auto rounded-md border bg-popover p-1 shadow-md',
+            'animate-in fade-in-0 zoom-in-95'
+          )}
         >
-          {filteredOptions.map((option, index) => (
-            <li
-              key={option.value}
-              role="option"
-              aria-selected={index === highlightedIndex}
+          {options.map((option, index) => (
+            <div
+              key={option.label}
+              data-selected={index === selectedIndex}
+              onClick={() => selectOption(option)}
               className={cn(
-                'cursor-pointer rounded-sm px-2 py-1.5 text-sm',
-                index === highlightedIndex && 'bg-accent text-accent-foreground'
+                'flex items-center justify-between px-2 py-1.5 text-sm rounded-sm cursor-pointer',
+                index === selectedIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'
               )}
-              onClick={() => handleSelect(option)}
-              onMouseEnter={() => setHighlightedIndex(index)}
             >
-              <div className="flex items-center justify-between">
-                <span className="font-mono">{option.label}</span>
-                {option.description && (
-                  <span className="text-xs text-muted-foreground ml-2">{option.description}</span>
-                )}
-              </div>
-            </li>
+              <span className="font-mono">{option.label}</span>
+              {option.info && (
+                <span className="text-xs text-muted-foreground ml-2">{option.info}</span>
+              )}
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   )
-})
+}
 
 export default FilterAutocompleteInput

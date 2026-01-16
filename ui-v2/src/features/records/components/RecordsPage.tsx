@@ -1,12 +1,12 @@
 /**
  * Records 页面
  */
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
 import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { Plus, RefreshCw, Trash2, Filter } from 'lucide-react'
-import { activeCollectionAtom } from '@/features/collections/store'
+import { useAtomValue, useSetAtom } from 'jotai'
+import { Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { activeCollectionAtom, collectionsAtom } from '@/features/collections/store'
 import { setPageTitle } from '@/store/app'
 import { addToast } from '@/store/toasts'
 import { showConfirmation } from '@/store/confirmation'
@@ -15,14 +15,17 @@ import { isAllSelectedAtom } from '@/features/records/store'
 import { RecordsTable } from '@/features/records/components/RecordsTable'
 import { UpsertPanel } from '@/features/records/components/UpsertPanel'
 import { Button } from '@/components/ui/button'
-import { Searchbar } from '@/components/Searchbar'
 import { cn } from '@/lib/utils'
 import type { RecordModel } from 'pocketbase'
+
+// 懒加载 FilterAutocompleteInput（因为 CodeMirror 比较重）
+const FilterAutocompleteInput = lazy(() => import('@/components/FilterAutocompleteInput'))
 
 export function RecordsPage() {
   const { t } = useTranslation()
   const { collectionId } = useParams()
   const collection = useAtomValue(activeCollectionAtom)
+  const collections = useAtomValue(collectionsAtom)
   const isAllSelected = useAtomValue(isAllSelectedAtom)
   const setTitle = useSetAtom(setPageTitle)
   const toast = useSetAtom(addToast)
@@ -171,12 +174,17 @@ export function RecordsPage() {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <Searchbar
-            value={filter}
-            onChange={setFilter}
-            placeholder={t('records.filter', '筛选...')}
-            className="w-64"
-          />
+          <Suspense fallback={<div className="w-80 h-9 border rounded-md bg-muted/30 animate-pulse" />}>
+            <FilterAutocompleteInput
+              value={filter}
+              onChange={setFilter}
+              onSubmit={() => fetchRecords()}
+              collections={collections}
+              baseCollection={collection}
+              placeholder={t('records.filterPlaceholder', 'Filter records, e.g. created > @now')}
+              className="w-80"
+            />
+          </Suspense>
           {selectedIds.size > 0 && (
             <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
               <Trash2 className="w-4 h-4 mr-1" />
