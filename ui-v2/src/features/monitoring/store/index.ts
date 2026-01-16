@@ -4,21 +4,18 @@
 import { atom } from 'jotai'
 
 /**
- * 系统指标类型
+ * 系统指标类型（匹配后端 SystemMetrics 结构）
  */
 export interface SystemMetrics {
+  id: string
   timestamp: string
-  cpu: number
-  memory: number
-  memoryTotal: number
-  memoryUsed: number
-  goroutines: number
-  dbConnections: number
-  dbOpenConnections: number
-  dbIdleConnections: number
-  requestsTotal: number
-  requestsPerSecond: number
-  avgResponseTime: number
+  cpu_usage_percent: number
+  memory_alloc_mb: number
+  goroutines_count: number
+  sqlite_wal_size_mb: number
+  sqlite_open_conns: number
+  p95_latency_ms: number
+  http_5xx_count: number
 }
 
 /**

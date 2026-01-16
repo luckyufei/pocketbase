@@ -89,7 +89,8 @@ func recordsList(e *core.RequestEvent) error {
 	records := []*core.Record{}
 	result, err := searchProvider.ParseAndExec(e.Request.URL.Query().Encode(), &records)
 	if err != nil {
-		return firstApiError(err, e.BadRequestError("", err))
+		// 将 filter 解析错误的详细信息传递给用户
+		return firstApiError(err, e.BadRequestError(err.Error(), nil))
 	}
 
 	event := new(core.RecordsListRequestEvent)

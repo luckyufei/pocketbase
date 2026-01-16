@@ -24,10 +24,11 @@ export function UpsertPanel({ open, onClose, record, fields, onSave }: UpsertPan
 
   const isEdit = !!record?.id
 
-  // 过滤掉系统字段和 autodate 字段
+  // 过滤掉不可编辑的字段（id、created、updated、autodate 类型）
+  // 注意：系统字段（f.system）如 _proxies 的字段仍需允许编辑
   const skipFieldNames = ['id', 'created', 'updated', 'collectionId', 'collectionName']
   const editableFields = fields.filter(
-    (f) => !skipFieldNames.includes(f.name) && f.type !== 'autodate' && !f.system
+    (f) => !skipFieldNames.includes(f.name) && f.type !== 'autodate'
   )
 
   useEffect(() => {
@@ -177,6 +178,21 @@ export function UpsertPanel({ open, onClose, record, fields, onSave }: UpsertPan
   return (
     <OverlayPanel open={open} onClose={onClose} title={isEdit ? '编辑记录' : '新建记录'} width="lg">
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* 编辑模式显示只读的 ID 字段 */}
+        {isEdit && record?.id && (
+          <div className="space-y-2">
+            <Label htmlFor="id" className="text-muted-foreground">
+              id
+            </Label>
+            <Input
+              id="id"
+              value={record.id}
+              disabled
+              className="font-mono text-sm bg-muted"
+            />
+          </div>
+        )}
+
         {editableFields.length === 0 ? (
           <div className="text-muted-foreground text-center py-4">没有可编辑的字段</div>
         ) : (

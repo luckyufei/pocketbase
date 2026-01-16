@@ -1,100 +1,154 @@
 /**
  * useTraces Hook
- * Trace 操作 Hook
+ * Trace 操作 Hook（OpenTelemetry 风格）
  */
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useCallback } from 'react'
 import { getApiClient } from '@/lib/ApiClient'
 import {
   tracesAtom,
-  activeTraceAtom,
+  activeTraceIdAtom,
+  traceSpansAtom,
   isLoadingAtom,
-  filterAtom,
-  sortAtom,
+  isLoadingDetailAtom,
+  filtersAtom,
+  timeRangeAtom,
   currentPageAtom,
-  hasMoreAtom,
+  totalItemsAtom,
+  perPageAtom,
+  totalPagesAtom,
   statsAtom,
-  addTracesAtom,
+  setTracesAtom,
+  setTraceSpansAtom,
   clearTracesAtom,
-  setActiveTraceAtom,
-  setFilterAtom,
-  setSortAtom,
+  setActiveTraceIdAtom,
+  setFiltersAtom,
+  setTimeRangeAtom,
   setStatsAtom,
-  type TraceEntry,
+  type Span,
+  type TraceFilters,
+  type TraceStats,
 } from '../store'
 
-const PER_PAGE = 50
+/**
+ * 获取时间范围的开始时间（毫秒）
+ */
+function getStartTimeFromRange(range: '1h' | '6h' | '24h' | '7d'): number {
+  const now = Date.now()
+  const hoursMap = { '1h': 1, '6h': 6, '24h': 24, '7d': 168 }
+  return now - hoursMap[range] * 60 * 60 * 1000
+}
 
 /**
  * Trace 操作 Hook
  */
 export function useTraces() {
   const traces = useAtomValue(tracesAtom)
-  const activeTrace = useAtomValue(activeTraceAtom)
+  const activeTraceId = useAtomValue(activeTraceIdAtom)
+  const traceSpans = useAtomValue(traceSpansAtom)
   const [isLoading, setIsLoading] = useAtom(isLoadingAtom)
-  const filter = useAtomValue(filterAtom)
-  const sort = useAtomValue(sortAtom)
+  const [isLoadingDetail, setIsLoadingDetail] = useAtom(isLoadingDetailAtom)
+  const filters = useAtomValue(filtersAtom)
+  const timeRange = useAtomValue(timeRangeAtom)
   const [currentPage, setCurrentPage] = useAtom(currentPageAtom)
-  const hasMore = useAtomValue(hasMoreAtom)
-  const setHasMore = useSetAtom(hasMoreAtom)
+  const totalItems = useAtomValue(totalItemsAtom)
+  const setTotalItems = useSetAtom(totalItemsAtom)
+  const perPage = useAtomValue(perPageAtom)
+  const totalPages = useAtomValue(totalPagesAtom)
   const stats = useAtomValue(statsAtom)
-  const addTraces = useSetAtom(addTracesAtom)
+  const setTraces = useSetAtom(setTracesAtom)
+  const setTraceSpans = useSetAtom(setTraceSpansAtom)
   const clearTraces = useSetAtom(clearTracesAtom)
-  const setActiveTrace = useSetAtom(setActiveTraceAtom)
-  const setFilter = useSetAtom(setFilterAtom)
-  const setSort = useSetAtom(setSortAtom)
+  const setActiveTraceId = useSetAtom(setActiveTraceIdAtom)
+  const setFilters = useSetAtom(setFiltersAtom)
+  const setTimeRange = useSetAtom(setTimeRangeAtom)
   const setStats = useSetAtom(setStatsAtom)
 
   const pb = getApiClient()
 
   /**
-   * 加载 Traces
+   * 加载 Traces 列表（只获取根 Span）
    */
   const loadTraces = useCallback(
-    async (page = 1, append = false) => {
+    async (page = 1) => {
       setIsLoading(true)
 
       try {
-        const result = await pb.send('/api/traces', {
-          method: 'GET',
-          query: {
-            page: page.toString(),
-            perPage: PER_PAGE.toString(),
-            sort,
-            filter: filter || undefined,
-          },
-        })
-
-        if (!append) {
-          clearTraces()
+        const startTime = getStartTimeFromRange(timeRange)
+        const query: Record<string, string> = {
+          root_only: 'true',
+          limit: perPage.toString(),
+          offset: ((page - 1) * perPage).toString(),
+          start_time: (startTime * 1000).toString(), // 转换为微秒
         }
 
-        const items = (result.items || []) as TraceEntry[]
-        addTraces(items)
+        if (filters.operation) {
+          query.operation = filters.operation
+        }
+        if (filters.status) {
+          query.status = filters.status
+        }
+        if (filters.trace_id) {
+          query.trace_id = filters.trace_id
+        }
+
+        const result = await pb.send('/api/traces', {
+          method: 'GET',
+          query,
+          requestKey: `traces-list-${Date.now()}`,
+        })
+
+        setTraces((result.items || []) as Span[])
+        setTotalItems(result.totalItems || 0)
         setCurrentPage(page)
-        setHasMore(items.length >= PER_PAGE)
-      } catch (err) {
+      } catch (err: any) {
+        if (err.isAbort) return
         console.error('Failed to load traces:', err)
       } finally {
         setIsLoading(false)
       }
     },
-    [pb, sort, filter, clearTraces, addTraces, setCurrentPage, setHasMore, setIsLoading]
+    [pb, timeRange, perPage, filters, setTraces, setTotalItems, setCurrentPage, setIsLoading]
   )
 
   /**
-   * 加载更多
+   * 加载单个 Trace 的完整调用链
    */
-  const loadMore = useCallback(async () => {
-    if (isLoading || !hasMore) return
-    await loadTraces(currentPage + 1, true)
-  }, [isLoading, hasMore, currentPage, loadTraces])
+  const loadTraceDetail = useCallback(
+    async (traceId: string) => {
+      setIsLoadingDetail(true)
+      setActiveTraceId(traceId)
+
+      try {
+        const result = await pb.send(`/api/traces/${traceId}`, {
+          method: 'GET',
+          requestKey: `trace-detail-${traceId}-${Date.now()}`,
+        })
+
+        setTraceSpans((result.spans || []) as Span[])
+      } catch (err: any) {
+        if (err.isAbort) return
+        console.error('Failed to load trace detail:', err)
+        setTraceSpans([])
+      } finally {
+        setIsLoadingDetail(false)
+      }
+    },
+    [pb, setActiveTraceId, setTraceSpans, setIsLoadingDetail]
+  )
+
+  /**
+   * 关闭详情
+   */
+  const closeDetail = useCallback(() => {
+    setActiveTraceId(null)
+  }, [setActiveTraceId])
 
   /**
    * 刷新
    */
   const refresh = useCallback(async () => {
-    await loadTraces(1, false)
+    await Promise.all([loadTraces(1), loadStats()])
   }, [loadTraces])
 
   /**
@@ -102,31 +156,74 @@ export function useTraces() {
    */
   const loadStats = useCallback(async () => {
     try {
+      const startTime = getStartTimeFromRange(timeRange)
       const result = await pb.send('/api/traces/stats', {
         method: 'GET',
+        query: {
+          start_time: (startTime * 1000).toString(),
+        },
+        requestKey: `traces-stats-${Date.now()}`,
       })
-      setStats(result)
-    } catch (err) {
+      setStats(result as TraceStats)
+    } catch (err: any) {
+      if (err.isAbort) return
       console.error('Failed to load trace stats:', err)
     }
-  }, [pb, setStats])
+  }, [pb, timeRange, setStats])
+
+  /**
+   * 页面变更
+   */
+  const changePage = useCallback(
+    (page: number) => {
+      if (page >= 1 && page <= totalPages) {
+        loadTraces(page)
+      }
+    },
+    [loadTraces, totalPages]
+  )
+
+  /**
+   * 更新过滤器
+   */
+  const updateFilters = useCallback(
+    (newFilters: TraceFilters) => {
+      setFilters(newFilters)
+    },
+    [setFilters]
+  )
+
+  /**
+   * 更新时间范围
+   */
+  const updateTimeRange = useCallback(
+    (range: '1h' | '6h' | '24h' | '7d') => {
+      setTimeRange(range)
+    },
+    [setTimeRange]
+  )
 
   return {
     traces,
-    activeTrace,
+    activeTraceId,
+    traceSpans,
     isLoading,
-    filter,
-    sort,
+    isLoadingDetail,
+    filters,
+    timeRange,
     currentPage,
-    hasMore,
+    totalItems,
+    perPage,
+    totalPages,
     stats,
     loadTraces,
-    loadMore,
+    loadTraceDetail,
+    closeDetail,
     refresh,
     loadStats,
-    setActiveTrace,
-    setFilter,
-    setSort,
+    changePage,
+    updateFilters,
+    updateTimeRange,
     clearTraces,
   }
 }

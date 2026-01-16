@@ -1,96 +1,187 @@
 /**
  * useAnalytics Hook
- * 分析数据操作 Hook
+ * 调用后端 /api/analytics/* API
  */
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { getApiClient } from '@/lib/ApiClient'
+import { ClientResponseError } from 'pocketbase'
 import {
   summaryAtom,
-  historyDataAtom,
+  dailyDataAtom,
+  topPagesAtom,
+  topSourcesAtom,
+  browsersAtom,
+  osStatsAtom,
   isLoadingAtom,
   errorAtom,
   selectedRangeAtom,
   setSummaryAtom,
-  setHistoryDataAtom,
+  setDailyDataAtom,
+  setTopPagesAtom,
+  setTopSourcesAtom,
+  setBrowsersAtom,
+  setOsStatsAtom,
   setSelectedRangeAtom,
   setErrorAtom,
+  setIsLoadingAtom,
   type AnalyticsSummary,
-  type AnalyticsData,
+  type DailyStats,
+  type TopPage,
+  type TopSource,
+  type DeviceStats,
   type AnalyticsTimeRange,
 } from '../store'
+
+/**
+ * 分类来源类型
+ */
+function classifySource(source: string): TopSource['type'] {
+  if (!source) return 'direct'
+  const s = source.toLowerCase()
+  if (s.includes('google') || s.includes('bing') || s.includes('baidu') || s.includes('yahoo')) {
+    return 'search'
+  }
+  if (s.includes('facebook') || s.includes('twitter') || s.includes('linkedin') || s.includes('weibo')) {
+    return 'social'
+  }
+  return 'referral'
+}
 
 /**
  * 分析数据 Hook
  */
 export function useAnalytics() {
   const summary = useAtomValue(summaryAtom)
-  const historyData = useAtomValue(historyDataAtom)
+  const dailyData = useAtomValue(dailyDataAtom)
+  const topPages = useAtomValue(topPagesAtom)
+  const topSources = useAtomValue(topSourcesAtom)
+  const browsers = useAtomValue(browsersAtom)
+  const osStats = useAtomValue(osStatsAtom)
   const [isLoading, setIsLoading] = useAtom(isLoadingAtom)
   const error = useAtomValue(errorAtom)
   const selectedRange = useAtomValue(selectedRangeAtom)
+  
   const setSummary = useSetAtom(setSummaryAtom)
-  const setHistoryData = useSetAtom(setHistoryDataAtom)
+  const setDailyData = useSetAtom(setDailyDataAtom)
+  const setTopPages = useSetAtom(setTopPagesAtom)
+  const setTopSources = useSetAtom(setTopSourcesAtom)
+  const setBrowsers = useSetAtom(setBrowsersAtom)
+  const setOsStats = useSetAtom(setOsStatsAtom)
   const setSelectedRange = useSetAtom(setSelectedRangeAtom)
   const setError = useSetAtom(setErrorAtom)
 
   const pb = getApiClient()
+  // 请求计数器，用于生成唯一 requestKey 避免自动取消
+  const requestIdRef = useRef(0)
 
   /**
-   * 获取时间范围对应的天数
+   * 判断是否为请求取消错误（不应显示给用户）
    */
-  const getRangeDays = useCallback((range: AnalyticsTimeRange): number => {
-    switch (range) {
-      case '7d':
-        return 7
-      case '30d':
-        return 30
-      case '90d':
-        return 90
-      default:
-        return 7
+  const isAbortError = (err: unknown): boolean => {
+    if (err instanceof ClientResponseError) {
+      return err.isAbort
     }
-  }, [])
+    return false
+  }
 
   /**
-   * 加载汇总数据
+   * 加载统计数据
    */
-  const loadSummary = useCallback(async () => {
+  const loadStats = useCallback(async (reqId: number) => {
     try {
-      const days = getRangeDays(selectedRange)
-      const response = await pb.send('/api/analytics/summary', {
+      const response = await pb.send('/api/analytics/stats', {
         method: 'GET',
-        query: {
-          days: days.toString(),
-        },
+        query: { range: selectedRange },
+        requestKey: `analytics-stats-${reqId}`,
       })
-      setSummary(response as AnalyticsSummary)
+      
+      setSummary({
+        totalPV: response.summary?.totalPV || 0,
+        totalUV: response.summary?.totalUV || 0,
+        bounceRate: response.summary?.bounceRate || 0,
+        avgDur: response.summary?.avgDur || 0,
+      } as AnalyticsSummary)
+      
+      setDailyData((response.daily || []) as DailyStats[])
     } catch (err: any) {
-      if (err.status !== 404) {
-        throw err
-      }
+      if (isAbortError(err)) return // 忽略取消的请求
+      if (err.status !== 404) throw err
       setSummary(null)
+      setDailyData([])
     }
-  }, [pb, selectedRange, getRangeDays, setSummary])
+  }, [pb, selectedRange, setSummary, setDailyData])
 
   /**
-   * 加载历史数据
+   * 加载 Top 页面
    */
-  const loadHistoryData = useCallback(async () => {
+  const loadTopPages = useCallback(async (reqId: number) => {
     try {
-      const days = getRangeDays(selectedRange)
-      const response = await pb.send('/api/analytics/history', {
+      const response = await pb.send('/api/analytics/top-pages', {
         method: 'GET',
-        query: {
-          days: days.toString(),
-        },
+        query: { range: selectedRange, limit: '10' },
+        requestKey: `analytics-top-pages-${reqId}`,
       })
-      setHistoryData((response.items || []) as AnalyticsData[])
+      
+      setTopPages((response.pages || []).map((p: any) => ({
+        path: p.path,
+        pv: p.pv,
+        visitors: p.visitors,
+      })) as TopPage[])
     } catch (err) {
-      setHistoryData([])
-      throw err
+      if (isAbortError(err)) return
+      setTopPages([])
     }
-  }, [pb, selectedRange, getRangeDays, setHistoryData])
+  }, [pb, selectedRange, setTopPages])
+
+  /**
+   * 加载 Top 来源
+   */
+  const loadTopSources = useCallback(async (reqId: number) => {
+    try {
+      const response = await pb.send('/api/analytics/top-sources', {
+        method: 'GET',
+        query: { range: selectedRange, limit: '10' },
+        requestKey: `analytics-top-sources-${reqId}`,
+      })
+      
+      setTopSources((response.sources || []).map((s: any) => ({
+        source: s.source,
+        visitors: s.visitors,
+        type: classifySource(s.source),
+      })) as TopSource[])
+    } catch (err) {
+      if (isAbortError(err)) return
+      setTopSources([])
+    }
+  }, [pb, selectedRange, setTopSources])
+
+  /**
+   * 加载设备统计
+   */
+  const loadDevices = useCallback(async (reqId: number) => {
+    try {
+      const response = await pb.send('/api/analytics/devices', {
+        method: 'GET',
+        query: { range: selectedRange },
+        requestKey: `analytics-devices-${reqId}`,
+      })
+      
+      setBrowsers((response.browsers || []).map((b: any) => ({
+        name: b.name,
+        visitors: b.visitors,
+      })) as DeviceStats[])
+      
+      setOsStats((response.os || []).map((o: any) => ({
+        name: o.name,
+        visitors: o.visitors,
+      })) as DeviceStats[])
+    } catch (err) {
+      if (isAbortError(err)) return
+      setBrowsers([])
+      setOsStats([])
+    }
+  }, [pb, selectedRange, setBrowsers, setOsStats])
 
   /**
    * 加载所有数据
@@ -98,15 +189,25 @@ export function useAnalytics() {
   const loadData = useCallback(async () => {
     setIsLoading(true)
     setError(null)
+    
+    // 每次调用生成新的请求 ID，避免自动取消冲突
+    const reqId = ++requestIdRef.current
 
     try {
-      await Promise.all([loadSummary(), loadHistoryData()])
+      await Promise.all([
+        loadStats(reqId),
+        loadTopPages(reqId),
+        loadTopSources(reqId),
+        loadDevices(reqId),
+      ])
     } catch (err: any) {
+      // 忽略请求取消错误
+      if (isAbortError(err)) return
       setError(err.message || '加载数据失败')
     } finally {
       setIsLoading(false)
     }
-  }, [loadSummary, loadHistoryData, setIsLoading, setError])
+  }, [loadStats, loadTopPages, loadTopSources, loadDevices, setIsLoading, setError])
 
   /**
    * 刷新数据
@@ -127,7 +228,11 @@ export function useAnalytics() {
 
   return {
     summary,
-    historyData,
+    dailyData,
+    topPages,
+    topSources,
+    browsers,
+    osStats,
     isLoading,
     error,
     selectedRange,

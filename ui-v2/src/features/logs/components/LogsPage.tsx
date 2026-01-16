@@ -1,6 +1,6 @@
 /**
  * Logs 页面
- * 日志查看和筛选
+ * 日志查看和筛选 - Apple 风格侧边面板
  */
 import { useEffect, useState } from 'react'
 import { useLogs, type LogEntry } from '@/features/logs'
@@ -15,8 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Loader2, RefreshCw, Search, ChevronUp, ChevronDown } from 'lucide-react'
+import { Loader2, RefreshCw, Search, ChevronUp, ChevronDown, X } from 'lucide-react'
 
 // 日志级别映射 - 使用统一的 slate 灰色系
 const levelMap: Record<number, { label: string; color: string }> = {
@@ -61,7 +60,6 @@ export function LogsPage() {
   } = useLogs()
 
   const [searchInput, setSearchInput] = useState('')
-  const [isDetailOpen, setIsDetailOpen] = useState(false)
 
   useEffect(() => {
     loadLogs(1)
@@ -88,138 +86,174 @@ export function LogsPage() {
     return null
   }
 
-  const openDetail = (log: LogEntry) => {
+  const selectLog = (log: LogEntry) => {
     setActiveLog(log)
-    setIsDetailOpen(true)
   }
 
   const closeDetail = () => {
-    setIsDetailOpen(false)
     setActiveLog(null)
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* 头部 */}
-      <header className="p-4 border-b border-slate-200">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-slate-900">Logs</h1>
-          <Button variant="outline" onClick={refresh} disabled={isLoading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
+    <div className="h-full flex">
+      {/* 左侧：日志列表 */}
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${activeLog ? 'mr-[400px]' : ''}`}>
+        {/* 头部 */}
+        <header className="h-14 px-4 border-b border-slate-200 flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-slate-900">Logs</h1>
+          <Button variant="ghost" size="sm" onClick={refresh} disabled={isLoading}>
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-        </div>
+        </header>
 
         {/* 搜索 */}
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input
-              type="text"
-              placeholder="Search logs... (e.g., level:error, message~'error')"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-10 rounded-xl"
-            />
-          </div>
-          <Button type="submit">Search</Button>
-        </form>
-      </header>
+        <div className="px-4 py-3 border-b border-slate-100">
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                type="text"
+                placeholder="Search logs..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-10 h-9 rounded-lg bg-slate-50 border-slate-200"
+              />
+            </div>
+          </form>
+        </div>
 
-      {/* 日志列表 */}
-      <div className="flex-1 overflow-auto">
-        {isLoading && logs.length === 0 ? (
-          <div className="flex items-center justify-center h-64">
-            <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
-          </div>
-        ) : logs.length === 0 ? (
-          <div className="text-center py-12 text-slate-500">No logs found</div>
-        ) : (
-          <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-24">
-                    <button className="flex items-center gap-1" onClick={() => handleSort('level')}>
-                      Level {getSortIcon('level')}
-                    </button>
-                  </TableHead>
-                  <TableHead>Message</TableHead>
-                  <TableHead className="w-40">
-                    <button
-                      className="flex items-center gap-1"
-                      onClick={() => handleSort('created')}
-                    >
-                      Created {getSortIcon('created')}
-                    </button>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {logs.map((log) => (
-                  <TableRow
-                    key={log.id}
-                    className="cursor-pointer hover:bg-slate-50"
-                    onClick={() => openDetail(log)}
-                  >
-                    <TableCell>
-                      <LogLevel level={log.level} />
-                    </TableCell>
-                    <TableCell className="font-mono text-sm truncate max-w-md">
-                      {log.message}
-                    </TableCell>
-                    <TableCell>
-                      <LogDate date={log.created} />
-                    </TableCell>
+        {/* 日志列表 */}
+        <div className="flex-1 overflow-auto">
+          {isLoading && logs.length === 0 ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="text-center py-12 text-slate-500">No logs found</div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/50">
+                    <TableHead className="w-20">
+                      <button className="flex items-center gap-1 text-xs" onClick={() => handleSort('level')}>
+                        Level {getSortIcon('level')}
+                      </button>
+                    </TableHead>
+                    <TableHead className="text-xs">Message</TableHead>
+                    <TableHead className="w-36">
+                      <button
+                        className="flex items-center gap-1 text-xs"
+                        onClick={() => handleSort('created')}
+                      >
+                        Time {getSortIcon('created')}
+                      </button>
+                    </TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log) => (
+                    <TableRow
+                      key={log.id}
+                      className={`cursor-pointer transition-colors ${
+                        activeLog?.id === log.id
+                          ? 'bg-blue-50 hover:bg-blue-50'
+                          : 'hover:bg-slate-50'
+                      }`}
+                      onClick={() => selectLog(log)}
+                    >
+                      <TableCell className="py-2">
+                        <LogLevel level={log.level} />
+                      </TableCell>
+                      <TableCell className="py-2 font-mono text-xs truncate max-w-md text-slate-700">
+                        {log.message}
+                      </TableCell>
+                      <TableCell className="py-2">
+                        <LogDate date={log.created} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
 
-            {/* 加载更多 */}
-            {hasMore && (
-              <div className="p-4 text-center">
-                <Button variant="outline" onClick={loadMore} disabled={isLoading}>
-                  {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  Load more
-                </Button>
-              </div>
-            )}
-          </>
-        )}
+              {/* 加载更多 */}
+              {hasMore && (
+                <div className="p-4 text-center">
+                  <Button variant="ghost" size="sm" onClick={loadMore} disabled={isLoading}>
+                    {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                    Load more
+                  </Button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
-      {/* 日志详情对话框 */}
-      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              Log Details
-              {activeLog && <LogLevel level={activeLog.level} />}
-            </DialogTitle>
-          </DialogHeader>
-          {activeLog && (
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-medium text-slate-500 mb-1">Created</h4>
-                <p className="text-slate-900">{new Date(activeLog.created).toLocaleString()}</p>
+      {/* 右侧：详情面板 (Apple 风格 Inspector) */}
+      <div
+        className={`fixed right-0 top-0 h-full w-[400px] bg-white border-l border-slate-200 shadow-xl transform transition-transform duration-300 ease-out ${
+          activeLog ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        {activeLog && (
+          <div className="h-full flex flex-col">
+            {/* 面板头部 */}
+            <div className="h-14 px-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80 backdrop-blur-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-900">Log Details</span>
+                <LogLevel level={activeLog.level} />
               </div>
+              <Button variant="ghost" size="sm" onClick={closeDetail} className="h-8 w-8 p-0">
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* 面板内容 */}
+            <div className="flex-1 overflow-auto p-4 space-y-4">
+              {/* 时间 */}
               <div>
-                <h4 className="text-sm font-medium text-slate-500 mb-1">Message</h4>
-                <p className="font-mono text-sm bg-slate-100 p-2 rounded-lg">{activeLog.message}</p>
+                <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">
+                  Timestamp
+                </h4>
+                <p className="text-sm text-slate-900">
+                  {new Date(activeLog.created).toLocaleString()}
+                </p>
               </div>
+
+              {/* 消息 */}
+              <div>
+                <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">
+                  Message
+                </h4>
+                <div className="font-mono text-sm bg-slate-100 p-3 rounded-lg text-slate-800 break-all">
+                  {activeLog.message}
+                </div>
+              </div>
+
+              {/* 数据 */}
               {activeLog.data && Object.keys(activeLog.data).length > 0 && (
                 <div>
-                  <h4 className="text-sm font-medium text-slate-500 mb-1">Data</h4>
-                  <pre className="font-mono text-xs bg-slate-100 p-2 rounded-lg overflow-auto max-h-64">
+                  <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">
+                    Data
+                  </h4>
+                  <pre className="font-mono text-xs bg-slate-100 p-3 rounded-lg overflow-auto max-h-[400px] text-slate-700">
                     {JSON.stringify(activeLog.data, null, 2)}
                   </pre>
                 </div>
               )}
+
+              {/* ID */}
+              <div>
+                <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">
+                  Log ID
+                </h4>
+                <p className="font-mono text-xs text-slate-600">{activeLog.id}</p>
+              </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

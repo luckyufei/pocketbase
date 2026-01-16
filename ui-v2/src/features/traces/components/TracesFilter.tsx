@@ -1,10 +1,9 @@
 /**
- * TracesFilter - Trace 筛选器组件
- * 提供 HTTP 方法、状态码和搜索过滤功能
+ * Trace 过滤器
+ * 时间范围、操作名称、状态、Trace ID 过滤
  */
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -12,109 +11,103 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { X, Search } from 'lucide-react'
+import { RotateCcw } from 'lucide-react'
+import type { TraceFilters as TraceFiltersType, SpanStatus } from '../store'
 
-interface TracesFilters {
-  method: string
-  status: string
-  search: string
+interface Props {
+  filters: TraceFiltersType
+  timeRange: '1h' | '6h' | '24h' | '7d'
+  onFiltersChange: (filters: TraceFiltersType) => void
+  onTimeRangeChange: (range: '1h' | '6h' | '24h' | '7d') => void
 }
 
-interface TracesFilterProps {
-  filters: TracesFilters
-  onChange: (filters: TracesFilters) => void
-}
+const timeRanges = [
+  { label: '1小时', value: '1h' },
+  { label: '6小时', value: '6h' },
+  { label: '24小时', value: '24h' },
+  { label: '7天', value: '7d' },
+] as const
 
-const HTTP_METHODS = [
-  { value: 'all', label: 'All Methods' },
-  { value: 'GET', label: 'GET' },
-  { value: 'POST', label: 'POST' },
-  { value: 'PUT', label: 'PUT' },
-  { value: 'PATCH', label: 'PATCH' },
-  { value: 'DELETE', label: 'DELETE' },
-]
+const statusOptions = [
+  { label: '全部', value: 'all' },
+  { label: '成功', value: 'OK' },
+  { label: '错误', value: 'ERROR' },
+] as const
 
-const STATUS_CODES = [
-  { value: 'all', label: 'All Status' },
-  { value: '2xx', label: '2xx Success' },
-  { value: '3xx', label: '3xx Redirect' },
-  { value: '4xx', label: '4xx Client Error' },
-  { value: '5xx', label: '5xx Server Error' },
-]
-
-export function TracesFilter({ filters, onChange }: TracesFilterProps) {
-  const hasActiveFilters = filters.method !== '' || filters.status !== '' || filters.search !== ''
-
-  const updateFilter = (key: keyof TracesFilters, value: string) => {
-    // 将 'all' 转换回空字符串
-    const actualValue = value === 'all' ? '' : value
-    onChange({ ...filters, [key]: actualValue })
+export function TraceFilters({ filters, timeRange, onFiltersChange, onTimeRangeChange }: Props) {
+  const handleOperationChange = (value: string) => {
+    onFiltersChange({ ...filters, operation: value })
   }
 
-  const clearFilters = () => {
-    onChange({ method: '', status: '', search: '' })
+  const handleStatusChange = (value: string) => {
+    onFiltersChange({ ...filters, status: value as SpanStatus | '' })
+  }
+
+  const handleTraceIdChange = (value: string) => {
+    onFiltersChange({ ...filters, trace_id: value })
+  }
+
+  const handleReset = () => {
+    onFiltersChange({})
+    onTimeRangeChange('24h')
   }
 
   return (
-    <div className="flex items-center gap-4 flex-wrap">
-      {/* 搜索输入 */}
-      <div className="relative flex-1 min-w-48">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          value={filters.search}
-          onChange={(e) => updateFilter('search', e.target.value)}
-          placeholder="Search traces..."
-          className="pl-9"
-        />
+    <div className="flex flex-wrap items-center gap-3">
+      {/* 时间范围 */}
+      <div className="flex rounded-lg overflow-hidden border border-slate-200">
+        {timeRanges.map((range) => (
+          <button
+            key={range.value}
+            type="button"
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              timeRange === range.value
+                ? 'bg-blue-500 text-white'
+                : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+            onClick={() => onTimeRangeChange(range.value)}
+          >
+            {range.label}
+          </button>
+        ))}
       </div>
 
-      {/* 方法选择 */}
-      <div className="flex items-center gap-2">
-        <Label className="text-sm">Method</Label>
-        <Select
-          value={filters.method || 'all'}
-          onValueChange={(value) => updateFilter('method', value)}
-        >
-          <SelectTrigger className="w-32">
-            <SelectValue placeholder="All Methods" />
-          </SelectTrigger>
-          <SelectContent>
-            {HTTP_METHODS.map((method) => (
-              <SelectItem key={method.value} value={method.value}>
-                {method.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* 操作名称 */}
+      <Input
+        type="text"
+        placeholder="操作名称..."
+        value={filters.operation || ''}
+        onChange={(e) => handleOperationChange(e.target.value)}
+        className="w-40 h-8 text-sm"
+      />
 
-      {/* 状态选择 */}
-      <div className="flex items-center gap-2">
-        <Label className="text-sm">Status</Label>
-        <Select
-          value={filters.status || 'all'}
-          onValueChange={(value) => updateFilter('status', value)}
-        >
-          <SelectTrigger className="w-36">
-            <SelectValue placeholder="All Status" />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUS_CODES.map((status) => (
-              <SelectItem key={status.value} value={status.value}>
-                {status.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* 状态 */}
+      <Select value={filters.status || 'all'} onValueChange={(v) => handleStatusChange(v === 'all' ? '' : v)}>
+        <SelectTrigger className="w-24 h-8 text-sm">
+          <SelectValue placeholder="状态" />
+        </SelectTrigger>
+        <SelectContent>
+          {statusOptions.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-      {/* 清除按钮 */}
-      {hasActiveFilters && (
-        <Button variant="ghost" size="sm" onClick={clearFilters}>
-          <X className="h-4 w-4 mr-1" />
-          Clear
-        </Button>
-      )}
+      {/* Trace ID */}
+      <Input
+        type="text"
+        placeholder="Trace ID..."
+        value={filters.trace_id || ''}
+        onChange={(e) => handleTraceIdChange(e.target.value)}
+        className="w-36 h-8 text-sm font-mono"
+      />
+
+      {/* 重置 */}
+      <Button variant="ghost" size="sm" onClick={handleReset} className="h-8 px-2">
+        <RotateCcw className="w-4 h-4" />
+      </Button>
     </div>
   )
 }

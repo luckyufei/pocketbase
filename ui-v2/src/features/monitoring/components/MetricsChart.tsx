@@ -1,71 +1,112 @@
 /**
  * MetricsChart - 指标图表组件
- * 显示系统指标的时间趋势
+ * 与 ui 版本 MetricsChart.svelte 一致
+ * 使用 Chart.js 渲染时间趋势图
  */
-import { useMemo } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useEffect, useRef } from 'react'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Filler,
+  TimeScale,
+} from 'chart.js'
+import { Line } from 'react-chartjs-2'
+import 'chartjs-adapter-date-fns'
+import type { SystemMetrics } from '../store'
 
-interface MetricsData {
-  time: string
-  value: number
-}
+// 注册 Chart.js 组件
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler, TimeScale)
 
 interface MetricsChartProps {
-  data: MetricsData[]
+  data: SystemMetrics[]
+  metric: keyof SystemMetrics
   title: string
   unit?: string
-  height?: number
+  color?: string
 }
 
-export function MetricsChart({ data, title, unit, height = 150 }: MetricsChartProps) {
-  const { maxValue, currentValue } = useMemo(() => {
-    if (data.length === 0) return { maxValue: 0, currentValue: 0 }
-    return {
-      maxValue: Math.max(...data.map((d) => d.value)),
-      currentValue: data[data.length - 1]?.value || 0,
-    }
-  }, [data])
+export function MetricsChart({
+  data,
+  metric,
+  title,
+  unit = '',
+  color = '#3b82f6',
+}: MetricsChartProps) {
+  const chartData = {
+    labels: data.map((d) => new Date(d.timestamp)),
+    datasets: [
+      {
+        label: title,
+        data: data.map((d) => (d[metric] as number) || 0),
+        borderColor: color,
+        backgroundColor: color + '20',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+      },
+    ],
+  }
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      intersect: false,
+      mode: 'index' as const,
+    },
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: any) => {
+            return `${title}: ${context.parsed.y.toFixed(2)} ${unit}`
+          },
+        },
+      },
+    },
+    scales: {
+      x: {
+        type: 'time' as const,
+        time: {
+          tooltipFormat: 'yyyy-MM-dd HH:mm',
+          displayFormats: {
+            minute: 'HH:mm',
+            hour: 'HH:mm',
+            day: 'MM-dd',
+          },
+        },
+        grid: {
+          display: false,
+        },
+      },
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(0, 0, 0, 0.05)',
+        },
+        ticks: {
+          callback: (value: any) => `${value}${unit}`,
+        },
+      },
+    },
+  }
 
   return (
-    <Card data-testid="metrics-chart">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium flex items-center justify-between">
-          <span>{title}</span>
-          {unit && <span className="text-muted-foreground">{unit}</span>}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {data.length === 0 ? (
-          <div
-            className="flex items-center justify-center text-muted-foreground text-sm"
-            style={{ height }}
-          >
-            No data available
-          </div>
-        ) : (
-          <>
-            <div className="text-2xl font-bold mb-2">
-              {currentValue.toFixed(1)}
-              {unit}
-            </div>
-            <div className="relative" style={{ height }}>
-              <div className="absolute inset-0 flex items-end gap-0.5">
-                {data.map((item, index) => {
-                  const heightPercent = maxValue > 0 ? (item.value / maxValue) * 100 : 0
-                  return (
-                    <div
-                      key={index}
-                      className="flex-1 bg-primary/60 hover:bg-primary transition-colors rounded-t"
-                      style={{ height: `${heightPercent}%` }}
-                      title={`${item.time}: ${item.value}${unit || ''}`}
-                    />
-                  )
-                })}
-              </div>
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+    <div className="bg-white rounded-lg border border-slate-200 p-4">
+      <h4 className="text-sm font-medium text-slate-900 mb-3">{title}</h4>
+      <div className="h-[200px] relative">
+        <Line data={chartData} options={options} />
+      </div>
+    </div>
   )
 }
+
+export default MetricsChart

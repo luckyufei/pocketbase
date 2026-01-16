@@ -1,64 +1,128 @@
 /**
- * TracesStats - Trace 统计组件
- * 显示请求追踪的统计信息
+ * Trace 统计卡片
+ * 显示请求总数、成功/错误数、延迟百分位
  */
-import { Card, CardContent } from '@/components/ui/card'
-import { Activity, Clock, AlertTriangle, CheckCircle } from 'lucide-react'
+import type { TraceStats as TraceStatsType } from '../store'
+import { Activity, Check, AlertTriangle, Clock } from 'lucide-react'
 
-interface TracesStatsData {
-  totalRequests: number
-  avgDuration: number
-  errorRate: number
-  successRate: number
+interface Props {
+  stats: TraceStatsType | null
 }
 
-interface TracesStatsProps {
-  stats: TracesStatsData
+/**
+ * 格式化数字
+ */
+function formatNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '-'
+  return value.toLocaleString()
 }
 
-export function TracesStats({ stats }: TracesStatsProps) {
-  const statItems = [
-    {
-      label: 'Total Requests',
-      value: stats.totalRequests.toLocaleString(),
-      icon: Activity,
-      color: 'text-blue-500',
-    },
-    {
-      label: 'Avg Duration',
-      value: `${stats.avgDuration}ms`,
-      icon: Clock,
-      color: 'text-yellow-500',
-    },
-    {
-      label: 'Error Rate',
-      value: `${stats.errorRate}%`,
-      icon: AlertTriangle,
-      color: 'text-red-500',
-    },
-    {
-      label: 'Success Rate',
-      value: `${stats.successRate}%`,
-      icon: CheckCircle,
-      color: 'text-green-500',
-    },
-  ]
+/**
+ * 格式化延迟（微秒 -> 可读格式）
+ */
+function formatDuration(microseconds: number | null | undefined): string {
+  if (microseconds === null || microseconds === undefined) return '-'
+  
+  const ms = microseconds / 1000
+  if (ms < 1) {
+    return `${microseconds}μs`
+  } else if (ms < 1000) {
+    return `${ms.toFixed(1)}ms`
+  } else {
+    return `${(ms / 1000).toFixed(2)}s`
+  }
+}
+
+/**
+ * 格式化百分比
+ */
+function formatPercentage(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '-'
+  return `${(value * 100).toFixed(1)}%`
+}
+
+export function TraceStats({ stats }: Props) {
+  const successRate = stats && stats.total_requests > 0
+    ? stats.success_count / stats.total_requests
+    : 0
+  
+  const errorRate = stats && stats.total_requests > 0
+    ? stats.error_count / stats.total_requests
+    : 0
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {statItems.map((item) => (
-        <Card key={item.label}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <item.icon className={`h-8 w-8 ${item.color}`} />
-              <div>
-                <p className="text-sm text-muted-foreground">{item.label}</p>
-                <p className="text-xl font-bold">{item.value}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      {/* 总请求 */}
+      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100">
+        <Activity className="w-4 h-4 text-slate-400 flex-shrink-0" />
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-slate-900 truncate">
+            {formatNumber(stats?.total_requests)}
+          </div>
+          <div className="text-xs text-slate-500">总请求</div>
+        </div>
+      </div>
+
+      {/* 成功 */}
+      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-blue-100">
+        <Check className="w-4 h-4 text-blue-500 flex-shrink-0" />
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-slate-900 truncate">
+            {formatNumber(stats?.success_count)}
+            <span className="text-xs font-normal text-blue-500 ml-1">
+              {formatPercentage(successRate)}
+            </span>
+          </div>
+          <div className="text-xs text-slate-500">成功</div>
+        </div>
+      </div>
+
+      {/* 错误 */}
+      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-red-100">
+        <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-slate-900 truncate">
+            {formatNumber(stats?.error_count)}
+            <span className="text-xs font-normal text-red-500 ml-1">
+              {formatPercentage(errorRate)}
+            </span>
+          </div>
+          <div className="text-xs text-slate-500">错误</div>
+        </div>
+      </div>
+
+      {/* P50 */}
+      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100">
+        <Clock className="w-4 h-4 text-slate-400 flex-shrink-0" />
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-slate-900 truncate">
+            {formatDuration(stats?.p50_latency)}
+          </div>
+          <div className="text-xs text-slate-500">P50</div>
+        </div>
+      </div>
+
+      {/* P95 */}
+      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100">
+        <Clock className="w-4 h-4 text-slate-400 flex-shrink-0" />
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-slate-900 truncate">
+            {formatDuration(stats?.p95_latency)}
+          </div>
+          <div className="text-xs text-slate-500">P95</div>
+        </div>
+      </div>
+
+      {/* P99 */}
+      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-100">
+        <Clock className="w-4 h-4 text-slate-400 flex-shrink-0" />
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-slate-900 truncate">
+            {formatDuration(stats?.p99_latency)}
+          </div>
+          <div className="text-xs text-slate-500">P99</div>
+        </div>
+      </div>
     </div>
   )
 }

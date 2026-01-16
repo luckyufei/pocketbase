@@ -47,9 +47,13 @@ export function useMetrics() {
     try {
       const response = await pb.send('/api/system/metrics/current', {
         method: 'GET',
+        // 使用唯一的 requestKey 避免自动取消
+        requestKey: `metrics-current-${Date.now()}`,
       })
       setCurrentMetrics(response as SystemMetrics)
     } catch (err: any) {
+      // 忽略自动取消错误
+      if (err.isAbort) return
       if (err.status !== 404) {
         throw err
       }
@@ -68,9 +72,13 @@ export function useMetrics() {
           hours: selectedHours.toString(),
           limit: '10000',
         },
+        // 使用唯一的 requestKey 避免自动取消
+        requestKey: `metrics-history-${Date.now()}`,
       })
       setHistoryData((response.items || []) as SystemMetrics[])
-    } catch (err) {
+    } catch (err: any) {
+      // 忽略自动取消错误
+      if (err.isAbort) return
       setHistoryData([])
       throw err
     }
@@ -86,6 +94,8 @@ export function useMetrics() {
     try {
       await Promise.all([loadCurrentMetrics(), loadHistoryData()])
     } catch (err: any) {
+      // 忽略自动取消错误
+      if (err.isAbort) return
       setError(err.message || '加载数据失败')
     } finally {
       setIsLoading(false)

@@ -16,6 +16,39 @@ import {
 } from '../store'
 
 /**
+ * 排序 Collections：按类型分组（auth → base → view），系统集合放最后，组内按名称字母排序
+ */
+function sortCollections(collections: CollectionModel[]): CollectionModel[] {
+  const system: CollectionModel[] = []
+  const auth: CollectionModel[] = []
+  const base: CollectionModel[] = []
+  const view: CollectionModel[] = []
+
+  for (const collection of collections) {
+    // 系统集合（_开头）单独分组
+    if (collection.name.startsWith('_')) {
+      system.push(collection)
+    } else if (collection.type === 'auth') {
+      auth.push(collection)
+    } else if (collection.type === 'view') {
+      view.push(collection)
+    } else {
+      base.push(collection)
+    }
+  }
+
+  const sortByName = (a: CollectionModel, b: CollectionModel) => 
+    a.name.localeCompare(b.name)
+
+  return [
+    ...auth.sort(sortByName),
+    ...base.sort(sortByName),
+    ...view.sort(sortByName),
+    ...system.sort(sortByName),
+  ]
+}
+
+/**
  * Collections CRUD Hook
  */
 export function useCollections() {
@@ -34,10 +67,16 @@ export function useCollections() {
     setLoading(true)
     setError(null)
     try {
-      const result = await pb.collections.getFullList()
-      setCollections(result)
+      const result = await pb.collections.getFullList({
+        // 使用唯一的 requestKey 避免自动取消
+        requestKey: `collections-${Date.now()}`,
+      })
+      // 排序：auth → base → view → system（_开头），组内按字母排序
+      setCollections(sortCollections(result))
       return result
-    } catch (err) {
+    } catch (err: any) {
+      // 忽略自动取消错误
+      if (err.isAbort) return []
       const message = err instanceof Error ? err.message : '加载 Collections 失败'
       setError(message)
       throw err

@@ -1,166 +1,305 @@
 /**
- * T083: ServerlessMetrics - Serverless 指标组件
- * 显示 Serverless 环境下的运行指标
+ * ServerlessMetrics - Serverless 函数监控组件
+ * 与 ui 版本 ServerlessMetrics.svelte 一致
  */
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import { Badge } from '@/components/ui/badge'
-import { Cloud, Clock, Zap, Database, Activity } from 'lucide-react'
-import { cn } from '@/lib/utils'
-
-interface ServerlessMetricsData {
-  coldStarts: number
-  warmStarts: number
-  avgColdStartTime: number // ms
-  avgWarmStartTime: number // ms
-  invocations: number
-  errors: number
-  memoryUsed: number // MB
-  memoryLimit: number // MB
-  executionTime: number // ms
-  timeout: number // ms
-}
+import { useEffect, useState, useCallback } from 'react'
+import { getApiClient } from '@/lib/ApiClient'
+import { MetricsCard } from './MetricsCard'
+import { Loader2 } from 'lucide-react'
 
 interface ServerlessMetricsProps {
-  data: ServerlessMetricsData
-  className?: string
+  refreshInterval?: number
 }
 
-export function ServerlessMetrics({ data, className }: ServerlessMetricsProps) {
-  const coldStartPercentage = data.invocations > 0 ? (data.coldStarts / data.invocations) * 100 : 0
+interface PoolStats {
+  size: number
+  available: number
+  inUse: number
+  waitingRequests: number
+}
 
-  const errorRate = data.invocations > 0 ? (data.errors / data.invocations) * 100 : 0
+interface LatencyStats {
+  min: number
+  avg: number
+  max: number
+}
 
-  const memoryUsagePercentage =
-    data.memoryLimit > 0 ? (data.memoryUsed / data.memoryLimit) * 100 : 0
+interface MemoryStats {
+  currentUsage: number
+  peakUsage: number
+}
 
-  const executionPercentage = data.timeout > 0 ? (data.executionTime / data.timeout) * 100 : 0
+interface WindowStats {
+  requestRate: number
+  errorRate: number
+  p95Latency: number
+}
+
+interface FunctionStats {
+  totalRequests: number
+  successRequests: number
+  errorRequests: number
+  p95Latency: number
+}
+
+interface ServerlessMetricsData {
+  totalRequests: number
+  successCount: number
+  errorCount: number
+  timeoutCount: number
+  rejectedCount: number
+  coldStarts: number
+  uptime: number
+  pool: PoolStats
+  latency: LatencyStats
+  memory: MemoryStats
+  window: WindowStats
+  byFunction: Record<string, FunctionStats>
+}
+
+export function ServerlessMetrics({ refreshInterval = 30000 }: ServerlessMetricsProps) {
+  const [metrics, setMetrics] = useState<ServerlessMetricsData | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const pb = getApiClient()
+
+  const loadMetrics = useCallback(async () => {
+    try {
+      setError(null)
+      const response = await pb.send('/api/serverless/metrics', {
+        method: 'GET',
+        query: { window: '5m' },
+        requestKey: `serverless-metrics-${Date.now()}`,
+      })
+      setMetrics(response)
+    } catch (err: any) {
+      if (err.isAbort) return
+      if (err.status === 404) {
+        // Serverless 未启用
+        setMetrics(null)
+      } else {
+        setError(err.message || '加载 Serverless 指标失败')
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }, [pb])
+
+  useEffect(() => {
+    loadMetrics()
+    const timer = setInterval(loadMetrics, refreshInterval)
+    return () => clearInterval(timer)
+  }, [loadMetrics, refreshInterval])
+
+  function formatNumber(value: number | undefined, decimals = 2) {
+    if (value === null || value === undefined) return '-'
+    return Number(value).toFixed(decimals)
+  }
+
+  function formatBytes(bytes: number | undefined) {
+    if (!bytes) return '-'
+    const units = ['B', 'KB', 'MB', 'GB']
+    let unitIndex = 0
+    let value = bytes
+    while (value >= 1024 && unitIndex < units.length - 1) {
+      value /= 1024
+      unitIndex++
+    }
+    return `${value.toFixed(2)} ${units[unitIndex]}`
+  }
+
+  function formatDuration(seconds: number | undefined) {
+    if (!seconds) return '-'
+    if (seconds < 60) return `${seconds.toFixed(0)}秒`
+    if (seconds < 3600) return `${(seconds / 60).toFixed(0)}分钟`
+    if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}小时`
+    return `${(seconds / 86400).toFixed(1)}天`
+  }
+
+  function getErrorRateClass(rate: number) {
+    if (rate >= 0.1) return 'text-red-600'
+    if (rate >= 0.05) return 'text-yellow-600'
+    return 'text-green-600'
+  }
+
+  if (isLoading && !metrics) {
+    return (
+      <div className="flex items-center justify-center gap-3 py-10 text-slate-500 bg-white rounded-lg border border-slate-200">
+        <Loader2 className="w-5 h-5 animate-spin" />
+        <span>加载 Serverless 指标...</span>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center gap-3 py-10 text-red-600 bg-white rounded-lg border border-slate-200">
+        <span>⚠</span>
+        <span>{error}</span>
+      </div>
+    )
+  }
+
+  if (!metrics) {
+    return (
+      <div className="flex items-center justify-center gap-3 py-10 text-slate-500 bg-white rounded-lg border border-slate-200">
+        <span>💻</span>
+        <span>Serverless 功能未启用</span>
+      </div>
+    )
+  }
+
+  const successRate =
+    metrics.totalRequests > 0 ? ((metrics.successCount / metrics.totalRequests) * 100).toFixed(1) : '100'
+  const errorRate = metrics.window?.errorRate ?? 0
 
   return (
-    <div className={cn('space-y-4', className)}>
-      {/* 调用统计 */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Zap className="h-8 w-8 text-blue-500" />
-              <div>
-                <p className="text-sm text-muted-foreground">Invocations</p>
-                <p className="text-xl font-bold">{data.invocations.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="bg-white rounded-lg border border-slate-200 p-5">
+      <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-900 mb-5">
+        <span className="text-blue-500">💻</span>
+        Serverless 函数
+      </h3>
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Cloud className="h-8 w-8 text-cyan-500" />
-              <div>
-                <p className="text-sm text-muted-foreground">Cold Starts</p>
-                <p className="text-xl font-bold">{data.coldStarts.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">{coldStartPercentage.toFixed(1)}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Activity className="h-8 w-8 text-green-500" />
-              <div>
-                <p className="text-sm text-muted-foreground">Warm Starts</p>
-                <p className="text-xl font-bold">{data.warmStarts.toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Clock className="h-8 w-8 text-red-500" />
-              <div>
-                <p className="text-sm text-muted-foreground">Errors</p>
-                <p className="text-xl font-bold">{data.errors.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">{errorRate.toFixed(2)}% error rate</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* 概览卡片 */}
+      <div className="flex flex-wrap gap-3 mb-6">
+        <MetricsCard title="总请求数" value={metrics.totalRequests?.toString() || '0'} icon="stack" />
+        <MetricsCard title="成功率" value={successRate} unit="%" icon="cpu" />
+        <MetricsCard title="请求速率" value={formatNumber(metrics.window?.requestRate)} unit="/秒" icon="timer" />
+        <MetricsCard title="P95 延迟" value={formatNumber(metrics.window?.p95Latency)} unit="ms" icon="timer" />
+        <MetricsCard title="冷启动" value={metrics.coldStarts?.toString() || '0'} icon="warning" />
+        <MetricsCard title="运行时长" value={formatDuration(metrics.uptime)} icon="timer" />
       </div>
 
-      {/* 启动时间 */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Startup Times</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Avg Cold Start</span>
-              <span className="font-medium">{data.avgColdStartTime}ms</span>
-            </div>
-            <Progress value={Math.min((data.avgColdStartTime / 5000) * 100, 100)} className="h-2" />
+      {/* 实例池状态 */}
+      <div className="border-t border-slate-200 pt-4 mb-4">
+        <h4 className="text-sm font-medium text-slate-500 mb-3">实例池状态</h4>
+        <div className="flex gap-6 mb-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-slate-500">池大小</span>
+            <span className="text-lg font-semibold text-slate-900">{metrics.pool?.size || 0}</span>
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Avg Warm Start</span>
-              <span className="font-medium">{data.avgWarmStartTime}ms</span>
-            </div>
-            <Progress value={Math.min((data.avgWarmStartTime / 1000) * 100, 100)} className="h-2" />
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-slate-500">可用</span>
+            <span className="text-lg font-semibold text-green-600">{metrics.pool?.available || 0}</span>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-slate-500">使用中</span>
+            <span className="text-lg font-semibold text-blue-600">{metrics.pool?.inUse || 0}</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-slate-500">等待中</span>
+            <span className="text-lg font-semibold text-yellow-600">{metrics.pool?.waitingRequests || 0}</span>
+          </div>
+        </div>
+        <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex">
+          {metrics.pool?.size > 0 && (
+            <>
+              <div
+                className="bg-blue-500 h-full"
+                style={{ width: `${(metrics.pool.inUse / metrics.pool.size) * 100}%` }}
+                title={`使用中: ${metrics.pool.inUse}`}
+              />
+              <div
+                className="bg-green-500 h-full"
+                style={{ width: `${(metrics.pool.available / metrics.pool.size) * 100}%` }}
+                title={`可用: ${metrics.pool.available}`}
+              />
+            </>
+          )}
+        </div>
+      </div>
 
-      {/* 资源使用 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Database className="h-4 w-4" />
-              Memory Usage
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">
-                {data.memoryUsed}MB / {data.memoryLimit}MB
-              </span>
-              <Badge variant={memoryUsagePercentage > 80 ? 'destructive' : 'secondary'}>
-                {memoryUsagePercentage.toFixed(1)}%
-              </Badge>
+      {/* 错误统计 */}
+      {(metrics.errorCount > 0 || metrics.timeoutCount > 0 || metrics.rejectedCount > 0) && (
+        <div className="border-t border-slate-200 pt-4 mb-4">
+          <h4 className="text-sm font-medium text-slate-500 mb-3">错误统计</h4>
+          <div className="flex gap-6">
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500">错误</span>
+              <span className="text-lg font-semibold text-red-600">{metrics.errorCount || 0}</span>
             </div>
-            <Progress
-              value={memoryUsagePercentage}
-              className={cn('h-2', memoryUsagePercentage > 80 && '[&>div]:bg-destructive')}
-            />
-          </CardContent>
-        </Card>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500">超时</span>
+              <span className="text-lg font-semibold text-yellow-600">{metrics.timeoutCount || 0}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500">被拒绝</span>
+              <span className="text-lg font-semibold text-red-600">{metrics.rejectedCount || 0}</span>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-xs text-slate-500">错误率</span>
+              <span className={`text-lg font-semibold ${getErrorRateClass(errorRate)}`}>
+                {(errorRate * 100).toFixed(2)}%
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              Execution Time
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">
-                {data.executionTime}ms / {data.timeout}ms timeout
-              </span>
-              <Badge variant={executionPercentage > 80 ? 'destructive' : 'secondary'}>
-                {executionPercentage.toFixed(1)}%
-              </Badge>
-            </div>
-            <Progress
-              value={executionPercentage}
-              className={cn('h-2', executionPercentage > 80 && '[&>div]:bg-destructive')}
-            />
-          </CardContent>
-        </Card>
+      {/* 延迟统计 */}
+      <div className="border-t border-slate-200 pt-4 mb-4">
+        <h4 className="text-sm font-medium text-slate-500 mb-3">延迟统计</h4>
+        <div className="flex gap-6">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-slate-500">最小</span>
+            <span className="text-lg font-semibold text-slate-900">{formatNumber(metrics.latency?.min)} ms</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-slate-500">平均</span>
+            <span className="text-lg font-semibold text-slate-900">{formatNumber(metrics.latency?.avg)} ms</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-slate-500">最大</span>
+            <span className="text-lg font-semibold text-slate-900">{formatNumber(metrics.latency?.max)} ms</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 按函数统计 */}
+      {metrics.byFunction && Object.keys(metrics.byFunction).length > 0 && (
+        <div className="border-t border-slate-200 pt-4 mb-4">
+          <h4 className="text-sm font-medium text-slate-500 mb-3">按函数统计</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200">
+                  <th className="text-left py-2 px-3 font-medium text-slate-500">函数名</th>
+                  <th className="text-left py-2 px-3 font-medium text-slate-500">请求数</th>
+                  <th className="text-left py-2 px-3 font-medium text-slate-500">成功</th>
+                  <th className="text-left py-2 px-3 font-medium text-slate-500">错误</th>
+                  <th className="text-left py-2 px-3 font-medium text-slate-500">P95延迟</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(metrics.byFunction).map(([name, stats]) => (
+                  <tr key={name} className="border-b border-slate-100">
+                    <td className="py-2 px-3 font-mono text-blue-600">{name}</td>
+                    <td className="py-2 px-3">{stats.totalRequests}</td>
+                    <td className="py-2 px-3 text-green-600">{stats.successRequests}</td>
+                    <td className="py-2 px-3 text-red-600">{stats.errorRequests}</td>
+                    <td className="py-2 px-3">{formatNumber(stats.p95Latency)} ms</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 内存使用 */}
+      <div className="border-t border-slate-200 pt-4">
+        <h4 className="text-sm font-medium text-slate-500 mb-3">内存使用</h4>
+        <div className="flex gap-6">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-slate-500">当前使用</span>
+            <span className="text-lg font-semibold text-slate-900">{formatBytes(metrics.memory?.currentUsage)}</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-xs text-slate-500">峰值使用</span>
+            <span className="text-lg font-semibold text-slate-900">{formatBytes(metrics.memory?.peakUsage)}</span>
+          </div>
+        </div>
       </div>
     </div>
   )

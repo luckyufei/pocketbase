@@ -4,9 +4,9 @@
   "description": "PocketBase Documentation",
   "type": "module",
   "scripts": {
-    "dev": "vitepress dev docs",
-    "build": "vitepress build docs",
-    "preview": "vitepress preview docs"
+    "dev": "vitepress dev references",
+    "build": "vitepress build references",
+    "preview": "vitepress preview references"
   },
   "devDependencies": {
     "vitepress": "^1.6.4",

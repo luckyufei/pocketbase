@@ -1,8 +1,7 @@
 /**
- * Analytics Components 导出
+ * Analytics 组件导出
  */
-export { AnalyticsChart } from './AnalyticsChart'
-export { AnalyticsCard } from './AnalyticsCard'
-export { DevicesPie } from './DevicesPie'
-export { TopList } from './TopList'
 export { AnalyticsPage } from './AnalyticsPage'
+export { AnalyticsCard } from './AnalyticsCard'
+export { AnalyticsChart } from './AnalyticsChart'
+export { TopList } from './TopList'

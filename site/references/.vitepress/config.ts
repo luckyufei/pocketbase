@@ -41,6 +41,8 @@ export default defineConfig({
             { text: 'Collections', link: '/api/collections' },
             { text: 'Settings', link: '/api/settings' },
             { text: 'Logs', link: '/api/logs' },
+            { text: 'Traces', link: '/api/traces' },
+            { text: 'Analytics', link: '/api/analytics' },
             { text: 'Crons', link: '/api/crons' },
             { text: 'Backups', link: '/api/backups' },
             { text: 'Health', link: '/api/health' },

@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAtom, useSetAtom } from 'jotai'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, ChevronRight } from 'lucide-react'
 import { useCollections } from '../hooks/useCollections'
 import { searchQueryAtom, filteredCollectionsAtom } from '../store'
 import { CollectionItem } from './CollectionItem'
@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { addToast } from '@/store/toasts'
 import { showConfirmation } from '@/store/confirmation'
 import type { CollectionModel } from 'pocketbase'
+import { cn } from '@/lib/utils'
 
 export function CollectionsSidebar() {
   const { t } = useTranslation()
@@ -27,6 +28,8 @@ export function CollectionsSidebar() {
   const [filteredCollections] = useAtom(filteredCollectionsAtom)
   const [panelOpen, setPanelOpen] = useState(false)
   const [editingCollection, setEditingCollection] = useState<CollectionModel | null>(null)
+  // System 分组默认收起
+  const [systemExpanded, setSystemExpanded] = useState(false)
 
   const {
     collections,
@@ -190,11 +193,22 @@ export function CollectionsSidebar() {
               </div>
             )}
 
-            {/* 系统 Collections */}
+            {/* 系统 Collections（可折叠，默认收起） */}
             {groupedCollections.system.length > 0 && (
               <div>
-                <div className="text-xs font-medium text-slate-400 px-3 py-1">System</div>
-                {groupedCollections.system.map((collection) => (
+                <button
+                  onClick={() => setSystemExpanded(!systemExpanded)}
+                  className="flex items-center gap-1 text-xs font-medium text-slate-400 px-3 py-1 hover:text-slate-600 w-full text-left"
+                >
+                  <ChevronRight 
+                    className={cn(
+                      "h-3 w-3 transition-transform",
+                      systemExpanded && "rotate-90"
+                    )} 
+                  />
+                  System ({groupedCollections.system.length})
+                </button>
+                {systemExpanded && groupedCollections.system.map((collection) => (
                   <CollectionItem
                     key={collection.id}
                     collection={collection}

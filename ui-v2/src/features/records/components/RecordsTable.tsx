@@ -42,6 +42,11 @@ export const RecordsTable = memo(function RecordsTable({
   onSelectAll,
   onRowClick,
 }: RecordsTableProps) {
+  // 过滤掉 id、created、updated 字段（这些单独显示）
+  const displayFields = fields.filter(
+    (f) => !['id', 'created', 'updated'].includes(f.name) && f.type !== 'autodate'
+  )
+
   const renderSortIcon = (field: string) => {
     if (sortState?.field !== field) {
       return <ArrowUpDown className="ml-1 h-3 w-3" />
@@ -89,13 +94,13 @@ export const RecordsTable = memo(function RecordsTable({
           <TableHead className="w-12">
             <Checkbox checked={isAllSelected} onCheckedChange={onSelectAll} aria-label="全选" />
           </TableHead>
-          <TableHead className="w-32">
+          <TableHead className="w-36">
             <Button variant="ghost" size="sm" className="h-8 -ml-3" onClick={() => onSort('id')}>
-              ID
+              id
               {renderSortIcon('id')}
             </Button>
           </TableHead>
-          {fields.slice(0, 5).map((field) => (
+          {displayFields.slice(0, 5).map((field) => (
             <TableHead key={field.name}>
               <Button
                 variant="ghost"
@@ -108,7 +113,7 @@ export const RecordsTable = memo(function RecordsTable({
               </Button>
             </TableHead>
           ))}
-          <TableHead className="w-32">
+          <TableHead className="w-36">
             <Button
               variant="ghost"
               size="sm"
@@ -125,7 +130,7 @@ export const RecordsTable = memo(function RecordsTable({
         {records.length === 0 ? (
           <TableRow>
             <TableCell
-              colSpan={fields.length + 3}
+              colSpan={displayFields.slice(0, 5).length + 3}
               className="h-32 text-center text-muted-foreground"
             >
               暂无数据
@@ -145,8 +150,17 @@ export const RecordsTable = memo(function RecordsTable({
                   aria-label={`选择 ${record.id}`}
                 />
               </TableCell>
-              <TableCell className="font-mono text-xs">{record.id.slice(0, 8)}...</TableCell>
-              {fields.slice(0, 5).map((field) => (
+              <TableCell 
+                className="font-mono text-xs select-all cursor-pointer hover:bg-muted/50"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigator.clipboard.writeText(record.id)
+                }}
+                title="点击复制"
+              >
+                {record.id}
+              </TableCell>
+              {displayFields.slice(0, 5).map((field) => (
                 <TableCell key={field.name} className="max-w-[200px] truncate">
                   {renderCellValue(record, field)}
                 </TableCell>

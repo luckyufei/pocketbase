@@ -161,6 +161,12 @@ func resolveTokenizedExpr(expr fexpr.Expr, fieldResolver FieldResolver) (dbx.Exp
 
 	rResult, rErr := resolveToken(expr.Right, fieldResolver)
 	if rErr != nil || rResult.Identifier == "" {
+		// 如果右操作数是标识符类型且解析失败，可能是用户错误地使用了双引号
+		// 提供更友好的错误提示
+		if expr.Right.Type == fexpr.TokenIdentifier {
+			return nil, fmt.Errorf("invalid right operand %q - %v (if you meant a string value, use single quotes instead of double quotes, e.g. '%s' instead of \"%s\")", 
+				expr.Right.Literal, rErr, expr.Right.Literal, expr.Right.Literal)
+		}
 		return nil, fmt.Errorf("invalid right operand %q - %v", expr.Right.Literal, rErr)
 	}
 

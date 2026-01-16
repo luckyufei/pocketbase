@@ -76,6 +76,8 @@ export function useLogs() {
           sort,
           skipTotal: 1,
           filter: buildFilter(),
+          // 使用唯一的 requestKey 避免自动取消
+          requestKey: `logs-${page}-${Date.now()}`,
         })
 
         if (!append) {
@@ -86,7 +88,9 @@ export function useLogs() {
         addLogs(items)
         setCurrentPage(page)
         setHasMore(items.length >= PER_PAGE)
-      } catch (err) {
+      } catch (err: any) {
+        // 忽略自动取消错误
+        if (err.isAbort) return
         console.error('Failed to load logs:', err)
       } finally {
         setIsLoading(false)

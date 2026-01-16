@@ -40,8 +40,8 @@ benchmarks/benchmark-config.json
 **/node_modules/
 /site/pocket3as-site
 /site/cmd/dist
-/site/docs/.vitepress/cache
-/site/docs/.vitepress/dist
+/site/references/.vitepress/cache
+/site/references/.vitepress/dist
 /jssdk/dist
 **/pb_data/
 /examples/test/

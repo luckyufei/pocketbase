@@ -1,226 +1,220 @@
 /**
  * Analytics 页面
- * 流量分析仪表盘
+ * Apple Design 风格的流量分析仪表盘
  */
-import { useEffect } from 'react'
-import { useAnalytics } from '@/features/analytics'
+import { useEffect, useRef } from 'react'
+import { useAnalytics } from '../hooks/useAnalytics'
+import { AnalyticsCard } from './AnalyticsCard'
+import { AnalyticsChart } from './AnalyticsChart'
+import { TopList } from './TopList'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Loader2, RefreshCw, Eye, Users, Clock, TrendingDown } from 'lucide-react'
 
-// 指标卡片组件
-function MetricsCard({
-  title,
-  value,
-  unit,
-  icon: Icon,
-  subValue,
-}: {
-  title: string
-  value: string | number
-  unit?: string
-  icon: React.ComponentType<{ className?: string }>
-  subValue?: string
-}) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">
-          {value}
-          {unit && <span className="text-sm font-normal text-muted-foreground ml-1">{unit}</span>}
-        </div>
-        {subValue && <p className="text-xs text-muted-foreground mt-1">{subValue}</p>}
-      </CardContent>
-    </Card>
-  )
+// 时间范围选项
+const timeRanges = [
+  { value: '1d', label: '今天' },
+  { value: '7d', label: '7天' },
+  { value: '30d', label: '30天' },
+  { value: '90d', label: '90天' },
+] as const
+
+/**
+ * 格式化数字（K/M）
+ */
+function formatNumber(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '-'
+  if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M'
+  if (value >= 1000) return (value / 1000).toFixed(1) + 'K'
+  return value.toString()
 }
 
-// 格式化时长
-function formatDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds.toFixed(0)}s`
+/**
+ * 格式化百分比
+ */
+function formatPercent(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '-'
+  return (value * 100).toFixed(1) + '%'
+}
+
+/**
+ * 格式化时长（秒）
+ */
+function formatDuration(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined || seconds === 0) return '-'
+  if (seconds < 60) return Math.round(seconds) + 's'
   const minutes = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${minutes}m ${secs.toFixed(0)}s`
+  const secs = Math.round(seconds % 60)
+  return `${minutes}m ${secs}s`
 }
 
 export function AnalyticsPage() {
-  const { summary, historyData, isLoading, error, selectedRange, loadData, refresh, changeRange } =
-    useAnalytics()
+  const {
+    summary,
+    dailyData,
+    topPages,
+    topSources,
+    browsers,
+    isLoading,
+    error,
+    selectedRange,
+    loadData,
+    refresh,
+    changeRange,
+  } = useAnalytics()
 
+  const isFirstRender = useRef(true)
+
+  // 初始加载
   useEffect(() => {
     loadData()
   }, [])
 
-  // 当时间范围改变时重新加载
+  // 时间范围变更时重新加载
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false
+      return
+    }
     loadData()
   }, [selectedRange])
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-slate-50/50">
       {/* 头部 */}
-      <header className="h-14 px-4 border-b flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Analytics</h1>
-        <div className="flex items-center gap-2">
-            <Select value={selectedRange} onValueChange={(v) => changeRange(v as any)}>
-              <SelectTrigger className="w-32">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="90d">Last 90 days</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button variant="outline" onClick={refresh} disabled={isLoading}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+      <header className="h-14 px-4 border-b border-slate-200 bg-white flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-slate-900">流量分析</h1>
+        <div className="flex items-center gap-3">
+          {/* 时间范围选择器 */}
+          <div className="flex rounded-lg overflow-hidden border border-slate-200 bg-white">
+            {timeRanges.map((range) => (
+              <button
+                key={range.value}
+                type="button"
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  selectedRange === range.value
+                    ? 'bg-blue-500 text-white'
+                    : 'text-slate-600 hover:bg-slate-50'
+                }`}
+                onClick={() => changeRange(range.value)}
+              >
+                {range.label}
+              </button>
+            ))}
           </div>
+          <Button variant="ghost" size="sm" onClick={refresh} disabled={isLoading}>
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
         </div>
       </header>
 
       {/* 内容 */}
       <div className="flex-1 overflow-auto p-4">
         {error && (
-          <div className="bg-destructive/10 text-destructive p-4 rounded-lg mb-4">{error}</div>
+          <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl mb-4 text-sm">
+            {error}
+          </div>
         )}
 
         {isLoading && !summary ? (
           <div className="flex items-center justify-center h-64">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
           </div>
-        ) : summary ? (
-          <div className="space-y-6">
-            {/* 指标卡片 */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <MetricsCard
-                title="Page Views"
-                value={summary.totalPageViews.toLocaleString()}
+        ) : (
+          <div className="space-y-4 max-w-6xl mx-auto">
+            {/* 核心指标卡片 */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <AnalyticsCard
+                title="页面浏览量"
+                value={formatNumber(summary?.totalPV)}
                 icon={Eye}
+                color="blue"
               />
-              <MetricsCard
-                title="Unique Visitors"
-                value={summary.totalUniqueVisitors.toLocaleString()}
+              <AnalyticsCard
+                title="独立访客"
+                value={formatNumber(summary?.totalUV)}
                 icon={Users}
+                color="green"
               />
-              <MetricsCard
-                title="Avg Session Duration"
-                value={formatDuration(summary.avgSessionDuration)}
-                icon={Clock}
-              />
-              <MetricsCard
-                title="Bounce Rate"
-                value={summary.bounceRate.toFixed(1)}
-                unit="%"
+              <AnalyticsCard
+                title="跳出率"
+                value={formatPercent(summary?.bounceRate)}
                 icon={TrendingDown}
+                color="orange"
+              />
+              <AnalyticsCard
+                title="平均停留"
+                value={formatDuration(summary?.avgDur)}
+                icon={Clock}
+                color="purple"
               />
             </div>
 
-            {/* Top Pages */}
-            {summary.topPages && summary.topPages.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Pages</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>URL</TableHead>
-                        <TableHead className="text-right">Views</TableHead>
-                        <TableHead className="text-right">Unique Views</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {summary.topPages.map((page, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-mono text-sm truncate max-w-md">
-                            {page.url}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {page.views.toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {page.uniqueViews.toLocaleString()}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
+            {/* PV/UV 趋势图 */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-100">
+                <h2 className="text-sm font-semibold text-slate-900">流量趋势</h2>
+              </div>
+              <div className="p-4">
+                <AnalyticsChart data={dailyData} />
+              </div>
+            </div>
 
-            {/* Top Sources */}
-            {summary.topSources && summary.topSources.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Sources</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Source</TableHead>
-                        <TableHead className="text-right">Visits</TableHead>
-                        <TableHead className="text-right">Percentage</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {summary.topSources.map((source, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{source.source}</TableCell>
-                          <TableCell className="text-right">
-                            {source.visits.toLocaleString()}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {source.percentage.toFixed(1)}%
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
+            {/* Top 列表 */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* 热门页面 */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <h2 className="text-sm font-semibold text-slate-900">热门页面</h2>
+                </div>
+                <div className="p-3">
+                  <TopList
+                    items={topPages.map(p => ({
+                      label: p.path,
+                      value: p.pv,
+                      secondary: p.visitors,
+                      secondaryLabel: 'UV',
+                    }))}
+                    emptyText="暂无数据"
+                  />
+                </div>
+              </div>
 
-            {/* 历史数据图表占位 */}
-            {historyData.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>History ({historyData.length} data points)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">
-                    Chart visualization (requires recharts integration)
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        ) : (
-          <div className="text-center py-12 text-muted-foreground">
-            No analytics data available. Make sure the analytics endpoint is enabled.
+              {/* 流量来源 */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <h2 className="text-sm font-semibold text-slate-900">流量来源</h2>
+                </div>
+                <div className="p-3">
+                  <TopList
+                    items={topSources.map(s => ({
+                      label: s.source || '(直接访问)',
+                      value: s.visitors,
+                      type: s.type,
+                    }))}
+                    showTypeIcon
+                    emptyText="暂无数据"
+                  />
+                </div>
+              </div>
+
+              {/* 浏览器分布 */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <h2 className="text-sm font-semibold text-slate-900">浏览器分布</h2>
+                </div>
+                <div className="p-3">
+                  <TopList
+                    items={browsers.map(b => ({
+                      label: b.name || '(未知)',
+                      value: b.visitors,
+                    }))}
+                    showPercent
+                    total={summary?.totalPV || 0}
+                    emptyText="暂无数据"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
