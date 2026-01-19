@@ -1,5 +1,8 @@
 ## v0.35.0
 
+- Changed migration file timestamp format from Unix timestamp (e.g., `1736300000`) to human-readable `YYYYMMDDHHMMSS` format (e.g., `20260120153010`).
+  This makes migration files easier to identify by their creation time while maintaining backward compatibility with existing Unix timestamp files.
+
 - Added `nullString()`, `nullInt()`, `nullFloat()`, `nullBool`, `nullArray()`, `nullObject()` JSVM helpers for scanning nullable columns ([#7396](https://github.com/pocketbase/pocketbase/issues/7396)).
 
 - Store the correct `image/png` as attrs content type when generating a thumb fallback _(e.g. for `webp`)_.

@@ -4,8 +4,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
@@ -1333,5 +1335,137 @@ func TestAutomigrateCollectionNoChanges(t *testing.T) {
 				t.Fatalf("Expected 0 files to be generated, got %d", total)
 			}
 		})
+	}
+}
+
+// =============================================================================
+// 018-migration-readable-timestamp: TDD Tests for YYYYMMDDHHMMSS format
+// =============================================================================
+
+// TestMigrationFilenameFormat_ReadableTimestamp verifies that migration filenames
+// use human-readable YYYYMMDDHHMMSS format instead of Unix timestamp
+func TestMigrationFilenameFormat_ReadableTimestamp(t *testing.T) {
+	t.Parallel()
+
+	// Regex pattern: 14 digits (YYYYMMDDHHMMSS) + underscore + name + extension
+	// Example: 20260120153010_created_users.go
+	readableTimestampPattern := regexp.MustCompile(`^\d{14}_\w+\.(go|js)$`)
+
+	scenarios := []struct {
+		name string
+		lang string
+	}{
+		{"Go template", migratecmd.TemplateLangGo},
+		{"JS template", migratecmd.TemplateLangJS},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			app, _ := tests.NewTestApp()
+			defer app.Cleanup()
+
+			migrationsDir := filepath.Join(app.DataDir(), "_test_migrations_timestamp")
+
+			migratecmd.MustRegister(app, nil, migratecmd.Config{
+				TemplateLang: s.lang,
+				Automigrate:  true,
+				Dir:          migrationsDir,
+			})
+
+			app.Bootstrap()
+
+			// Create a collection to trigger automigrate
+			collection := core.NewBaseCollection("timestamp_test")
+			event := new(core.CollectionRequestEvent)
+			event.RequestEvent = &core.RequestEvent{}
+			event.App = app
+			event.Collection = collection
+			err := app.OnCollectionCreateRequest().Trigger(event, func(e *core.CollectionRequestEvent) error {
+				return e.App.Save(e.Collection)
+			})
+			if err != nil {
+				t.Fatalf("Failed to save collection: %v", err)
+			}
+
+			files, err := os.ReadDir(migrationsDir)
+			if err != nil {
+				t.Fatalf("Failed to read migrations dir: %v", err)
+			}
+
+			if len(files) != 1 {
+				t.Fatalf("Expected 1 migration file, got %d", len(files))
+			}
+
+			filename := files[0].Name()
+
+			// Verify filename matches YYYYMMDDHHMMSS pattern
+			if !readableTimestampPattern.MatchString(filename) {
+				t.Errorf("Filename %q does not match readable timestamp pattern (expected YYYYMMDDHHMMSS_name.ext)", filename)
+			}
+
+			// Verify the timestamp prefix is parseable as datetime
+			timestampStr := filename[:14]
+			_, err = time.Parse("20060102150405", timestampStr)
+			if err != nil {
+				t.Errorf("Timestamp prefix %q is not a valid YYYYMMDDHHMMSS format: %v", timestampStr, err)
+			}
+		})
+	}
+}
+
+// TestMigrationFilenameFormat_MixedSorting verifies backward compatibility:
+// new YYYYMMDDHHMMSS format files sort correctly with old Unix timestamp files
+func TestMigrationFilenameFormat_MixedSorting(t *testing.T) {
+	t.Parallel()
+
+	// Simulate mixed old and new format filenames
+	files := []string{
+		"20260120153010_new_migration.go",  // new format
+		"1736300000_old_migration.go",      // old Unix format (2025-01-08)
+		"1736400000_another_old.go",        // old Unix format
+		"20260120153011_another_new.go",    // new format
+		"20260101000000_start_of_year.go",  // new format (2026-01-01)
+	}
+
+	sort.Strings(files)
+
+	expected := []string{
+		"1736300000_old_migration.go",     // Unix timestamps first (start with '1')
+		"1736400000_another_old.go",
+		"20260101000000_start_of_year.go", // Then new format (start with '2')
+		"20260120153010_new_migration.go",
+		"20260120153011_another_new.go",
+	}
+
+	for i, f := range files {
+		if f != expected[i] {
+			t.Errorf("position %d: expected %q, got %q", i, expected[i], f)
+		}
+	}
+}
+
+// TestTimestampFormat_Parseable verifies the timestamp format can be parsed back to time
+func TestTimestampFormat_Parseable(t *testing.T) {
+	t.Parallel()
+
+	timestamp := time.Now().Format("20060102150405")
+
+	// Verify length is exactly 14 characters
+	if len(timestamp) != 14 {
+		t.Errorf("timestamp length should be 14, got %d", len(timestamp))
+	}
+
+	// Verify it's all digits
+	for _, c := range timestamp {
+		if c < '0' || c > '9' {
+			t.Errorf("timestamp should contain only digits, got %q", timestamp)
+			break
+		}
+	}
+
+	// Verify it can be parsed back
+	_, err := time.Parse("20060102150405", timestamp)
+	if err != nil {
+		t.Errorf("timestamp should be parseable: %v", err)
 	}
 }

@@ -67,7 +67,7 @@ func (p *plugin) automigrateOnCollectionChange(e *core.CollectionRequestEvent) e
 		action = "updated_" + normalizeCollectionName(old.Name)
 	}
 
-	name := fmt.Sprintf("%d_%s.%s", time.Now().Unix(), action, p.config.TemplateLang)
+	name := fmt.Sprintf("%s_%s.%s", time.Now().Format("20060102150405"), action, p.config.TemplateLang)
 	filePath := filepath.Join(p.config.Dir, name)
 
 	return p.app.RunInTransaction(func(txApp core.App) error {

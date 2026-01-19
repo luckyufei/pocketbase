@@ -151,7 +151,7 @@ func (p *plugin) migrateCreateHandler(template string, args []string, interactiv
 	name := args[0]
 	dir := p.config.Dir
 
-	filename := fmt.Sprintf("%d_%s.%s", time.Now().Unix(), inflector.Snakecase(name), p.config.TemplateLang)
+	filename := fmt.Sprintf("%s_%s.%s", time.Now().Format("20060102150405"), inflector.Snakecase(name), p.config.TemplateLang)
 
 	resultFilePath := path.Join(dir, filename)
 
