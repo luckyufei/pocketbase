@@ -24,6 +24,7 @@ export default defineConfig({
           items: [
             { text: 'Overview', link: '/introduction' },
             { text: 'How to use', link: '/how-to-use' },
+            { text: 'CLI Commands', link: '/cli' },
             { text: 'Collections', link: '/collections' },
             { text: 'API rules and filters', link: '/api-rules-and-filters' },
             { text: 'Authentication', link: '/authentication' },
