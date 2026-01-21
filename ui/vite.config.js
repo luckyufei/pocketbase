@@ -6,18 +6,16 @@ export default defineConfig({
     server: {
         port: 3000,
         proxy: {
+            // 代理 API 请求到后端
             '/api': {
-                target: 'http://127.0.0.1:8090',
-                changeOrigin: true,
-            },
-            '/_': {
                 target: 'http://127.0.0.1:8090',
                 changeOrigin: true,
             },
         },
     },
     envPrefix: 'PB',
-    base: './',
+    // 统一使用 /_/ 前缀，开发和生产保持一致
+    base: '/_/',
     build: {
         chunkSizeWarningLimit: 1000,
         reportCompressedSize: false,

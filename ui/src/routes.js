@@ -20,7 +20,7 @@ import { isTokenExpired } from "pocketbase";
 import { wrap } from "svelte-spa-router/wrap";
 
 const routes = {
-    "/pbinstal/:token": wrap({
+    "/pbinstall/:token": wrap({
         asyncComponent: () => import("@/components/base/PageInstaller.svelte"),
         conditions: [(details) => {
             return details.params.token && !isTokenExpired(details.params.token)

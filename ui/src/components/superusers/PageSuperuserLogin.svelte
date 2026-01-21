@@ -164,17 +164,17 @@
         <div class="block txt-center">
             <span class="loader" />
         </div>
-    {:else if authMethods.password.enabled && !mfaId}
+    {:else if authMethods?.password?.enabled && !mfaId}
         <!-- auth with password -->
         <form class="block" on:submit|preventDefault={authWithPassword}>
             <Field class="form-field required" name="identity" let:uniqueId>
                 <label for={uniqueId}>
-                    {CommonHelper.sentenize(authMethods.password.identityFields.join(" or "), false)}
+                    {CommonHelper.sentenize(authMethods.password.identityFields?.join(" or ") || "email", false)}
                 </label>
                 <!-- svelte-ignore a11y-autofocus -->
                 <input
                     id={uniqueId}
-                    type={authMethods.password.identityFields.length == 1 &&
+                    type={authMethods.password.identityFields?.length == 1 &&
                     authMethods.password.identityFields[0] == "email"
                         ? "email"
                         : "text"}
@@ -205,7 +205,7 @@
                 <i class="ri-arrow-right-line" />
             </button>
         </form>
-    {:else if authMethods.otp.enabled}
+    {:else if authMethods?.otp?.enabled}
         {#if !otpId}
             <!-- request otp -->
             <form class="block" on:submit|preventDefault={requestOTP}>
