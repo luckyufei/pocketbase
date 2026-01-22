@@ -1,68 +1,68 @@
-# Proxy 代理网关
+# Proxy Gateway
 
-PocketBase 内置了 API 代理网关功能（`_proxies`），允许你将外部 API 请求代理到上游服务，同时复用 PocketBase 的认证和权限系统。
+PocketBase has built-in API proxy gateway functionality (`_proxies`), allowing you to proxy external API requests to upstream services while reusing PocketBase's authentication and permission system.
 
-## 功能特性
+## Features
 
-- **零配置部署** - 无需额外的 Nginx/Traefik，单二进制即可运行
-- **统一认证** - 复用 PocketBase 的用户认证和 Rule Engine
-- **密钥保护** - 敏感 API Key 存储在服务端，前端无法获取
-- **请求头注入** - 支持动态注入环境变量、用户信息到上游请求
-- **Hot Reload** - 配置变更即时生效，无需重启服务
+- **Zero Configuration Deployment** - No additional Nginx/Traefik needed, single binary runs everything
+- **Unified Authentication** - Reuse PocketBase's user authentication and Rule Engine
+- **Key Protection** - Sensitive API Keys stored server-side, inaccessible to frontend
+- **Header Injection** - Support dynamic injection of environment variables and user info into upstream requests
+- **Hot Reload** - Configuration changes take effect immediately without restart
 
-## 快速开始
+## Quick Start
 
-### 1. 创建代理配置
+### 1. Create Proxy Configuration
 
-在 Admin UI 中，导航到 `_proxies` 系统 Collection，创建新记录：
+In Admin UI, navigate to `_proxies` system Collection, create a new record:
 
-| 字段 | 值 | 说明 |
-|------|-----|------|
-| `path` | `/-/openai` | 代理路径前缀 |
-| `upstream` | `https://api.openai.com` | 上游服务地址 |
-| `stripPath` | `true` | 移除匹配的路径前缀 |
-| `accessRule` | `@request.auth.id != ''` | 需要登录用户 |
-| `headers` | `{"Authorization": "Bearer {env.OPENAI_API_KEY}"}` | 注入 API Key |
-| `timeout` | `60` | 超时时间（秒） |
-| `active` | `true` | 启用代理 |
+| Field | Value | Description |
+|-------|-------|-------------|
+| `path` | `/-/openai` | Proxy path prefix |
+| `upstream` | `https://api.openai.com` | Upstream service address |
+| `stripPath` | `true` | Remove matched path prefix |
+| `accessRule` | `@request.auth.id != ''` | Require logged-in user |
+| `headers` | `{"Authorization": "Bearer {env.OPENAI_API_KEY}"}` | Inject API Key |
+| `timeout` | `60` | Timeout in seconds |
+| `active` | `true` | Enable proxy |
 
-### 2. 设置环境变量
+### 2. Set Environment Variable
 
 ```bash
 export OPENAI_API_KEY="sk-your-api-key"
 ```
 
-### 3. 发送请求
+### 3. Send Request
 
 ```bash
-# 前端请求（需要携带 PocketBase 认证 Token）
+# Frontend request (requires PocketBase auth Token)
 curl -X POST http://localhost:8090/-/openai/v1/chat/completions \
   -H "Authorization: Bearer <pb_auth_token>" \
   -H "Content-Type: application/json" \
   -d '{"model": "gpt-4", "messages": [{"role": "user", "content": "Hello"}]}'
 ```
 
-请求会被代理到 `https://api.openai.com/v1/chat/completions`，并自动注入 `Authorization: Bearer sk-your-api-key` 请求头。
+The request will be proxied to `https://api.openai.com/v1/chat/completions`, with `Authorization: Bearer sk-your-api-key` header automatically injected.
 
-## 配置字段
+## Configuration Fields
 
-### `_proxies` Collection 字段
+### `_proxies` Collection Fields
 
-| 字段名 | 类型 | 必填 | 默认值 | 说明 |
-|--------|------|------|--------|------|
-| `path` | Text | ✅ | - | 代理路径前缀，必须以 `/` 开头 |
-| `upstream` | URL | ✅ | - | 上游服务 URL |
-| `stripPath` | Bool | ❌ | `true` | 是否移除匹配的路径前缀 |
-| `accessRule` | Text | ❌ | `""` | 访问控制规则 |
-| `headers` | JSON | ❌ | `{}` | 注入的请求头模板 |
-| `timeout` | Number | ❌ | `30` | 请求超时时间（秒） |
-| `active` | Bool | ❌ | `true` | 是否启用 |
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `path` | Text | ✅ | - | Proxy path prefix, must start with `/` |
+| `upstream` | URL | ✅ | - | Upstream service URL |
+| `stripPath` | Bool | ❌ | `true` | Whether to remove matched path prefix |
+| `accessRule` | Text | ❌ | `""` | Access control rule |
+| `headers` | JSON | ❌ | `{}` | Request header template to inject |
+| `timeout` | Number | ❌ | `30` | Request timeout in seconds |
+| `active` | Bool | ❌ | `true` | Whether enabled |
 
-### 路径规则
+### Path Rules
 
-#### 推荐路径前缀
+#### Recommended Path Prefix
 
-建议使用 `/-/` 前缀，这是专门为网关保留的命名空间：
+Use `/-/` prefix, which is reserved namespace for gateway:
 
 ```
 /-/openai      → https://api.openai.com
@@ -70,37 +70,37 @@ curl -X POST http://localhost:8090/-/openai/v1/chat/completions \
 /-/internal    → http://internal-service:3000
 ```
 
-#### 禁止的路径
+#### Forbidden Paths
 
-以下路径被保留，不能用于代理：
+The following paths are reserved and cannot be used for proxy:
 
-- `/api/*` - PocketBase API 路由
-- `/_/*` - Admin UI 路由
+- `/api/*` - PocketBase API routes
+- `/_/*` - Admin UI routes
 
-### `stripPath` 行为
+### `stripPath` Behavior
 
-| `stripPath` | 请求路径 | 代理路径 | 上游 URL |
-|--------------|----------|----------|----------|
+| `stripPath` | Request Path | Proxy Path | Upstream URL |
+|-------------|--------------|------------|--------------|
 | `true` | `/-/openai/v1/chat` | `/-/openai` | `https://api.openai.com/v1/chat` |
 | `false` | `/-/openai/v1/chat` | `/-/openai` | `https://api.openai.com/-/openai/v1/chat` |
 
-## 访问控制
+## Access Control
 
-### 规则语法
+### Rule Syntax
 
-`accessRule` 使用与 PocketBase Collection Rules 相同的语法：
+`accessRule` uses the same syntax as PocketBase Collection Rules:
 
-| 规则 | 效果 |
-|------|------|
-| `""` (空) | 仅 Superuser 可访问 |
-| `"true"` | 公开访问（无需认证） |
-| `@request.auth.id != ''` | 需要任意登录用户 |
-| `@request.auth.verified = true` | 需要已验证邮箱的用户 |
-| `@request.auth.role = 'admin'` | 需要特定角色（自定义字段） |
+| Rule | Effect |
+|------|--------|
+| `""` (empty) | Superuser only |
+| `"true"` | Public access (no auth required) |
+| `@request.auth.id != ''` | Any logged-in user required |
+| `@request.auth.verified = true` | Verified email user required |
+| `@request.auth.role = 'admin'` | Specific role required (custom field) |
 
-### 示例配置
+### Example Configurations
 
-#### 仅管理员访问
+#### Admin Only Access
 
 ```json
 {
@@ -110,7 +110,7 @@ curl -X POST http://localhost:8090/-/openai/v1/chat/completions \
 }
 ```
 
-#### 公开 API（无需认证）
+#### Public API (No Auth Required)
 
 ```json
 {
@@ -120,7 +120,7 @@ curl -X POST http://localhost:8090/-/openai/v1/chat/completions \
 }
 ```
 
-#### 登录用户访问
+#### Logged-in User Access
 
 ```json
 {
@@ -130,7 +130,7 @@ curl -X POST http://localhost:8090/-/openai/v1/chat/completions \
 }
 ```
 
-#### VIP 用户访问
+#### VIP User Access
 
 ```json
 {
@@ -140,23 +140,23 @@ curl -X POST http://localhost:8090/-/openai/v1/chat/completions \
 }
 ```
 
-## 请求头注入
+## Request Header Injection
 
-### 模板语法
+### Template Syntax
 
-`headers` 字段支持以下模板变量：
+`headers` field supports the following template variables:
 
-| 语法 | 说明 | 示例 |
-|------|------|------|
-| `{env.VAR_NAME}` | 环境变量 | `{env.API_KEY}` |
-| `@request.auth.id` | 当前用户 ID | - |
-| `@request.auth.email` | 当前用户邮箱 | - |
-| `@request.auth.<field>` | 用户记录的任意字段 | `@request.auth.name` |
-| 静态值 | 直接使用 | `application/json` |
+| Syntax | Description | Example |
+|--------|-------------|---------|
+| `{env.VAR_NAME}` | Environment variable | `{env.API_KEY}` |
+| `@request.auth.id` | Current user ID | - |
+| `@request.auth.email` | Current user email | - |
+| `@request.auth.<field>` | Any field from user record | `@request.auth.name` |
+| Static value | Use directly | `application/json` |
 
-### 示例配置
+### Example Configurations
 
-#### 注入 API Key
+#### Inject API Key
 
 ```json
 {
@@ -166,7 +166,7 @@ curl -X POST http://localhost:8090/-/openai/v1/chat/completions \
 }
 ```
 
-#### 注入用户信息
+#### Inject User Info
 
 ```json
 {
@@ -178,7 +178,7 @@ curl -X POST http://localhost:8090/-/openai/v1/chat/completions \
 }
 ```
 
-#### 混合使用
+#### Mixed Usage
 
 ```json
 {
@@ -190,9 +190,9 @@ curl -X POST http://localhost:8090/-/openai/v1/chat/completions \
 }
 ```
 
-### 与 Secrets 集成
+### Integration with Secrets
 
-推荐将敏感 API Key 存储在 `_secrets` 表中，通过模板引用：
+It's recommended to store sensitive API Keys in `_secrets` table and reference via template:
 
 ```json
 {
@@ -202,25 +202,25 @@ curl -X POST http://localhost:8090/-/openai/v1/chat/completions \
 }
 ```
 
-::: tip 提示
-使用 `{secrets.KEY_NAME}` 语法可以从 Secrets 存储中获取加密的密钥值。
+::: tip Tip
+Use `{secrets.KEY_NAME}` syntax to retrieve encrypted key values from Secrets storage.
 :::
 
-### 自动添加的请求头
+### Auto-added Request Headers
 
-网关会自动添加以下标准代理请求头：
+The gateway automatically adds the following standard proxy headers:
 
-| 请求头 | 值 |
-|--------|-----|
-| `X-Forwarded-For` | 客户端 IP |
-| `X-Forwarded-Host` | 原始 Host |
-| `X-Forwarded-Proto` | 原始协议 (http/https) |
+| Header | Value |
+|--------|-------|
+| `X-Forwarded-For` | Client IP |
+| `X-Forwarded-Host` | Original Host |
+| `X-Forwarded-Proto` | Original protocol (http/https) |
 
-## 常见用例
+## Common Use Cases
 
-### 1. OpenAI API 代理
+### 1. OpenAI API Proxy
 
-保护 API Key，限制用户访问：
+Protect API Key and restrict user access:
 
 ```json
 {
@@ -236,7 +236,7 @@ curl -X POST http://localhost:8090/-/openai/v1/chat/completions \
 }
 ```
 
-前端调用：
+Frontend call:
 
 ```javascript
 const response = await pb.send('/-/openai/v1/chat/completions', {
@@ -248,9 +248,9 @@ const response = await pb.send('/-/openai/v1/chat/completions', {
 });
 ```
 
-### 2. Stripe Webhook 接收
+### 2. Stripe Webhook Receiver
 
-接收 Stripe 回调并转发到内部服务：
+Receive Stripe callbacks and forward to internal service:
 
 ```json
 {
@@ -266,26 +266,26 @@ const response = await pb.send('/-/openai/v1/chat/completions', {
 }
 ```
 
-### 3. 微服务聚合
+### 3. Microservice Aggregation
 
-将多个内部服务暴露为统一 API：
+Expose multiple internal services as unified API:
 
 ```json
-// 用户服务
+// User service
 {
   "path": "/-/users",
   "upstream": "http://user-service:3001",
   "accessRule": "@request.auth.id != ''"
 }
 
-// 订单服务
+// Order service
 {
   "path": "/-/orders",
   "upstream": "http://order-service:3002",
   "accessRule": "@request.auth.id != ''"
 }
 
-// 支付服务
+// Payment service
 {
   "path": "/-/payments",
   "upstream": "http://payment-service:3003",
@@ -307,7 +307,7 @@ func main() {
     app := pocketbase.New()
 
     app.OnServe().BindFunc(func(se *core.ServeEvent) error {
-        // 创建代理配置
+        // Create proxy configuration
         proxy := core.NewProxy(app)
         proxy.SetPath("/-/api")
         proxy.SetUpstream("https://api.example.com")
@@ -330,84 +330,84 @@ func main() {
 }
 ```
 
-## 故障排查
+## Troubleshooting
 
-### 常见错误
+### Common Errors
 
-| 错误 | 原因 | 解决方案 |
-|------|------|----------|
-| `404 Not Found` | 路径未匹配或代理未启用 | 检查 `path` 和 `active` 字段 |
-| `401 Unauthorized` | 未提供认证 Token | 在请求头中添加 `Authorization` |
-| `403 Forbidden` | 用户不满足 `accessRule` | 检查用户权限和规则配置 |
-| `502 Bad Gateway` | 上游服务不可达 | 检查 `upstream` URL 和网络连接 |
-| `504 Gateway Timeout` | 上游响应超时 | 增加 `timeout` 值 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `404 Not Found` | Path not matched or proxy not enabled | Check `path` and `active` fields |
+| `401 Unauthorized` | Auth Token not provided | Add `Authorization` header to request |
+| `403 Forbidden` | User doesn't meet `accessRule` | Check user permissions and rule config |
+| `502 Bad Gateway` | Upstream service unreachable | Check `upstream` URL and network |
+| `504 Gateway Timeout` | Upstream response timeout | Increase `timeout` value |
 
-### 调试日志
+### Debug Logging
 
-启用 Debug 日志查看代理请求详情：
+Enable Debug logging to see proxy request details:
 
 ```bash
 ./pocketbase serve --debug
 ```
 
-日志输出示例：
+Log output example:
 
 ```
 DEBUG proxy request method=POST path=/-/openai/v1/chat proxy_path=/-/openai upstream=https://api.openai.com status=200 duration_ms=1234
 ```
 
-### 验证配置
+### Verify Configuration
 
-使用 curl 测试代理：
+Test proxy with curl:
 
 ```bash
-# 测试公开代理
+# Test public proxy
 curl -v http://localhost:8090/-/public/test
 
-# 测试需要认证的代理
+# Test authenticated proxy
 curl -v http://localhost:8090/-/openai/v1/models \
   -H "Authorization: Bearer <pb_auth_token>"
 ```
 
-## 最佳实践
+## Best Practices
 
-### 安全建议
+### Security Recommendations
 
-1. **最小权限原则**: 使用最严格的 `accessRule`
-2. **敏感 Key 使用 Secrets**: 存储在 `_secrets` 表中，不要硬编码
-3. **设置合理超时**: 避免长时间占用连接
-4. **禁用未使用的代理**: 设置 `active=false`
+1. **Principle of Least Privilege**: Use the strictest `accessRule`
+2. **Use Secrets for Sensitive Keys**: Store in `_secrets` table, don't hardcode
+3. **Set Reasonable Timeout**: Avoid long connection holds
+4. **Disable Unused Proxies**: Set `active=false`
 
-### 性能优化
+### Performance Optimization
 
-1. **使用 `stripPath=true`**: 减少上游 URL 长度
-2. **合理设置 `timeout`**: 根据上游服务响应时间调整
-3. **避免过多代理规则**: 每个请求都会遍历规则表
+1. **Use `stripPath=true`**: Reduce upstream URL length
+2. **Set Appropriate `timeout`**: Adjust based on upstream response time
+3. **Avoid Too Many Proxy Rules**: Each request iterates through rules table
 
-### 命名规范
+### Naming Convention
 
 ```
-/-/openai      ✅ 推荐：使用 /-/ 前缀
-/-/stripe      ✅ 推荐：服务名简洁明了
-/api/proxy     ❌ 禁止：与 PocketBase API 冲突
-/_/custom      ❌ 禁止：与 Admin UI 冲突
+/-/openai      ✅ Recommended: Use /-/ prefix
+/-/stripe      ✅ Recommended: Clear service name
+/api/proxy     ❌ Forbidden: Conflicts with PocketBase API
+/_/custom      ❌ Forbidden: Conflicts with Admin UI
 ```
 
-## 响应处理
+## Response Handling
 
-### 请求头透传
+### Request Header Pass-through
 
-以下请求头会被透传到上游：
+The following headers are passed to upstream:
 
 - `Content-Type`
 - `Accept`
 - `User-Agent`
-- 所有自定义请求头
+- All custom headers
 
-### 响应透传
+### Response Pass-through
 
-上游服务的响应会原样返回给客户端，包括：
+Upstream service responses are returned as-is to client, including:
 
-- 状态码
-- 响应头
-- 响应体（支持 Streaming）
+- Status code
+- Response headers
+- Response body (supports Streaming)
