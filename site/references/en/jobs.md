@@ -1,19 +1,19 @@
-# Jobs 任务队列
+# Jobs Queue
 
-PocketBase 内置了一个轻量级的任务队列系统，支持延时任务、自动重试、并发处理等功能。同时兼容 SQLite 和 PostgreSQL。
+PocketBase has a built-in lightweight job queue system, supporting delayed tasks, auto-retry, concurrent processing, and more. Compatible with both SQLite and PostgreSQL.
 
-## 功能特性
+## Features
 
-- **延时执行** - 支持定时调度任务
-- **自动重试** - 失败任务自动重试，可配置最大重试次数
-- **并发处理** - Worker 池并发执行任务
-- **持久化存储** - 任务存储在数据库中，服务重启不丢失
-- **管理 API** - 提供 RESTful API 进行任务管理
-- **双数据库兼容** - 同时支持 SQLite 和 PostgreSQL
+- **Delayed Execution** - Support scheduled task scheduling
+- **Auto Retry** - Failed tasks auto-retry with configurable max retries
+- **Concurrent Processing** - Worker pool for concurrent task execution
+- **Persistent Storage** - Tasks stored in database, survive service restarts
+- **Management API** - RESTful API for task management
+- **Dual Database Compatibility** - Supports both SQLite and PostgreSQL
 
-## 快速开始
+## Quick Start
 
-### 1. 注册任务处理器
+### 1. Register Task Handler
 
 ```go
 package main
@@ -27,11 +27,11 @@ import (
 func main() {
     app := pocketbase.New()
 
-    // 在应用启动后注册任务处理器
+    // Register task handler after app starts
     app.OnServe().BindFunc(func(se *core.ServeEvent) error {
-        // 注册 "send_email" 主题的处理器
+        // Register handler for "send_email" topic
         app.Jobs().Register("send_email", func(job *core.Job) error {
-            // 解析 Payload
+            // Parse Payload
             var payload struct {
                 To      string `json:"to"`
                 Subject string `json:"subject"`
@@ -41,14 +41,14 @@ func main() {
                 return err
             }
 
-            // 执行任务逻辑
-            log.Printf("发送邮件到 %s: %s", payload.To, payload.Subject)
-            // ... 实际发送邮件的代码
+            // Execute task logic
+            log.Printf("Sending email to %s: %s", payload.To, payload.Subject)
+            // ... actual email sending code
 
             return nil
         })
 
-        // 启动任务调度器
+        // Start task scheduler
         app.Jobs().Start()
 
         return se.Next()
@@ -60,42 +60,42 @@ func main() {
 }
 ```
 
-### 2. 入队任务
+### 2. Enqueue Tasks
 
 ```go
-// 立即执行
+// Execute immediately
 job, err := app.Jobs().Enqueue("send_email", map[string]any{
     "to":      "user@example.com",
-    "subject": "欢迎注册",
-    "body":    "感谢您的注册！",
+    "subject": "Welcome",
+    "body":    "Thanks for signing up!",
 })
 
-// 延时执行（10 分钟后）
+// Delayed execution (10 minutes later)
 job, err := app.Jobs().EnqueueAt("send_email", payload, time.Now().Add(10*time.Minute))
 
-// 带选项入队
+// Enqueue with options
 job, err := app.Jobs().EnqueueWithOptions("send_email", payload, &core.JobEnqueueOptions{
-    RunAt:      time.Now().Add(1*time.Hour),  // 1 小时后执行
-    MaxRetries: 5,                            // 最多重试 5 次
+    RunAt:      time.Now().Add(1*time.Hour),  // Execute 1 hour later
+    MaxRetries: 5,                            // Max 5 retries
 })
 ```
 
-## 任务状态
+## Task Status
 
-| 状态 | 说明 |
-|------|------|
-| `pending` | 等待执行 |
-| `processing` | 正在执行 |
-| `completed` | 执行成功 |
-| `failed` | 执行失败（已达最大重试次数） |
+| Status | Description |
+|--------|-------------|
+| `pending` | Waiting for execution |
+| `processing` | Currently executing |
+| `completed` | Execution succeeded |
+| `failed` | Execution failed (max retries reached) |
 
-## API 接口
+## API Endpoints
 
-::: warning 注意
-所有 Jobs API 都需要超级用户 (Superuser) 权限。
+::: warning Note
+All Jobs APIs require Superuser privileges.
 :::
 
-### 入队任务
+### Enqueue Task
 
 ```http
 POST /api/jobs/enqueue
@@ -107,12 +107,12 @@ Content-Type: application/json
         "to": "user@example.com",
         "subject": "Hello"
     },
-    "run_at": "2025-01-08T12:00:00Z",  // 可选，延时执行
-    "max_retries": 5                    // 可选，最大重试次数
+    "run_at": "2025-01-08T12:00:00Z",  // Optional, delayed execution
+    "max_retries": 5                    // Optional, max retries
 }
 ```
 
-**响应:**
+**Response:**
 ```json
 {
     "id": "01234567-89ab-cdef-0123-456789abcdef",
@@ -127,19 +127,19 @@ Content-Type: application/json
 }
 ```
 
-### 获取任务列表
+### Get Task List
 
 ```http
 GET /api/jobs?topic=send_email&status=pending&limit=20&offset=0
 ```
 
-**查询参数:**
-- `topic` - 按主题筛选
-- `status` - 按状态筛选 (`pending`, `processing`, `completed`, `failed`)
-- `limit` - 返回数量（默认 20）
-- `offset` - 偏移量
+**Query Parameters:**
+- `topic` - Filter by topic
+- `status` - Filter by status (`pending`, `processing`, `completed`, `failed`)
+- `limit` - Return count (default 20)
+- `offset` - Offset
 
-**响应:**
+**Response:**
 ```json
 {
     "items": [...],
@@ -149,19 +149,19 @@ GET /api/jobs?topic=send_email&status=pending&limit=20&offset=0
 }
 ```
 
-### 获取单个任务
+### Get Single Task
 
 ```http
 GET /api/jobs/{id}
 ```
 
-### 获取统计信息
+### Get Statistics
 
 ```http
 GET /api/jobs/stats
 ```
 
-**响应:**
+**Response:**
 ```json
 {
     "pending": 10,
@@ -173,71 +173,71 @@ GET /api/jobs/stats
 }
 ```
 
-### 重新入队失败任务
+### Requeue Failed Task
 
 ```http
 POST /api/jobs/{id}/requeue
 ```
 
-::: info 提示
-仅 `failed` 状态的任务可以重新入队。
+::: info Tip
+Only `failed` status tasks can be requeued.
 :::
 
-### 删除任务
+### Delete Task
 
 ```http
 DELETE /api/jobs/{id}
 ```
 
-::: info 提示
-仅 `pending` 或 `failed` 状态的任务可以删除。
+::: info Tip
+Only `pending` or `failed` status tasks can be deleted.
 :::
 
-## 配置参数
+## Configuration Parameters
 
-| 常量 | 默认值 | 说明 |
-|------|--------|------|
-| `JobMaxPayloadSize` | 1 MB | Payload 最大大小 |
-| `JobDefaultMaxRetries` | 3 | 默认最大重试次数 |
-| `JobDefaultLockDuration` | 5 分钟 | 任务锁定时长（执行超时时间） |
-| `JobDefaultPollInterval` | 1 秒 | 轮询间隔 |
-| `JobDefaultWorkerPoolSize` | 10 | Worker 池大小 |
-| `JobDefaultBatchSize` | 10 | 批量获取任务数量 |
+| Constant | Default | Description |
+|----------|---------|-------------|
+| `JobMaxPayloadSize` | 1 MB | Maximum payload size |
+| `JobDefaultMaxRetries` | 3 | Default max retries |
+| `JobDefaultLockDuration` | 5 minutes | Task lock duration (execution timeout) |
+| `JobDefaultPollInterval` | 1 second | Poll interval |
+| `JobDefaultWorkerPoolSize` | 10 | Worker pool size |
+| `JobDefaultBatchSize` | 10 | Batch fetch task count |
 
-## 错误处理
+## Error Handling
 
-任务处理器返回错误时，系统会自动重试：
+When task handler returns an error, system auto-retries:
 
 ```go
 app.Jobs().Register("risky_task", func(job *core.Job) error {
     if err := doSomethingRisky(); err != nil {
-        // 返回错误会触发重试
+        // Returning error triggers retry
         return err
     }
     return nil
 })
 ```
 
-- 每次重试会增加 `retries` 计数
-- 达到 `max_retries` 后，任务状态变为 `failed`
-- 失败任务可通过 API 或 UI 手动重新入队
+- Each retry increments `retries` count
+- After reaching `max_retries`, task status changes to `failed`
+- Failed tasks can be manually requeued via API or UI
 
-## UI 管理
+## UI Management
 
-在 PocketBase Admin UI 中，访问 **Settings → Jobs** 可以：
+In PocketBase Admin UI, navigate to **Settings → Jobs** to:
 
-- 查看任务列表和状态
-- 按主题/状态筛选
-- 查看任务详情和 Payload
-- 重新入队失败任务
-- 删除任务
-- 查看统计信息
+- View task list and status
+- Filter by topic/status
+- View task details and Payload
+- Requeue failed tasks
+- Delete tasks
+- View statistics
 
-## 最佳实践
+## Best Practices
 
-### 1. 幂等性设计
+### 1. Idempotent Design
 
-任务可能因重试而多次执行，确保处理器具有幂等性：
+Tasks may execute multiple times due to retries, ensure handlers are idempotent:
 
 ```go
 app.Jobs().Register("process_order", func(job *core.Job) error {
@@ -246,54 +246,54 @@ app.Jobs().Register("process_order", func(job *core.Job) error {
     }
     job.UnmarshalPayload(&payload)
 
-    // 先检查订单是否已处理
+    // Check if order already processed
     if isOrderProcessed(payload.OrderID) {
-        return nil // 已处理，直接返回成功
+        return nil // Already processed, return success
     }
 
     return processOrder(payload.OrderID)
 })
 ```
 
-### 2. 合理设置重试次数
+### 2. Set Appropriate Retry Count
 
 ```go
-// 对于网络请求类任务，可以设置较多重试
+// For network request tasks, set more retries
 app.Jobs().EnqueueWithOptions("call_webhook", payload, &core.JobEnqueueOptions{
     MaxRetries: 10,
 })
 
-// 对于不可恢复的错误，可以设置较少重试
+// For unrecoverable errors, set fewer retries
 app.Jobs().EnqueueWithOptions("send_sms", payload, &core.JobEnqueueOptions{
     MaxRetries: 2,
 })
 ```
 
-### 3. Payload 大小控制
+### 3. Payload Size Control
 
-Payload 最大 1MB，对于大数据量，建议存储引用而非数据本身：
+Payload max 1MB, for large data, store reference instead of data itself:
 
 ```go
-// 推荐：存储文件 ID
+// Recommended: Store file ID
 app.Jobs().Enqueue("process_file", map[string]any{
     "file_id": "abc123",
 })
 
-// 不推荐：存储文件内容
+// Not recommended: Store file content
 // app.Jobs().Enqueue("process_file", map[string]any{
-//     "content": largeFileContent,  // 可能超过 1MB
+//     "content": largeFileContent,  // May exceed 1MB
 // })
 ```
 
-## 数据库兼容性
+## Database Compatibility
 
-Jobs 模块完全兼容 SQLite 和 PostgreSQL：
+Jobs module is fully compatible with SQLite and PostgreSQL:
 
-| 功能 | SQLite | PostgreSQL |
-|------|--------|------------|
-| 表结构 | TEXT 存储 JSON | JSONB 类型 |
-| 索引 | 普通索引 | 部分索引 (WHERE) |
-| 任务获取 | 乐观锁 + CAS | FOR UPDATE SKIP LOCKED |
-| 时间类型 | TEXT | TIMESTAMP |
+| Feature | SQLite | PostgreSQL |
+|---------|--------|------------|
+| Table Structure | TEXT stores JSON | JSONB type |
+| Index | Regular index | Partial index (WHERE) |
+| Task Fetch | Optimistic lock + CAS | FOR UPDATE SKIP LOCKED |
+| Time Type | TEXT | TIMESTAMP |
 
-无需修改代码，系统会自动适配不同数据库。
+No code changes needed - the system automatically adapts to different databases.

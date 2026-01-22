@@ -1,34 +1,34 @@
-# Secrets 密钥管理
+# Secrets Management
 
-PocketBase 提供了安全的密钥管理功能，用于存储 API 密钥、数据库密码等敏感信息。所有密钥使用 AES-256-GCM 加密存储。
+PocketBase provides secure secrets management for storing sensitive information such as API keys and database passwords. All secrets are encrypted using AES-256-GCM.
 
-## 功能特性
+## Features
 
-- **AES-256-GCM 加密** - 行业标准加密算法
-- **环境隔离** - 支持按环境（dev/staging/prod）管理密钥
-- **Fallback 机制** - 指定环境不存在时自动回退到 global
-- **掩码显示** - 列表 API 不暴露明文
-- **RESTful API** - 完整的 CRUD 接口
-- **双数据库兼容** - 同时支持 SQLite 和 PostgreSQL
+- **AES-256-GCM Encryption** - Industry-standard encryption algorithm
+- **Environment Isolation** - Manage secrets by environment (dev/staging/prod)
+- **Fallback Mechanism** - Automatically falls back to global when specified environment doesn't exist
+- **Masked Display** - List API doesn't expose plaintext values
+- **RESTful API** - Complete CRUD interface
+- **Dual Database Compatibility** - Supports both SQLite and PostgreSQL
 
-## 启用 Secrets
+## Enabling Secrets
 
-Secrets 功能需要设置 Master Key 才能启用：
+Secrets functionality requires setting a Master Key to enable:
 
 ```bash
-# 方式 1：环境变量
+# Method 1: Environment variable
 export PB_MASTER_KEY="your-32-byte-master-key-here!!"
 ./pocketbase serve
 
-# 方式 2：命令行参数
+# Method 2: Command line argument
 ./pocketbase serve --masterKey="your-32-byte-master-key-here!!"
 ```
 
-::: danger 重要
-Master Key 必须是 32 字节（256 位），用于派生加密密钥。请妥善保管，丢失将无法解密已存储的密钥。
+::: danger Important
+Master Key must be 32 bytes (256 bits), used to derive encryption keys. Keep it safe - losing it will make stored secrets unrecoverable.
 :::
 
-## 快速开始
+## Quick Start
 
 ### Go SDK
 
@@ -47,28 +47,28 @@ func main() {
     app.OnServe().BindFunc(func(se *core.ServeEvent) error {
         secrets := app.Secrets()
 
-        // 检查功能是否启用
+        // Check if feature is enabled
         if !secrets.IsEnabled() {
-            log.Println("Secrets 功能未启用，请设置 PB_MASTER_KEY")
+            log.Println("Secrets feature not enabled, please set PB_MASTER_KEY")
             return se.Next()
         }
 
-        // 存储密钥
+        // Store secret
         err := secrets.Set("STRIPE_API_KEY", "sk_live_xxx", 
-            core.WithDescription("Stripe 生产环境密钥"))
+            core.WithDescription("Stripe production API key"))
         if err != nil {
-            log.Printf("存储失败: %v", err)
+            log.Printf("Storage failed: %v", err)
         }
 
-        // 读取密钥
+        // Read secret
         apiKey, err := secrets.Get("STRIPE_API_KEY")
         if err != nil {
-            log.Printf("读取失败: %v", err)
+            log.Printf("Read failed: %v", err)
         } else {
             log.Printf("API Key: %s", apiKey)
         }
 
-        // 带默认值读取
+        // Read with default value
         dbPassword := secrets.GetWithDefault("DB_PASSWORD", "default_password")
 
         return se.Next()
@@ -80,26 +80,26 @@ func main() {
 }
 ```
 
-### 环境隔离
+### Environment Isolation
 
 ```go
-// 存储到指定环境
+// Store to specific environment
 secrets.Set("API_KEY", "dev_key", core.WithEnv("dev"))
 secrets.Set("API_KEY", "prod_key", core.WithEnv("prod"))
-secrets.Set("API_KEY", "global_key")  // 默认存储到 "global"
+secrets.Set("API_KEY", "global_key")  // Default stores to "global"
 
-// 读取指定环境（带 fallback）
-key, _ := secrets.GetForEnv("API_KEY", "prod")  // 返回 "prod_key"
-key, _ := secrets.GetForEnv("API_KEY", "test")  // 返回 "global_key"（fallback）
+// Read from specific environment (with fallback)
+key, _ := secrets.GetForEnv("API_KEY", "prod")  // Returns "prod_key"
+key, _ := secrets.GetForEnv("API_KEY", "test")  // Returns "global_key" (fallback)
 ```
 
-## API 接口
+## API Endpoints
 
-::: warning 注意
-所有 Secrets API 都需要超级用户 (Superuser) 权限，且 Secrets 功能必须已启用。
+::: warning Note
+All Secrets APIs require Superuser privileges, and Secrets feature must be enabled.
 :::
 
-### 创建/更新密钥
+### Create/Update Secret
 
 ```http
 POST /api/secrets
@@ -108,12 +108,12 @@ Content-Type: application/json
 {
     "key": "STRIPE_API_KEY",
     "value": "sk_live_xxx",
-    "env": "prod",           // 可选，默认 "global"
-    "description": "Stripe 生产环境密钥"  // 可选
+    "env": "prod",           // Optional, defaults to "global"
+    "description": "Stripe production API key"  // Optional
 }
 ```
 
-**响应:**
+**Response:**
 ```json
 {
     "key": "STRIPE_API_KEY",
@@ -122,13 +122,13 @@ Content-Type: application/json
 }
 ```
 
-### 获取密钥列表
+### Get Secret List
 
 ```http
 GET /api/secrets
 ```
 
-**响应:**
+**Response:**
 ```json
 {
     "items": [
@@ -137,7 +137,7 @@ GET /api/secrets
             "key": "STRIPE_API_KEY",
             "masked_value": "U2FsdG***",
             "env": "prod",
-            "description": "Stripe 生产环境密钥",
+            "description": "Stripe production API key",
             "created": "2025-01-08T10:00:00Z",
             "updated": "2025-01-08T10:00:00Z"
         }
@@ -146,17 +146,17 @@ GET /api/secrets
 }
 ```
 
-::: info 提示
-列表 API 返回掩码值（`masked_value`），不暴露明文。
+::: info Tip
+List API returns masked values (`masked_value`), not exposing plaintext.
 :::
 
-### 获取密钥明文
+### Get Secret Plaintext
 
 ```http
 GET /api/secrets/{key}
 ```
 
-**响应:**
+**Response:**
 ```json
 {
     "key": "STRIPE_API_KEY",
@@ -164,7 +164,7 @@ GET /api/secrets/{key}
 }
 ```
 
-### 更新密钥
+### Update Secret
 
 ```http
 PUT /api/secrets/{key}
@@ -172,97 +172,97 @@ Content-Type: application/json
 
 {
     "value": "sk_live_new_xxx",
-    "description": "更新后的描述"
+    "description": "Updated description"
 }
 ```
 
-### 删除密钥
+### Delete Secret
 
 ```http
 DELETE /api/secrets/{key}
 ```
 
-## 配置参数
+## Configuration Parameters
 
-| 常量 | 默认值 | 说明 |
-|------|--------|------|
-| `SecretMaxKeyLength` | 256 | Key 最大长度 |
-| `SecretMaxValueSize` | 4 KB | Value 最大大小 |
-| `SecretDefaultEnv` | "global" | 默认环境 |
+| Constant | Default | Description |
+|----------|---------|-------------|
+| `SecretMaxKeyLength` | 256 | Maximum key length |
+| `SecretMaxValueSize` | 4 KB | Maximum value size |
+| `SecretDefaultEnv` | "global" | Default environment |
 
-## 错误处理
+## Error Handling
 
-| 错误 | 说明 |
-|------|------|
-| `ErrSecretsDisabled` | Secrets 功能未启用（未设置 Master Key） |
-| `ErrSecretNotFound` | 密钥不存在 |
-| `ErrSecretKeyEmpty` | Key 为空 |
-| `ErrSecretKeyTooLong` | Key 超过 256 字符 |
-| `ErrSecretValueTooLarge` | Value 超过 4KB |
+| Error | Description |
+|-------|-------------|
+| `ErrSecretsDisabled` | Secrets feature not enabled (Master Key not set) |
+| `ErrSecretNotFound` | Secret not found |
+| `ErrSecretKeyEmpty` | Key is empty |
+| `ErrSecretKeyTooLong` | Key exceeds 256 characters |
+| `ErrSecretValueTooLarge` | Value exceeds 4KB |
 
-## UI 管理
+## UI Management
 
-在 PocketBase Admin UI 中，访问 **Settings → Secrets** 可以：
+In PocketBase Admin UI, navigate to **Settings → Secrets** to:
 
-- 查看所有密钥（掩码显示）
-- 创建新密钥
-- 更新密钥值和描述
-- 删除密钥
-- 按环境筛选
+- View all secrets (masked display)
+- Create new secrets
+- Update secret values and descriptions
+- Delete secrets
+- Filter by environment
 
-## 安全最佳实践
+## Security Best Practices
 
-### 1. Master Key 管理
+### 1. Master Key Management
 
 ```bash
-# 生成安全的 Master Key
+# Generate a secure Master Key
 openssl rand -base64 32 | tr -d '\n' | head -c 32
 
-# 不要将 Master Key 提交到代码仓库
-# 使用环境变量或密钥管理服务
+# Do not commit Master Key to code repository
+# Use environment variables or secret management services
 ```
 
-### 2. 访问控制
+### 2. Access Control
 
-Secrets API 仅限超级用户访问，确保：
-- 使用强密码保护超级用户账户
-- 启用双因素认证（如果可用）
-- 定期轮换超级用户密码
+Secrets API is restricted to superusers only. Ensure:
+- Use strong passwords to protect superuser accounts
+- Enable two-factor authentication (if available)
+- Regularly rotate superuser passwords
 
-### 3. 密钥轮换
+### 3. Secret Rotation
 
 ```go
-// 定期更新密钥
-secrets.Set("API_KEY", newKey, core.WithDescription("2025-01 轮换"))
+// Regularly update secrets
+secrets.Set("API_KEY", newKey, core.WithDescription("2025-01 rotation"))
 
-// 旧密钥会被自动覆盖（UPSERT）
+// Old secrets are automatically overwritten (UPSERT)
 ```
 
-### 4. 环境隔离
+### 4. Environment Isolation
 
 ```go
-// 开发环境使用测试密钥
+// Use test keys for development environment
 secrets.Set("STRIPE_KEY", "sk_test_xxx", core.WithEnv("dev"))
 
-// 生产环境使用真实密钥
+// Use real keys for production environment
 secrets.Set("STRIPE_KEY", "sk_live_xxx", core.WithEnv("prod"))
 ```
 
-## 加密细节
+## Encryption Details
 
-- **算法**: AES-256-GCM
-- **密钥派生**: PBKDF2 (SHA-256, 100,000 iterations)
-- **Nonce**: 12 字节随机数
-- **存储格式**: Base64 编码的 `nonce + ciphertext + tag`
+- **Algorithm**: AES-256-GCM
+- **Key Derivation**: PBKDF2 (SHA-256, 100,000 iterations)
+- **Nonce**: 12-byte random number
+- **Storage Format**: Base64 encoded `nonce + ciphertext + tag`
 
-## 数据库兼容性
+## Database Compatibility
 
-Secrets 模块完全兼容 SQLite 和 PostgreSQL：
+Secrets module is fully compatible with SQLite and PostgreSQL:
 
-| 功能 | SQLite | PostgreSQL |
-|------|--------|------------|
-| 时间函数 | `datetime('now')` | `NOW()` |
+| Feature | SQLite | PostgreSQL |
+|---------|--------|------------|
+| Time Function | `datetime('now')` | `NOW()` |
 | UPSERT | `ON CONFLICT DO UPDATE` | `ON CONFLICT DO UPDATE` |
-| 唯一约束 | `UNIQUE(key, env)` | `UNIQUE(key, env)` |
+| Unique Constraint | `UNIQUE(key, env)` | `UNIQUE(key, env)` |
 
-无需修改代码，系统会自动适配不同数据库。
+No code changes needed - the system automatically adapts to different databases.
