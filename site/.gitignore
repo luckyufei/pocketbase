@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+bun.lockb
+
+# VitePress build output
+references/.vitepress/dist/
+references/.vitepress/cache/
+
+# Go build output
+cmd/dist/
+site-server
+site-server-*
+*.exe
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

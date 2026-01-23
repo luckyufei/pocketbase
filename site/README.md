@@ -64,45 +64,78 @@ Agent 可以通过读取此文件快速了解 PocketBase 文档结构，并准�
 
 ```bash
 # 安装依赖
-bun install
+npm install
 
 # 启动开发服务器
-bun run dev
+npm run dev
 
 # 构建静态站点
-bun run build
+npm run build
 
 # 预览构建结果
-bun run preview
+npm run preview
 ```
 
 ## 构建独立可执行文件
 
 使用 Go embed 将文档站点打包成单个可执行文件，无需额外依赖即可运行。
 
-### 快速构建
+### 使用 npm scripts
+
+```bash
+# 准备构建产物（构建 VitePress 并复制到 cmd/dist）
+npm run prepare:dist
+
+# 构建当前平台的可执行文件
+npm run build:server
+# 输出: ./site-server
+
+# 构建 Linux 版本
+npm run build:server:linux
+# 输出: ./site-server-linux
+
+# 构建 macOS 版本
+npm run build:server:darwin
+# 输出: ./site-server-darwin
+
+# 构建 Windows 版本
+npm run build:server:windows
+# 输出: ./site-server.exe
+
+# 一键构建所有平台
+npm run build:all
+
+# 构建并运行
+npm run serve
+```
+
+### 使用 Makefile（如果存在）
 
 ```bash
 # 构建当前平台的可执行文件
 make build-go
 
+# 构建所有平台
+make build-all
+
 # 运行
 ./pocketbase-docs --port=8080
 ```
 
-### 跨平台构建
+### 可用的 npm scripts
 
-```bash
-# 构建所有平台
-make build-all
-```
-
-生成的二进制文件：
-- `pocketbase-docs-linux-amd64`
-- `pocketbase-docs-linux-arm64`
-- `pocketbase-docs-darwin-amd64`
-- `pocketbase-docs-darwin-arm64`
-- `pocketbase-docs-windows-amd64.exe`
+| 命令 | 说明 |
+|------|------|
+| `npm run dev` | 启动 VitePress 开发服务器 |
+| `npm run build` | 构建 VitePress 静态站点 |
+| `npm run preview` | 预览构建结果 |
+| `npm run prepare:dist` | 构建并准备 dist 目录用于 Go embed |
+| `npm run build:server` | 构建当前平台的 Go 服务器 |
+| `npm run build:server:linux` | 构建 Linux AMD64 版本（静态链接） |
+| `npm run build:server:darwin` | 构建 macOS AMD64 版本（静态链接） |
+| `npm run build:server:windows` | 构建 Windows AMD64 版本（静态链接） |
+| `npm run build:all` | 构建所有平台版本 |
+| `npm run serve` | 构建并启动服务器 |
 
 ### 命令行参数
 
