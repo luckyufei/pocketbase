@@ -1,4 +1,4 @@
-# Use as Framework
+# Extending PocketBase
 
 One of the main features of PocketBase is that **it can be used as a framework** which enables you to write your own custom app business logic in [Go](/en/go/overview) or [JavaScript](/en/js/overview) and still have a portable backend at the end.
 

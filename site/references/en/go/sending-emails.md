@@ -1,79 +1,85 @@
 # Sending Emails
 
-PocketBase provides helpers for sending emails through the configured SMTP server.
+PocketBase provides a simple abstraction for sending emails via the `app.NewMailClient()` factory.
 
-## Basic usage
+Depending on your configured mail settings (*Dashboard > Settings > Mail settings*) it will use the `sendmail` command or a SMTP client.
+
+[[toc]]
+
+## Send Custom Email
+
+You can send your own custom email from anywhere within the app (hooks, middlewares, routes, etc.) by using `app.NewMailClient().Send(message)`. Here is an example of sending a custom email after user registration:
 
 ```go
-message := &mailer.Message{
-    From: mail.Address{
-        Name:    "Support",
-        Address: "support@example.com",
-    },
-    To:      []mail.Address{{Address: "user@example.com"}},
-    Subject: "Hello",
-    HTML:    "<p>Hello World!</p>",
-    Text:    "Hello World!",
-}
+// main.go
+package main
 
-if err := app.NewMailClient().Send(message); err != nil {
-    return err
+import (
+    "log"
+    "net/mail"
+
+    "github.com/pocketbase/pocketbase"
+    "github.com/pocketbase/pocketbase/core"
+    "github.com/pocketbase/pocketbase/tools/mailer"
+)
+
+func main() {
+    app := pocketbase.New()
+
+    app.OnRecordCreateRequest("users").BindFunc(func(e *core.RecordRequestEvent) error {
+        if err := e.Next(); err != nil {
+            return err
+        }
+
+        message := &mailer.Message{
+            From: mail.Address{
+                Address: e.App.Settings().Meta.SenderAddress,
+                Name:    e.App.Settings().Meta.SenderName,
+            },
+            To:      []mail.Address{{Address: e.Record.Email()}},
+            Subject: "YOUR_SUBJECT...",
+            HTML:    "YOUR_HTML_BODY...",
+            // bcc, cc, attachments and custom headers are also supported...
+        }
+
+        return e.App.NewMailClient().Send(message)
+    })
+
+    if err := app.Start(); err != nil {
+        log.Fatal(err)
+    }
 }
 ```
 
-## Using templates
+## Overwrite System Emails
 
-You can use Go templates for email content:
+If you want to overwrite the default system emails for forgotten password, verification, etc., you can adjust the default templates available from the *Dashboard > Collections > Edit collection > Options*.
 
-```go
-html, err := app.NewMailClient().RenderTemplate("emails/welcome.html", map[string]any{
-    "name": "John",
-    "link": "https://example.com/verify",
-})
-if err != nil {
-    return err
-}
-
-message := &mailer.Message{
-    From:    mail.Address{Address: "support@example.com"},
-    To:      []mail.Address{{Address: "user@example.com"}},
-    Subject: "Welcome!",
-    HTML:    html,
-}
-
-return app.NewMailClient().Send(message)
-```
-
-## Attachments
+Alternatively, you can also apply individual changes by binding to one of the [mailer hooks](/docs/go-event-hooks/#mailer-hooks). Here is an example of appending a Record field value to the subject using the `OnMailerRecordPasswordResetSend` hook:
 
 ```go
-message := &mailer.Message{
-    From:    mail.Address{Address: "support@example.com"},
-    To:      []mail.Address{{Address: "user@example.com"}},
-    Subject: "Report",
-    HTML:    "<p>Please find the report attached.</p>",
-    Attachments: map[string]io.Reader{
-        "report.pdf": bytes.NewReader(pdfData),
-    },
-}
+// main.go
+package main
 
-return app.NewMailClient().Send(message)
-```
+import (
+    "log"
 
-## SMTP configuration
+    "github.com/pocketbase/pocketbase"
+    "github.com/pocketbase/pocketbase/core"
+)
 
-SMTP settings can be configured from the Dashboard under Settings > Mail settings, or programmatically:
+func main() {
+    app := pocketbase.New()
 
-```go
-settings := app.Settings()
-settings.SMTP.Enabled = true
-settings.SMTP.Host = "smtp.example.com"
-settings.SMTP.Port = 587
-settings.SMTP.Username = "user"
-settings.SMTP.Password = "pass"
-settings.SMTP.TLS = true
+    app.OnMailerRecordPasswordResetSend("users").BindFunc(func(e *core.MailerRecordEvent) error {
+        // modify the subject
+        e.Message.Subject += (" " + e.Record.GetString("name"))
 
-if err := app.Save(settings); err != nil {
-    return err
+        return e.Next()
+    })
+
+    if err := app.Start(); err != nil {
+        log.Fatal(err)
+    }
 }
 ```

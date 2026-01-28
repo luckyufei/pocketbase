@@ -1,69 +1,57 @@
-# 实时功能（JavaScript）
+# 实时消息
 
-PocketBase 通过服务器发送事件（SSE）提供实时功能。
+默认情况下，PocketBase 只为记录的创建/更新/删除操作（*以及 OAuth2 认证重定向*）发送实时事件，但你可以通过 [`$app.subscriptionsBroker()`](/jsvm/functions/_app.subscriptionsBroker.html) 实例自由地向已连接的客户端发送自定义实时消息。
 
-## 发送自定义消息
+[`$app.subscriptionsBroker().clients()`](/jsvm/interfaces/subscriptions.Broker.html#clients) 返回所有已连接的 [`subscriptions.Client`](/jsvm/interfaces/subscriptions.Client.html)，按其唯一连接 ID 索引。
 
-```javascript
-// 向订阅主题的所有客户端发送消息
-$app.subscriptionsBroker().send("myTopic", JSON.stringify({
-    message: "hello"
-}))
+与客户端关联的当前认证记录可以通过 `client.get("auth")` 访问。
 
-// 向订阅记录的客户端发送消息
-$app.subscriptionsBroker().send("posts/RECORD_ID", JSON.stringify({
-    action: "custom"
-}))
-```
+::: info
+注意，单个已认证用户可能有多个活跃的实时连接（即多个客户端）。例如，当在不同的标签页、浏览器、设备等中打开同一应用时，就会发生这种情况。
+:::
 
-## 拦截实时事件
+下面是一个最小代码示例，向所有订阅了 "example" 主题的客户端发送 JSON 数据：
 
 ```javascript
-onRealtimeConnectRequest((e) => {
-    // 建立连接前的自定义逻辑
-    console.log("Client connecting:", e.client.id())
-    e.next()
-})
+const message = new SubscriptionMessage({
+    name: "example",
+    data: JSON.stringify({ ... }),
+});
 
-onRealtimeSubscribeRequest((e) => {
-    // 处理订阅前的自定义逻辑
-    console.log("Subscribing to:", e.subscriptions)
-    e.next()
-})
+// 获取所有客户端（按客户端 ID 索引的映射）
+const clients = $app.subscriptionsBroker().clients()
 
-onRealtimeMessageSend((e) => {
-    // 发送消息前的自定义逻辑
-    // 你可以修改 e.message 或阻止发送
-    e.next()
-})
-```
-
-## 自定义订阅验证
-
-```javascript
-onRealtimeSubscribeRequest((e) => {
-    // 仅允许已认证用户订阅
-    if (!e.client.auth()) {
-        throw new ForbiddenError("Authentication required")
+for (let clientId in clients) {
+    if (clients[clientId].hasSubscription("example")) {
+        clients[clientId].send(message)
     }
-    
-    e.next()
+}
+```
+
+在客户端，用户可以通过以下方式监听自定义订阅主题：
+
+::: code-group
+```javascript [JavaScript]
+import PocketBase from 'pocketbase';
+
+const pb = new PocketBase('http://127.0.0.1:8090');
+
+...
+
+await pb.realtime.subscribe('example', (e) => {
+    console.log(e)
 })
 ```
 
-## 示例：广播给所有客户端
+```dart [Dart]
+import 'package:pocketbase/pocketbase.dart';
 
-```javascript
-routerAdd("POST", "/api/broadcast", (e) => {
-    const data = e.requestInfo().body
-    
-    // 广播给所有订阅 "announcements" 的客户端
-    $app.subscriptionsBroker().send("announcements", JSON.stringify({
-        type: "announcement",
-        message: data.message,
-        timestamp: new Date().toISOString()
-    }))
-    
-    return e.json(200, { success: true })
-}, $apis.requireSuperuserAuth())
+final pb = PocketBase('http://127.0.0.1:8090');
+
+...
+
+await pb.realtime.subscribe('example', (e) {
+    print(e)
+})
 ```
+:::

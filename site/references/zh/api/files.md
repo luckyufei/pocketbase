@@ -30,7 +30,7 @@
 
 | 参数 | 类型 | 描述 |
 |-------|------|-------------|
-| thumb | String | 获取请求文件的缩略图。支持的格式：`WxH`（如 100x300）、`WxHt`（如 100x300t - 裁剪到顶部）、`WxHb`（如 100x300b - 裁剪到底部）、`WxHf`（如 100x300f - 适应）、`0xH`（如 0x300 - 自动宽度）、`Wx0`（如 100x0 - 自动高度）。如果缩略图大小未在文件 schema 字段选项中定义，或文件资源不是图片（jpg、png、gif、webp），则返回原始文件资源。 |
+| thumb | String | 获取请求文件的缩略图。<br><br>目前支持以下缩略图格式：<br><br>• **WxH**（如 100x300）- 裁剪到 WxH 视框（从中心）<br>• **WxHt**（如 100x300t）- 裁剪到 WxH 视框（从顶部）<br>• **WxHb**（如 100x300b）- 裁剪到 WxH 视框（从底部）<br>• **WxHf**（如 100x300f）- 适应 WxH 视框内（不裁剪）<br>• **0xH**（如 0x300）- 调整到 H 高度并保持宽高比<br>• **Wx0**（如 100x0）- 调整到 W 宽度并保持宽高比<br><br>如果缩略图大小未在文件 schema 字段选项中定义，或文件资源不是图片（jpg、png、gif、webp），则返回原始文件资源。 |
 | token | String | 用于授予受保护文件访问权限的可选文件令牌。示例请参阅[文件上传和处理](/zh/files-handling#protected-files)。 |
 | download | Boolean | 如果设置为真值（1、t、true），文件将使用 `Content-Disposition: attachment` 头提供服务，指示浏览器忽略 pdf、图片、视频等的文件预览，直接下载文件。 |
 

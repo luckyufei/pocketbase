@@ -6,10 +6,9 @@
 
 Let's assume that we have the following collections structure:
 
-- **posts** - with fields: `id`, `title`, `tags` (multiple relation to tags)
-- **tags** - with fields: `id`, `name`
-- **comments** - with fields: `id`, `post` (single relation to posts), `user` (single relation to users), `message`
-- **users** - auth collection with fields: `id`, etc.
+<div style="text-align: center; margin: 1rem 0;">
+<img src="/images/relations-diagram.png" alt="Collections relation diagram" style="max-width: 100%;" />
+</div>
 
 **The `relation` fields follow the same rules as any other collection field and can be set/modified by directly updating the field value - with a record id or array of ids, in case a multiple relation is used.**
 
@@ -23,6 +22,8 @@ Below is an example that shows creating a new **posts** record with 2 assigned t
 import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('http://127.0.0.1:8090');
+
+...
 
 const post = await pb.collection('posts').create({
     'title': 'Lorem ipsum...',
@@ -38,6 +39,8 @@ const post = await pb.collection('posts').create({
 import 'package:pocketbase/pocketbase.dart';
 
 final pb = PocketBase('http://127.0.0.1:8090');
+
+...
 
 final post = await pb.collection('posts').create(body: {
     'title': 'Lorem ipsum...',
@@ -62,6 +65,8 @@ import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('http://127.0.0.1:8090');
 
+...
+
 const post = await pb.collection('posts').update('POST_ID', {
     // prepend single tag
     '+tags': 'TAG_ID1',
@@ -79,6 +84,8 @@ const post = await pb.collection('posts').update('POST_ID', {
 import 'package:pocketbase/pocketbase.dart';
 
 final pb = PocketBase('http://127.0.0.1:8090');
+
+...
 
 final post = await pb.collection('posts').update('POST_ID', body: {
     // prepend single tag
@@ -106,6 +113,8 @@ import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('http://127.0.0.1:8090');
 
+...
+
 const post = await pb.collection('posts').update('POST_ID', {
     // remove single tag
     'tags-': 'TAG_ID1',
@@ -123,6 +132,8 @@ const post = await pb.collection('posts').update('POST_ID', {
 import 'package:pocketbase/pocketbase.dart';
 
 final pb = PocketBase('http://127.0.0.1:8090');
+
+...
 
 final post = await pb.collection('posts').update('POST_ID', body: {
     // remove single tag
@@ -278,6 +289,29 @@ await pb.collection("posts").getList(
                             }
                         }
                     },
+                    {
+                        "id": "tu4Z9CkLW36mPJz",
+                        "collectionId": "BHKW36mJl3ZPt6z",
+                        "collectionName": "comments",
+                        "created": "2022-01-01 01:10:00.123Z",
+                        "updated": "2022-01-01 02:39:00.456Z",
+                        "post": "WyAw4bDrvws6gGl",
+                        "user": "FtHAW9feB5rze7D",
+                        "message": "hello...",
+                        "expand": {
+                            "user": {
+                                "id": "FtHAW9feB5rze7D",
+                                "collectionId": "srmAo0hLxEqYF7F",
+                                "collectionName": "users",
+                                "created": "2022-01-01 00:00:00.000Z",
+                                "updated": "2022-01-01 00:00:00.000Z",
+                                "username": "users54126",
+                                "verified": false,
+                                "emailVisibility": false,
+                                "name": "John Doe"
+                            }
+                        }
+                    },
                     ...
                 ]
             }
@@ -287,9 +321,9 @@ await pb.collection("posts").getList(
 }
 ```
 
-### Back-relation Caveats
+### Back-relation caveats
 
 ::: info
-- By default the back-relation reference is resolved as a dynamic *multiple* relation field, even when the back-relation field itself is marked as *single*. This is because the main record could have more than one *single* back-relation reference. The only case where the back-relation will be treated as a *single* relation field is when there is `UNIQUE` index constraint defined on the relation field.
-- Back-relation `expand` is limited to max 1000 records per relation field. If you need to fetch larger number of back-related records a better approach could be to send a separate paginated `getList()` request to the back-related collection.
+- By default the back-relation reference is resolved as a dynamic *multiple* relation field, even when the back-relation field itself is marked as *single*. This is because the main record could have more than one *single* back-relation reference (see in the above example that the `comments_via_post` expand is returned as array, although the original `comments.post` field is a *single* relation). The only case where the back-relation will be treated as a *single* relation field is when there is `UNIQUE` index constraint defined on the relation field.
+- Back-relation `expand` is limited to max 1000 records per relation field. If you need to fetch larger number of back-related records a better approach could be to send a separate paginated `getList()` request to the back-related collection to avoid transferring large JSON payloads and to reduce the memory usage.
 :::

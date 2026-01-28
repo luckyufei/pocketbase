@@ -39,13 +39,14 @@ const superuserClient = new PocketBase('https://example.com');
 // 禁用自动取消，以便处理多用户的异步请求
 superuserClient.autoCancellation(false);
 
-// 方式 1：使用邮箱/密码进行超级用户认证
+// 方式 1：使用邮箱/密码进行超级用户认证（可使用环境变量填充）
 await superuserClient.collection('_superusers').authWithPassword(SUPERUSER_EMAIL, SUPERUSER_PASS, {
   // 当 token 过期或将在 30 分钟内过期时，自动刷新或重新认证
   autoRefreshThreshold: 30 * 60
 })
 
 // 方式 2：或使用长期有效的 "API 密钥" 进行超级用户认证
+// (参见 https://pocketbase.io/docs/authentication/#api-keys)
 superuserClient.authStore.save('YOUR_GENERATED_SUPERUSER_TOKEN')
 
 export default superuserClient;
@@ -57,7 +58,7 @@ export default superuserClient;
 import superuserClient from './src/superuser.js'
 
 async function serverAction(req, resp) {
-  // ... 执行额外的数据验证或处理 ...
+  ... 执行额外的数据验证或处理 ...
 
   // 以超级用户身份发送创建请求
   await superuserClient.collection('example').create({ ... })
@@ -73,9 +74,11 @@ async function serverAction(req, resp) {
 你可以在 [JS SSR - 问题与建议 #5313](https://github.com/pocketbase/pocketbase/discussions/5313) 中了解更多潜在问题，以下是一些常见陷阱：
 
 - 在长时间运行的服务端上下文中，JS SDK 实例初始化和共享不当导致的安全问题
-- 与仅服务端 OAuth2 流程相关的 OAuth2 集成困难
+- 与仅服务端 OAuth2 流程相关的 OAuth2 集成困难（或其混合的"一体化"客户端处理以及与服务端共享 cookie）
 - 代理实时连接，本质上是重复 PocketBase 已经做的事情
-- 默认单线程 Node.js 进程导致的性能瓶颈
+- 默认单线程 Node.js 进程导致的性能瓶颈，以及由于服务端渲染和不同层之间频繁来回请求通信（`客户端<->Node.js<->PocketBase`）造成的过度资源消耗
+
+这并不意味着使用 PocketBase 配合 JS SSR 总是"坏事"，但根据迄今为止报告的数十个问题，我建议只有在仔细评估后，并且仅对那些深入了解所使用工具及其权衡的经验丰富的开发者才推荐使用。如果你仍想使用 PocketBase 在 JS SSR 元框架中处理常规用户认证，可以在仓库的 [JS SSR 集成部分](https://github.com/pocketbase/js-sdk#ssr-integration) 找到一些 JS SDK 示例。
 
 </Accordion>
 
@@ -83,7 +86,9 @@ async function serverAction(req, resp) {
 
 htmx、Hotwire/Turbo、Unpoly 和其他类似工具通常用于构建服务端渲染应用，但它们与 PocketBase 的 JSON API 和完全无状态特性不太兼容。
 
-虽然可以将它们与 PocketBase 一起使用，但目前我不推荐这样做，因为我们缺少构建 SSR 优先应用所需的辅助工具。
+虽然可以将它们与 PocketBase 一起使用，但目前我不推荐这样做，因为我们缺少构建 SSR 优先应用所需的辅助工具，这意味着你可能需要从头开始创建很多东西，例如用于处理 cookie 的中间件（*最终还要处理 CORS 和 CSRF*）或自定义认证端点和访问控制（*集合 API 规则仅适用于内置的 JSON 路由*）。
+
+将来我们可能会为这种用例提供官方的 SSR 支持，包括指南和中间件，但再次强调 - PocketBase 并非为此设计，你可能需要重新评估应用的技术栈，转向如前所述的传统客户端 SPA，或使用更适合你用例的其他后端解决方案。
 
 </Accordion>
 
@@ -93,14 +98,20 @@ htmx、Hotwire/Turbo、Unpoly 和其他类似工具通常用于构建服务端�
 
 使用 JavaScript SDK 或 Dart SDK 构建移动应用时，如果要在各种应用活动和打开/关闭状态之间保持认证，需要指定自定义持久化存储。
 
+SDK 提供了一个辅助异步存储实现，允许你接入任何自定义持久化层（本地文件、SharedPreferences、基于键值的数据库等）。以下是 React Native (JavaScript) 和 Flutter (Dart) 的最小 PocketBase SDK 初始化示例：
+
 <CodeTabs :tabs="['JavaScript', 'Dart']">
 
 <template #tab-0>
 
 ```javascript
 // Node.js 和 React Native 没有原生 EventSource 实现
+// 因此要使用实时订阅，你需要加载 EventSource polyfill，
+// 例如：npm install react-native-sse --save
 import eventsource from 'react-native-sse';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import PocketBase, { AsyncAuthStore } from 'pocketbase';
 
 // 加载 polyfill
@@ -113,9 +124,13 @@ const store = new AsyncAuthStore({
 });
 
 // 初始化 PocketBase 客户端
+// (在应用的整个生命周期内使用单个/全局实例是可以的)
 const pb = new PocketBase('http://127.0.0.1:8090', store);
 
+...
+
 await pb.collection('users').authWithPassword('test@example.com', '1234567890');
+
 console.log(pb.authStore.record)
 ```
 
@@ -127,6 +142,8 @@ console.log(pb.authStore.record)
 import 'package:pocketbase/pocketbase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// 为简单起见，我们使用简单的 SharedPreferences 实例
+// 但你也可以用更安全的 EncryptedSharedPreferences 替代方案
 final prefs = await SharedPreferences.getInstance();
 
 // 初始化异步存储
@@ -136,9 +153,13 @@ final store = AsyncAuthStore(
 );
 
 // 初始化 PocketBase 客户端
+// (在应用的整个生命周期内使用单个/全局实例是可以的)
 final pb = PocketBase('http://127.0.0.1:8090', authStore: store);
 
+...
+
 await pb.collection('users').authWithPassword('test@example.com', '1234567890');
+
 print(pb.authStore.record);
 ```
 
@@ -174,6 +195,7 @@ if (Platform.OS === 'web') {
   data.append('avatar', blob); // 常规 File/Blob 值
 } else {
   // 以下对象格式仅适用于 Android 和 iOS
+  // (FormData.set() 似乎也不支持，所以我们使用 FormData.append())
   data.append('avatar', {
     uri:  imageUri,
     type: 'image/*',

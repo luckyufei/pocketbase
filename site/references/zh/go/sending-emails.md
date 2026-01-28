@@ -1,79 +1,85 @@
 # 发送邮件
 
-PocketBase 提供辅助函数，通过配置的 SMTP 服务器发送邮件。
+PocketBase 通过 `app.NewMailClient()` 工厂提供了一个简单的邮件发送抽象。
 
-## 基本用法
+根据你配置的邮件设置（*Dashboard > Settings > Mail settings*），它将使用 `sendmail` 命令或 SMTP 客户端。
+
+[[toc]]
+
+## 发送自定义邮件
+
+你可以在应用的任何地方（钩子、中间件、路由等）使用 `app.NewMailClient().Send(message)` 发送自定义邮件。以下是用户注册后发送自定义邮件的示例：
 
 ```go
-message := &mailer.Message{
-    From: mail.Address{
-        Name:    "Support",
-        Address: "support@example.com",
-    },
-    To:      []mail.Address{{Address: "user@example.com"}},
-    Subject: "Hello",
-    HTML:    "<p>Hello World!</p>",
-    Text:    "Hello World!",
-}
+// main.go
+package main
 
-if err := app.NewMailClient().Send(message); err != nil {
-    return err
+import (
+    "log"
+    "net/mail"
+
+    "github.com/pocketbase/pocketbase"
+    "github.com/pocketbase/pocketbase/core"
+    "github.com/pocketbase/pocketbase/tools/mailer"
+)
+
+func main() {
+    app := pocketbase.New()
+
+    app.OnRecordCreateRequest("users").BindFunc(func(e *core.RecordRequestEvent) error {
+        if err := e.Next(); err != nil {
+            return err
+        }
+
+        message := &mailer.Message{
+            From: mail.Address{
+                Address: e.App.Settings().Meta.SenderAddress,
+                Name:    e.App.Settings().Meta.SenderName,
+            },
+            To:      []mail.Address{{Address: e.Record.Email()}},
+            Subject: "YOUR_SUBJECT...",
+            HTML:    "YOUR_HTML_BODY...",
+            // 也支持 bcc、cc、附件和自定义头...
+        }
+
+        return e.App.NewMailClient().Send(message)
+    })
+
+    if err := app.Start(); err != nil {
+        log.Fatal(err)
+    }
 }
 ```
 
-## 使用模板
+## 覆盖系统邮件
 
-你可以使用 Go 模板作为邮件内容：
+如果你想覆盖默认的系统邮件（忘记密码、验证等），可以在 *Dashboard > Collections > Edit collection > Options* 中调整默认模板。
 
-```go
-html, err := app.NewMailClient().RenderTemplate("emails/welcome.html", map[string]any{
-    "name": "John",
-    "link": "https://example.com/verify",
-})
-if err != nil {
-    return err
-}
-
-message := &mailer.Message{
-    From:    mail.Address{Address: "support@example.com"},
-    To:      []mail.Address{{Address: "user@example.com"}},
-    Subject: "Welcome!",
-    HTML:    html,
-}
-
-return app.NewMailClient().Send(message)
-```
-
-## 附件
+或者，你也可以通过绑定到[邮件钩子](/docs/go-event-hooks/#mailer-hooks)之一来应用单独的更改。以下是使用 `OnMailerRecordPasswordResetSend` 钩子将记录字段值追加到主题的示例：
 
 ```go
-message := &mailer.Message{
-    From:    mail.Address{Address: "support@example.com"},
-    To:      []mail.Address{{Address: "user@example.com"}},
-    Subject: "Report",
-    HTML:    "<p>Please find the report attached.</p>",
-    Attachments: map[string]io.Reader{
-        "report.pdf": bytes.NewReader(pdfData),
-    },
-}
+// main.go
+package main
 
-return app.NewMailClient().Send(message)
-```
+import (
+    "log"
 
-## SMTP 配置
+    "github.com/pocketbase/pocketbase"
+    "github.com/pocketbase/pocketbase/core"
+)
 
-SMTP 设置可以从仪表板的"设置 > 邮件设置"中配置，或以编程方式配置：
+func main() {
+    app := pocketbase.New()
 
-```go
-settings := app.Settings()
-settings.SMTP.Enabled = true
-settings.SMTP.Host = "smtp.example.com"
-settings.SMTP.Port = 587
-settings.SMTP.Username = "user"
-settings.SMTP.Password = "pass"
-settings.SMTP.TLS = true
+    app.OnMailerRecordPasswordResetSend("users").BindFunc(func(e *core.MailerRecordEvent) error {
+        // 修改主题
+        e.Message.Subject += (" " + e.Record.GetString("name"))
 
-if err := app.Save(settings); err != nil {
-    return err
+        return e.Next()
+    })
+
+    if err := app.Start(); err != nil {
+        log.Fatal(err)
+    }
 }
 ```

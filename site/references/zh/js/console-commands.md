@@ -1,64 +1,24 @@
-# 控制台命令（JavaScript）
+# 控制台命令
 
-PocketBase 允许你在 JavaScript 中注册自定义控制台命令。
+你可以使用 `app.rootCmd.addCommand(cmd)` 注册自定义控制台命令，其中 `cmd` 是一个 [Command](/jsvm/classes/Command.html) 实例。
 
-## 注册命令
+这是一个示例：
 
 ```javascript
 $app.rootCmd.addCommand(new Command({
     use: "hello",
-    short: "Prints hello world",
     run: (cmd, args) => {
-        console.log("Hello World!")
-    }
+        console.log("Hello world!")
+    },
 }))
 ```
 
-## 带参数的命令
-
-```javascript
-$app.rootCmd.addCommand(new Command({
-    use: "greet [name]",
-    short: "Greet someone",
-    run: (cmd, args) => {
-        const name = args.length > 0 ? args[0] : "World"
-        console.log(`Hello, ${name}!`)
-    }
-}))
-```
-
-## 运行命令
+要运行该命令，你可以执行：
 
 ```bash
 ./pocketbase hello
-./pocketbase greet John
 ```
 
-## 示例：数据导出命令
-
-```javascript
-$app.rootCmd.addCommand(new Command({
-    use: "export-posts",
-    short: "Export all posts to JSON",
-    run: (cmd, args) => {
-        const records = $app.findAllRecords("posts")
-        
-        const data = records.map(r => ({
-            id: r.id,
-            title: r.getString("title"),
-            created: r.getString("created")
-        }))
-        
-        console.log(JSON.stringify(data, null, 2))
-    }
-}))
-```
-
-## 内置命令
-
-PocketBase 包含几个内置命令：
-
-- `serve` - 启动 Web 服务器
-- `migrate` - 运行数据库迁移
-- `superuser` - 管理超级用户账户
-- `version` - 打印版本信息
+::: info
+请记住，控制台命令在它们自己独立的应用进程中执行，独立于主 `serve` 命令运行（即不同进程之间的钩子和实时事件不会相互共享）。
+:::

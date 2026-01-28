@@ -1,105 +1,99 @@
 # Record Proxy
 
-PocketBase allows you to create custom record types that wrap the base `core.Record` type, providing type-safe accessors for your collection fields.
+The available [`core.Record` and its helpers](/docs/go-records) are usually the recommended way to interact with your data, but in case you want a typed access to your record fields you can create a helper struct that embeds [`core.BaseRecordProxy`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#BaseRecordProxy) *(which implements the `core.RecordProxy` interface)* and define your collection fields as getters and setters.
 
-## Creating a record proxy
+By implementing the `core.RecordProxy` interface you can use your custom struct as part of a `RecordQuery` result like a regular record model. In addition, every DB change through the proxy struct will trigger the corresponding record validations and hooks. This ensures that other parts of your app, including 3rd party plugins, that don't know or use your custom struct will still work as expected.
+
+Below is a sample `Article` record proxy implementation:
 
 ```go
-type Post struct {
-    core.Record
+// article.go
+package main
+
+import (
+    "github.com/pocketbase/pocketbase/core"
+    "github.com/pocketbase/pocketbase/tools/types"
+)
+
+// ensures that the Article struct satisfy the core.RecordProxy interface
+var _ core.RecordProxy = (*Article)(nil)
+
+type Article struct {
+    core.BaseRecordProxy
 }
 
-// Type-safe getter for the title field
-func (p *Post) Title() string {
-    return p.GetString("title")
+func (a *Article) Title() string {
+    return a.GetString("title")
 }
 
-// Type-safe setter for the title field
-func (p *Post) SetTitle(title string) {
-    p.Set("title", title)
+func (a *Article) SetTitle(title string) {
+    a.Set("title", title)
 }
 
-// Type-safe getter for the author relation
-func (p *Post) Author() *core.Record {
-    return p.ExpandedOne("author")
+func (a *Article) Slug() string {
+    return a.GetString("slug")
 }
 
-// Type-safe getter for published status
-func (p *Post) IsPublished() bool {
-    return p.GetBool("published")
+func (a *Article) SetSlug(slug string) {
+    a.Set("slug", slug)
 }
 
-// Custom method
-func (p *Post) Summary() string {
-    content := p.GetString("content")
-    if len(content) > 100 {
-        return content[:100] + "..."
+func (a *Article) Created() types.DateTime {
+    return a.GetDateTime("created")
+}
+
+func (a *Article) Updated() types.DateTime {
+    return a.GetDateTime("updated")
+}
+```
+
+Accessing and modifying the proxy records is the same as for the regular records. Continuing with the above `Article` example:
+
+```go
+func FindArticleBySlug(app core.App, slug string) (*Article, error) {
+    article := &Article{}
+
+    err := app.RecordQuery("articles").
+        AndWhere(dbx.NewExp("LOWER(slug)={:slug}", dbx.Params{
+            "slug": strings.ToLower(slug), // case insensitive match
+        })).
+        Limit(1).
+        One(article)
+
+    if err != nil {
+        return nil, err
     }
-    return content
+
+    return article, nil
 }
-```
 
-## Using record proxies
+...
 
-```go
-// Fetch a record and convert to proxy
-record, err := app.FindRecordById("posts", "RECORD_ID")
+article, err := FindArticleBySlug(app, "example")
 if err != nil {
     return err
 }
 
-post := &Post{Record: *record}
+// change the title
+article.SetTitle("Lorem ipsum...")
 
-// Now you can use type-safe methods
-title := post.Title()
-author := post.Author()
-
-// Set values
-post.SetTitle("New Title")
-app.Save(&post.Record)
+// persist the change while also triggering the original record validations and hooks
+err = app.Save(article)
+if err != nil {
+    return err
+}
 ```
 
-## Creating new records with proxies
+If you have an existing `*core.Record` value you can also load it into your proxy using the `SetProxyRecord` method:
 
 ```go
-collection, err := app.FindCollectionByNameOrId("posts")
+// fetch regular record
+record, err := app.FindRecordById("articles", "RECORD_ID")
 if err != nil {
     return err
 }
 
-post := &Post{Record: *core.NewRecord(collection)}
-post.SetTitle("My First Post")
-post.Set("content", "Hello World!")
-post.Set("published", true)
-
-if err := app.Save(&post.Record); err != nil {
-    return err
-}
+// load into proxy
+article := &Article{}
+article.SetProxyRecord(record)
 ```
-
-## Registering record factories
-
-For automatic conversion when fetching records:
-
-```go
-app.OnBootstrap().BindFunc(func(e *core.BootstrapEvent) error {
-    // Register a factory for the "posts" collection
-    e.App.RegisterRecordFactory("posts", func(record *core.Record) core.RecordProxy {
-        return &Post{Record: *record}
-    })
-    
-    return e.Next()
-})
-```
-
-## Benefits
-
-1. **Type safety** - Catch field name typos at compile time.
-
-2. **IDE support** - Get autocomplete and documentation for your fields.
-
-3. **Encapsulation** - Add custom methods and business logic to your records.
-
-4. **Validation** - Add field-level validation in setters.
-
-5. **Computed fields** - Create computed properties based on record data.
