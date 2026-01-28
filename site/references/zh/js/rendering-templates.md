@@ -1,77 +1,88 @@
-# 渲染模板（JavaScript）
+# 渲染模板
 
-PocketBase 提供模板渲染功能，用于生成 HTML 内容。
+## 概述
 
-## 基本用法
+创建自定义路由或邮件时的一个常见任务是需要生成 HTML 输出。为了帮助实现这一点，PocketBase 提供了全局 `$template` 辅助函数用于解析和渲染 HTML 模板。
 
 ```javascript
-const html = $app.renderTemplate("templates/welcome.html", {
-    name: "John",
-    link: "https://example.com/verify"
-})
+const html = $template.loadFiles(
+    `${__hooks}/views/base.html`,
+    `${__hooks}/views/partial1.html`,
+    `${__hooks}/views/partial2.html`,
+).render(data)
 ```
 
-## 模板位置
+处理组合和嵌套模板的一般流程是创建"基础"模板，使用 <code v-pre>{{template "placeholderName" .}}</code> 或 <code v-pre>{{block "placeholderName" .}}default...{{end}}</code> 动作定义各种占位符。
 
-模板从 `pb_public` 目录加载：
+然后在局部模板中，使用 <code v-pre>{{define "placeholderName"}}custom...{{end}}</code> 动作定义这些占位符的内容。
+
+上面的点对象（`.`）表示通过 `render(data)` 方法传递给模板的数据。
+
+默认情况下，模板应用上下文（HTML、JS、CSS、URI）自动转义，因此生成的模板内容应该是注入安全的。要在模板中渲染原始/逐字的可信内容，可以使用内置的 `raw` 函数（例如 <code v-pre>{{.content|raw}}</code>）。
+
+::: info
+有关模板语法的更多信息，请参阅 [*html/template*](https://pkg.go.dev/html/template#hdr-A_fuller_picture) 和 [*text/template*](https://pkg.go.dev/text/template) 包文档。**另一个很好的资源是 Hashicorp 的 [Learn Go Template Syntax](https://developer.hashicorp.com/nomad/tutorials/templates/go-template-syntax) 教程。**
+:::
+
+## 带布局的 HTML 页面示例
+
+考虑以下应用目录结构：
 
 ```
-pb_public/
-    templates/
-        emails/
-            welcome.html
-        pages/
-            landing.html
+myapp/
+    pb_hooks/
+        views/
+            layout.html
+            hello.html
+        main.pb.js
+    pocketbase
 ```
 
-## 模板语法
-
-模板使用 Go 的 `html/template` 语法：
+我们将 `layout.html` 的内容定义为：
 
 ```html
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>欢迎</title>
+    <title>{{block "title" .}}Default app title{{end}}</title>
 </head>
 <body>
-    <h1>你好，{{.name}}！</h1>
-    <p>点击<a href="{{.link}}">这里</a>继续。</p>
-    
-    {{if .showFooter}}
-    <footer>感谢加入！</footer>
+    Header...
+
+    {{block "body" .}}
+        Default app body...
     {{end}}
+
+    Footer...
 </body>
 </html>
 ```
 
-## 在路由中使用
+我们将 `hello.html` 的内容定义为：
 
-```javascript
-routerAdd("GET", "/welcome", (e) => {
-    const html = $app.renderTemplate("templates/pages/welcome.html", {
-        title: "Welcome",
-        user: e.auth
-    })
-    
-    return e.html(200, html)
-})
+```html
+{{define "title"}}
+    Page 1
+{{end}}
+
+{{define "body"}}
+    <p>Hello from {{.name}}</p>
+{{end}}
 ```
 
-## 用于邮件
+然后要输出最终页面，我们将注册一个自定义的 `/hello/:name` 路由：
 
 ```javascript
-const html = $app.renderTemplate("templates/emails/notification.html", {
-    userName: "John",
-    message: "You have a new message"
-})
+routerAdd("get", "/hello/{name}", (e) => {
+    const name = e.request.pathValue("name")
 
-const message = new MailerMessage({
-    from: { address: "noreply@example.com" },
-    to: [{ address: "user@example.com" }],
-    subject: "Notification",
-    html: html
-})
+    const html = $template.loadFiles(
+        `${__hooks}/views/layout.html`,
+        `${__hooks}/views/hello.html`,
+    ).render({
+        "name": name,
+    })
 
-$app.newMailClient().send(message)
+    return e.html(200, html)
+})
 ```

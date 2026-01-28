@@ -1,98 +1,76 @@
-# Sending HTTP Requests (JavaScript)
+# Sending HTTP requests
 
-PocketBase provides the `$http` global for making HTTP requests.
+## Overview
 
-## GET request
+You can use the global `$http.send(config)` helper to send HTTP requests to external services. This could be used for example to retrieve data from external data sources, to make custom requests to a payment provider API, etc.
+
+Below is a list with all currently supported config options and their defaults.
 
 ```javascript
-const response = $http.send({
-    method: "GET",
-    url: "https://api.example.com/data"
+// throws on timeout or network connectivity error
+const res = $http.send({
+    url:     "",
+    method:  "GET",
+    body:    "", // ex. JSON.stringify({"test": 123}) or new FormData()
+    headers: {}, // ex. {"content-type": "application/json"}
+    timeout: 120, // in seconds
 })
 
-console.log(response.statusCode)
-console.log(response.json)
+console.log(res.headers)    // the response headers (ex. res.headers['X-Custom'][0])
+console.log(res.cookies)    // the response cookies (ex. res.cookies.sessionId.value)
+console.log(res.statusCode) // the response HTTP status code
+console.log(res.body)       // the response body as plain bytes array
+console.log(res.json)       // the response body as parsed json array or map
 ```
 
-## POST request
+Here is an example that will enrich a single book record with some data based on its ISBN details from openlibrary.org.
 
 ```javascript
-const response = $http.send({
-    method: "POST",
-    url: "https://api.example.com/data",
-    headers: {
-        "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-        key: "value"
-    })
-})
-```
+onRecordCreateRequest((e) => {
+    let isbn = e.record.get("isbn");
 
-## With authentication
-
-```javascript
-const response = $http.send({
-    method: "GET",
-    url: "https://api.example.com/protected",
-    headers: {
-        "Authorization": "Bearer YOUR_TOKEN"
-    }
-})
-```
-
-## Timeout
-
-```javascript
-const response = $http.send({
-    method: "GET",
-    url: "https://api.example.com/slow",
-    timeout: 30 // seconds
-})
-```
-
-## Error handling
-
-```javascript
-try {
-    const response = $http.send({
-        method: "GET",
-        url: "https://api.example.com/data"
-    })
-    
-    if (response.statusCode >= 400) {
-        throw new Error(`HTTP error: ${response.statusCode}`)
-    }
-    
-    const data = response.json
-    console.log(data)
-} catch (err) {
-    console.error("Request failed:", err.message)
-}
-```
-
-## Example: Webhook integration
-
-```javascript
-onRecordCreate((e) => {
-    // Send webhook notification
+    // try to update with the published date from the openlibrary API
     try {
-        $http.send({
-            method: "POST",
-            url: "https://hooks.example.com/notify",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                event: "record.create",
-                collection: e.record.collection().name,
-                recordId: e.record.id
-            })
+        const res = $http.send({
+            url: "https://openlibrary.org/isbn/" + isbn + ".json",
+            headers: {"content-type": "application/json"}
         })
+
+        if (res.statusCode == 200) {
+            e.record.set("published", res.json.publish_date)
+        }
     } catch (err) {
-        console.error("Webhook failed:", err.message)
+        e.app.logger().error("Failed to retrieve book data", "error", err);
     }
-    
-    e.next()
-}, "posts")
+
+    return e.next()
+}, "books")
 ```
+
+### multipart/form-data requests
+
+In order to send `multipart/form-data` requests (ex. uploading files) the request `body` must be a `FormData` instance.
+
+PocketBase JSVM's `FormData` has the same APIs as its [browser equivalent](https://developer.mozilla.org/en-US/docs/Web/API/FormData) with the main difference that for file values instead of `Blob` it accepts [`$filesystem.File`](/jsvm/modules/_filesystem.html).
+
+```javascript
+const formData = new FormData();
+
+formData.append("title", "Hello world!")
+formData.append("documents", $filesystem.fileFromBytes("doc1", "doc1.txt"))
+formData.append("documents", $filesystem.fileFromBytes("doc2", "doc2.txt"))
+
+const res = $http.send({
+    url:    "https://...",
+    method: "POST",
+    body:   formData,
+})
+
+console.log(res.statusCode)
+```
+
+## Limitations
+
+As of now there is no support for streamed responses or server-sent events (SSE). The `$http.send` call blocks and returns the entire response body at once.
+
+For this and other more advanced use cases you'll have to [extend PocketBase with Go](/docs/go-overview/).

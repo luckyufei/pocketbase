@@ -1,61 +1,22 @@
 # Jobs Scheduling (JavaScript)
 
-PocketBase has built-in support for scheduling recurring jobs using cron expressions.
+If you have tasks that need to be performed periodically, you could set up crontab-like jobs with `cronAdd(id, expr, handler)`.
 
-## Registering cron jobs
+Each scheduled job runs in its own goroutine as part of the `serve` command process and must have:
+
+- **id** - identifier for the scheduled job; could be used to replace or remove an existing job
+- **cron expression** - e.g. `0 0 * * *` *(supports numeric list, steps, ranges or macros like `@yearly`, `@annually`, `@monthly`, `@weekly`, `@daily`, `@midnight`, `@hourly`)*
+- **handler** - the function that will be executed every time when the job runs
+
+Here is an example:
 
 ```javascript
-cronAdd("myJob", "*/5 * * * *", () => {
-    // This runs every 5 minutes
-    console.log("Running scheduled job")
-    
-    // do something...
+// prints "Hello!" every 2 minutes
+cronAdd("hello", "*/2 * * * *", () => {
+    console.log("Hello!")
 })
 ```
 
-## Cron expression format
+To remove a single registered cron job you can call `cronRemove(id)`.
 
-```
-┌───────────── minute (0 - 59)
-│ ┌───────────── hour (0 - 23)
-│ │ ┌───────────── day of the month (1 - 31)
-│ │ │ ┌───────────── month (1 - 12)
-│ │ │ │ ┌───────────── day of the week (0 - 6)
-│ │ │ │ │
-* * * * *
-```
-
-Examples:
-- `*/5 * * * *` - Every 5 minutes
-- `0 * * * *` - Every hour
-- `0 0 * * *` - Every day at midnight
-- `0 0 * * 0` - Every Sunday at midnight
-- `0 0 1 * *` - First day of every month
-
-## Removing cron jobs
-
-```javascript
-cronRemove("myJob")
-```
-
-## Example: Daily cleanup
-
-```javascript
-cronAdd("dailyCleanup", "0 0 * * *", () => {
-    // Delete old records
-    const records = $app.findRecordsByFilter(
-        "logs",
-        "created < {:date}",
-        "",
-        1000,
-        0,
-        { date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() }
-    )
-    
-    for (const record of records) {
-        $app.delete(record)
-    }
-    
-    console.log(`Cleaned up ${records.length} old log records`)
-})
-```
+All registered app level cron jobs can be also previewed and triggered from the *Dashboard > Settings > Crons* section.

@@ -1,105 +1,99 @@
 # 记录代理
 
-PocketBase 允许你创建自定义记录类型，包装基础 `core.Record` 类型，为你的集合字段提供类型安全的访问器。
+现有的 [`core.Record` 及其辅助方法](/docs/go-records)通常是与数据交互的推荐方式，但如果你想对记录字段进行类型化访问，可以创建一个嵌入 [`core.BaseRecordProxy`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#BaseRecordProxy)（*实现了 `core.RecordProxy` 接口*）的辅助结构体，并将集合字段定义为 getter 和 setter。
 
-## 创建记录代理
+通过实现 `core.RecordProxy` 接口，你可以像使用常规记录模型一样，将自定义结构体作为 `RecordQuery` 结果的一部分使用。此外，通过代理结构体进行的每次数据库更改都会触发相应的记录验证和钩子。这确保了应用的其他部分（包括不知道或不使用你自定义结构体的第三方插件）仍能按预期工作。
+
+以下是一个 `Article` 记录代理的示例实现：
 
 ```go
-type Post struct {
-    core.Record
+// article.go
+package main
+
+import (
+    "github.com/pocketbase/pocketbase/core"
+    "github.com/pocketbase/pocketbase/tools/types"
+)
+
+// 确保 Article 结构体满足 core.RecordProxy 接口
+var _ core.RecordProxy = (*Article)(nil)
+
+type Article struct {
+    core.BaseRecordProxy
 }
 
-// title 字段的类型安全 getter
-func (p *Post) Title() string {
-    return p.GetString("title")
+func (a *Article) Title() string {
+    return a.GetString("title")
 }
 
-// title 字段的类型安全 setter
-func (p *Post) SetTitle(title string) {
-    p.Set("title", title)
+func (a *Article) SetTitle(title string) {
+    a.Set("title", title)
 }
 
-// author 关联的类型安全 getter
-func (p *Post) Author() *core.Record {
-    return p.ExpandedOne("author")
+func (a *Article) Slug() string {
+    return a.GetString("slug")
 }
 
-// 发布状态的类型安全 getter
-func (p *Post) IsPublished() bool {
-    return p.GetBool("published")
+func (a *Article) SetSlug(slug string) {
+    a.Set("slug", slug)
 }
 
-// 自定义方法
-func (p *Post) Summary() string {
-    content := p.GetString("content")
-    if len(content) > 100 {
-        return content[:100] + "..."
+func (a *Article) Created() types.DateTime {
+    return a.GetDateTime("created")
+}
+
+func (a *Article) Updated() types.DateTime {
+    return a.GetDateTime("updated")
+}
+```
+
+访问和修改代理记录与常规记录相同。继续上面的 `Article` 示例：
+
+```go
+func FindArticleBySlug(app core.App, slug string) (*Article, error) {
+    article := &Article{}
+
+    err := app.RecordQuery("articles").
+        AndWhere(dbx.NewExp("LOWER(slug)={:slug}", dbx.Params{
+            "slug": strings.ToLower(slug), // 不区分大小写匹配
+        })).
+        Limit(1).
+        One(article)
+
+    if err != nil {
+        return nil, err
     }
-    return content
+
+    return article, nil
 }
-```
 
-## 使用记录代理
+...
 
-```go
-// 获取记录并转换为代理
-record, err := app.FindRecordById("posts", "RECORD_ID")
+article, err := FindArticleBySlug(app, "example")
 if err != nil {
     return err
 }
 
-post := &Post{Record: *record}
+// 更改标题
+article.SetTitle("Lorem ipsum...")
 
-// 现在你可以使用类型安全的方法
-title := post.Title()
-author := post.Author()
-
-// 设置值
-post.SetTitle("New Title")
-app.Save(&post.Record)
+// 持久化更改，同时触发原始记录验证和钩子
+err = app.Save(article)
+if err != nil {
+    return err
+}
 ```
 
-## 使用代理创建新记录
+如果你有现有的 `*core.Record` 值，也可以使用 `SetProxyRecord` 方法将其加载到代理中：
 
 ```go
-collection, err := app.FindCollectionByNameOrId("posts")
+// 获取常规记录
+record, err := app.FindRecordById("articles", "RECORD_ID")
 if err != nil {
     return err
 }
 
-post := &Post{Record: *core.NewRecord(collection)}
-post.SetTitle("My First Post")
-post.Set("content", "Hello World!")
-post.Set("published", true)
-
-if err := app.Save(&post.Record); err != nil {
-    return err
-}
+// 加载到代理
+article := &Article{}
+article.SetProxyRecord(record)
 ```
-
-## 注册记录工厂
-
-用于获取记录时的自动转换：
-
-```go
-app.OnBootstrap().BindFunc(func(e *core.BootstrapEvent) error {
-    // 为 "posts" 集合注册工厂
-    e.App.RegisterRecordFactory("posts", func(record *core.Record) core.RecordProxy {
-        return &Post{Record: *record}
-    })
-    
-    return e.Next()
-})
-```
-
-## 优势
-
-1. **类型安全** - 在编译时捕获字段名拼写错误。
-
-2. **IDE 支持** - 获得字段的自动完成和文档。
-
-3. **封装** - 向记录添加自定义方法和业务逻辑。
-
-4. **验证** - 在 setter 中添加字段级验证。
-
-5. **计算字段** - 基于记录数据创建计算属性。

@@ -1,91 +1,131 @@
 # Rendering Templates
 
-PocketBase provides template rendering capabilities for generating HTML content.
+[[toc]]
 
-## Basic usage
+## Overview
+
+A common task when creating custom routes or emails is the need of generating HTML output.
+
+There are plenty of Go template-engines available that you can use for this, but often for simple cases the Go standard library `html/template` package should work just fine.
+
+To make it slightly easier to load template files concurrently and on the fly, PocketBase also provides a thin wrapper around the standard library in the [`github.com/pocketbase/pocketbase/tools/template`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/template) utility package.
 
 ```go
-html, err := app.RenderTemplate("emails/welcome.html", map[string]any{
-    "name": "John",
-    "link": "https://example.com/verify",
-})
+import "github.com/pocketbase/pocketbase/tools/template"
+
+data := map[string]any{"name": "John"}
+
+html, err := template.NewRegistry().LoadFiles(
+    "views/base.html",
+    "views/partial1.html",
+    "views/partial2.html",
+).Render(data)
 ```
 
-## Template location
+The general flow when working with composed and nested templates is that you create "base" template(s) that defines various placeholders using the <code v-pre>{{template "placeholderName" .}}</code> or <code v-pre>{{block "placeholderName" .}}default...{{end}}</code> actions.
 
-Templates are loaded from the `pb_public` directory by default. You can organize them in subdirectories:
+Then in the partials, you define the content for those placeholders using the <code v-pre>{{define "placeholderName"}}custom...{{end}}</code> action.
+
+The dot object (`.`) in the above represents the data passed to the templates via the `Render(data)` method.
+
+By default the templates apply contextual (HTML, JS, CSS, URI) auto escaping so the generated template content should be injection-safe. To render raw/verbatim trusted content in the templates you can use the builtin `raw` function (e.g. <code v-pre>{{.content|raw}}</code>).
+
+::: info
+For more information about the template syntax please refer to the [*html/template*](https://pkg.go.dev/html/template#hdr-A_fuller_picture) and [*text/template*](https://pkg.go.dev/text/template) package godocs.
+
+**Another great resource is also the Hashicorp's [Learn Go Template Syntax](https://developer.hashicorp.com/nomad/tutorials/templates/go-template-syntax) tutorial.**
+:::
+
+## Example HTML Page with Layout
+
+Consider the following app directory structure:
 
 ```
-pb_public/
-    templates/
-        emails/
-            welcome.html
-            reset-password.html
-        pages/
-            landing.html
+myapp/
+    views/
+        layout.html
+        hello.html
+    main.go
 ```
 
-## Template syntax
-
-PocketBase uses Go's `html/template` package. Here's an example template:
+We define the content for `layout.html` as:
 
 ```html
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Welcome</title>
+    <title>{{block "title" .}}Default app title{{end}}</title>
 </head>
 <body>
-    <h1>Hello, {{.name}}!</h1>
-    <p>Click <a href="{{.link}}">here</a> to verify your email.</p>
-    
-    {{if .showFooter}}
-    <footer>
-        <p>Thanks for joining!</p>
-    </footer>
+    Header...
+
+    {{block "body" .}}
+        Default app body...
     {{end}}
+
+    Footer...
 </body>
 </html>
 ```
 
-## Using in routes
+We define the content for `hello.html` as:
+
+```html
+{{define "title"}}
+    Page 1
+{{end}}
+
+{{define "body"}}
+    <p>Hello from {{.name}}</p>
+{{end}}
+```
+
+Then to output the final page, we'll register a custom `/hello/:name` route:
 
 ```go
-app.OnServe().BindFunc(func(se *core.ServeEvent) error {
-    se.Router.GET("/welcome", func(e *core.RequestEvent) error {
-        html, err := e.App.RenderTemplate("templates/pages/welcome.html", map[string]any{
-            "title": "Welcome",
-            "user":  e.Auth,
+// main.go
+package main
+
+import (
+    "log"
+    "net/http"
+
+    "github.com/pocketbase/pocketbase"
+    "github.com/pocketbase/pocketbase/core"
+    "github.com/pocketbase/pocketbase/tools/template"
+)
+
+func main() {
+    app := pocketbase.New()
+
+    app.OnServe().BindFunc(func(se *core.ServeEvent) error {
+        // this is safe to be used by multiple goroutines
+        // (it acts as store for the parsed templates)
+        registry := template.NewRegistry()
+
+        se.Router.GET("/hello/{name}", func(e *core.RequestEvent) error {
+            name := e.Request.PathValue("name")
+
+            html, err := registry.LoadFiles(
+                "views/layout.html",
+                "views/hello.html",
+            ).Render(map[string]any{
+                "name": name,
+            })
+
+            if err != nil {
+                // or redirect to a dedicated 404 HTML page
+                return e.NotFoundError("", err)
+            }
+
+            return e.HTML(http.StatusOK, html)
         })
-        if err != nil {
-            return err
-        }
-        
-        return e.HTML(http.StatusOK, html)
+
+        return se.Next()
     })
-    
-    return se.Next()
-})
+
+    if err := app.Start(); err != nil {
+        log.Fatal(err)
+    }
+}
 ```
-
-## Custom template functions
-
-You can register custom template functions:
-
-```go
-app.OnBootstrap().BindFunc(func(e *core.BootstrapEvent) error {
-    // Add custom functions to templates
-    // This requires extending the template engine
-    return e.Next()
-})
-```
-
-## Best practices
-
-1. **Escape user input** - Always escape user-provided data to prevent XSS attacks.
-
-2. **Use partials** - Break large templates into smaller, reusable partials.
-
-3. **Cache templates** - Templates are cached by default for performance.
-
-4. **Validate data** - Validate template data before rendering.

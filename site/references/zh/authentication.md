@@ -144,73 +144,83 @@ pb.authStore.clear();
 
 ## OAuth2 认证
 
-你也可以使用 OAuth2 提供商（Google、GitHub、Microsoft 等）认证用户。详见 [Web API 参考](/zh/api/records#auth-with-oauth2)。
+你也可以使用 OAuth2 提供商（Google、GitHub、Microsoft 等）认证用户。详见下方示例集成。
 
-## TOF 认证（腾讯内部）
+::: info
+开始之前，你需要在提供商的仪表板中创建 OAuth2 应用以获取 **Client Id** 和 **Client Secret**，并注册重定向 URL。
 
-TOF（Tencent Open Framework）是腾讯内部统一认证网关。此认证方法仅适用于腾讯内部应用。
-
-### 服务端配置
-
-首先，在你的 Go 应用中注册 TOF 插件：
-
-```go
-import "github.com/pocketbase/pocketbase/plugins/tofauth"
-
-func main() {
-    app := pocketbase.New()
-
-    // 注册 TOF 插件
-    tofauth.MustRegister(app, tofauth.Config{
-        SafeMode:       tofauth.Bool(true),  // 生产环境推荐
-        CheckTimestamp: tofauth.Bool(true),  // 检查时间戳过期
-    })
-
-    app.Start()
-}
-```
-
-配置以下环境变量：
-
-| 变量 | 必需 | 描述 |
-|----------|----------|-------------|
-| `TOF_APP_KEY` | 否 | 太湖应用密钥（用于登出重定向） |
-| `TOF_APP_TOKEN` | 是 | 太湖应用令牌（用于签名验证） |
-| `TOF_DEV_MOCK_USER` | 否 | 开发用模拟用户（如 `testuser`） |
-
-::: warning
-`TOF_DEV_MOCK_USER` 仅用于本地开发。切勿在生产环境中设置！
+获得 **Client Id** 和 **Client Secret** 后，你可以从 PocketBase 认证集合选项中启用和配置提供商（**PocketBase > Collections > {你的集合} > 编辑集合（设置齿轮）> Options > OAuth2**）。
 :::
 
-### 客户端使用
+### 一体化方式（推荐）
 
-<CodeTabs :tabs="['JavaScript']">
+此方法在单次调用中处理所有内容，无需定义自定义重定向、深度链接甚至页面重载。
+
+创建 OAuth2 应用时，回调/重定向 URL 需要使用 `https://yourdomain.com/api/oauth2-redirect`（本地测试时使用 `http://127.0.0.1:8090/api/oauth2-redirect`）。
+
+<CodeTabs :tabs="['JavaScript', 'Dart']">
 
 <template #tab-0>
 
 ```javascript
 import PocketBase from 'pocketbase';
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+const pb = new PocketBase('https://pocketbase.io');
 
-// 使用 TOF 认证（需要 TOF 网关头）
-const authData = await pb.collection('users').authWithTof({
-    taiIdentity: 'x-tai-identity-value',  // 来自 x-tai-identity 头
-    timestamp: 'timestamp-value',          // 来自 timestamp 头
-    signature: 'signature-value',          // 来自 signature 头
-    seq: 'x-rio-seq-value',               // 来自 x-rio-seq 头
+...
+
+// 此方法初始化一次性实时订阅，并打开一个弹窗窗口
+// 显示 OAuth2 提供商页面进行认证。
+//
+// 外部 OAuth2 登录/注册流程完成后，弹窗窗口将自动关闭，
+// OAuth2 数据通过之前建立的实时连接发送回用户。
+//
+// 如果在 Safari 中弹窗被阻止，请确保你的点击处理程序没有使用 async/await。
+pb.collection('users').authWithOAuth2({
+    provider: 'google'
+}).then((authData) => {
+    console.log(authData)
+
+    // 之后你也可以从 authStore 访问认证数据
+    console.log(pb.authStore.isValid);
+    console.log(pb.authStore.token);
+    console.log(pb.authStore.record.id);
+
+    // "登出" 最后认证的记录
+    pb.authStore.clear();
+});
+```
+
+</template>
+
+<template #tab-1>
+
+```dart
+import 'package:pocketbase/pocketbase.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+final pb = PocketBase('https://pocketbase.io');
+
+...
+
+// 此方法初始化一次性实时订阅，并使用 OAuth2 提供商的 URL 调用提供的 urlCallback 进行认证。
+//
+// 外部 OAuth2 登录/注册流程完成后，浏览器窗口将自动关闭，
+// OAuth2 数据通过之前建立的实时连接发送回用户。
+//
+// 注意：这需要应用和实时连接在后台保持活跃！
+// 对于 Android 15+，请查看 https://github.com/pocketbase/dart-sdk#oauth2-and-android-15 中的说明。
+final authData = await pb.collection('users').authWithOAuth2('google', (url) async {
+  // 或使用 flutter_custom_tabs 使原生和 Web 内容之间的过渡更加顺畅
+  await launchUrl(url);
 });
 
-// 访问认证数据
-console.log(pb.authStore.isValid);
-console.log(pb.authStore.token);
-console.log(pb.authStore.record.id);
+// 之后你也可以从 authStore 访问认证数据
+print(pb.authStore.isValid);
+print(pb.authStore.token);
+print(pb.authStore.record.id);
 
-// 访问 TOF 身份信息
-console.log(authData.meta.tofIdentity);
-// { loginName: "username", staffId: 12345, expiration: "...", ticket: "..." }
-
-// "登出"
+// "登出" 最后认证的记录
 pb.authStore.clear();
 ```
 
@@ -218,26 +228,114 @@ pb.authStore.clear();
 
 </CodeTabs>
 
-### API 路由
+### 手动代码交换
 
-TOF 插件注册以下路由：
+使用 OAuth2 代码手动认证时，你需要 2 个端点：
 
-| 路由 | 方法 | 描述 |
-|-------|--------|-------------|
-| `/api/collections/{collection}/auth-with-tof` | GET | TOF 认证 |
-| `/api/tof/logout?url={redirect_url}` | GET | TOF 登出 |
-| `/api/tof/redirect?url={redirect_url}` | GET | TOF 重定向验证 |
-| `/api/tof/status` | GET | TOF 配置状态（仅超级用户） |
+- 某处显示 "Login with ..." 链接
+- 某处处理提供商的重定向以交换认证代码获取 token
 
-### 开发模式
+这是一个简单的 Web 示例：
 
-在没有 TOF 网关的本地开发环境中，设置 `TOF_DEV_MOCK_USER` 环境变量：
+1. **链接页面**（例如 https://127.0.0.1:8090 提供 `pb_public/index.html`）：
 
-```bash
-TOF_DEV_MOCK_USER=testuser go run main.go serve
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OAuth2 links page</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"></script>
+</head>
+<body>
+    <ul id="list">
+        <li>Loading OAuth2 providers...</li>
+    </ul>
+
+    <script type="module">
+        import PocketBase from "https://cdn.jsdelivr.net/gh/pocketbase/js-sdk@master/dist/pocketbase.es.mjs"
+
+        const pb          = new PocketBase("http://127.0.0.1:8090");
+        const redirectURL = "http://127.0.0.1:8090/redirect.html";
+
+        const authMethods = await pb.collection("users").listAuthMethods();
+        const providers   = authMethods.oauth2?.providers || [];
+        const listItems   = [];
+
+        for (const provider of providers) {
+            const $li = $(`<li><a>Login with ${provider.name}</a></li>`);
+
+            $li.find("a")
+                .attr("href", provider.authURL + redirectURL)
+                .data("provider", provider)
+                .click(function () {
+                    // store provider's data on click for verification in the redirect page
+                    localStorage.setItem("provider", JSON.stringify($(this).data("provider")));
+                });
+
+            listItems.push($li);
+        }
+
+        $("#list").html(listItems.length ? listItems : "<li>No OAuth2 providers.</li>");
+    </script>
+</body>
+</html>
 ```
 
-当 TOF 头缺失且设置了 `TOF_DEV_MOCK_USER` 时，插件将使用指定用户名的模拟身份进行认证。
+2. **重定向处理页面**（例如 https://127.0.0.1:8090/redirect.html 提供 `pb_public/redirect.html`）：
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>OAuth2 redirect page</title>
+</head>
+<body>
+    <pre id="content">Authenticating...</pre>
+
+    <script type="module">
+        import PocketBase from "https://cdn.jsdelivr.net/gh/pocketbase/js-sdk@master/dist/pocketbase.es.mjs"
+
+        const pb          = new PocketBase("http://127.0.0.1:8090");
+        const redirectURL = "http://127.0.0.1:8090/redirect.html";
+        const contentEl   = document.getElementById("content");
+
+        // parse the query parameters from the redirected url
+        const params = (new URL(window.location)).searchParams;
+
+        // load the previously stored provider's data
+        const provider = JSON.parse(localStorage.getItem("provider"))
+
+        // compare the redirect's state param and the stored provider's one
+        if (provider.state !== params.get("state")) {
+            contentEl.innerText = "State parameters don't match.";
+        } else {
+            // authenticate
+            pb.collection("users").authWithOAuth2Code(
+                provider.name,
+                params.get("code"),
+                provider.codeVerifier,
+                redirectURL,
+                // pass any optional user create data
+                {
+                    emailVisibility: false,
+                }
+            ).then((authData) => {
+                contentEl.innerText = JSON.stringify(authData, null, 2);
+            }).catch((err) => {
+                contentEl.innerText = "Failed to exchange code.\n" + err;
+            });
+        }
+    </script>
+</body>
+</html>
+```
+
+::: info Apple Sign-in 注意
+使用"手动代码交换"流程进行 Apple Sign-in 时，你的重定向处理程序必须接受 `POST` 请求才能接收 Apple 用户的姓名和邮箱。如果你只需要 Apple 用户 ID，可以保持重定向处理程序为 `GET`，但需要在 Apple 授权 URL 中将 `response_mode=form_post` 替换为 `response_mode=query`。
+:::
 
 ## 多因素认证
 
@@ -380,9 +478,8 @@ final items = await impersonateClient.collection("example").getFullList();
 
 PocketBase 没有专门的 token 验证端点，但如果你想从第三方应用验证现有认证 token，可以发送[认证刷新](/zh/api/records#auth-refresh)调用，即 `pb.collection("users").authRefresh()`。
 
-有效 token - 返回带有刷新 `exp` 声明的新 token 和最新用户数据。
-
-否则 - 返回错误响应。
+- 有效 token - 返回带有刷新 `exp` 声明的新 token 和最新用户数据。
+- 否则 - 返回错误响应。
 
 注意，调用 `authRefresh` 不会使先前发行的 token 失效，如果不需要可以安全地丢弃新 token（如开头所述 - PocketBase 不在服务器上存储 token）。
 

@@ -1,68 +1,43 @@
-# 发送邮件（JavaScript）
+# 发送邮件
 
-PocketBase 提供辅助函数，通过配置的 SMTP 服务器发送邮件。
+PocketBase 通过 `$app.newMailClient()` 辅助函数提供了一个简单的邮件发送抽象。
 
-## 基本用法
+根据你配置的邮件设置（*仪表盘 > 设置 > 邮件设置*），它将使用 `sendmail` 命令或 SMTP 客户端。
+
+## 发送自定义邮件
+
+你可以在应用的任何地方（钩子、中间件、路由等）使用 `$app.newMailClient().send(message)` 发送自定义邮件。以下是用户注册后发送自定义邮件的示例：
 
 ```javascript
-const message = new MailerMessage({
-    from: {
-        name: "Support",
-        address: "support@example.com"
-    },
-    to: [{ address: "user@example.com" }],
-    subject: "Hello",
-    html: "<p>Hello World!</p>",
-    text: "Hello World!"
-})
+onRecordCreateRequest((e) => {
+    e.next()
 
-$app.newMailClient().send(message)
+    const message = new MailerMessage({
+        from: {
+            address: e.app.settings().meta.senderAddress,
+            name:    e.app.settings().meta.senderName,
+        },
+        to:      [{address: e.record.email()}],
+        subject: "YOUR_SUBJECT...",
+        html:    "YOUR_HTML_BODY...",
+        // 也支持 bcc、cc 和自定义头...
+    })
+
+    e.app.newMailClient().send(message)
+}, "users")
 ```
 
-## 使用模板
+## 覆盖系统邮件
+
+如果你想覆盖默认的系统邮件（忘记密码、验证等），可以在 *仪表盘 > 集合 > 编辑集合 > 选项* 中调整默认模板。
+
+或者，你也可以通过绑定到[邮件钩子](/docs/js-event-hooks/#mailer-hooks)之一来应用单独的更改。以下是使用 `onMailerRecordPasswordResetSend` 钩子将记录字段值追加到主题的示例：
 
 ```javascript
-const html = $app.newMailClient().renderTemplate("emails/welcome.html", {
-    name: "John",
-    link: "https://example.com/verify"
+onMailerRecordPasswordResetSend((e) => {
+    // 修改主题
+    e.message.subject += (" " + e.record.get("name"))
+
+    e.next()
 })
-
-const message = new MailerMessage({
-    from: { address: "support@example.com" },
-    to: [{ address: "user@example.com" }],
-    subject: "Welcome!",
-    html: html
-})
-
-$app.newMailClient().send(message)
-```
-
-## 发送给多个收件人
-
-```javascript
-const message = new MailerMessage({
-    from: { address: "newsletter@example.com" },
-    to: [
-        { address: "user1@example.com" },
-        { address: "user2@example.com" }
-    ],
-    bcc: [
-        { address: "admin@example.com" }
-    ],
-    subject: "Newsletter",
-    html: "<p>Monthly update...</p>"
-})
-
-$app.newMailClient().send(message)
-```
-
-## 错误处理
-
-```javascript
-try {
-    $app.newMailClient().send(message)
-    console.log("Email sent successfully")
-} catch (err) {
-    console.error("Failed to send email:", err.message)
-}
 ```

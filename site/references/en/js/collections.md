@@ -1,107 +1,133 @@
 # Collection Operations (JavaScript)
 
-## Fetching collections
+Collections are usually managed via the Dashboard interface, but there are some situations where you may want to create or edit a collection programmatically (usually as part of a [DB migration](/docs/js-migrations)). You can find all available Collection related operations and methods in [`$app`](/jsvm/modules/_app.html) and [`Collection`](/jsvm/classes/Collection.html), but below are listed some of the most common ones:
+
+[[toc]]
+
+## Fetch Collections
+
+### Fetch Single Collection
+
+*All single collection retrieval methods throw an error if no collection is found.*
 
 ```javascript
-// Find by name or ID
-const collection = $app.findCollectionByNameOrId("posts")
-
-// Find all collections
-const collections = $app.findAllCollections()
-
-// Find by type
-const authCollections = $app.findAllCollections("auth")
-const baseCollections = $app.findAllCollections("base")
+let collection = $app.findCollectionByNameOrId("example")
 ```
 
-## Creating collections
+### Fetch Multiple Collections
+
+*All multiple collections retrieval methods return an empty array if no collections are found.*
 
 ```javascript
-const collection = new Collection()
-collection.name = "posts"
-collection.type = "base"
+let allCollections = $app.findAllCollections(/* optional types */)
 
-// Add fields
-collection.fields.add(new TextField({
-    name: "title",
-    required: true,
-    max: 100
-}))
+// only specific types
+let authAndViewCollections = $app.findAllCollections("auth", "view")
+```
 
+### Custom Collection Query
+
+In addition to the above query helpers, you can also create custom Collection queries using [`$app.collectionQuery()`](/jsvm/functions/_app.collectionQuery.html) method. It returns a SELECT DB builder that can be used with the same methods described in the [Database guide](/docs/js-database).
+
+```javascript
+let collections = arrayOf(new Collection)
+
+$app.collectionQuery().
+    andWhere($dbx.hashExp({"viewRule": null})).
+    orderBy("created DESC").
+    all(collections)
+```
+
+## Field Definitions
+
+::: info
+All collection fields *(with exception of the `JSONField`)* are non-nullable and use a zero-default for their respective type as fallback value when missing.
+:::
+
+- [`new BoolField({ ... })`](/jsvm/classes/BoolField.html)
+- [`new NumberField({ ... })`](/jsvm/classes/NumberField.html)
+- [`new TextField({ ... })`](/jsvm/classes/TextField.html)
+- [`new EmailField({ ... })`](/jsvm/classes/EmailField.html)
+- [`new URLField({ ... })`](/jsvm/classes/URLField.html)
+- [`new EditorField({ ... })`](/jsvm/classes/EditorField.html)
+- [`new DateField({ ... })`](/jsvm/classes/DateField.html)
+- [`new AutodateField({ ... })`](/jsvm/classes/AutodateField.html)
+- [`new SelectField({ ... })`](/jsvm/classes/SelectField.html)
+- [`new FileField({ ... })`](/jsvm/classes/FileField.html)
+- [`new RelationField({ ... })`](/jsvm/classes/RelationField.html)
+- [`new JSONField({ ... })`](/jsvm/classes/JSONField.html)
+- [`new GeoPointField({ ... })`](/jsvm/classes/GeoPointField.html)
+
+## Create New Collection
+
+```javascript
+// missing default options, system fields like id, email, etc. are initialized automatically
+// and will be merged with the provided configuration
+let collection = new Collection({
+    type:       "base", // base | auth | view
+    name:       "example",
+    listRule:   null,
+    viewRule:   "@request.auth.id != ''",
+    createRule: "",
+    updateRule: "@request.auth.id != ''",
+    deleteRule: null,
+    fields: [
+        {
+            name:     "title",
+            type:     "text",
+            required: true,
+            max: 10,
+        },
+        {
+            name:          "user",
+            type:          "relation",
+            required:      true,
+            maxSelect:     1,
+            collectionId:  "ae40239d2bc4477",
+            cascadeDelete: true,
+        },
+    ],
+    indexes: [
+        "CREATE UNIQUE INDEX idx_user ON example (user)"
+    ],
+})
+
+// validate and persist
+// (use saveNoValidate to skip fields validation)
+$app.save(collection)
+```
+
+## Update Existing Collection
+
+```javascript
+let collection = $app.findCollectionByNameOrId("example")
+
+// change the collection name
+collection.name = "example_update"
+
+// add new editor field
 collection.fields.add(new EditorField({
-    name: "content"
+    name:     "description",
+    required: true,
 }))
 
-// Set rules
-collection.listRule = ""  // everyone can list
-collection.viewRule = ""  // everyone can view
-collection.createRule = "@request.auth.id != ''" // only authenticated
-collection.updateRule = "@request.auth.id = author.id" // only author
-collection.deleteRule = null // only superusers
+// change existing field
+// (returns a pointer and direct modifications are allowed without the need of reinsert)
+let titleField = collection.fields.getByName("title")
+titleField.min = 10
 
+// or: collection.indexes.push("CREATE INDEX idx_example_title ON example (title)")
+collection.addIndex("idx_example_title", false, "title", "")
+
+// validate and persist
+// (use saveNoValidate to skip fields validation)
 $app.save(collection)
 ```
 
-## Creating auth collections
+## Delete Collection
 
 ```javascript
-const collection = new Collection()
-collection.name = "users"
-collection.type = "auth"
-
-// Add custom fields
-collection.fields.add(new TextField({
-    name: "name",
-    max: 100
-}))
-
-collection.fields.add(new FileField({
-    name: "avatar",
-    maxSelect: 1,
-    maxSize: 5 * 1024 * 1024, // 5MB
-    mimeTypes: ["image/jpeg", "image/png"]
-}))
-
-$app.save(collection)
-```
-
-## Updating collections
-
-```javascript
-const collection = $app.findCollectionByNameOrId("posts")
-
-// Update rules
-collection.listRule = "status = 'published'"
-
-// Add a new field
-collection.fields.add(new BoolField({
-    name: "featured"
-}))
-
-$app.save(collection)
-```
-
-## Deleting collections
-
-```javascript
-const collection = $app.findCollectionByNameOrId("posts")
+let collection = $app.findCollectionByNameOrId("example")
 
 $app.delete(collection)
 ```
-
-## Field types
-
-Available field types:
-
-- `TextField` - Plain text
-- `EditorField` - Rich text
-- `NumberField` - Numbers
-- `BoolField` - Boolean
-- `EmailField` - Email
-- `URLField` - URLs
-- `DateField` - Date/time
-- `SelectField` - Select options
-- `FileField` - File uploads
-- `RelationField` - Relations
-- `JSONField` - JSON data
-- `AutodateField` - Auto timestamps

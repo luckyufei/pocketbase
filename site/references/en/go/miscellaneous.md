@@ -1,100 +1,59 @@
 # Miscellaneous
 
-This page covers various utility functions and helpers available in PocketBase.
+[[toc]]
 
-## Security helpers
+## app.Store()
+
+[`app.Store()`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#BaseApp.Store) returns a concurrent-safe application memory store that you can use to store anything for the duration of the application process (e.g. cache, config flags, etc.).
+
+You can find more details about the available store methods in the [`store.Store`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/store#Store) documentation but the most commonly used ones are `Get(key)`, `Set(key, value)` and `GetOrSet(key, setFunc)`.
 
 ```go
-// Generate a random string
-randomStr := security.RandomString(32)
+app.Store().Set("example", 123)
 
-// Generate a random string with custom alphabet
-randomStr := security.RandomStringWithAlphabet(32, "abc123")
+v1 := app.Store().Get("example").(int) // 123
 
-// Hash a password
-hash := security.HashPassword("password123")
-
-// Verify a password
-valid := security.ValidatePassword("password123", hash)
-
-// Generate a JWT token
-token, err := security.NewJWT(claims, signingKey, duration)
-
-// Parse a JWT token
-claims, err := security.ParseJWT(token, signingKey)
+v2 := app.Store().GetOrSet("example2", func() any {
+    // this setter is invoked only once unless "example2" is removed
+    // (e.g. suitable for instantiating singletons)
+    return 456
+}).(int) // 456
 ```
 
-## Type helpers
+::: warning
+Keep in mind that the application store is also used internally usually with `pb*` prefixed keys (e.g. the collections cache is stored under the `pbAppCachedCollections` key) and changing these system keys or calling `RemoveAll()`/`Reset()` could have unintended side-effects.
+
+If you want more advanced control you can initialize your own store independent from the application instance via `store.New[K, T](nil)`.
+:::
+
+## Security Helpers
+
+*Below are listed some of the most commonly used security helpers but you can find detailed documentation for all available methods in the [`security`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/security) subpackage.*
+
+### Generating Random Strings
 
 ```go
-// DateTime operations
-now := types.NowDateTime()
-parsed, err := types.ParseDateTime("2023-01-01 00:00:00.000Z")
+secret := security.RandomString(10) // e.g. a35Vdb10Z4
 
-// JSON types
-jsonArr := types.JSONArray[string]{"a", "b", "c"}
-jsonMap := types.JSONMap{"key": "value"}
-jsonRaw := types.JSONRaw(`{"key": "value"}`)
-
-// Pointer helper
-strPtr := types.Pointer("hello")
+secret := security.RandomStringWithAlphabet(5, "1234567890") // e.g. 33215
 ```
 
-## Validation
+### Compare Strings with Constant Time
 
 ```go
-import "github.com/pocketbase/pocketbase/tools/validation"
-
-// Email validation
-err := validation.Is(email, validation.Email)
-
-// URL validation
-err := validation.Is(url, validation.URL)
-
-// Required validation
-err := validation.Is(value, validation.Required)
-
-// Length validation
-err := validation.Is(str, validation.Length(5, 100))
+isEqual := security.Equal(hash1, hash2)
 ```
 
-## Inflector
+### AES Encrypt/Decrypt
 
 ```go
-import "github.com/pocketbase/pocketbase/tools/inflector"
+// must be random 32 characters string
+const key = "q6Zuyqdz839AlmCyq53LA76NIhpbgf3b"
 
-// Pluralize
-plural := inflector.Pluralize("post") // "posts"
+encrypted, err := security.Encrypt([]byte("test"), key)
+if err != nil {
+    return err
+}
 
-// Singularize
-singular := inflector.Singularize("posts") // "post"
-
-// Columnify (convert to snake_case)
-column := inflector.Columnify("SomeField") // "some_field"
-
-// UcFirst (uppercase first letter)
-upper := inflector.UcFirst("hello") // "Hello"
-```
-
-## HTTP client
-
-```go
-import "github.com/pocketbase/pocketbase/tools/rest"
-
-// Simple GET request
-response, err := rest.Get("https://api.example.com/data")
-
-// POST request with JSON body
-response, err := rest.Post("https://api.example.com/data", map[string]any{
-    "key": "value",
-})
-
-// Custom request
-client := rest.NewClient()
-response, err := client.Send(&rest.Request{
-    Method:  "PUT",
-    URL:     "https://api.example.com/data",
-    Body:    body,
-    Headers: map[string]string{"Authorization": "Bearer token"},
-})
+decrypted := security.Decrypt(encrypted, key) // []byte("test")
 ```

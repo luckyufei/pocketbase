@@ -59,8 +59,10 @@ You can build all sort of different access controls:
 - **Role (Group)** - For example, you could attach a "role" `select` field to your Auth collection with the following options: "employee" and "staff". And then in some of your other collections you could define the following rule to allow only "staff": `@request.auth.role = "staff"`
 
 - **Relation (Ownership)** - Let's say that you have 2 collections - "posts" base collection and "users" auth collection. In your "posts" collection you can create "author" `relation` field pointing to the "users" collection. To allow access to only the "author" of the record(s), you could use a rule like: `@request.auth.id != "" && author = @request.auth.id`
+  
+  Nested relation fields lookup, including back-relations, are also supported, for example: `someRelField.anotherRelField.author = @request.auth.id`
 
-- **Managed** - In addition to the default "List", "View", "Create", "Update", "Delete" API rules, Auth collections have also a special "Manage" API rule that could be used to allow one user to be able to fully manage the data of another user.
+- **Managed** - In addition to the default "List", "View", "Create", "Update", "Delete" API rules, Auth collections have also a special "Manage" API rule that could be used to allow one user (it could be even from a different collection) to be able to fully manage the data of another user (e.g. changing their email, password, etc.).
 
 - **Mixed** - You can build a mixed approach based on your unique use-case. Multiple rules can be grouped with parenthesis `()` and combined with `&&` (AND) and `||` (OR) operators: `@request.auth.id != "" && (@request.auth.role = "staff" || author = @request.auth.id)`
 
@@ -209,6 +211,8 @@ JSONField defines `json` type field for storing any serialized JSON value, inclu
 GeoPoint defines `geoPoint` type field for storing geographic coordinates (longitude, latitude) as a serialized json object. For example: `{"lon":12.34,"lat":56.78}`.
 
 The default/zero value of a `geoPoint` is the "Null Island", aka. `{"lon":0,"lat":0}`.
+
+When extending PocketBase with Go/JSVM, the `geoPoint` field value could be set as `types.GeoPoint` instance or a regular map with `lon` and `lat` keys:
 
 <CodeTabs :tabs="['Go', 'JavaScript']">
 

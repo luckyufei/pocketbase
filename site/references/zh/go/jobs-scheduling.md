@@ -1,57 +1,47 @@
 # 任务调度
 
-PocketBase 内置支持使用 cron 表达式调度周期性任务。
+如果你有需要定期执行的任务，可以使用内置的 `app.Cron()` 设置类似 crontab 的任务（*它返回一个应用范围的 [`cron.Cron`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/cron#Cron) 值*）。
 
-## 注册 cron 任务
+任务调度器在应用 `serve` 时自动启动，所以你只需要使用 [`app.Cron().Add(id, cronExpr, handler)`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/cron#Cron.Add) 或 [`app.Cron().MustAdd(id, cronExpr, handler)`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/cron#Cron.MustAdd) 注册处理程序（*后者在 cron 表达式无效时会 panic*）。
 
-```go
-app.Cron().Add("myJob", "*/5 * * * *", func() {
-    // 每 5 分钟运行一次
-    app.Logger().Info("Running scheduled job")
-    
-    // 执行某些操作...
-})
-```
+每个计划任务在其自己的 goroutine 中运行，必须具有：
 
-## Cron 表达式格式
+- **id** - 计划任务的标识符；可用于替换或移除现有任务
+- **cron 表达式** - 例如 `0 0 * * *`（*支持数字列表、步进、范围或宏如 `@yearly`、`@annually`、`@monthly`、`@weekly`、`@daily`、`@midnight`、`@hourly`*）
+- **handler** - 每次任务运行时执行的函数
 
-cron 表达式格式遵循标准：
-
-```
-┌───────────── 分钟 (0 - 59)
-│ ┌───────────── 小时 (0 - 23)
-│ │ ┌───────────── 月份中的日期 (1 - 31)
-│ │ │ ┌───────────── 月份 (1 - 12)
-│ │ │ │ ┌───────────── 星期几 (0 - 6)（周日到周六）
-│ │ │ │ │
-* * * * *
-```
-
-示例：
-- `*/5 * * * *` - 每 5 分钟
-- `0 * * * *` - 每小时
-- `0 0 * * *` - 每天午夜
-- `0 0 * * 0` - 每周日午夜
-- `0 0 1 * *` - 每月第一天午夜
-
-## 删除 cron 任务
+以下是一个最小示例：
 
 ```go
-app.Cron().Remove("myJob")
+// main.go
+package main
+
+import (
+    "log"
+
+    "github.com/pocketbase/pocketbase"
+)
+
+func main() {
+    app := pocketbase.New()
+
+    // 每 2 分钟打印 "Hello!"
+    app.Cron().MustAdd("hello", "*/2 * * * *", func() {
+        log.Println("Hello!")
+    })
+
+    if err := app.Start(); err != nil {
+        log.Fatal(err)
+    }
+}
 ```
 
-## 列出 cron 任务
+要移除已注册的 cron 任务，可以调用 [`app.Cron().Remove(id)`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/cron#Cron.Remove)。
 
-你可以通过 API 列出所有已注册的 cron 任务（仅限超级用户）：
+所有已注册的应用级 cron 任务也可以在 *Dashboard > Settings > Crons* 部分预览和触发。
 
-```
-GET /api/crons
-```
+::: warning
+请记住，`app.Cron()` 也用于运行系统计划任务，如日志清理或自动备份（任务 ID 格式为 `__pb*__`），替换这些系统任务或调用 `RemoveAll()`/`Stop()` 可能会产生意外的副作用。
 
-## 手动运行任务
-
-你可以通过 API 手动触发 cron 任务（仅限超级用户）：
-
-```
-POST /api/crons/{jobId}
-```
+如果你想要更高级的控制，可以通过 `cron.New()` 初始化独立于应用的 cron 实例。
+:::
