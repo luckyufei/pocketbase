@@ -1,68 +1,43 @@
-# Sending Emails (JavaScript)
+# Sending emails
 
-PocketBase provides helpers for sending emails through the configured SMTP server.
+PocketBase provides a simple abstraction for sending emails via the `$app.newMailClient()` helper.
 
-## Basic usage
+Depending on your configured mail settings (*Dashboard > Settings > Mail settings*) it will use the `sendmail` command or a SMTP client.
+
+## Send custom email
+
+You can send your own custom emails from everywhere within the app (hooks, middlewares, routes, etc.) by using `$app.newMailClient().send(message)`. Here is an example of sending a custom email after user registration:
 
 ```javascript
-const message = new MailerMessage({
-    from: {
-        name: "Support",
-        address: "support@example.com"
-    },
-    to: [{ address: "user@example.com" }],
-    subject: "Hello",
-    html: "<p>Hello World!</p>",
-    text: "Hello World!"
-})
+onRecordCreateRequest((e) => {
+    e.next()
 
-$app.newMailClient().send(message)
+    const message = new MailerMessage({
+        from: {
+            address: e.app.settings().meta.senderAddress,
+            name:    e.app.settings().meta.senderName,
+        },
+        to:      [{address: e.record.email()}],
+        subject: "YOUR_SUBJECT...",
+        html:    "YOUR_HTML_BODY...",
+        // bcc, cc and custom headers are also supported...
+    })
+
+    e.app.newMailClient().send(message)
+}, "users")
 ```
 
-## Using templates
+## Overwrite system emails
+
+If you want to overwrite the default system emails for forgotten password, verification, etc., you can adjust the default templates available from the *Dashboard > Collections > Edit collection > Options*.
+
+Alternatively, you can also apply individual changes by binding to one of the [mailer hooks](/docs/js-event-hooks/#mailer-hooks). Here is an example of appending a Record field value to the subject using the `onMailerRecordPasswordResetSend` hook:
 
 ```javascript
-const html = $app.newMailClient().renderTemplate("emails/welcome.html", {
-    name: "John",
-    link: "https://example.com/verify"
+onMailerRecordPasswordResetSend((e) => {
+    // modify the subject
+    e.message.subject += (" " + e.record.get("name"))
+
+    e.next()
 })
-
-const message = new MailerMessage({
-    from: { address: "support@example.com" },
-    to: [{ address: "user@example.com" }],
-    subject: "Welcome!",
-    html: html
-})
-
-$app.newMailClient().send(message)
-```
-
-## Sending to multiple recipients
-
-```javascript
-const message = new MailerMessage({
-    from: { address: "newsletter@example.com" },
-    to: [
-        { address: "user1@example.com" },
-        { address: "user2@example.com" }
-    ],
-    bcc: [
-        { address: "admin@example.com" }
-    ],
-    subject: "Newsletter",
-    html: "<p>Monthly update...</p>"
-})
-
-$app.newMailClient().send(message)
-```
-
-## Error handling
-
-```javascript
-try {
-    $app.newMailClient().send(message)
-    console.log("Email sent successfully")
-} catch (err) {
-    console.error("Failed to send email:", err.message)
-}
 ```

@@ -1,66 +1,42 @@
-# Console Commands
+# Console commands
 
-PocketBase allows you to register custom console commands using the Cobra command library.
+You can register custom console commands using `app.RootCmd.AddCommand(cmd)`, where `cmd` is a [cobra](https://pkg.go.dev/github.com/spf13/cobra) command.
 
-## Registering commands
-
-```go
-app.RootCmd.AddCommand(&cobra.Command{
-    Use:   "hello",
-    Short: "Prints hello world",
-    Run: func(cmd *cobra.Command, args []string) {
-        fmt.Println("Hello World!")
-    },
-})
-```
-
-## Commands with flags
+Here is an example:
 
 ```go
-var name string
+package main
 
-cmd := &cobra.Command{
-    Use:   "greet",
-    Short: "Greet someone",
-    Run: func(cmd *cobra.Command, args []string) {
-        fmt.Printf("Hello, %s!\n", name)
-    },
+import (
+    "log"
+
+    "github.com/pocketbase/pocketbase"
+    "github.com/spf13/cobra"
+)
+
+func main() {
+    app := pocketbase.New()
+
+    app.RootCmd.AddCommand(&cobra.Command{
+        Use: "hello",
+        Run: func(cmd *cobra.Command, args []string) {
+            log.Println("Hello world!")
+        },
+    })
+
+    if err := app.Start(); err != nil {
+        log.Fatal(err)
+    }
 }
-
-cmd.Flags().StringVarP(&name, "name", "n", "World", "Name to greet")
-
-app.RootCmd.AddCommand(cmd)
 ```
 
-## Commands with arguments
-
-```go
-app.RootCmd.AddCommand(&cobra.Command{
-    Use:   "process [file]",
-    Short: "Process a file",
-    Args:  cobra.ExactArgs(1),
-    Run: func(cmd *cobra.Command, args []string) {
-        filename := args[0]
-        fmt.Printf("Processing %s...\n", filename)
-    },
-})
-```
-
-## Running commands
+To run the command you can build your Go application and execute:
 
 ```bash
-./pocketbase hello
-./pocketbase greet --name John
-./pocketbase process myfile.txt
+# or "go run main.go hello"
+./myapp hello
 ```
 
-## Built-in commands
-
-PocketBase includes several built-in commands:
-
-- `serve` - Start the web server
-- `migrate` - Run database migrations
-- `superuser` - Manage superuser accounts
-- `version` - Print version info
-
-For more information about Cobra commands, see the [Cobra documentation](https://github.com/spf13/cobra).
+::: info
+Keep in mind that the console commands execute in their own separate app process and run independently from the main `serve` command (aka. hook and realtime events between different processes are not shared with one another).
+:::

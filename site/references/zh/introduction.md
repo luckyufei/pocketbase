@@ -12,15 +12,15 @@ PocketBase 是一个开源后端，包含嵌入式数据库（SQLite）、实时
 
 ### x64
 
-- [Linux x64 下载](https://github.com/pocketbase/pocketbase/releases)
-- [Windows x64 下载](https://github.com/pocketbase/pocketbase/releases)
-- [macOS x64 下载](https://github.com/pocketbase/pocketbase/releases)
+- [下载 v0.36.1 Linux x64 版本 (~12MB zip)](https://github.com/pocketbase/pocketbase/releases/download/v0.36.1/pocketbase_0.36.1_linux_amd64.zip)
+- [下载 v0.36.1 Windows x64 版本 (~12MB zip)](https://github.com/pocketbase/pocketbase/releases/download/v0.36.1/pocketbase_0.36.1_windows_amd64.zip)
+- [下载 v0.36.1 macOS x64 版本 (~12MB zip)](https://github.com/pocketbase/pocketbase/releases/download/v0.36.1/pocketbase_0.36.1_darwin_amd64.zip)
 
 ### ARM64
 
-- [Linux ARM64 下载](https://github.com/pocketbase/pocketbase/releases)
-- [Windows ARM64 下载](https://github.com/pocketbase/pocketbase/releases)
-- [macOS ARM64 下载](https://github.com/pocketbase/pocketbase/releases)
+- [下载 v0.36.1 Linux ARM64 版本 (~11MB zip)](https://github.com/pocketbase/pocketbase/releases/download/v0.36.1/pocketbase_0.36.1_linux_arm64.zip)
+- [下载 v0.36.1 Windows ARM64 版本 (~11MB zip)](https://github.com/pocketbase/pocketbase/releases/download/v0.36.1/pocketbase_0.36.1_windows_arm64.zip)
+- [下载 v0.36.1 macOS ARM64 版本 (~11MB zip)](https://github.com/pocketbase/pocketbase/releases/download/v0.36.1/pocketbase_0.36.1_darwin_arm64.zip)
 
 更多平台和详情请查看 [GitHub Releases 页面](https://github.com/pocketbase/pocketbase/releases)。
 

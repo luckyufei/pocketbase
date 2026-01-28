@@ -30,7 +30,7 @@ Downloads a single file resource (aka. the URL address to the file). Example:
 
 | Param | Type | Description |
 |-------|------|-------------|
-| thumb | String | Get the thumb of the requested file. Supported formats: `WxH` (e.g. 100x300), `WxHt` (e.g. 100x300t - crop to top), `WxHb` (e.g. 100x300b - crop to bottom), `WxHf` (e.g. 100x300f - fit), `0xH` (e.g. 0x300 - auto width), `Wx0` (e.g. 100x0 - auto height). If the thumb size is not defined in the file schema field options or the file resource is not an image (jpg, png, gif, webp), then the original file resource is returned unmodified. |
+| thumb | String | Get the thumb of the requested file.<br><br>The following thumb formats are currently supported:<br><br>• **WxH** (e.g. 100x300) - crop to WxH viewbox (from center)<br>• **WxHt** (e.g. 100x300t) - crop to WxH viewbox (from top)<br>• **WxHb** (e.g. 100x300b) - crop to WxH viewbox (from bottom)<br>• **WxHf** (e.g. 100x300f) - fit inside a WxH viewbox (without cropping)<br>• **0xH** (e.g. 0x300) - resize to H height preserving the aspect ratio<br>• **Wx0** (e.g. 100x0) - resize to W width preserving the aspect ratio<br><br>If the thumb size is not defined in the file schema field options or the file resource is not an image (jpg, png, gif, webp), then the original file resource is returned unmodified. |
 | token | String | Optional file token for granting access to protected file(s). For an example, you can check [Files upload and handling](/en/files-handling#protected-files). |
 | download | Boolean | If it is set to a truthy value (1, t, true) the file will be served with `Content-Disposition: attachment` header instructing the browser to ignore the file preview for pdf, images, videos, etc. and to directly download the file. |
 

@@ -154,3 +154,115 @@
   border-radius: 4px;
   font-size: 13px;
 }
+
+/* 自定义 info 提示框样式 - 匹配原版 pocketbase.io 的浅蓝色背景 */
+.vp-doc .custom-block.info {
+  background-color: #cee2f8;
+  border: none;
+  border-left: none;
+  border-radius: 4px;
+  padding: 16px 20px;
+}
+
+.vp-doc .custom-block.info .custom-block-title {
+  color: #1a365d;
+  font-weight: 600;
+}
+
+.vp-doc .custom-block.info p {
+  color: #2d3748;
+}
+
+.dark .vp-doc .custom-block.info {
+  background-color: #1e3a5f;
+}
+
+.dark .vp-doc .custom-block.info .custom-block-title {
+  color: #90cdf4;
+}
+
+.dark .vp-doc .custom-block.info p {
+  color: #e2e8f0;
+}
+
+/* Highlighted title 样式 - 模拟 pocketbase.io 官方文档的 Recommendations 样式 */
+.highlighted-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin: 24px 0 16px 0;
+}
+
+.highlighted-title h5,
+.highlighted-title h4,
+.highlighted-title h3 {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  font-size: 1.1em;
+  font-weight: 600;
+  color: inherit;
+}
+
+/* Danger/Highly Recommended 样式 - 浅红色背景 */
+.highlighted-title.bg-danger-alt {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.dark .highlighted-title.bg-danger-alt {
+  background-color: #450a0a;
+  border: 1px solid #7f1d1d;
+}
+
+/* Warning/Optional 样式 - 浅橙色/黄色背景 */
+.highlighted-title.bg-warning-alt {
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+}
+
+.dark .highlighted-title.bg-warning-alt {
+  background-color: #451a03;
+  border: 1px solid #78350f;
+}
+
+/* Label 徽章样式 */
+.label {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 4px;
+  text-transform: lowercase;
+  white-space: nowrap;
+}
+
+.label.label-primary {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+.dark .label.label-primary {
+  background-color: #dc2626;
+  color: #ffffff;
+}
+
+/* 当在 warning 背景中时，使用不同的徽章颜色 */
+.bg-warning-alt .label.label-primary {
+  background-color: #f59e0b;
+  color: #ffffff;
+}
+
+.dark .bg-warning-alt .label.label-primary {
+  background-color: #d97706;
+  color: #ffffff;
+}
+
+/* txt-hint 提示文字样式 */
+.txt-hint {
+  color: var(--vp-c-text-2);
+  font-size: 0.9em;
+}

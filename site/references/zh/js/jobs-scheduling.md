@@ -1,61 +1,22 @@
 # 任务调度（JavaScript）
 
-PocketBase 内置支持使用 cron 表达式调度周期性任务。
+如果你有需要周期性执行的任务，可以使用 `cronAdd(id, expr, handler)` 设置类似 crontab 的任务。
 
-## 注册 cron 任务
+每个调度任务作为 `serve` 命令进程的一部分在其自己的 goroutine 中运行，必须具有：
+
+- **id** - 调度任务的标识符；可用于替换或删除现有任务
+- **cron 表达式** - 例如 `0 0 * * *`（*支持数字列表、步长、范围或宏如 `@yearly`、`@annually`、`@monthly`、`@weekly`、`@daily`、`@midnight`、`@hourly`*）
+- **handler** - 每次任务运行时执行的函数
+
+这是一个示例：
 
 ```javascript
-cronAdd("myJob", "*/5 * * * *", () => {
-    // 每 5 分钟运行一次
-    console.log("Running scheduled job")
-    
-    // 执行某些操作...
+// 每 2 分钟打印 "Hello!"
+cronAdd("hello", "*/2 * * * *", () => {
+    console.log("Hello!")
 })
 ```
 
-## Cron 表达式格式
+要移除单个已注册的 cron 任务，可以调用 `cronRemove(id)`。
 
-```
-┌───────────── 分钟 (0 - 59)
-│ ┌───────────── 小时 (0 - 23)
-│ │ ┌───────────── 月份中的日期 (1 - 31)
-│ │ │ ┌───────────── 月份 (1 - 12)
-│ │ │ │ ┌───────────── 星期几 (0 - 6)
-│ │ │ │ │
-* * * * *
-```
-
-示例：
-- `*/5 * * * *` - 每 5 分钟
-- `0 * * * *` - 每小时
-- `0 0 * * *` - 每天午夜
-- `0 0 * * 0` - 每周日午夜
-- `0 0 1 * *` - 每月第一天
-
-## 删除 cron 任务
-
-```javascript
-cronRemove("myJob")
-```
-
-## 示例：每日清理
-
-```javascript
-cronAdd("dailyCleanup", "0 0 * * *", () => {
-    // 删除旧记录
-    const records = $app.findRecordsByFilter(
-        "logs",
-        "created < {:date}",
-        "",
-        1000,
-        0,
-        { date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() }
-    )
-    
-    for (const record of records) {
-        $app.delete(record)
-    }
-    
-    console.log(`Cleaned up ${records.length} old log records`)
-})
-```
+所有已注册的应用级 cron 任务也可以从 *仪表板 > 设置 > Crons* 部分预览和触发。

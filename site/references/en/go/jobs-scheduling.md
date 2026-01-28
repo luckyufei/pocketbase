@@ -1,57 +1,47 @@
 # Jobs Scheduling
 
-PocketBase has built-in support for scheduling recurring jobs using cron expressions.
+If you have tasks that need to be performed periodically, you could set up crontab-like jobs with the builtin `app.Cron()` *(it returns an app scoped [`cron.Cron`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/cron#Cron) value)*.
 
-## Registering cron jobs
+The jobs scheduler is started automatically on app `serve`, so all you have to do is register a handler with [`app.Cron().Add(id, cronExpr, handler)`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/cron#Cron.Add) or [`app.Cron().MustAdd(id, cronExpr, handler)`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/cron#Cron.MustAdd) *(the latter panic if the cron expression is not valid)*.
 
-```go
-app.Cron().Add("myJob", "*/5 * * * *", func() {
-    // This runs every 5 minutes
-    app.Logger().Info("Running scheduled job")
-    
-    // do something...
-})
-```
+Each scheduled job runs in its own goroutine and must have:
 
-## Cron expression format
+- **id** - identifier for the scheduled job; could be used to replace or remove an existing job
+- **cron expression** - e.g. `0 0 * * *` *(supports numeric list, steps, ranges or macros like `@yearly`, `@annually`, `@monthly`, `@weekly`, `@daily`, `@midnight`, `@hourly`)*
+- **handler** - the function that will be executed every time when the job runs
 
-The cron expression format follows the standard:
-
-```
-┌───────────── minute (0 - 59)
-│ ┌───────────── hour (0 - 23)
-│ │ ┌───────────── day of the month (1 - 31)
-│ │ │ ┌───────────── month (1 - 12)
-│ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday)
-│ │ │ │ │
-* * * * *
-```
-
-Examples:
-- `*/5 * * * *` - Every 5 minutes
-- `0 * * * *` - Every hour
-- `0 0 * * *` - Every day at midnight
-- `0 0 * * 0` - Every Sunday at midnight
-- `0 0 1 * *` - First day of every month at midnight
-
-## Removing cron jobs
+Here is one minimal example:
 
 ```go
-app.Cron().Remove("myJob")
+// main.go
+package main
+
+import (
+    "log"
+
+    "github.com/pocketbase/pocketbase"
+)
+
+func main() {
+    app := pocketbase.New()
+
+    // prints "Hello!" every 2 minutes
+    app.Cron().MustAdd("hello", "*/2 * * * *", func() {
+        log.Println("Hello!")
+    })
+
+    if err := app.Start(); err != nil {
+        log.Fatal(err)
+    }
+}
 ```
 
-## Listing cron jobs
+To remove already registered cron job you can call [`app.Cron().Remove(id)`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/cron#Cron.Remove).
 
-You can list all registered cron jobs via the API (superusers only):
+All registered app level cron jobs can be also previewed and triggered from the *Dashboard > Settings > Crons* section.
 
-```
-GET /api/crons
-```
+::: warning
+Keep in mind that the `app.Cron()` is also used for running the system scheduled jobs like the logs cleanup or auto backups (the jobs id is in the format `__pb*__`) and replacing these system jobs or calling `RemoveAll()`/`Stop()` could have unintended side-effects.
 
-## Running jobs manually
-
-You can trigger a cron job manually via the API (superusers only):
-
-```
-POST /api/crons/{jobId}
-```
+If you want more advanced control you can initialize your own cron instance independent from the application via `cron.New()`.
+:::

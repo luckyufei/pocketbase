@@ -1,100 +1,59 @@
 # 杂项
 
-本页涵盖 PocketBase 中可用的各种实用函数和辅助工具。
+[[toc]]
+
+## app.Store()
+
+[`app.Store()`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#BaseApp.Store) 返回一个并发安全的应用内存存储，你可以用它在应用进程期间存储任何内容（例如缓存、配置标志等）。
+
+你可以在 [`store.Store`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/store#Store) 文档中找到所有可用存储方法的详细信息，但最常用的是 `Get(key)`、`Set(key, value)` 和 `GetOrSet(key, setFunc)`。
+
+```go
+app.Store().Set("example", 123)
+
+v1 := app.Store().Get("example").(int) // 123
+
+v2 := app.Store().GetOrSet("example2", func() any {
+    // 此设置器仅调用一次，除非 "example2" 被移除
+    // （例如，适用于实例化单例）
+    return 456
+}).(int) // 456
+```
+
+::: warning
+请记住，应用存储内部通常使用以 `pb*` 为前缀的键（例如，集合缓存存储在 `pbAppCachedCollections` 键下），更改这些系统键或调用 `RemoveAll()`/`Reset()` 可能会产生意外的副作用。
+
+如果你想要更高级的控制，可以通过 `store.New[K, T](nil)` 初始化你自己的独立于应用实例的存储。
+:::
 
 ## 安全辅助函数
 
+*以下列出了一些最常用的安全辅助函数，但你可以在 [`security`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/security) 子包中找到所有可用方法的详细文档。*
+
+### 生成随机字符串
+
 ```go
-// 生成随机字符串
-randomStr := security.RandomString(32)
+secret := security.RandomString(10) // 例如 a35Vdb10Z4
 
-// 使用自定义字母表生成随机字符串
-randomStr := security.RandomStringWithAlphabet(32, "abc123")
-
-// 哈希密码
-hash := security.HashPassword("password123")
-
-// 验证密码
-valid := security.ValidatePassword("password123", hash)
-
-// 生成 JWT 令牌
-token, err := security.NewJWT(claims, signingKey, duration)
-
-// 解析 JWT 令牌
-claims, err := security.ParseJWT(token, signingKey)
+secret := security.RandomStringWithAlphabet(5, "1234567890") // 例如 33215
 ```
 
-## 类型辅助函数
+### 常量时间字符串比较
 
 ```go
-// DateTime 操作
-now := types.NowDateTime()
-parsed, err := types.ParseDateTime("2023-01-01 00:00:00.000Z")
-
-// JSON 类型
-jsonArr := types.JSONArray[string]{"a", "b", "c"}
-jsonMap := types.JSONMap{"key": "value"}
-jsonRaw := types.JSONRaw(`{"key": "value"}`)
-
-// 指针辅助函数
-strPtr := types.Pointer("hello")
+isEqual := security.Equal(hash1, hash2)
 ```
 
-## 验证
+### AES 加密/解密
 
 ```go
-import "github.com/pocketbase/pocketbase/tools/validation"
+// 必须是随机的 32 字符字符串
+const key = "q6Zuyqdz839AlmCyq53LA76NIhpbgf3b"
 
-// 邮箱验证
-err := validation.Is(email, validation.Email)
+encrypted, err := security.Encrypt([]byte("test"), key)
+if err != nil {
+    return err
+}
 
-// URL 验证
-err := validation.Is(url, validation.URL)
-
-// 必填验证
-err := validation.Is(value, validation.Required)
-
-// 长度验证
-err := validation.Is(str, validation.Length(5, 100))
-```
-
-## 词形变化
-
-```go
-import "github.com/pocketbase/pocketbase/tools/inflector"
-
-// 复数化
-plural := inflector.Pluralize("post") // "posts"
-
-// 单数化
-singular := inflector.Singularize("posts") // "post"
-
-// 列名化（转换为 snake_case）
-column := inflector.Columnify("SomeField") // "some_field"
-
-// 首字母大写
-upper := inflector.UcFirst("hello") // "Hello"
-```
-
-## HTTP 客户端
-
-```go
-import "github.com/pocketbase/pocketbase/tools/rest"
-
-// 简单 GET 请求
-response, err := rest.Get("https://api.example.com/data")
-
-// 带 JSON 主体的 POST 请求
-response, err := rest.Post("https://api.example.com/data", map[string]any{
-    "key": "value",
-})
-
-// 自定义请求
-client := rest.NewClient()
-response, err := client.Send(&rest.Request{
-    Method:  "PUT",
-    URL:     "https://api.example.com/data",
-    Body:    body,
-    Headers: map[string]string{"Authorization": "Bearer token"},
-})
+decrypted := security.Decrypt(encrypted, key) // []byte("test")
 ```

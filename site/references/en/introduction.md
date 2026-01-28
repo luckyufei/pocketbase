@@ -12,15 +12,15 @@ The easiest way to get started is to download the prebuilt minimal PocketBase ex
 
 ### x64
 
-- [Download for Linux x64](https://github.com/pocketbase/pocketbase/releases)
-- [Download for Windows x64](https://github.com/pocketbase/pocketbase/releases)
-- [Download for macOS x64](https://github.com/pocketbase/pocketbase/releases)
+- [Download v0.36.1 for Linux x64 (~12MB zip)](https://github.com/pocketbase/pocketbase/releases/download/v0.36.1/pocketbase_0.36.1_linux_amd64.zip)
+- [Download v0.36.1 for Windows x64 (~12MB zip)](https://github.com/pocketbase/pocketbase/releases/download/v0.36.1/pocketbase_0.36.1_windows_amd64.zip)
+- [Download v0.36.1 for macOS x64 (~12MB zip)](https://github.com/pocketbase/pocketbase/releases/download/v0.36.1/pocketbase_0.36.1_darwin_amd64.zip)
 
 ### ARM64
 
-- [Download for Linux ARM64](https://github.com/pocketbase/pocketbase/releases)
-- [Download for Windows ARM64](https://github.com/pocketbase/pocketbase/releases)
-- [Download for macOS ARM64](https://github.com/pocketbase/pocketbase/releases)
+- [Download v0.36.1 for Linux ARM64 (~11MB zip)](https://github.com/pocketbase/pocketbase/releases/download/v0.36.1/pocketbase_0.36.1_linux_arm64.zip)
+- [Download v0.36.1 for Windows ARM64 (~11MB zip)](https://github.com/pocketbase/pocketbase/releases/download/v0.36.1/pocketbase_0.36.1_windows_arm64.zip)
+- [Download v0.36.1 for macOS ARM64 (~11MB zip)](https://github.com/pocketbase/pocketbase/releases/download/v0.36.1/pocketbase_0.36.1_darwin_arm64.zip)
 
 See the [GitHub Releases page](https://github.com/pocketbase/pocketbase/releases) for other platforms and more details.
 

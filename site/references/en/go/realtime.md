@@ -1,64 +1,82 @@
 # Realtime
 
-PocketBase provides realtime capabilities through Server-Sent Events (SSE).
+By default PocketBase sends realtime events only for Record create/update/delete operations (*and for the OAuth2 auth redirect*), but you are free to send custom realtime messages to the connected clients via the [`app.SubscriptionsBroker()`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#BaseApp.SubscriptionsBroker) instance.
 
-## Sending custom messages
+[`app.SubscriptionsBroker().Clients()`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/subscriptions#Broker.Clients) returns all connected [`subscriptions.Client`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/subscriptions#Client) indexed by their unique connection id.
 
-You can send custom realtime messages to connected clients:
+[`app.SubscriptionsBroker().ChunkedClients(size)`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tools/subscriptions#Broker.ChunkedClients) is similar but returns the result as a chunked slice allowing you to split the iteration across several goroutines (usually combined with [`errgroup`](https://pkg.go.dev/golang.org/x/sync/errgroup)).
 
-```go
-// Send to all clients subscribed to a specific topic
-app.SubscriptionsBroker().Send("myTopic", []byte(`{"message": "hello"}`))
+The current auth record associated with a client could be accessed through `client.Get(apis.RealtimeClientAuthKey)`.
 
-// Send to clients subscribed to a record
-app.SubscriptionsBroker().Send("posts/RECORD_ID", []byte(`{"action": "custom"}`))
-```
+::: info
+Note that a single authenticated user could have more than one active realtime connection (aka. multiple clients). This could happen for example when opening the same app in different tabs, browsers, devices, etc.
+:::
 
-## Intercepting realtime events
+Below you can find a minimal code sample that sends a JSON payload to all clients subscribed to the "example" topic:
 
 ```go
-app.OnRealtimeConnectRequest().BindFunc(func(e *core.RealtimeConnectRequestEvent) error {
-    // Custom logic before connection is established
-    return e.Next()
-})
+func notify(app core.App, subscription string, data any) error {
+    rawData, err := json.Marshal(data)
+    if err != nil {
+        return err
+    }
 
-app.OnRealtimeSubscribeRequest().BindFunc(func(e *core.RealtimeSubscribeRequestEvent) error {
-    // Custom logic before subscription is processed
-    // e.Subscriptions contains the requested subscriptions
-    return e.Next()
-})
+    message := subscriptions.Message{
+        Name: subscription,
+        Data: rawData,
+    }
 
-app.OnRealtimeMessageSend().BindFunc(func(e *core.RealtimeMessageSendEvent) error {
-    // Custom logic before message is sent
-    // You can modify e.Message or prevent sending by not calling e.Next()
-    return e.Next()
-})
-```
+    group := new(errgroup.Group)
 
-## Client connections
+    chunks := app.SubscriptionsBroker().ChunkedClients(300)
 
-```go
-// Get all connected clients
-clients := app.SubscriptionsBroker().Clients()
+    for _, chunk := range chunks {
+        group.Go(func() error {
+            for _, client := range chunk {
+                if !client.HasSubscription(subscription) {
+                    continue
+                }
 
-// Check if a specific client is connected
-client, ok := app.SubscriptionsBroker().ClientById("clientId")
+                client.Send(message)
+            }
 
-// Get client subscriptions
-if ok {
-    subscriptions := client.Subscriptions()
+            return nil
+        })
+    }
+
+    return group.Wait()
+}
+
+err := notify(app, "example", map[string]any{"test": 123})
+if err != nil {
+    return err
 }
 ```
 
-## Custom subscription validation
+From the client-side, users can listen to the custom subscription topic by doing something like:
 
-```go
-app.OnRealtimeSubscribeRequest().BindFunc(func(e *core.RealtimeSubscribeRequestEvent) error {
-    // Only allow authenticated users to subscribe
-    if e.Client.Auth() == nil {
-        return apis.NewForbiddenError("Authentication required", nil)
-    }
-    
-    return e.Next()
+::: code-group
+```javascript [JavaScript]
+import PocketBase from 'pocketbase';
+
+const pb = new PocketBase('http://127.0.0.1:8090');
+
+...
+
+await pb.realtime.subscribe('example', (e) => {
+    console.log(e)
 })
 ```
+
+```dart [Dart]
+import 'package:pocketbase/pocketbase.dart';
+
+final pb = PocketBase('http://127.0.0.1:8090');
+
+...
+
+await pb.realtime.subscribe('example', (e) {
+    print(e)
+})
+```
+:::

@@ -1,59 +1,132 @@
 # Logging
 
-PocketBase uses structured logging based on the standard `log/slog` package.
+`app.Logger()` could be used to write any logs into the database so that they can be later explored from the PocketBase *Dashboard > Logs* section.
 
-## Using the logger
+::: info
+For better performance and to minimize blocking on hot paths, logs are written with debounce and on batches:
+
+- 3 seconds after the last debounced log write
+- when the batch threshold is reached (currently 200)
+- right before app termination to attempt saving everything from the existing logs queue
+:::
+
+[[toc]]
+
+## Log Methods
+
+All standard [`slog.Logger`](https://pkg.go.dev/log/slog#Logger) methods are available but below is a list with some of the most notable ones. Note that attributes are represented as key-value pair arguments.
+
+### Debug(message, attrs...)
 
 ```go
-// Access the app logger
-app.Logger().Info("Something happened")
-app.Logger().Warn("Warning message")
-app.Logger().Error("Error occurred", "error", err)
+app.Logger().Debug("Debug message!")
 
-// With additional context
-app.Logger().Info("User action",
-    "userId", user.Id,
-    "action", "login",
-    "ip", request.RemoteAddr,
+app.Logger().Debug(
+    "Debug message with attributes!",
+    "name", "John Doe",
+    "id", 123,
 )
 ```
 
-## Log levels
-
-- `Debug` - Detailed debugging information
-- `Info` - General operational information
-- `Warn` - Warning messages
-- `Error` - Error conditions
-
-## Configuring logging
-
-Log settings can be configured from the Dashboard under Settings > Logs, or programmatically:
+### Info(message, attrs...)
 
 ```go
-settings := app.Settings()
-settings.Logs.MaxDays = 7      // keep logs for 7 days
-settings.Logs.MinLevel = 0     // 0=Debug, 1=Info, 2=Warn, 3=Error
-settings.Logs.LogIP = true     // log client IPs
-settings.Logs.LogAuthId = true // log authenticated user IDs
+app.Logger().Info("Info message!")
 
-if err := app.Save(settings); err != nil {
-    return err
-}
+app.Logger().Info(
+    "Info message with attributes!",
+    "name", "John Doe",
+    "id", 123,
+)
 ```
 
-## Custom log handler
-
-You can replace the default log handler:
+### Warn(message, attrs...)
 
 ```go
-app.OnBootstrap().BindFunc(func(e *core.BootstrapEvent) error {
-    // Create a custom handler
-    handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-        Level: slog.LevelDebug,
-    })
-    
-    app.Logger().SetHandler(handler)
-    
+app.Logger().Warn("Warning message!")
+
+app.Logger().Warn(
+    "Warning message with attributes!",
+    "name", "John Doe",
+    "id", 123,
+)
+```
+
+### Error(message, attrs...)
+
+```go
+app.Logger().Error("Error message!")
+
+app.Logger().Error(
+    "Error message with attributes!",
+    "id", 123,
+    "error", err,
+)
+```
+
+### With(attrs...)
+
+`With(attrs...)` creates a new local logger that will "inject" the specified attributes with each following log.
+
+```go
+l := app.Logger().With("total", 123)
+
+// results in log with data {"total": 123}
+l.Info("message A")
+
+// results in log with data {"total": 123, "name": "john"}
+l.Info("message B", "name", "john")
+```
+
+### WithGroup(name)
+
+`WithGroup(name)` creates a new local logger that wraps all logs attributes under the specified group name.
+
+```go
+l := app.Logger().WithGroup("sub")
+
+// results in log with data {"sub": { "total": 123 }}
+l.Info("message A", "total", 123)
+```
+
+## Logs Settings
+
+You can control various log settings like logs retention period, minimal log level, request IP logging, etc. from the logs settings panel:
+
+![Logs settings screenshot](/images/screenshots/logs.png)
+
+## Custom Log Queries
+
+The logs are usually meant to be filtered from the UI but if you want to programmatically retrieve and filter the stored logs you can make use of the [`app.LogQuery()`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#App) query builder method. For example:
+
+```go
+logs := []*core.Log{}
+
+// see https://pocketbase.io/docs/go-database/#query-builder
+err := app.LogQuery().
+    // target only debug and info logs
+    AndWhere(dbx.In("level", -4, 0)).
+    // the data column is serialized json object and could be anything
+    AndWhere(dbx.NewExp("json_extract(data, '$.type') = 'request'")).
+    OrderBy("created DESC").
+    Limit(100).
+    All(&logs)
+```
+
+## Intercepting Logs Write
+
+If you want to modify the log data before persisting in the database or to forward it to an external system, then you can listen for changes of the `_logs` table by attaching to the [base model hooks](/docs/go-event-hooks/#base-model-hooks). For example:
+
+```go
+app.OnModelCreate(core.LogsTableName).BindFunc(func(e *core.ModelEvent) error {
+    l := e.Model.(*core.Log)
+
+    fmt.Println(l.Id)
+    fmt.Println(l.Created)
+    fmt.Println(l.Level)
+    fmt.Println(l.Message)
+    fmt.Println(l.Data)
+
     return e.Next()
 })
 ```

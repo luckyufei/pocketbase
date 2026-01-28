@@ -59,8 +59,10 @@ View 集合不会接收实时事件，因为它们没有创建/更新/删除操�
 - **角色（分组）** - 例如，你可以在 Auth 集合中添加一个 "role" `select` 字段，选项为："employee" 和 "staff"。然后在其他集合中定义如下规则以仅允许 "staff"：`@request.auth.role = "staff"`
 
 - **关联（所有权）** - 假设你有 2 个集合 - "posts" base 集合和 "users" auth 集合。在 "posts" 集合中创建指向 "users" 集合的 "author" `relation` 字段。要仅允许记录的 "author" 访问，可以使用如下规则：`@request.auth.id != "" && author = @request.auth.id`
+  
+  嵌套关联字段查找（包括反向关联）也受支持，例如：`someRelField.anotherRelField.author = @request.auth.id`
 
-- **托管** - 除了默认的 "List"、"View"、"Create"、"Update"、"Delete" API 规则外，Auth 集合还有一个特殊的 "Manage" API 规则，可用于允许一个用户完全管理另一个用户的数据。
+- **托管** - 除了默认的 "List"、"View"、"Create"、"Update"、"Delete" API 规则外，Auth 集合还有一个特殊的 "Manage" API 规则，可用于允许一个用户（甚至可以来自不同的集合）完全管理另一个用户的数据（例如更改其邮箱、密码等）。
 
 - **混合** - 你可以根据独特的用例构建混合方法。多个规则可以用括号 `()` 分组，并用 `&&`（AND）和 `||`（OR）运算符组合：`@request.auth.id != "" && (@request.auth.role = "staff" || author = @request.auth.id)`
 
@@ -209,6 +211,8 @@ JSONField 定义 `json` 类型字段，用于存储任何序列化的 JSON 值�
 GeoPoint 定义 `geoPoint` 类型字段，用于存储地理坐标（经度、纬度）作为序列化的 JSON 对象。例如：`{"lon":12.34,"lat":56.78}`。
 
 `geoPoint` 的默认/零值是 "Null Island"，即 `{"lon":0,"lat":0}`。
+
+使用 Go/JSVM 扩展 PocketBase 时，`geoPoint` 字段值可以设置为 `types.GeoPoint` 实例或带有 `lon` 和 `lat` 键的普通 map：
 
 <CodeTabs :tabs="['Go', 'JavaScript']">
 

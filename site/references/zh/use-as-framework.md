@@ -1,4 +1,4 @@
-# 作为框架使用
+# 扩展 PocketBase
 
 PocketBase 的主要特性之一是**它可以作为框架使用**，这使你能够用 [Go](/zh/go/overview) 或 [JavaScript](/zh/js/overview) 编写自己的自定义应用业务逻辑，并最终获得一个可移植的后端。
 

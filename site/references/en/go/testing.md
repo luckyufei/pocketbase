@@ -1,133 +1,166 @@
 # Testing
 
-PocketBase provides testing utilities to help you write tests for your custom code.
+PocketBase exposes several test mocks and stubs (eg. `tests.TestApp`, `tests.ApiScenario`, `tests.MockMultipartData`, etc.) to help you write unit and integration tests for your app.
 
-## Setting up a test app
+You could find more information in the [`github.com/pocketbase/pocketbase/tests`](https://pkg.go.dev/github.com/pocketbase/pocketbase/tests) sub package, but here is a simple example.
+
+[[toc]]
+
+## 1. Setup
+
+Let's say that we have a custom API route `GET /my/hello` that requires superuser authentication:
 
 ```go
-package myapp_test
+// main.go
+package main
 
 import (
+    "log"
+    "net/http"
+
+    "github.com/pocketbase/pocketbase"
+    "github.com/pocketbase/pocketbase/apis"
+    "github.com/pocketbase/pocketbase/core"
+)
+
+func bindAppHooks(app core.App) {
+    app.OnServe().BindFunc(func(se *core.ServeEvent) error {
+        se.Router.Get("/my/hello", func(e *core.RequestEvent) error {
+            return e.JSON(http.StatusOK, "Hello world!")
+        }).Bind(apis.RequireSuperuserAuth())
+
+        return se.Next()
+    })
+}
+
+func main() {
+    app := pocketbase.New()
+
+    bindAppHooks(app)
+
+    if err := app.Start(); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+## 2. Prepare Test Data
+
+Now we have to prepare our test/mock data. There are several ways you can approach this, but the easiest one would be to start your application with a custom `test_pb_data` directory, e.g.:
+
+```
+./pocketbase serve --dir="./test_pb_data" --automigrate=0
+```
+
+Go to your browser and create the test data via the Dashboard (both collections and records). Once completed you can stop the server (you could also commit `test_pb_data` to your repo).
+
+## 3. Integration Test
+
+To test the example endpoint, we want to:
+
+- ensure it handles only GET requests
+- ensure that it can be accessed only by superusers
+- check if the response body is properly set
+
+Below is a simple integration test for the above test cases. We'll also use the test data created in the previous step.
+
+```go
+// main_test.go
+package main
+
+import (
+    "net/http"
     "testing"
-    
+
+    "github.com/pocketbase/pocketbase/core"
     "github.com/pocketbase/pocketbase/tests"
 )
 
-func TestMyFeature(t *testing.T) {
-    app, err := tests.NewTestApp()
+const testDataDir = "./test_pb_data"
+
+func generateToken(collectionNameOrId string, email string) (string, error) {
+    app, err := tests.NewTestApp(testDataDir)
+    if err != nil {
+        return "", err
+    }
+    defer app.Cleanup()
+
+    record, err := app.FindAuthRecordByEmail(collectionNameOrId, email)
+    if err != nil {
+        return "", err
+    }
+
+    return record.NewAuthToken()
+}
+
+func TestHelloEndpoint(t *testing.T) {
+    recordToken, err := generateToken("users", "test@example.com")
     if err != nil {
         t.Fatal(err)
     }
-    defer app.Cleanup()
-    
-    // Your test code here
-}
-```
 
-## Testing with existing data
-
-```go
-func TestWithData(t *testing.T) {
-    app, err := tests.NewTestApp("./testdata")
+    superuserToken, err := generateToken(core.CollectionNameSuperusers, "test@example.com")
     if err != nil {
         t.Fatal(err)
     }
-    defer app.Cleanup()
-    
-    // The app is initialized with data from ./testdata
-}
-```
 
-## Testing API endpoints
+    // set up the test ApiScenario app instance
+    setupTestApp := func(t testing.TB) *tests.TestApp {
+        testApp, err := tests.NewTestApp(testDataDir)
+        if err != nil {
+            t.Fatal(err)
+        }
+        // no need to cleanup since scenario.Test() will do that for us
+        // defer testApp.Cleanup()
 
-```go
-func TestAPIEndpoint(t *testing.T) {
-    app, err := tests.NewTestApp()
-    if err != nil {
-        t.Fatal(err)
+        bindAppHooks(testApp)
+
+        return testApp
     }
-    defer app.Cleanup()
-    
-    // Create a test request
-    req := httptest.NewRequest("GET", "/api/collections", nil)
-    rec := httptest.NewRecorder()
-    
-    // Execute the request
-    app.ServeHTTP(rec, req)
-    
-    // Assert the response
-    if rec.Code != 200 {
-        t.Errorf("Expected status 200, got %d", rec.Code)
+
+    scenarios := []tests.ApiScenario{
+        {
+            Name:            "try with different http method, e.g. POST",
+            Method:          http.MethodPost,
+            URL:             "/my/hello",
+            ExpectedStatus:  405,
+            ExpectedContent: []string{"\"data\":{}"},
+            TestAppFactory:  setupTestApp,
+        },
+        {
+            Name:            "try as guest (aka. no Authorization header)",
+            Method:          http.MethodGet,
+            URL:             "/my/hello",
+            ExpectedStatus:  401,
+            ExpectedContent: []string{"\"data\":{}"},
+            TestAppFactory:  setupTestApp,
+        },
+        {
+            Name:   "try as authenticated app user",
+            Method: http.MethodGet,
+            URL:    "/my/hello",
+            Headers: map[string]string{
+                "Authorization": recordToken,
+            },
+            ExpectedStatus:  401,
+            ExpectedContent: []string{"\"data\":{}"},
+            TestAppFactory:  setupTestApp,
+        },
+        {
+            Name:   "try as authenticated superuser",
+            Method: http.MethodGet,
+            URL:    "/my/hello",
+            Headers: map[string]string{
+                "Authorization": superuserToken,
+            },
+            ExpectedStatus:  200,
+            ExpectedContent: []string{"Hello world!"},
+            TestAppFactory:  setupTestApp,
+        },
     }
-}
-```
 
-## Testing with authentication
-
-```go
-func TestAuthenticatedRequest(t *testing.T) {
-    app, err := tests.NewTestApp()
-    if err != nil {
-        t.Fatal(err)
-    }
-    defer app.Cleanup()
-    
-    // Create a test user
-    collection, _ := app.FindCollectionByNameOrId("users")
-    user := core.NewRecord(collection)
-    user.Set("email", "test@example.com")
-    user.SetPassword("password123")
-    app.Save(user)
-    
-    // Generate auth token
-    token, _ := user.NewAuthToken()
-    
-    // Create authenticated request
-    req := httptest.NewRequest("GET", "/api/collections/posts/records", nil)
-    req.Header.Set("Authorization", token)
-    rec := httptest.NewRecorder()
-    
-    app.ServeHTTP(rec, req)
-}
-```
-
-## Testing hooks
-
-```go
-func TestHook(t *testing.T) {
-    app, err := tests.NewTestApp()
-    if err != nil {
-        t.Fatal(err)
-    }
-    defer app.Cleanup()
-    
-    hookCalled := false
-    
-    app.OnRecordCreate("posts").BindFunc(func(e *core.RecordEvent) error {
-        hookCalled = true
-        return e.Next()
-    })
-    
-    // Create a record to trigger the hook
-    collection, _ := app.FindCollectionByNameOrId("posts")
-    record := core.NewRecord(collection)
-    record.Set("title", "Test")
-    app.Save(record)
-    
-    if !hookCalled {
-        t.Error("Expected hook to be called")
+    for _, scenario := range scenarios {
+        scenario.Test(t)
     }
 }
 ```
-
-## Best practices
-
-1. **Use separate test data** - Keep test data separate from production data.
-
-2. **Clean up after tests** - Always call `app.Cleanup()` to remove temporary files.
-
-3. **Test edge cases** - Test error conditions and edge cases, not just happy paths.
-
-4. **Use table-driven tests** - For testing multiple scenarios, use Go's table-driven test pattern.
-
-5. **Mock external services** - Mock external APIs and services in tests.

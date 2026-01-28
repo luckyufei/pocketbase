@@ -13,7 +13,7 @@ const sidebarEn = [
       { text: 'Authentication', link: '/en/authentication' },
       { text: 'Files handling', link: '/en/files-handling' },
       { text: 'Working with relations', link: '/en/working-with-relations' },
-      { text: 'Use as framework', link: '/en/use-as-framework' },
+      { text: 'Extending PocketBase', link: '/en/use-as-framework' },
     ]
   },
   {
@@ -25,8 +25,6 @@ const sidebarEn = [
       { text: 'Collections', link: '/en/api/collections' },
       { text: 'Settings', link: '/en/api/settings' },
       { text: 'Logs', link: '/en/api/logs' },
-      { text: 'Traces', link: '/en/api/traces' },
-      { text: 'Analytics', link: '/en/api/analytics' },
       { text: 'Crons', link: '/en/api/crons' },
       { text: 'Backups', link: '/en/api/backups' },
       { text: 'Health', link: '/en/api/health' },
@@ -109,7 +107,7 @@ const sidebarZh = [
       { text: '身份认证', link: '/zh/authentication' },
       { text: '文件处理', link: '/zh/files-handling' },
       { text: '关联关系', link: '/zh/working-with-relations' },
-      { text: '作为框架使用', link: '/zh/use-as-framework' },
+      { text: '扩展 PocketBase', link: '/zh/use-as-framework' },
     ]
   },
   {
@@ -121,8 +119,6 @@ const sidebarZh = [
       { text: '集合 (Collections)', link: '/zh/api/collections' },
       { text: '设置 (Settings)', link: '/zh/api/settings' },
       { text: '日志 (Logs)', link: '/zh/api/logs' },
-      { text: '追踪 (Traces)', link: '/zh/api/traces' },
-      { text: '分析 (Analytics)', link: '/zh/api/analytics' },
       { text: '定时任务 (Crons)', link: '/zh/api/crons' },
       { text: '备份 (Backups)', link: '/zh/api/backups' },
       { text: '健康检查 (Health)', link: '/zh/api/health' },
@@ -196,6 +192,11 @@ export default defineConfig({
   title: 'PocketBase',
   description: 'Open Source backend in 1 file',
   
+  // Ignore existing dead links that are not part of this project
+  ignoreDeadLinks: [
+    /\/jsvm\/index/
+  ],
+  
   head: [
     ['link', { rel: 'icon', href: '/images/logo.svg' }],
   ],
@@ -241,6 +242,10 @@ export default defineConfig({
 
   themeConfig: {
     logo: '/images/logo.svg',
+
+    outline: {
+      level: 'deep'
+    },
 
     socialLinks: [
       { icon: 'github', link: 'https://github.com/pocketbase/pocketbase' }

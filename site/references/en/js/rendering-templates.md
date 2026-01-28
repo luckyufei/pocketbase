@@ -1,77 +1,88 @@
-# Rendering Templates (JavaScript)
+# Rendering templates
 
-PocketBase provides template rendering capabilities for generating HTML content.
+## Overview
 
-## Basic usage
+A common task when creating custom routes or emails is the need of generating HTML output. To assist with this, PocketBase provides the global `$template` helper for parsing and rendering HTML templates.
 
 ```javascript
-const html = $app.renderTemplate("templates/welcome.html", {
-    name: "John",
-    link: "https://example.com/verify"
-})
+const html = $template.loadFiles(
+    `${__hooks}/views/base.html`,
+    `${__hooks}/views/partial1.html`,
+    `${__hooks}/views/partial2.html`,
+).render(data)
 ```
 
-## Template location
+The general flow when working with composed and nested templates is that you create "base" template(s) that defines various placeholders using the <code v-pre>{{template "placeholderName" .}}</code> or <code v-pre>{{block "placeholderName" .}}default...{{end}}</code> actions.
 
-Templates are loaded from the `pb_public` directory:
+Then in the partials, you define the content for those placeholders using the <code v-pre>{{define "placeholderName"}}custom...{{end}}</code> action.
+
+The dot object (`.`) in the above represents the data passed to the templates via the `render(data)` method.
+
+By default the templates apply contextual (HTML, JS, CSS, URI) auto escaping so the generated template content should be injection-safe. To render raw/verbatim trusted content in the templates you can use the builtin `raw` function (e.g. <code v-pre>{{.content|raw}}</code>).
+
+::: info
+For more information about the template syntax please refer to the [*html/template*](https://pkg.go.dev/html/template#hdr-A_fuller_picture) and [*text/template*](https://pkg.go.dev/text/template) package godocs. **Another great resource is also the Hashicorp's [Learn Go Template Syntax](https://developer.hashicorp.com/nomad/tutorials/templates/go-template-syntax) tutorial.**
+:::
+
+## Example HTML page with layout
+
+Consider the following app directory structure:
 
 ```
-pb_public/
-    templates/
-        emails/
-            welcome.html
-        pages/
-            landing.html
+myapp/
+    pb_hooks/
+        views/
+            layout.html
+            hello.html
+        main.pb.js
+    pocketbase
 ```
 
-## Template syntax
-
-Templates use Go's `html/template` syntax:
+We define the content for `layout.html` as:
 
 ```html
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Welcome</title>
+    <title>{{block "title" .}}Default app title{{end}}</title>
 </head>
 <body>
-    <h1>Hello, {{.name}}!</h1>
-    <p>Click <a href="{{.link}}">here</a> to continue.</p>
-    
-    {{if .showFooter}}
-    <footer>Thanks for joining!</footer>
+    Header...
+
+    {{block "body" .}}
+        Default app body...
     {{end}}
+
+    Footer...
 </body>
 </html>
 ```
 
-## Using in routes
+We define the content for `hello.html` as:
 
-```javascript
-routerAdd("GET", "/welcome", (e) => {
-    const html = $app.renderTemplate("templates/pages/welcome.html", {
-        title: "Welcome",
-        user: e.auth
-    })
-    
-    return e.html(200, html)
-})
+```html
+{{define "title"}}
+    Page 1
+{{end}}
+
+{{define "body"}}
+    <p>Hello from {{.name}}</p>
+{{end}}
 ```
 
-## Using for emails
+Then to output the final page, we'll register a custom `/hello/:name` route:
 
 ```javascript
-const html = $app.renderTemplate("templates/emails/notification.html", {
-    userName: "John",
-    message: "You have a new message"
-})
+routerAdd("get", "/hello/{name}", (e) => {
+    const name = e.request.pathValue("name")
 
-const message = new MailerMessage({
-    from: { address: "noreply@example.com" },
-    to: [{ address: "user@example.com" }],
-    subject: "Notification",
-    html: html
-})
+    const html = $template.loadFiles(
+        `${__hooks}/views/layout.html`,
+        `${__hooks}/views/hello.html`,
+    ).render({
+        "name": name,
+    })
 
-$app.newMailClient().send(message)
+    return e.html(200, html)
+})
 ```

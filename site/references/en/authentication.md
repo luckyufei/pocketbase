@@ -144,73 +144,86 @@ pb.authStore.clear();
 
 ## Authenticate with OAuth2
 
-You can also authenticate your users with an OAuth2 provider (Google, GitHub, Microsoft, etc.). See the [Web API reference](/en/api/records#auth-with-oauth2) for more details.
+You can also authenticate your users with an OAuth2 provider (Google, GitHub, Microsoft, etc.). See the section below for example integrations.
 
-## Authenticate with TOF (Tencent Internal)
+::: info
+Before starting, you'll need to create an OAuth2 app in the provider's dashboard in order to get a **Client Id** and **Client Secret**, and register a redirect URL.
 
-TOF (Tencent Open Framework) is Tencent's internal unified authentication gateway. This authentication method is only available for Tencent internal applications.
-
-### Server Configuration
-
-First, register the TOF plugin in your Go application:
-
-```go
-import "github.com/pocketbase/pocketbase/plugins/tofauth"
-
-func main() {
-    app := pocketbase.New()
-
-    // Register TOF plugin
-    tofauth.MustRegister(app, tofauth.Config{
-        SafeMode:       tofauth.Bool(true),  // Recommended for production
-        CheckTimestamp: tofauth.Bool(true),  // Check timestamp expiration
-    })
-
-    app.Start()
-}
-```
-
-Configure the following environment variables:
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `TOF_APP_KEY` | No | Taihu application key (for logout redirect) |
-| `TOF_APP_TOKEN` | Yes | Taihu application token (for signature verification) |
-| `TOF_DEV_MOCK_USER` | No | Mock user for development (e.g., `testuser`) |
-
-::: warning
-The `TOF_DEV_MOCK_USER` is only for local development. Never set it in production!
+Once you have obtained the **Client Id** and **Client Secret**, you can enable and configure the provider from your PocketBase auth collection options (**PocketBase > Collections > {YOUR_COLLECTION} > Edit collection (settings cogwheel) > Options > OAuth2**).
 :::
 
-### Client Usage
+### All in one (recommended)
 
-<CodeTabs :tabs="['JavaScript']">
+This method handles everything within a single call without having to define custom redirects, deeplinks or even page reload.
+
+When creating your OAuth2 app, for a callback/redirect URL you have to use the `https://yourdomain.com/api/oauth2-redirect` (or when testing locally - `http://127.0.0.1:8090/api/oauth2-redirect`).
+
+<CodeTabs :tabs="['JavaScript', 'Dart']">
 
 <template #tab-0>
 
 ```javascript
 import PocketBase from 'pocketbase';
 
-const pb = new PocketBase('http://127.0.0.1:8090');
+const pb = new PocketBase('https://pocketbase.io');
 
-// Authenticate with TOF (requires TOF gateway headers)
-const authData = await pb.collection('users').authWithTof({
-    taiIdentity: 'x-tai-identity-value',  // from x-tai-identity header
-    timestamp: 'timestamp-value',          // from timestamp header
-    signature: 'signature-value',          // from signature header
-    seq: 'x-rio-seq-value',               // from x-rio-seq header
+...
+
+// This method initializes a one-off realtime subscription and will
+// open a popup window with the OAuth2 vendor page to authenticate.
+//
+// Once the external OAuth2 sign-in/sign-up flow is completed, the popup
+// window will be automatically closed and the OAuth2 data sent back
+// to the user through the previously established realtime connection.
+//
+// If the popup is being blocked on Safari, make sure that your click handler is not using async/await.
+pb.collection('users').authWithOAuth2({
+    provider: 'google'
+}).then((authData) => {
+    console.log(authData)
+
+    // after the above you can also access the auth data from the authStore
+    console.log(pb.authStore.isValid);
+    console.log(pb.authStore.token);
+    console.log(pb.authStore.record.id);
+
+    // "logout" the last authenticated record
+    pb.authStore.clear();
+});
+```
+
+</template>
+
+<template #tab-1>
+
+```dart
+import 'package:pocketbase/pocketbase.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+final pb = PocketBase('https://pocketbase.io');
+
+...
+
+// This method initializes a one-off realtime subscription and will
+// call the provided urlCallback with the OAuth2 vendor url to authenticate.
+//
+// Once the external OAuth2 sign-in/sign-up flow is completed, the browser
+// window will be automatically closed and the OAuth2 data sent back
+// to the user through the previously established realtime connection.
+//
+// Note that it requires the app and realtime connection to remain active in the background!
+// For Android 15+ check the note in https://github.com/pocketbase/dart-sdk#oauth2-and-android-15.
+final authData = await pb.collection('users').authWithOAuth2('google', (url) async {
+  // or use flutter_custom_tabs to make the transitions between native and web content more seamless
+  await launchUrl(url);
 });
 
-// Access auth data
-console.log(pb.authStore.isValid);
-console.log(pb.authStore.token);
-console.log(pb.authStore.record.id);
+// after the above you can also access the auth data from the authStore
+print(pb.authStore.isValid);
+print(pb.authStore.token);
+print(pb.authStore.record.id);
 
-// Access TOF identity info
-console.log(authData.meta.tofIdentity);
-// { loginName: "username", staffId: 12345, expiration: "...", ticket: "..." }
-
-// "logout"
+// "logout" the last authenticated record
 pb.authStore.clear();
 ```
 
@@ -218,26 +231,114 @@ pb.authStore.clear();
 
 </CodeTabs>
 
-### API Routes
+### Manual code exchange
 
-The TOF plugin registers the following routes:
+When authenticating manually with OAuth2 code you'll need 2 endpoints:
 
-| Route | Method | Description |
-|-------|--------|-------------|
-| `/api/collections/{collection}/auth-with-tof` | GET | TOF authentication |
-| `/api/tof/logout?url={redirect_url}` | GET | TOF logout |
-| `/api/tof/redirect?url={redirect_url}` | GET | TOF redirect verification |
-| `/api/tof/status` | GET | TOF config status (superuser only) |
+- somewhere to show the "Login with ..." links
+- somewhere to handle the provider's redirect in order to exchange the auth code for token
 
-### Development Mode
+Here is a simple web example:
 
-For local development without TOF gateway, set `TOF_DEV_MOCK_USER` environment variable:
+1. **Links page** (e.g. https://127.0.0.1:8090 serving `pb_public/index.html`):
 
-```bash
-TOF_DEV_MOCK_USER=testuser go run main.go serve
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OAuth2 links page</title>
+    <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js"></script>
+</head>
+<body>
+    <ul id="list">
+        <li>Loading OAuth2 providers...</li>
+    </ul>
+
+    <script type="module">
+        import PocketBase from "https://cdn.jsdelivr.net/gh/pocketbase/js-sdk@master/dist/pocketbase.es.mjs"
+
+        const pb          = new PocketBase("http://127.0.0.1:8090");
+        const redirectURL = "http://127.0.0.1:8090/redirect.html";
+
+        const authMethods = await pb.collection("users").listAuthMethods();
+        const providers   = authMethods.oauth2?.providers || [];
+        const listItems   = [];
+
+        for (const provider of providers) {
+            const $li = $(`<li><a>Login with ${provider.name}</a></li>`);
+
+            $li.find("a")
+                .attr("href", provider.authURL + redirectURL)
+                .data("provider", provider)
+                .click(function () {
+                    // store provider's data on click for verification in the redirect page
+                    localStorage.setItem("provider", JSON.stringify($(this).data("provider")));
+                });
+
+            listItems.push($li);
+        }
+
+        $("#list").html(listItems.length ? listItems : "<li>No OAuth2 providers.</li>");
+    </script>
+</body>
+</html>
 ```
 
-When TOF headers are missing and `TOF_DEV_MOCK_USER` is set, the plugin will authenticate using a mock identity with the specified username.
+2. **Redirect handler page** (e.g. https://127.0.0.1:8090/redirect.html serving `pb_public/redirect.html`):
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>OAuth2 redirect page</title>
+</head>
+<body>
+    <pre id="content">Authenticating...</pre>
+
+    <script type="module">
+        import PocketBase from "https://cdn.jsdelivr.net/gh/pocketbase/js-sdk@master/dist/pocketbase.es.mjs"
+
+        const pb          = new PocketBase("http://127.0.0.1:8090");
+        const redirectURL = "http://127.0.0.1:8090/redirect.html";
+        const contentEl   = document.getElementById("content");
+
+        // parse the query parameters from the redirected url
+        const params = (new URL(window.location)).searchParams;
+
+        // load the previously stored provider's data
+        const provider = JSON.parse(localStorage.getItem("provider"))
+
+        // compare the redirect's state param and the stored provider's one
+        if (provider.state !== params.get("state")) {
+            contentEl.innerText = "State parameters don't match.";
+        } else {
+            // authenticate
+            pb.collection("users").authWithOAuth2Code(
+                provider.name,
+                params.get("code"),
+                provider.codeVerifier,
+                redirectURL,
+                // pass any optional user create data
+                {
+                    emailVisibility: false,
+                }
+            ).then((authData) => {
+                contentEl.innerText = JSON.stringify(authData, null, 2);
+            }).catch((err) => {
+                contentEl.innerText = "Failed to exchange code.\n" + err;
+            });
+        }
+    </script>
+</body>
+</html>
+```
+
+::: info Apple Sign-in Note
+When using the "Manual code exchange" flow for sign-in with Apple your redirect handler must accept `POST` requests in order to receive the name and the email of the Apple user. If you just need the Apple user id, you can keep the redirect handler `GET` but you'll need to replace in the Apple authorization url `response_mode=form_post` with `response_mode=query`.
+:::
 
 ## Multi-factor Authentication
 
@@ -380,9 +481,8 @@ To invalidate already issued tokens, you need to change the individual superuser
 
 PocketBase doesn't have a dedicated token verification endpoint, but if you want to verify an existing auth token from a 3rd party app you can send an [Auth refresh](/en/api/records#auth-refresh) call, aka. `pb.collection("users").authRefresh()`.
 
-On valid token - it returns a new token with refreshed `exp` claim and the latest user data.
-
-Otherwise - returns an error response.
+- On valid token - it returns a new token with refreshed `exp` claim and the latest user data.
+- Otherwise - returns an error response.
 
 Note that calling `authRefresh` doesn't invalidate previously issued tokens and you can safely disregard the new one if you don't need it (as mentioned in the beginning - PocketBase doesn't store the tokens on the server).
 

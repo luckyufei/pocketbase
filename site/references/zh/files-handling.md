@@ -13,7 +13,7 @@
 ::: info
 每个上传的文件将以原始文件名（经过清理）保存，并附加一个随机部分（通常是 10 个字符）。例如 `test_52iwbgds7l.png`。
 
-单个文件的最大允许大小目前限制为约 8GB（2^53-1 字节）。
+单个文件的最大允许大小目前限制为约 8PB（2^53-1 字节）。
 :::
 
 以下是如何使用 SDK 创建新记录并上传多个文件到示例"documents" `file` 字段的示例：
@@ -26,6 +26,8 @@
 import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('http://127.0.0.1:8090');
+
+...
 
 // 创建新记录并上传多个文件
 // （文件必须是 Blob 或 File 实例）
@@ -56,6 +58,8 @@ fileInput.addEventListener('change', function () {
     }
 });
 
+...
+
 // 上传并创建新记录
 const createdRecord = await pb.collection('example').create(formData);
 ```
@@ -69,6 +73,8 @@ import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 
 final pb = PocketBase('http://127.0.0.1:8090');
+
+...
 
 // 创建新记录并上传多个文件
 final record = await pb.collection('example').create(
@@ -94,16 +100,19 @@ final record = await pb.collection('example').create(
 
 </CodeTabs>
 
-如果你的 `file` 字段支持上传多个文件（即 **Max Files 选项 >= 2**），你可以使用 `+` 前缀/后缀字段名修饰符分别在已上传的文件前面/后面追加新文件：
+如果你的 `file` 字段支持上传多个文件（即 **Max Files 选项 >= 2**），你可以使用 `+` 前缀/后缀字段名修饰符分别在已上传的文件前面/后面追加新文件。例如：
 
 <CodeTabs :tabs="['JavaScript', 'Dart']">
 
 <template #tab-0>
 
 ```javascript
+
 import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('http://127.0.0.1:8090');
+
+...
 
 const createdRecord = await pb.collection('example').update('RECORD_ID', {
     "documents+": new File(["content 3..."], "file3.txt")
@@ -119,6 +128,8 @@ import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 
 final pb = PocketBase('http://127.0.0.1:8090');
+
+...
 
 final record = await pb.collection('example').update(
     'RECORD_ID',
@@ -140,7 +151,7 @@ final record = await pb.collection('example').update(
 
 要删除已上传的文件，你可以从仪表板编辑记录，或使用 API 将文件字段设置为零值（空字符串、`[]`）。
 
-如果你想**从多文件上传字段中删除单个文件**，你可以在字段名后加上 `-` 并指定要删除的文件名：
+如果你想**从多文件上传字段中删除单个文件**，你可以在字段名后加上 `-` 并指定要删除的文件名。以下是使用 SDK 的一些示例：
 
 <CodeTabs :tabs="['JavaScript', 'Dart']">
 
@@ -150,6 +161,8 @@ final record = await pb.collection('example').update(
 import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('http://127.0.0.1:8090');
+
+...
 
 // 删除所有 "documents" 文件
 await pb.collection('example').update('RECORD_ID', {
@@ -171,6 +184,8 @@ import 'package:pocketbase/pocketbase.dart';
 
 final pb = PocketBase('http://127.0.0.1:8090');
 
+...
+
 // 删除所有 "documents" 文件
 await pb.collection('example').update('RECORD_ID', body: {
     'documents': [],
@@ -185,6 +200,8 @@ await pb.collection('example').update('RECORD_ID', body: {
 </template>
 
 </CodeTabs>
+
+上述示例使用 JSON 对象数据格式，但你也可以使用 `FormData` 实例进行 *multipart/form-data* 请求。如果使用 `FormData`，请将文件字段设置为空字符串。
 
 ## 文件 URL
 
@@ -202,20 +219,20 @@ http://127.0.0.1:8090/api/files/COLLECTION_ID_OR_NAME/RECORD_ID/FILENAME?thumb=1
 
 *目前仅限于 jpg、png、gif（其第一帧）和部分 webp（存储为 png）。*
 
-### 缩略图格式
+目前支持以下缩略图格式：
 
 | 格式 | 示例 | 描述 |
 |------|------|------|
-| `WxH` | `100x300` | 裁剪到精确的宽度和高度 |
-| `WxHt` | `100x300t` | 从顶部裁剪 |
-| `WxHb` | `100x300b` | 从底部裁剪 |
-| `WxHf` | `100x300f` | 适应尺寸内 |
-| `0xH` | `0x300` | 调整到高度（保持比例） |
-| `Wx0` | `100x0` | 调整到宽度（保持比例） |
+| `WxH` (例如 100x300) | - | 裁剪到 WxH 视框（从中心） |
+| `WxHt` (例如 100x300t) | - | 裁剪到 WxH 视框（从顶部） |
+| `WxHb` (例如 100x300b) | - | 裁剪到 WxH 视框（从底部） |
+| `WxHf` (例如 100x300f) | - | 适应 WxH 视框内（不裁剪） |
+| `0xH` (例如 0x300) | - | 调整到 H 高度保持宽高比 |
+| `Wx0` (例如 100x0) | - | 调整到 W 宽度保持宽高比 |
 
 如果请求的缩略图大小未找到或文件不是图片，将返回原始文件！
 
-如果你已经有一个 Record 模型实例，SDK 提供了一个便捷方法来通过文件名生成文件 URL：
+如果你已经有一个 Record 模型实例，SDK 提供了一个便捷方法来通过文件名生成文件 URL。
 
 <CodeTabs :tabs="['JavaScript', 'Dart']">
 
@@ -226,9 +243,16 @@ import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('http://127.0.0.1:8090');
 
+...
+
 const record = await pb.collection('example').getOne('RECORD_ID');
 
 // 仅获取 "documents" 中的第一个文件名
+//
+// 注意：
+// "documents" 是一个文件名数组，因为
+// "documents" 字段创建时 "Max Files" 选项 > 1；
+// 如果 "Max Files" 为 1，则结果属性将只是一个字符串
 const firstFilename = record.documents[0];
 
 // 返回类似：
@@ -245,9 +269,16 @@ import 'package:pocketbase/pocketbase.dart';
 
 final pb = PocketBase('http://127.0.0.1:8090');
 
+...
+
 final record = await pb.collection('example').getOne('RECORD_ID');
 
 // 仅获取 "documents" 中的第一个文件名
+//
+// 注意：
+// "documents" 是一个文件名数组，因为
+// "documents" 字段创建时 "Max Files" 选项 > 1；
+// 如果 "Max Files" 为 1，则结果属性将只是一个字符串
 final firstFilename = record.getListValue<String>('documents')[0];
 
 // 返回类似：
@@ -282,6 +313,8 @@ import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('http://127.0.0.1:8090');
 
+...
+
 // 认证
 await pb.collection('users').authWithPassword('test@example.com', '1234567890');
 
@@ -301,6 +334,8 @@ const url = pb.files.getURL(record, record.myPrivateFile, {'token': fileToken});
 import 'package:pocketbase/pocketbase.dart';
 
 final pb = PocketBase('http://127.0.0.1:8090');
+
+...
 
 // 认证
 await pb.collection('users').authWithPassword('test@example.com', '1234567890');

@@ -13,7 +13,7 @@ Once added, you could create/update a Record and upload "documents" files by sen
 ::: info
 Each uploaded file will be stored with the original filename (sanitized) and suffixed with a random part (usually 10 characters). For example `test_52iwbgds7l.png`.
 
-The max allowed size of a single file currently is limited to ~8GB (2^53-1 bytes).
+The max allowed size of a single file currently is limited to ~8PB (2^53-1 bytes).
 :::
 
 Here is an example how to create a new record and upload multiple files to the example "documents" `file` field using the SDKs:
@@ -26,6 +26,8 @@ Here is an example how to create a new record and upload multiple files to the e
 import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('http://127.0.0.1:8090');
+
+...
 
 // create a new record and upload multiple files
 // (files must be Blob or File instances)
@@ -56,6 +58,8 @@ fileInput.addEventListener('change', function () {
     }
 });
 
+...
+
 // upload and create new record
 const createdRecord = await pb.collection('example').create(formData);
 ```
@@ -69,6 +73,8 @@ import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 
 final pb = PocketBase('http://127.0.0.1:8090');
+
+...
 
 // create a new record and upload multiple files
 final record = await pb.collection('example').create(
@@ -94,16 +100,19 @@ final record = await pb.collection('example').create(
 
 </CodeTabs>
 
-If your `file` field supports uploading multiple files (aka. **Max Files option is >= 2**) you can use the `+` prefix/suffix field name modifier to respectively prepend/append new files alongside the already uploaded ones:
+If your `file` field supports uploading multiple files (aka. **Max Files option is >= 2**) you can use the `+` prefix/suffix field name modifier to respectively prepend/append new files alongside the already uploaded ones. For example:
 
 <CodeTabs :tabs="['JavaScript', 'Dart']">
 
 <template #tab-0>
 
 ```javascript
+
 import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('http://127.0.0.1:8090');
+
+...
 
 const createdRecord = await pb.collection('example').update('RECORD_ID', {
     "documents+": new File(["content 3..."], "file3.txt")
@@ -119,6 +128,8 @@ import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 
 final pb = PocketBase('http://127.0.0.1:8090');
+
+...
 
 final record = await pb.collection('example').update(
     'RECORD_ID',
@@ -140,7 +151,7 @@ final record = await pb.collection('example').update(
 
 To delete uploaded file(s), you could either edit the Record from the Dashboard, or use the API and set the file field to a zero-value (empty string, `[]`).
 
-If you want to **delete individual file(s) from a multiple file upload field**, you could suffix the field name with `-` and specify the filename(s) you want to delete:
+If you want to **delete individual file(s) from a multiple file upload field**, you could suffix the field name with `-` and specify the filename(s) you want to delete. Here are some examples using the SDKs:
 
 <CodeTabs :tabs="['JavaScript', 'Dart']">
 
@@ -150,6 +161,8 @@ If you want to **delete individual file(s) from a multiple file upload field**, 
 import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('http://127.0.0.1:8090');
+
+...
 
 // delete all "documents" files
 await pb.collection('example').update('RECORD_ID', {
@@ -171,6 +184,8 @@ import 'package:pocketbase/pocketbase.dart';
 
 final pb = PocketBase('http://127.0.0.1:8090');
 
+...
+
 // delete all "documents" files
 await pb.collection('example').update('RECORD_ID', body: {
     'documents': [],
@@ -185,6 +200,8 @@ await pb.collection('example').update('RECORD_ID', body: {
 </template>
 
 </CodeTabs>
+
+The above examples use the JSON object data format, but you could also use `FormData` instance for *multipart/form-data* requests. If using `FormData` set the file field to an empty string.
 
 ## File URL
 
@@ -202,20 +219,20 @@ http://127.0.0.1:8090/api/files/COLLECTION_ID_OR_NAME/RECORD_ID/FILENAME?thumb=1
 
 *Currently limited to jpg, png, gif (its first frame) and partially webp (stored as png).*
 
-### Thumb Formats
+The following thumb formats are currently supported:
 
 | Format | Example | Description |
 |--------|---------|-------------|
-| `WxH` | `100x300` | Crop to exact width and height |
-| `WxHt` | `100x300t` | Crop from top |
-| `WxHb` | `100x300b` | Crop from bottom |
-| `WxHf` | `100x300f` | Fit inside dimensions |
-| `0xH` | `0x300` | Resize to height (preserve ratio) |
-| `Wx0` | `100x0` | Resize to width (preserve ratio) |
+| `WxH` (e.g. 100x300) | - | crop to WxH viewbox (from center) |
+| `WxHt` (e.g. 100x300t) | - | crop to WxH viewbox (from top) |
+| `WxHb` (e.g. 100x300b) | - | crop to WxH viewbox (from bottom) |
+| `WxHf` (e.g. 100x300f) | - | fit inside a WxH viewbox (without cropping) |
+| `0xH` (e.g. 0x300) | - | resize to H height preserving the aspect ratio |
+| `Wx0` (e.g. 100x0) | - | resize to W width preserving the aspect ratio |
 
 The original file would be returned, if the requested thumb size is not found or the file is not an image!
 
-If you already have a Record model instance, the SDKs provide a convenient method to generate a file url by its name:
+If you already have a Record model instance, the SDKs provide a convenient method to generate a file url by its name.
 
 <CodeTabs :tabs="['JavaScript', 'Dart']">
 
@@ -226,9 +243,16 @@ import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('http://127.0.0.1:8090');
 
+...
+
 const record = await pb.collection('example').getOne('RECORD_ID');
 
 // get only the first filename from "documents"
+//
+// note:
+// "documents" is an array of filenames because
+// the "documents" field was created with "Max Files" option > 1;
+// if "Max Files" was 1, then the result property would be just a string
 const firstFilename = record.documents[0];
 
 // returns something like:
@@ -245,9 +269,16 @@ import 'package:pocketbase/pocketbase.dart';
 
 final pb = PocketBase('http://127.0.0.1:8090');
 
+...
+
 final record = await pb.collection('example').getOne('RECORD_ID');
 
 // get only the first filename from "documents"
+//
+// note:
+// "documents" is an array of filenames because
+// the "documents" field was created with "Max Files" option > 1;
+// if "Max Files" was 1, then the result property would be just a string
 final firstFilename = record.getListValue<String>('documents')[0];
 
 // returns something like:
@@ -282,6 +313,8 @@ import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('http://127.0.0.1:8090');
 
+...
+
 // authenticate
 await pb.collection('users').authWithPassword('test@example.com', '1234567890');
 
@@ -301,6 +334,8 @@ const url = pb.files.getURL(record, record.myPrivateFile, {'token': fileToken});
 import 'package:pocketbase/pocketbase.dart';
 
 final pb = PocketBase('http://127.0.0.1:8090');
+
+...
 
 // authenticate
 await pb.collection('users').authWithPassword('test@example.com', '1234567890');

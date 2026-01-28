@@ -76,8 +76,6 @@ This skill provides modular, searchable documentation for PocketBase development
 | Collections API | Manage collections, schemas, rules, indexes | [collections.md](references/api/collections.md) |
 | Settings API | App configuration, CORS, SMTP, general settings | [settings.md](references/api/settings.md) |
 | Logs API | Access logs, authentication logs, request logs | [logs.md](references/api/logs.md) |
-| Traces API | Distributed tracing, span queries, performance analysis | [traces.md](references/api/traces.md) |
-| Analytics API | Page views, visitors, traffic sources, device stats | [analytics.md](references/api/analytics.md) |
 | Crons API | Background jobs, scheduled tasks, automation | [crons.md](references/api/crons.md) |
 | Backups API | Database backups, data export, disaster recovery | [backups.md](references/api/backups.md) |
 | Health API | System health, metrics, performance monitoring | [health.md](references/api/health.md) |
@@ -159,8 +157,6 @@ This skill provides modular, searchable documentation for PocketBase development
 ├── collections.md              # Collection operations
 ├── settings.md                 # App configuration
 ├── logs.md                     # Logging
-├── traces.md                   # Distributed tracing
-├── analytics.md                # Web analytics
 ├── crons.md                    # Background jobs
 ├── backups.md                  # Backups
 └── health.md                   # Health checks

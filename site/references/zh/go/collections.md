@@ -1,90 +1,216 @@
 # 集合操作
 
-本页描述如何在 Go 中以编程方式操作集合。
+集合通常通过仪表板界面管理，但有些情况下你可能想以编程方式创建或编辑集合（通常作为[数据库迁移](/docs/go-migrations)的一部分）。你可以在 [`core.App`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#App) 和 [`core.Collection`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#Collection) 中找到所有可用的集合相关操作和方法，以下列出了一些最常用的：
+
+[[toc]]
 
 ## 获取集合
 
+### 获取单个集合
+
+*如果找不到集合，所有单个集合检索方法都返回 `nil` 和 `sql.ErrNoRows` 错误。*
+
 ```go
-// 通过名称或 ID 查找集合
-collection, err := app.FindCollectionByNameOrId("posts")
-
-// 查找所有集合
-collections, err := app.FindAllCollections()
-
-// 按类型查找集合
-authCollections, err := app.FindAllCollections("auth")
-baseCollections, err := app.FindAllCollections("base")
-viewCollections, err := app.FindAllCollections("view")
+collection, err := app.FindCollectionByNameOrId("example")
 ```
 
-## 创建集合
+### 获取多个集合
+
+*如果找不到集合，所有多个集合检索方法都返回空切片和 `nil` 错误。*
 
 ```go
-collection := core.NewBaseCollection("posts")
+allCollections, err := app.FindAllCollections()
 
-// 添加字段
+authAndViewCollections, err := app.FindAllCollections(core.CollectionTypeAuth, core.CollectionTypeView)
+```
+
+### 自定义集合查询
+
+除了上述查询辅助方法外，你还可以使用 [`CollectionQuery()`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#CollectionQuery) 方法创建自定义集合查询。它返回一个 SELECT DB 构建器，可以与[数据库指南](/docs/go-database)中描述的相同方法一起使用。
+
+```go
+import (
+    "github.com/pocketbase/dbx"
+    "github.com/pocketbase/pocketbase/core"
+)
+
+...
+
+func FindSystemCollections(app core.App) ([]*core.Collection, error) {
+    collections := []*core.Collection{}
+
+    err := app.CollectionQuery().
+        AndWhere(dbx.HashExp{"system": true}).
+        OrderBy("created DESC").
+        All(&collections)
+
+    if err != nil {
+        return nil, err
+    }
+
+    return collections, nil
+}
+```
+
+## 集合属性
+
+```go
+Id      string
+Name    string
+Type    string // "base", "view", "auth"
+System  bool // !防止内部集合如 _superusers 的重命名、删除和规则更改
+Fields  core.FieldsList
+Indexes types.JSONArray[string]
+Created types.DateTime
+Updated types.DateTime
+
+// CRUD 规则
+ListRule   *string
+ViewRule   *string
+CreateRule *string
+UpdateRule *string
+DeleteRule *string
+
+// "view" 类型特定选项
+// (参见 https://github.com/pocketbase/pocketbase/blob/master/core/collection_model_view_options.go)
+ViewQuery string
+
+// "auth" 类型特定选项
+// (参见 https://github.com/pocketbase/pocketbase/blob/master/core/collection_model_auth_options.go)
+AuthRule                   *string
+ManageRule                 *string
+AuthAlert                  core.AuthAlertConfig
+OAuth2                     core.OAuth2Config
+PasswordAuth               core.PasswordAuthConfig
+MFA                        core.MFAConfig
+OTP                        core.OTPConfig
+AuthToken                  core.TokenConfig
+PasswordResetToken         core.TokenConfig
+EmailChangeToken           core.TokenConfig
+VerificationToken          core.TokenConfig
+FileToken                  core.TokenConfig
+VerificationTemplate       core.EmailTemplate
+ResetPasswordTemplate      core.EmailTemplate
+ConfirmEmailChangeTemplate core.EmailTemplate
+```
+
+## 字段定义
+
+- [`core.BoolField`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#BoolField)
+- [`core.NumberField`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#NumberField)
+- [`core.TextField`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#TextField)
+- [`core.EmailField`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#EmailField)
+- [`core.URLField`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#URLField)
+- [`core.EditorField`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#EditorField)
+- [`core.DateField`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#DateField)
+- [`core.AutodateField`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#AutodateField)
+- [`core.SelectField`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#SelectField)
+- [`core.FileField`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#FileField)
+- [`core.RelationField`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#RelationField)
+- [`core.JSONField`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#JSONField)
+- [`core.GeoPointField`](https://pkg.go.dev/github.com/pocketbase/pocketbase/core#GeoPointField)
+
+## 创建新集合
+
+```go
+import (
+    "github.com/pocketbase/pocketbase/core"
+    "github.com/pocketbase/pocketbase/tools/types"
+)
+
+...
+
+// core.NewAuthCollection("example")
+// core.NewViewCollection("example")
+collection := core.NewBaseCollection("example")
+
+// 设置规则
+collection.ViewRule = types.Pointer("@request.auth.id != ''")
+collection.CreateRule = types.Pointer("@request.auth.id != '' && @request.body.user = @request.auth.id")
+collection.UpdateRule = types.Pointer(`
+    @request.auth.id != '' &&
+    user = @request.auth.id &&
+    (@request.body.user:isset = false || @request.body.user = @request.auth.id)
+`)
+
+// 添加文本字段
 collection.Fields.Add(&core.TextField{
     Name:     "title",
     Required: true,
     Max:      100,
 })
 
-collection.Fields.Add(&core.EditorField{
-    Name: "content",
+// 添加关联字段
+usersCollection, err := app.FindCollectionByNameOrId("users")
+if err != nil {
+    return err
+}
+collection.Fields.Add(&core.RelationField{
+    Name:          "user",
+    Required:      true,
+    Max:           100,
+    CascadeDelete: true,
+    CollectionId:  usersCollection.Id,
 })
 
-// 设置规则
-collection.ListRule = types.Pointer("")  // 所有人都可以列出
-collection.ViewRule = types.Pointer("")  // 所有人都可以查看
-collection.CreateRule = types.Pointer("@request.auth.id != ''") // 仅已认证用户
-collection.UpdateRule = types.Pointer("@request.auth.id = author.id") // 仅作者
-collection.DeleteRule = nil // 仅超级用户
+// 添加自动日期/时间戳字段（created/updated）
+collection.Fields.Add(&core.AutodateField{
+    Name:     "created",
+    OnCreate: true,
+})
+collection.Fields.Add(&core.AutodateField{
+    Name:     "updated",
+    OnCreate: true,
+    OnUpdate: true,
+})
 
-if err := app.Save(collection); err != nil {
+// 或: collection.Indexes = []string{"CREATE UNIQUE INDEX idx_example_user ON example (user)"}
+collection.AddIndex("idx_example_user", true, "user", "")
+
+// 验证并持久化
+// (使用 SaveNoValidate 跳过字段验证)
+err = app.Save(collection)
+if err != nil {
     return err
 }
 ```
 
-## 创建认证集合
+## 更新现有集合
 
 ```go
-collection := core.NewAuthCollection("users")
+import (
+    "github.com/pocketbase/pocketbase/core"
+    "github.com/pocketbase/pocketbase/tools/types"
+)
 
-// 添加自定义字段
-collection.Fields.Add(&core.TextField{
-    Name: "name",
-    Max:  100,
-})
+...
 
-collection.Fields.Add(&core.FileField{
-    Name:      "avatar",
-    MaxSelect: 1,
-    MaxSize:   5 * 1024 * 1024, // 5MB
-    MimeTypes: []string{"image/jpeg", "image/png"},
-})
-
-if err := app.Save(collection); err != nil {
-    return err
-}
-```
-
-## 更新集合
-
-```go
-collection, err := app.FindCollectionByNameOrId("posts")
+collection, err := app.FindCollectionByNameOrId("example")
 if err != nil {
     return err
 }
 
-// 更新规则
-collection.ListRule = types.Pointer("status = 'published'")
+// 更改规则
+collection.DeleteRule = types.Pointer("@request.auth.id != ''")
 
-// 添加新字段
-collection.Fields.Add(&core.BoolField{
-    Name: "featured",
+// 添加新编辑器字段
+collection.Fields.Add(&core.EditorField{
+    Name:     "description",
+    Required: true,
 })
 
-if err := app.Save(collection); err != nil {
+// 更改现有字段
+// (返回指针，允许直接修改而无需重新插入)
+titleField := collection.Fields.GetByName("title").(*core.TextField)
+titleField.Min = 10
+
+// 或: collection.Indexes = append(collection.Indexes, "CREATE INDEX idx_example_title ON example (title)")
+collection.AddIndex("idx_example_title", false, "title", "")
+
+// 验证并持久化
+// (使用 SaveNoValidate 跳过字段验证)
+err = app.Save(collection)
+if err != nil {
     return err
 }
 ```
@@ -92,31 +218,13 @@ if err := app.Save(collection); err != nil {
 ## 删除集合
 
 ```go
-collection, err := app.FindCollectionByNameOrId("posts")
+collection, err := app.FindCollectionByNameOrId("example")
 if err != nil {
     return err
 }
 
-if err := app.Delete(collection); err != nil {
+err = app.Delete(collection)
+if err != nil {
     return err
 }
 ```
-
-## 字段类型
-
-PocketBase 支持以下字段类型：
-
-- `TextField` - 纯文本
-- `EditorField` - 富文本编辑器
-- `NumberField` - 数值
-- `BoolField` - 布尔值（true/false）
-- `EmailField` - 电子邮件地址
-- `URLField` - URL
-- `DateField` - 日期和时间
-- `SelectField` - 单选或多选
-- `FileField` - 文件上传
-- `RelationField` - 与其他集合的关联
-- `JSONField` - JSON 数据
-- `AutodateField` - 自动生成的时间戳
-
-每种字段类型都有自己的选项集。详情请参阅 [PocketBase Go 文档](https://pkg.go.dev/github.com/pocketbase/pocketbase/core)。
