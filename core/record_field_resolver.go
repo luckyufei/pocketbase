@@ -128,13 +128,27 @@ func NewRecordFieldResolver(
 // Conditionally updates the provided search query based on the
 // resolved fields (eg. dynamically joining relations).
 func (r *RecordFieldResolver) UpdateQuery(query *dbx.SelectQuery) error {
+	// 检查是否是 PostgreSQL（需要为没有 ON 条件的 JOIN 添加 "ON true"）
+	isPostgres := r.app.DBAdapter().Type() == dbutils.DBTypePostgres
+
 	if len(r.joins) > 0 {
 		query.Distinct(true)
 
 		for _, join := range r.joins {
+			// PostgreSQL 需要为 jsonb_array_elements 指定列定义
+			alias := join.tableAlias
+			if join.columnDef != "" {
+				alias += join.columnDef
+			}
+			// PostgreSQL 不允许 LEFT JOIN 没有 ON 条件（SQLite 允许）
+			// 当 on 为 nil 时（例如 @collection 跨集合查询），使用 "ON true"
+			onCondition := join.on
+			if onCondition == nil && isPostgres {
+				onCondition = dbx.NewExp("true")
+			}
 			query.LeftJoin(
-				(join.tableName + " " + join.tableAlias),
-				join.on,
+				(join.tableName + " " + alias),
+				onCondition,
 			)
 		}
 	}
@@ -174,10 +188,18 @@ func (r *RecordFieldResolver) updateQueryWithCollectionListRule(c *Collection, t
 	if len(cloneR.joins) > 0 {
 		query.Distinct(true)
 
+		// 检查是否是 PostgreSQL
+		isPostgres := r.app.DBAdapter().Type() == dbutils.DBTypePostgres
+
 		for _, j := range cloneR.joins {
+			// PostgreSQL 不允许 LEFT JOIN 没有 ON 条件（SQLite 允许）
+			onCondition := j.on
+			if onCondition == nil && isPostgres {
+				onCondition = dbx.NewExp("true")
+			}
 			query.LeftJoin(
 				(j.tableName + " " + j.tableAlias),
-				j.on,
+				onCondition,
 			)
 		}
 	}
@@ -307,11 +329,19 @@ func (r *RecordFieldResolver) loadCollection(collectionNameOrId string) (*Collec
 	return getCollectionByModelOrIdentifier(r.app, collectionNameOrId)
 }
 
-func (r *RecordFieldResolver) registerJoin(tableName string, tableAlias string, on dbx.Expression) error {
+// registerJoin registers a new join for the query.
+// optColumnDef 是可选的列定义，用于 PostgreSQL 的 jsonb_array_elements 等需要指定列名的情况。
+func (r *RecordFieldResolver) registerJoin(tableName string, tableAlias string, on dbx.Expression, optColumnDef ...string) error {
+	var columnDef string
+	if len(optColumnDef) > 0 {
+		columnDef = optColumnDef[0]
+	}
+
 	newJoin := &join{
 		tableName:  tableName,
 		tableAlias: tableAlias,
 		on:         on,
+		columnDef:  columnDef,
 	}
 
 	// (see updateQueryWithCollectionListRule)

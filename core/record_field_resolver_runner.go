@@ -348,7 +348,7 @@ func (r *runner) processRequestBodyEachModifier(bodyField Field) (*search.Resolv
 	jeTable := r.jsonFuncs().EachParam(placeholder)
 	jeAlias := "__dataEach_je_" + cleanFieldName + r.resolver.joinAliasSuffix
 
-	err = r.resolver.registerJoin(jeTable, jeAlias, nil)
+	err = r.resolver.registerJoin(jeTable, jeAlias, nil, r.jsonFuncs().EachParamColumnDef())
 	if err != nil {
 		return nil, err
 	}
@@ -370,6 +370,7 @@ func (r *runner) processRequestBodyEachModifier(bodyField Field) (*search.Resolv
 		r.multiMatch.joins = append(r.multiMatch.joins, &join{
 			tableName:  jeTable2,
 			tableAlias: jeAlias2,
+			columnDef:  r.jsonFuncs().EachParamColumnDef(),
 		})
 		r.multiMatch.params[placeholder2] = bodyItemsRaw
 		r.multiMatch.valueIdentifier = fmt.Sprintf("[[%s.value]]", jeAlias2)
@@ -573,15 +574,18 @@ func (r *runner) processActiveProps() (*search.ResolverResult, error) {
 				}
 		} else {
 			jeAlias := "__je_" + newTableAlias
+			// PostgreSQL 需要在 FROM 子句中使用 AS alias(value) 指定列名
+			jeColDef := r.jsonFuncs().EachColumnDef()
 			err := r.resolver.registerJoin(
 				newCollectionName,
 				newTableAlias,
 				dbx.NewExp(fmt.Sprintf(
-					"[[%s.id]] IN (SELECT [[%s.value]] FROM %s {{%s}})",
+					"[[%s.id]] IN (SELECT [[%s.value]] FROM %s {{%s}}%s)",
 					r.activeTableAlias,
 					jeAlias,
 					r.jsonFuncs().Each(newTableAlias+"."+cleanBackFieldName),
 					jeAlias,
+					jeColDef,
 				)),
 			)
 				if err != nil {
@@ -612,17 +616,19 @@ func (r *runner) processActiveProps() (*search.ResolverResult, error) {
 				)
 		} else {
 			jeAlias2 := "__je_" + newTableAlias2
+			jeColDef := r.jsonFuncs().EachColumnDef()
 			r.multiMatch.joins = append(
 				r.multiMatch.joins,
 				&join{
 					tableName:  newCollectionName,
 					tableAlias: newTableAlias2,
 					on: dbx.NewExp(fmt.Sprintf(
-						"[[%s.id]] IN (SELECT [[%s.value]] FROM %s {{%s}})",
+						"[[%s.id]] IN (SELECT [[%s.value]] FROM %s {{%s}}%s)",
 						r.multiMatchActiveTableAlias,
 						jeAlias2,
 						r.jsonFuncs().Each(newTableAlias2+"."+cleanBackFieldName),
 						jeAlias2,
+						jeColDef,
 					)),
 				},
 			)
@@ -677,7 +683,7 @@ func (r *runner) processActiveProps() (*search.ResolverResult, error) {
 	} else {
 		jeAlias := "__je_" + newTableAlias
 
-		err := r.resolver.registerJoin(r.jsonFuncs().Each(prefixedFieldName), jeAlias, nil)
+		err := r.resolver.registerJoin(r.jsonFuncs().Each(prefixedFieldName), jeAlias, nil, r.jsonFuncs().EachColumnDef())
 		if err != nil {
 			return nil, err
 		}
@@ -721,6 +727,7 @@ func (r *runner) processActiveProps() (*search.ResolverResult, error) {
 			&join{
 				tableName:  r.jsonFuncs().Each(prefixedFieldName2),
 				tableAlias: jeAlias2,
+				columnDef:  r.jsonFuncs().EachColumnDef(),
 			},
 			&join{
 				tableName:  inflector.Columnify(newCollectionName),
@@ -783,7 +790,7 @@ func (r *runner) finalizeActivePropsProcessing(collection *Collection, prop stri
 		jePair := r.activeTableAlias + "." + cleanFieldName
 		jeAlias := "__je_" + r.activeTableAlias + "_" + cleanFieldName + r.resolver.joinAliasSuffix
 
-		err := r.resolver.registerJoin(r.jsonFuncs().Each(jePair), jeAlias, nil)
+		err := r.resolver.registerJoin(r.jsonFuncs().Each(jePair), jeAlias, nil, r.jsonFuncs().EachColumnDef())
 		if err != nil {
 			return nil, err
 		}
@@ -803,6 +810,7 @@ func (r *runner) finalizeActivePropsProcessing(collection *Collection, prop stri
 			r.multiMatch.joins = append(r.multiMatch.joins, &join{
 				tableName:  r.jsonFuncs().Each(jePair2),
 				tableAlias: jeAlias2,
+				columnDef:  r.jsonFuncs().EachColumnDef(),
 			})
 			r.multiMatch.valueIdentifier = fmt.Sprintf("[[%s.value]]", jeAlias2)
 

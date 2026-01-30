@@ -17,6 +17,20 @@ func TestJSONFunctions_SQLite(t *testing.T) {
 		}
 	})
 
+	t.Run("EachColumnDef", func(t *testing.T) {
+		result := jf.EachColumnDef()
+		if result != "" {
+			t.Fatalf("SQLite EachColumnDef should be empty, got: %s", result)
+		}
+	})
+
+	t.Run("EachParamColumnDef", func(t *testing.T) {
+		result := jf.EachParamColumnDef()
+		if result != "" {
+			t.Fatalf("SQLite EachParamColumnDef should be empty, got: %s", result)
+		}
+	})
+
 	t.Run("ArrayLength", func(t *testing.T) {
 		result := jf.ArrayLength("data")
 		if !strings.Contains(result, "json_array_length") {
@@ -74,6 +88,20 @@ func TestJSONFunctions_PostgreSQL(t *testing.T) {
 		result := jf.Each("data")
 		if !strings.Contains(result, "jsonb_array_elements") {
 			t.Fatalf("PostgreSQL Each should use jsonb_array_elements, got: %s", result)
+		}
+	})
+
+	t.Run("EachColumnDef", func(t *testing.T) {
+		result := jf.EachColumnDef()
+		if result != "(value)" {
+			t.Fatalf("PostgreSQL EachColumnDef should be '(value)', got: %s", result)
+		}
+	})
+
+	t.Run("EachParamColumnDef", func(t *testing.T) {
+		result := jf.EachParamColumnDef()
+		if result != "(value)" {
+			t.Fatalf("PostgreSQL EachParamColumnDef should be '(value)', got: %s", result)
 		}
 	})
 

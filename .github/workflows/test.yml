@@ -74,10 +74,11 @@ jobs:
         run: |
           go test ./tests/... -v -race -timeout 15m -run "TestPostgres"
           go test ./tools/dbutils/... -v -race -timeout 5m
-          go test ./core/... -v -race -timeout 10m -run "TestIsolation|TestRetry|TestLock|TestGIN"
+          go test ./core/... -v -race -timeout 10m -run "TestIsolation|TestRetry|TestLock|TestGIN|TestRecordFieldResolverPostgres|TestCollectionCrossQueryPostgres|TestMultiMatchQueryPostgres"
         env:
           DB_TYPE: postgres
           POSTGRES_DSN: postgres://postgres:postgres@localhost:5432/pocketbase_test?sslmode=disable
+          TEST_POSTGRES: "1"
 
   # PostgreSQL 16 测试
   test-postgres-16:
@@ -122,10 +123,11 @@ jobs:
         run: |
           go test ./tests/... -v -race -timeout 15m -run "TestPostgres"
           go test ./tools/dbutils/... -v -race -timeout 5m
-          go test ./core/... -v -race -timeout 10m -run "TestIsolation|TestRetry|TestLock|TestGIN"
+          go test ./core/... -v -race -timeout 10m -run "TestIsolation|TestRetry|TestLock|TestGIN|TestRecordFieldResolverPostgres|TestCollectionCrossQueryPostgres|TestMultiMatchQueryPostgres"
         env:
           DB_TYPE: postgres
           POSTGRES_DSN: postgres://postgres:postgres@localhost:5432/pocketbase_test?sslmode=disable
+          TEST_POSTGRES: "1"
 
   # Lint 检查
   lint:

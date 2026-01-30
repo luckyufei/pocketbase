@@ -14,6 +14,9 @@ type join struct {
 	tableName  string
 	tableAlias string
 	on         dbx.Expression
+	// columnDef 用于 PostgreSQL 中 jsonb_array_elements 的列定义 (e.g., "(value)")
+	// SQLite 的 json_each 自动有 value 列，不需要此字段
+	columnDef string
 }
 
 // multiMatchSubquery defines a record multi-match subquery expression.
@@ -52,6 +55,10 @@ func (m *multiMatchSubquery) Build(db *dbx.DB, params dbx.Params) string {
 		mergedJoins.WriteString(db.QuoteTableName(j.tableName))
 		mergedJoins.WriteString(" ")
 		mergedJoins.WriteString(db.QuoteTableName(j.tableAlias))
+		// PostgreSQL 需要为 jsonb_array_elements 指定列定义
+		if j.columnDef != "" {
+			mergedJoins.WriteString(j.columnDef)
+		}
 		if j.on != nil {
 			mergedJoins.WriteString(" ON ")
 			mergedJoins.WriteString(j.on.Build(db, params))

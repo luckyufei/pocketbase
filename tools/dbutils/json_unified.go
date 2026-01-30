@@ -24,6 +24,17 @@ func (j *JSONFunctions) Each(column string) string {
 	return JSONEach(column)
 }
 
+// EachColumnDef 返回 PostgreSQL 需要的列定义后缀
+// 对于 SQLite 返回空字符串，对于 PostgreSQL 返回 "(value)"
+// 这是因为 PostgreSQL 的 jsonb_array_elements_text 需要显式指定列名
+// 而 SQLite 的 json_each 自动有 value 列
+func (j *JSONFunctions) EachColumnDef() string {
+	if j.dbType.IsPostgres() {
+		return "(value)"
+	}
+	return ""
+}
+
 // EachParam 返回带参数占位符的 JSON 数组展开表达式
 // 用于 @request.body 等动态数据的处理
 func (j *JSONFunctions) EachParam(placeholder string) string {
@@ -31,6 +42,14 @@ func (j *JSONFunctions) EachParam(placeholder string) string {
 		return fmt.Sprintf("jsonb_array_elements({:%s}::jsonb)", placeholder)
 	}
 	return fmt.Sprintf("json_each({:%s})", placeholder)
+}
+
+// EachParamColumnDef 返回 EachParam 需要的列定义后缀
+func (j *JSONFunctions) EachParamColumnDef() string {
+	if j.dbType.IsPostgres() {
+		return "(value)"
+	}
+	return ""
 }
 
 // ArrayLength 返回 JSON 数组长度表达式

@@ -1,4 +1,6 @@
-# CODEBUDDY.md This file provides guidance to CodeBuddy when working with code in this repository.
+# CODEBUDDY.md 
+
+This file provides guidance to CodeBuddy when working with code in this repository.
 
 > **IMPORTANT**: 请总是使用中文来写文档和代码注释
 > **🎯 ALL-IN-ONE 完整指南**: `/guide-aio/` ← LLM 首选阅读（模块化文档）

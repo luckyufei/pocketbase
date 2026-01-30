@@ -7,23 +7,66 @@ import (
 	"strings"
 )
 
+// safeJsonbExpr 返回一个安全的 JSONB 转换表达式（内联，不依赖自定义函数）
+// 处理以下情况：
+// 1. 已经是有效 JSON 的字符串 -> 直接转换
+// 2. 普通字符串（非 JSON 格式）-> 使用 to_jsonb 包装
+// 3. NULL 或空字符串 -> 返回 NULL
+//
+// 这对于处理关系字段非常重要，因为：
+// - 单值关系字段存储的是普通 ID 字符串（如 "abc123"）
+// - 多值关系字段存储的是 JSON 数组（如 '["id1","id2"]'）
+// - 直接 ::jsonb 转换普通字符串会失败
+func safeJsonbExpr(column string) string {
+	// 使用 CASE 表达式内联实现安全转换
+	// 先检查是否为有效 JSON，如果是则直接转换，否则用 to_jsonb 包装
+	return fmt.Sprintf(
+		`(CASE WHEN [[%s]] IS NULL OR [[%s]] = '' THEN NULL WHEN [[%s]]::text ~ '^[\\[\\{\\"]' THEN [[%s]]::jsonb ELSE to_jsonb([[%s]]) END)`,
+		column, column, column, column, column,
+	)
+}
+
 // JSONEachPG 返回 PostgreSQL 兼容的 JSON 数组展开表达式
 // 等价于 SQLite 的 json_each
+//
+// 重要: PostgreSQL 的 jsonb_array_elements() 返回匿名单列，
+// 而 SQLite 的 json_each() 返回带有 "value" 列的表。
+//
+// 使用 jsonb_array_elements_text() 是因为：
+// 1. 返回的是 text 类型，更容易与其他字段比较
+// 2. 调用方需要在表别名后添加 "(value)" 列定义（通过 EachColumnDef()）
+//
+// 重要: 使用内联 CASE 表达式安全转换，因为：
+// 1. 单值关系字段存储的是普通字符串（如 "abc123"），不是 JSON 格式
+// 2. 直接 ::jsonb 转换会失败，因为 'abc123' 不是有效 JSON（需要 '"abc123"'）
+// 3. 内联的 CASE 表达式会自动检测并正确处理
+//
+// 生成的 SQL 示例:
+//
+//	SELECT alias.value FROM jsonb_array_elements_text(
+//	  CASE WHEN jsonb_typeof(safe_jsonb_expr) = 'array'
+//	  THEN safe_jsonb_expr
+//	  ELSE jsonb_build_array(col)
+//	  END
+//	) alias(value)
 func JSONEachPG(column string) string {
-	// PostgreSQL 使用 jsonb_array_elements
-	// 需要处理非数组情况
+	// PostgreSQL 使用 jsonb_array_elements_text 返回 text 类型
+	// 使用内联 CASE 表达式安全转换，处理非 JSON 字符串
+	safeExpr := safeJsonbExpr(column)
 	return fmt.Sprintf(
-		`jsonb_array_elements(CASE WHEN jsonb_typeof([[%s]]::jsonb) = 'array' THEN [[%s]]::jsonb ELSE jsonb_build_array([[%s]]) END)`,
-		column, column, column,
+		`jsonb_array_elements_text(CASE WHEN jsonb_typeof(%s) = 'array' THEN %s ELSE jsonb_build_array([[%s]]) END)`,
+		safeExpr, safeExpr, column,
 	)
 }
 
 // JSONArrayLengthPG 返回 PostgreSQL 兼容的 JSON 数组长度表达式
 // 等价于 SQLite 的 json_array_length
+// 使用内联安全转换表达式，处理非 JSON 字符串
 func JSONArrayLengthPG(column string) string {
+	safeExpr := safeJsonbExpr(column)
 	return fmt.Sprintf(
-		`jsonb_array_length(CASE WHEN jsonb_typeof([[%s]]::jsonb) = 'array' THEN [[%s]]::jsonb ELSE (CASE WHEN [[%s]] = '' OR [[%s]] IS NULL THEN '[]'::jsonb ELSE jsonb_build_array([[%s]]) END) END)`,
-		column, column, column, column, column,
+		`jsonb_array_length(CASE WHEN jsonb_typeof(%s) = 'array' THEN %s ELSE (CASE WHEN [[%s]] = '' OR [[%s]] IS NULL THEN '[]'::jsonb ELSE jsonb_build_array([[%s]]) END) END)`,
+		safeExpr, safeExpr, column, column, column,
 	)
 }
 
@@ -171,6 +214,30 @@ BEGIN
     RETURN TRUE;
 EXCEPTION WHEN OTHERS THEN
     RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- pb_safe_jsonb: 安全地将文本转换为 JSONB
+-- 处理以下情况：
+-- 1. 已经是有效 JSON 的字符串 -> 直接转换
+-- 2. 普通字符串（非 JSON 格式）-> 包装为 JSON 字符串 (to_jsonb)
+-- 3. NULL 或空字符串 -> 返回 NULL
+-- 
+-- 这对于处理关系字段非常重要，因为：
+-- - 单值关系字段存储的是普通 ID 字符串（如 "abc123"）
+-- - 多值关系字段存储的是 JSON 数组（如 '["id1","id2"]'）
+-- - 直接 ::jsonb 转换普通字符串会失败
+CREATE OR REPLACE FUNCTION pb_safe_jsonb(text_value TEXT)
+RETURNS JSONB AS $$
+BEGIN
+    IF text_value IS NULL OR text_value = '' THEN
+        RETURN NULL;
+    END IF;
+    -- 尝试直接转换为 JSONB
+    RETURN text_value::jsonb;
+EXCEPTION WHEN OTHERS THEN
+    -- 如果失败，说明是普通字符串，包装为 JSON 字符串
+    RETURN to_jsonb(text_value);
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
