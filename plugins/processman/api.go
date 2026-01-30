@@ -2,7 +2,7 @@ package processman
 
 import (
 	"net/http"
-	"time"
+	"strconv"
 
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
@@ -24,24 +24,25 @@ func (pm *ProcessManager) registerRoutes(e *core.ServeEvent) {
 	e.Router.POST("/api/pm/{id}/stop", func(re *core.RequestEvent) error {
 		return pm.handleStop(re)
 	}).Bind(apis.RequireSuperuserAuth())
+
+	// POST /api/pm/{id}/start - 需要 superuser 权限
+	// 映射 FR-003: 启动已停止的进程
+	e.Router.POST("/api/pm/{id}/start", func(re *core.RequestEvent) error {
+		return pm.handleStart(re)
+	}).Bind(apis.RequireSuperuserAuth())
+
+	// GET /api/pm/{id}/logs - 需要 superuser 权限
+	// 映射 FR-006: 获取进程日志
+	e.Router.GET("/api/pm/{id}/logs", func(re *core.RequestEvent) error {
+		return pm.handleLogs(re)
+	}).Bind(apis.RequireSuperuserAuth())
 }
 
-// handleList 获取所有进程状态
+// handleList 获取所有进程状态（包含配置信息）
 // User Story 6: Scenario 1
+// User Story 5: 返回配置信息（敏感信息已脱敏）
 func (pm *ProcessManager) handleList(e *core.RequestEvent) error {
-	pm.mu.RLock()
-	defer pm.mu.RUnlock()
-
-	result := make([]ProcessState, 0, len(pm.states))
-	for _, state := range pm.states {
-		// 计算人类可读的 uptime
-		stateCopy := *state
-		if state.Status == "running" && !state.StartTime.IsZero() {
-			stateCopy.Uptime = time.Since(state.StartTime).Round(time.Second).String()
-		}
-		result = append(result, stateCopy)
-	}
-
+	result := pm.GetAllStatesWithConfig()
 	return e.JSON(http.StatusOK, result)
 }
 
@@ -95,4 +96,53 @@ func (pm *ProcessManager) handleStop(e *core.RequestEvent) error {
 		"message": "Process stopped",
 		"id":      id,
 	})
+}
+
+// handleStart 启动已停止的进程
+// 映射 FR-003: 系统 MUST 支持对单个进程执行: 启动、停止、重启操作
+func (pm *ProcessManager) handleStart(e *core.RequestEvent) error {
+	id := e.Request.PathValue("id")
+
+	err := pm.StartProcess(id)
+	if err != nil {
+		if err == ErrProcessNotFound {
+			return apis.NewNotFoundError("Process not found", nil)
+		}
+		if err == ErrProcessAlreadyRunning {
+			return apis.NewBadRequestError("Process is already running", nil)
+		}
+		return apis.NewBadRequestError("Failed to start process", err)
+	}
+
+	return e.JSON(http.StatusOK, map[string]string{
+		"message": "Process start initiated",
+		"id":      id,
+	})
+}
+
+// handleLogs 获取进程日志
+// 映射 FR-006: 系统 MUST 支持实时查看单个进程的日志流
+func (pm *ProcessManager) handleLogs(e *core.RequestEvent) error {
+	id := e.Request.PathValue("id")
+
+	// 解析 lines 参数，默认 100
+	lines := 100
+	if linesStr := e.Request.URL.Query().Get("lines"); linesStr != "" {
+		if n, err := strconv.Atoi(linesStr); err == nil && n > 0 {
+			lines = n
+			if lines > 1000 {
+				lines = 1000 // 最大 1000 条
+			}
+		}
+	}
+
+	logs, err := pm.GetProcessLogs(id, lines)
+	if err != nil {
+		if err == ErrProcessNotFound {
+			return apis.NewNotFoundError("Process not found", nil)
+		}
+		return apis.NewBadRequestError("Failed to get logs", err)
+	}
+
+	return e.JSON(http.StatusOK, logs)
 }

@@ -212,8 +212,9 @@ func (pm *ProcessManager) buildEnv(cfg *ProcessConfig) []string {
 	return env
 }
 
-// bridgeLog 将进程输出桥接到 PB Logger
+// bridgeLog 将进程输出桥接到 PB Logger 和日志缓冲区
 // User Story 7: Acceptance Scenario 1, 2
+// User Story 3: 实时日志流查看 - 日志存储到缓冲区供 API 访问
 func (pm *ProcessManager) bridgeLog(processID, source string, reader io.Reader) {
 	if reader == nil {
 		return
@@ -223,6 +224,13 @@ func (pm *ProcessManager) bridgeLog(processID, source string, reader io.Reader) 
 
 	for scanner.Scan() {
 		line := scanner.Text()
+
+		// 存储到日志缓冲区（用于 API 访问）
+		stream := "stdout"
+		if source == "STDERR" {
+			stream = "stderr"
+		}
+		pm.addLog(processID, stream, line)
 
 		if pm.app == nil {
 			continue

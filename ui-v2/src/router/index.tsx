@@ -50,6 +50,7 @@ const Admins = lazy(() => import('@/pages/settings').then((m) => ({ default: m.A
 const Export = lazy(() => import('@/pages/settings').then((m) => ({ default: m.Export })))
 const Import = lazy(() => import('@/pages/settings').then((m) => ({ default: m.Import })))
 const Jobs = lazy(() => import('@/pages/settings/Jobs'))
+const Processes = lazy(() => import('@/pages/settings/Processes'))
 
 // 认证相关页面
 const RequestPasswordReset = lazy(() => import('@/pages/RequestPasswordReset'))
@@ -244,6 +245,10 @@ export const router = createBrowserRouter([
           {
             path: 'jobs',
             element: withSuspense(Jobs),
+          },
+          {
+            path: 'processes',
+            element: withSuspense(Processes),
           },
         ],
       },

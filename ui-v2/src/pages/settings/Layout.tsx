@@ -16,6 +16,7 @@ import {
   Coins,
   Download,
   Upload,
+  Activity,
 } from 'lucide-react'
 
 interface NavItem {
@@ -30,6 +31,7 @@ const navItems: NavItem[] = [
   { to: '/settings/storage', label: 'Storage', icon: <HardDrive className="w-4 h-4" /> },
   { to: '/settings/backups', label: 'Backups', icon: <Database className="w-4 h-4" /> },
   { to: '/settings/crons', label: 'Cron Jobs', icon: <Clock className="w-4 h-4" /> },
+  { to: '/settings/processes', label: 'Processes', icon: <Activity className="w-4 h-4" /> },
   { to: '/settings/secrets', label: 'Secrets', icon: <Key className="w-4 h-4" /> },
   { to: '/settings/analytics', label: 'Analytics', icon: <BarChart3 className="w-4 h-4" /> },
   { to: '/settings/admins', label: 'Admins', icon: <Users className="w-4 h-4" /> },

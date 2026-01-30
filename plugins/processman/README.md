@@ -122,7 +122,7 @@ func main() {
 
 ### GET /api/pm/list
 
-获取所有进程状态。
+获取所有进程状态（包含配置信息）。
 
 **响应示例**：
 
@@ -135,10 +135,45 @@ func main() {
     "startTime": "2026-01-30T10:00:00Z",
     "uptime": "2h30m15s",
     "restartCount": 3,
-    "lastError": ""
+    "lastError": "",
+    "config": {
+      "id": "ai-agent",
+      "script": "agent.py",
+      "args": ["--model", "gpt-4"],
+      "cwd": "/app/agents",
+      "env": {
+        "OPENAI_API_KEY": "****",
+        "PB_PORT": "8090"
+      },
+      "interpreter": "python3",
+      "maxRetries": 10,
+      "backoff": "2s",
+      "devMode": true,
+      "watchPaths": ["./src", "./config"]
+    }
   }
 ]
 ```
+
+**注意**：敏感环境变量（包含 KEY、SECRET、PASSWORD、TOKEN 等关键词）会自动脱敏为 `****`。
+
+### POST /api/pm/{id}/start
+
+启动已停止的进程。
+
+**响应示例**：
+
+```json
+{
+  "message": "Process start initiated",
+  "id": "ai-agent"
+}
+```
+
+**错误响应**：
+
+- 404: 进程不存在
+- 400: 进程已在运行
 
 ### POST /api/pm/{id}/restart
 
@@ -165,6 +200,40 @@ func main() {
   "id": "ai-agent"
 }
 ```
+
+### GET /api/pm/{id}/logs
+
+获取进程日志。
+
+**查询参数**：
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `lines` | int | 100 | 返回最近 N 条日志，最大 1000 |
+
+**响应示例**：
+
+```json
+[
+  {
+    "timestamp": "2026-01-30T10:00:01Z",
+    "processId": "ai-agent",
+    "stream": "stdout",
+    "content": "Starting server on port 8001..."
+  },
+  {
+    "timestamp": "2026-01-30T10:00:02Z",
+    "processId": "ai-agent",
+    "stream": "stderr",
+    "content": "Warning: Connection timeout"
+  }
+]
+```
+
+**说明**：
+- `stream` 可能的值：`stdout` 或 `stderr`
+- 日志按时间顺序排列（最旧在前，最新在后）
+- 每个进程最多缓存 1000 条日志，超出后自动淘汰最旧的日志
 
 ## 代码配置方式
 

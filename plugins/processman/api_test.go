@@ -175,3 +175,283 @@ func writeTestFile(t *testing.T, path, content string) {
 		t.Fatalf("Failed to write test file: %v", err)
 	}
 }
+
+// === Start API 测试 ===
+
+func TestStartProcess_StateTransition(t *testing.T) {
+	pm := New(nil, Config{})
+
+	// 模拟一个已停止的进程
+	pm.states["test-process"] = &ProcessState{
+		ID:     "test-process",
+		Status: "stopped",
+		PID:    0,
+	}
+
+	// 注册进程配置（必须有配置才能启动）
+	pm.configs = append(pm.configs, &ProcessConfig{
+		ID:      "test-process",
+		Command: "echo",
+		Args:    []string{"hello"},
+		Cwd:     "/tmp",
+	})
+
+	// 测试: 调用 StartProcess 应该返回 nil（成功）
+	err := pm.StartProcess("test-process")
+	if err != nil {
+		t.Errorf("StartProcess() error = %v, want nil", err)
+	}
+}
+
+func TestStartProcess_NotFound(t *testing.T) {
+	pm := New(nil, Config{})
+
+	// 没有注册任何进程配置
+	err := pm.StartProcess("nonexistent")
+
+	if err == nil {
+		t.Error("StartProcess() should return error for non-existent process")
+	}
+}
+
+func TestStartProcess_AlreadyRunning(t *testing.T) {
+	pm := New(nil, Config{})
+
+	// 模拟一个正在运行的进程
+	pm.states["test-process"] = &ProcessState{
+		ID:     "test-process",
+		Status: "running",
+		PID:    12345,
+	}
+
+	pm.configs = append(pm.configs, &ProcessConfig{
+		ID:      "test-process",
+		Command: "echo",
+		Cwd:     "/tmp",
+	})
+
+	// 测试: 启动已经在运行的进程应该返回错误
+	err := pm.StartProcess("test-process")
+	if err == nil {
+		t.Error("StartProcess() should return error for already running process")
+	}
+}
+
+// === List API 扩展测试 - 返回配置信息 ===
+
+func TestProcessStateWithConfig(t *testing.T) {
+	pm := New(nil, Config{})
+
+	// 注册配置
+	cfg := &ProcessConfig{
+		ID:          "test-agent",
+		Script:      "agent.py",
+		Args:        []string{"--model", "gpt-4"},
+		Cwd:         "/app/agents",
+		Interpreter: "python3",
+		MaxRetries:  10,
+		Backoff:     "2s",
+		DevMode:     true,
+		WatchPaths:  []string{"./src", "./config"},
+		Env: map[string]string{
+			"OPENAI_API_KEY": "sk-secret-key",
+			"PB_PORT":        "8090",
+		},
+	}
+	pm.configs = append(pm.configs, cfg)
+
+	// 设置运行状态
+	pm.states["test-agent"] = &ProcessState{
+		ID:           "test-agent",
+		Status:       "running",
+		PID:          4021,
+		StartTime:    time.Now().Add(-2 * time.Hour),
+		RestartCount: 3,
+	}
+
+	// 获取扩展状态
+	states := pm.GetAllStatesWithConfig()
+
+	if len(states) != 1 {
+		t.Fatalf("GetAllStatesWithConfig() returned %d states, want 1", len(states))
+	}
+
+	state := states[0]
+
+	// 验证配置信息
+	if state.Config == nil {
+		t.Fatal("Config should not be nil")
+	}
+
+	if state.Config.Script != "agent.py" {
+		t.Errorf("Config.Script = %q, want %q", state.Config.Script, "agent.py")
+	}
+
+	if len(state.Config.Args) != 2 || state.Config.Args[0] != "--model" {
+		t.Errorf("Config.Args = %v, want [--model, gpt-4]", state.Config.Args)
+	}
+
+	// 验证敏感环境变量被脱敏
+	if state.Config.Env["OPENAI_API_KEY"] != "****" {
+		t.Errorf("Sensitive env var should be masked, got %q", state.Config.Env["OPENAI_API_KEY"])
+	}
+
+	// 验证非敏感环境变量保持原值
+	if state.Config.Env["PB_PORT"] != "8090" {
+		t.Errorf("Non-sensitive env var should not be masked, got %q", state.Config.Env["PB_PORT"])
+	}
+}
+
+// === 日志 API 测试 ===
+
+func TestLogBuffer_AddAndGet(t *testing.T) {
+	buf := NewLogBuffer(100)
+
+	// 添加日志条目
+	buf.Add(LogEntry{
+		Timestamp: time.Now(),
+		ProcessID: "test",
+		Stream:    "stdout",
+		Content:   "Hello, World!",
+	})
+
+	logs := buf.GetLast(10)
+	if len(logs) != 1 {
+		t.Errorf("GetLast() returned %d entries, want 1", len(logs))
+	}
+
+	if logs[0].Content != "Hello, World!" {
+		t.Errorf("Log content = %q, want %q", logs[0].Content, "Hello, World!")
+	}
+}
+
+func TestLogBuffer_RingBehavior(t *testing.T) {
+	buf := NewLogBuffer(5) // 小容量便于测试
+
+	// 添加 10 条日志（超出容量）
+	for i := 0; i < 10; i++ {
+		buf.Add(LogEntry{
+			Timestamp: time.Now(),
+			ProcessID: "test",
+			Stream:    "stdout",
+			Content:   "Line " + string(rune('A'+i)),
+		})
+	}
+
+	// 只应该保留最后 5 条
+	logs := buf.GetLast(100)
+	if len(logs) != 5 {
+		t.Errorf("GetLast() returned %d entries, want 5", len(logs))
+	}
+
+	// 验证是最后 5 条（F, G, H, I, J）
+	if logs[0].Content != "Line F" {
+		t.Errorf("First log = %q, want %q", logs[0].Content, "Line F")
+	}
+	if logs[4].Content != "Line J" {
+		t.Errorf("Last log = %q, want %q", logs[4].Content, "Line J")
+	}
+}
+
+func TestLogBuffer_GetLastWithLimit(t *testing.T) {
+	buf := NewLogBuffer(100)
+
+	// 添加 50 条日志
+	for i := 0; i < 50; i++ {
+		buf.Add(LogEntry{
+			Timestamp: time.Now(),
+			ProcessID: "test",
+			Stream:    "stdout",
+			Content:   "Line",
+		})
+	}
+
+	// 只请求 10 条
+	logs := buf.GetLast(10)
+	if len(logs) != 10 {
+		t.Errorf("GetLast(10) returned %d entries, want 10", len(logs))
+	}
+}
+
+func TestLogBuffer_Empty(t *testing.T) {
+	buf := NewLogBuffer(100)
+
+	logs := buf.GetLast(10)
+	if len(logs) != 0 {
+		t.Errorf("GetLast() on empty buffer returned %d entries, want 0", len(logs))
+	}
+}
+
+func TestLogBuffer_ConcurrentAccess(t *testing.T) {
+	buf := NewLogBuffer(100)
+	done := make(chan bool)
+
+	// 并发写入
+	go func() {
+		for i := 0; i < 1000; i++ {
+			buf.Add(LogEntry{
+				Timestamp: time.Now(),
+				ProcessID: "test",
+				Stream:    "stdout",
+				Content:   "Line",
+			})
+		}
+		done <- true
+	}()
+
+	// 并发读取
+	go func() {
+		for i := 0; i < 1000; i++ {
+			_ = buf.GetLast(50)
+		}
+		done <- true
+	}()
+
+	// 等待完成
+	<-done
+	<-done
+}
+
+func TestMaskSensitiveEnvVars(t *testing.T) {
+	env := map[string]string{
+		"OPENAI_API_KEY":  "sk-secret-123",
+		"API_KEY":         "secret-key",
+		"SECRET_TOKEN":    "token-123",
+		"PASSWORD":        "mypassword",
+		"DATABASE_URL":    "postgres://user:pass@localhost/db",
+		"PB_PORT":         "8090",
+		"NODE_ENV":        "production",
+		"ALLOWED_ORIGINS": "http://localhost:3000",
+	}
+
+	masked := MaskSensitiveEnvVars(env)
+
+	// 敏感变量应该被脱敏
+	sensitiveKeys := []string{"OPENAI_API_KEY", "API_KEY", "SECRET_TOKEN", "PASSWORD"}
+	for _, key := range sensitiveKeys {
+		if masked[key] != "****" {
+			t.Errorf("Sensitive env %q should be masked, got %q", key, masked[key])
+		}
+	}
+
+	// 非敏感变量应该保持原值
+	nonSensitiveKeys := []string{"PB_PORT", "NODE_ENV", "ALLOWED_ORIGINS"}
+	for _, key := range nonSensitiveKeys {
+		if masked[key] != env[key] {
+			t.Errorf("Non-sensitive env %q should not be masked, got %q", key, masked[key])
+		}
+	}
+}
+
+func TestGetProcessLogs_NotFound(t *testing.T) {
+	pm := New(nil, Config{})
+
+	logs, err := pm.GetProcessLogs("nonexistent", 100)
+
+	if err == nil {
+		t.Error("GetProcessLogs() should return error for non-existent process")
+	}
+	if logs != nil {
+		t.Error("Logs should be nil for non-existent process")
+	}
+}
