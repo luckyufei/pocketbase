@@ -202,10 +202,22 @@ func (f *TextField) ValidateValue(ctx context.Context, app App, record *Record) 
 			// (@todo eventually may get replaced in the future with a system unique constraint to avoid races or wrapping the request in a transaction)
 			if f.Pattern != defaultLowercaseRecordIdPattern {
 				var exists int
+				var whereExpr dbx.Expression
+
+				// Use database adapter for correct case-insensitive comparison syntax
+				collation := app.DBAdapter().NoCaseCollation()
+				if collation == "LOWER" {
+					// PostgreSQL: use LOWER() function
+					whereExpr = dbx.NewExp("LOWER(id) = LOWER({:id})", dbx.Params{"id": newVal})
+				} else {
+					// SQLite: use COLLATE NOCASE
+					whereExpr = dbx.NewExp("id = {:id} "+collation, dbx.Params{"id": newVal})
+				}
+
 				err := app.ConcurrentDB().
 					Select("(1)").
 					From(record.TableName()).
-					Where(dbx.NewExp("id = {:id} COLLATE NOCASE", dbx.Params{"id": newVal})).
+					Where(whereExpr).
 					Limit(1).
 					Row(&exists)
 				if exists > 0 || (err != nil && !errors.Is(err, sql.ErrNoRows)) {

@@ -9,9 +9,17 @@ import (
 
 // TableColumns returns all column names of a single table by its name.
 func (app *BaseApp) TableColumns(tableName string) ([]string, error) {
-	// 如果使用 PostgreSQL，通过适配器查询
+	// 如果使用 PostgreSQL，直接查询 information_schema
 	if app.IsPostgres() {
-		return app.DBAdapter().TableColumns(tableName)
+		columns := []string{}
+		err := app.ConcurrentDB().NewQuery(`
+			SELECT column_name 
+			FROM information_schema.columns 
+			WHERE LOWER(table_name) = LOWER({:tableName})
+			AND table_schema = 'public'
+			ORDER BY ordinal_position
+		`).Bind(dbx.Params{"tableName": tableName}).Column(&columns)
+		return columns, err
 	}
 
 	// SQLite: 使用 PRAGMA
@@ -37,25 +45,62 @@ type TableInfoRow struct {
 
 // TableInfo returns the "table_info" pragma result for the specified table.
 func (app *BaseApp) TableInfo(tableName string) ([]*TableInfoRow, error) {
-	// 如果使用 PostgreSQL，通过适配器查询
+	// 如果使用 PostgreSQL，直接查询 information_schema
 	if app.IsPostgres() {
-		adapterInfo, err := app.DBAdapter().TableInfo(tableName)
+		var rows []struct {
+			OrdinalPosition int    `db:"ordinal_position"`
+			ColumnName      string `db:"column_name"`
+			DataType        string `db:"data_type"`
+			IsNullable      string `db:"is_nullable"`
+			ColumnDefault   any    `db:"column_default"`
+			IsPK            int    `db:"is_pk"`
+		}
+
+		err := app.ConcurrentDB().NewQuery(`
+			SELECT 
+				c.ordinal_position,
+				c.column_name,
+				c.data_type,
+				c.is_nullable,
+				c.column_default,
+				CASE WHEN pk.column_name IS NOT NULL THEN 1 ELSE 0 END as is_pk
+			FROM information_schema.columns c
+			LEFT JOIN (
+				SELECT kcu.column_name
+				FROM information_schema.table_constraints tc
+				JOIN information_schema.key_column_usage kcu 
+					ON tc.constraint_name = kcu.constraint_name
+					AND tc.table_schema = kcu.table_schema
+				WHERE tc.constraint_type = 'PRIMARY KEY'
+				AND LOWER(tc.table_name) = LOWER({:tableName})
+				AND tc.table_schema = 'public'
+			) pk ON c.column_name = pk.column_name
+			WHERE LOWER(c.table_name) = LOWER({:tableName})
+			AND c.table_schema = 'public'
+			ORDER BY c.ordinal_position
+		`).Bind(dbx.Params{"tableName": tableName}).All(&rows)
+
 		if err != nil {
 			return nil, err
 		}
 
+		// 空结果表示表不存在
+		if len(rows) == 0 {
+			return nil, fmt.Errorf("empty table info probably due to invalid or missing table %s", tableName)
+		}
+
 		// 转换为 TableInfoRow 格式
-		info := make([]*TableInfoRow, len(adapterInfo))
-		for i, row := range adapterInfo {
+		info := make([]*TableInfoRow, len(rows))
+		for i, row := range rows {
 			info[i] = &TableInfoRow{
-				Index:   row.CID,
-				Name:    row.Name,
-				Type:    row.Type,
-				NotNull: row.NotNull,
-				PK:      row.PK,
+				Index:   row.OrdinalPosition - 1, // 转换为 0-based
+				Name:    row.ColumnName,
+				Type:    row.DataType,
+				NotNull: row.IsNullable == "NO",
+				PK:      row.IsPK,
 			}
-			if row.DefaultVal != nil {
-				if defaultStr, ok := row.DefaultVal.(string); ok && defaultStr != "" {
+			if row.ColumnDefault != nil {
+				if defaultStr, ok := row.ColumnDefault.(string); ok && defaultStr != "" {
 					info[i].DefaultValue = sql.NullString{String: defaultStr, Valid: true}
 				}
 			}
@@ -86,9 +131,30 @@ func (app *BaseApp) TableInfo(tableName string) ([]*TableInfoRow, error) {
 //
 // Note: This method doesn't return an error on nonexisting table.
 func (app *BaseApp) TableIndexes(tableName string) (map[string]string, error) {
-	// 如果使用 PostgreSQL，通过适配器查询
+	// 如果使用 PostgreSQL，直接查询 pg_indexes
 	if app.IsPostgres() {
-		return app.DBAdapter().TableIndexes(tableName)
+		var indexes []struct {
+			IndexName string `db:"indexname"`
+			IndexDef  string `db:"indexdef"`
+		}
+
+		err := app.ConcurrentDB().NewQuery(`
+			SELECT indexname, indexdef 
+			FROM pg_indexes 
+			WHERE LOWER(tablename) = LOWER({:tableName})
+			AND schemaname = 'public'
+		`).Bind(dbx.Params{"tableName": tableName}).All(&indexes)
+
+		if err != nil {
+			return nil, err
+		}
+
+		result := make(map[string]string, len(indexes))
+		for _, idx := range indexes {
+			result[idx.IndexName] = idx.IndexDef
+		}
+
+		return result, nil
 	}
 
 	// SQLite: 查询 sqlite_master
@@ -184,9 +250,11 @@ func (app *BaseApp) AuxVacuum() error {
 }
 
 func (app *BaseApp) vacuum(db dbx.Builder) error {
-	// 如果使用 PostgreSQL，通过适配器执行
+	// 如果使用 PostgreSQL，执行 VACUUM ANALYZE
+	// PostgreSQL 的 VACUUM 可以直接通过 SQL 执行
 	if app.IsPostgres() {
-		return app.DBAdapter().Vacuum()
+		_, err := db.NewQuery("VACUUM ANALYZE").Execute()
+		return err
 	}
 
 	// SQLite: 直接执行 VACUUM

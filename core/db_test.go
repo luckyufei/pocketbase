@@ -30,75 +30,68 @@ func TestGenerateDefaultRandomId(t *testing.T) {
 }
 
 func TestModelQuery(t *testing.T) {
-	t.Parallel()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		modelsQuery := app.ModelQuery(&core.Collection{})
+		logsModelQuery := app.AuxModelQuery(&core.Collection{})
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	modelsQuery := app.ModelQuery(&core.Collection{})
-	logsModelQuery := app.AuxModelQuery(&core.Collection{})
-
-	if app.ConcurrentDB() == modelsQuery.Info().Builder {
-		t.Fatalf("ModelQuery() is not using app.ConcurrentDB()")
-	}
-
-	if app.AuxConcurrentDB() == logsModelQuery.Info().Builder {
-		t.Fatalf("AuxModelQuery() is not using app.AuxConcurrentDB()")
-	}
-
-	expectedSQL := "SELECT {{_collections}}.* FROM `_collections`"
-	for i, q := range []*dbx.SelectQuery{modelsQuery, logsModelQuery} {
-		sql := q.Build().SQL()
-		if sql != expectedSQL {
-			t.Fatalf("[%d] Expected select\n%s\ngot\n%s", i, expectedSQL, sql)
+		if app.ConcurrentDB() == modelsQuery.Info().Builder {
+			t.Fatalf("ModelQuery() is not using app.ConcurrentDB()")
 		}
-	}
+
+		if app.AuxConcurrentDB() == logsModelQuery.Info().Builder {
+			t.Fatalf("AuxModelQuery() is not using app.AuxConcurrentDB()")
+		}
+
+		// SQL 模板格式不变，只验证基本结构
+		// 实际的引号字符取决于 dbx.Builder 的配置
+		expectedSQL := "SELECT {{_collections}}.* FROM `_collections`"
+		for i, q := range []*dbx.SelectQuery{modelsQuery, logsModelQuery} {
+			sql := q.Build().SQL()
+			if sql != expectedSQL {
+				t.Fatalf("[%d] Expected select\n%s\ngot\n%s", i, expectedSQL, sql)
+			}
+		}
+	})
 }
 
 func TestValidate(t *testing.T) {
-	t.Parallel()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		u := &mockSuperusers{}
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+		testErr := errors.New("test")
 
-	u := &mockSuperusers{}
+		app.OnModelValidate().BindFunc(func(e *core.ModelEvent) error {
+			return testErr
+		})
 
-	testErr := errors.New("test")
-
-	app.OnModelValidate().BindFunc(func(e *core.ModelEvent) error {
-		return testErr
+		err := app.Validate(u)
+		if err != testErr {
+			t.Fatalf("Expected error %v, got %v", testErr, err)
+		}
 	})
-
-	err := app.Validate(u)
-	if err != testErr {
-		t.Fatalf("Expected error %v, got %v", testErr, err)
-	}
 }
 
 func TestValidateWithContext(t *testing.T) {
-	t.Parallel()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		u := &mockSuperusers{}
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+		testErr := errors.New("test")
 
-	u := &mockSuperusers{}
+		app.OnModelValidate().BindFunc(func(e *core.ModelEvent) error {
+			if v := e.Context.Value("test"); v != 123 {
+				t.Fatalf("Expected 'test' context value %#v, got %#v", 123, v)
+			}
+			return testErr
+		})
 
-	testErr := errors.New("test")
+		//nolint:staticcheck
+		ctx := context.WithValue(context.Background(), "test", 123)
 
-	app.OnModelValidate().BindFunc(func(e *core.ModelEvent) error {
-		if v := e.Context.Value("test"); v != 123 {
-			t.Fatalf("Expected 'test' context value %#v, got %#v", 123, v)
+		err := app.ValidateWithContext(ctx, u)
+		if err != testErr {
+			t.Fatalf("Expected error %v, got %v", testErr, err)
 		}
-		return testErr
 	})
-
-	//nolint:staticcheck
-	ctx := context.WithValue(context.Background(), "test", 123)
-
-	err := app.ValidateWithContext(ctx, u)
-	if err != testErr {
-		t.Fatalf("Expected error %v, got %v", testErr, err)
-	}
 }
 
 // -------------------------------------------------------------------

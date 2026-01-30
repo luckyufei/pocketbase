@@ -13,70 +13,57 @@ import (
 )
 
 func TestFindLogById(t *testing.T) {
-	t.Parallel()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		tests.StubLogsData(app)
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+		scenarios := []struct {
+			id          string
+			expectError bool
+		}{
+			{"", true},
+			{"invalid", true},
+			{"00000000-9f38-44fb-bf82-c8f53b310d91", true},
+			{"873f2133-9f38-44fb-bf82-c8f53b310d91", false},
+		}
 
-	tests.StubLogsData(app)
+		for i, s := range scenarios {
+			t.Run(fmt.Sprintf("%d_%s", i, s.id), func(t *testing.T) {
+				log, err := app.FindLogById(s.id)
 
-	scenarios := []struct {
-		id          string
-		expectError bool
-	}{
-		{"", true},
-		{"invalid", true},
-		{"00000000-9f38-44fb-bf82-c8f53b310d91", true},
-		{"873f2133-9f38-44fb-bf82-c8f53b310d91", false},
-	}
+				hasErr := err != nil
+				if hasErr != s.expectError {
+					t.Fatalf("Expected hasErr to be %v, got %v (%v)", s.expectError, hasErr, err)
+				}
 
-	for i, s := range scenarios {
-		t.Run(fmt.Sprintf("%d_%s", i, s.id), func(t *testing.T) {
-			log, err := app.FindLogById(s.id)
-
-			hasErr := err != nil
-			if hasErr != s.expectError {
-				t.Fatalf("Expected hasErr to be %v, got %v (%v)", s.expectError, hasErr, err)
-			}
-
-			if log != nil && log.Id != s.id {
-				t.Fatalf("Expected log with id %q, got %q", s.id, log.Id)
-			}
-		})
-	}
+				if log != nil && log.Id != s.id {
+					t.Fatalf("Expected log with id %q, got %q", s.id, log.Id)
+				}
+			})
+		}
+	})
 }
 
 func TestLogsStats(t *testing.T) {
-	t.Parallel()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		tests.StubLogsData(app)
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+		expected := `[{"date":"2022-05-01 10:00:00.000Z","total":1},{"date":"2022-05-02 10:00:00.000Z","total":1}]`
 
-	tests.StubLogsData(app)
+		now := time.Now().UTC().Format(types.DefaultDateLayout)
+		exp := dbx.NewExp("[[created]] <= {:date}", dbx.Params{"date": now})
+		result, err := app.LogsStats(exp)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	expected := `[{"date":"2022-05-01 10:00:00.000Z","total":1},{"date":"2022-05-02 10:00:00.000Z","total":1}]`
-
-	now := time.Now().UTC().Format(types.DefaultDateLayout)
-	exp := dbx.NewExp("[[created]] <= {:date}", dbx.Params{"date": now})
-	result, err := app.LogsStats(exp)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	encoded, _ := json.Marshal(result)
-	if string(encoded) != expected {
-		t.Fatalf("Expected\n%q\ngot\n%q", expected, string(encoded))
-	}
+		encoded, _ := json.Marshal(result)
+		if string(encoded) != expected {
+			t.Fatalf("Expected\n%q\ngot\n%q", expected, string(encoded))
+		}
+	})
 }
 
 func TestDeleteOldLogs(t *testing.T) {
-	t.Parallel()
-
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	tests.StubLogsData(app)
-
 	scenarios := []struct {
 		date          string
 		expectedTotal int
@@ -88,7 +75,9 @@ func TestDeleteOldLogs(t *testing.T) {
 	}
 
 	for _, s := range scenarios {
-		t.Run(s.date, func(t *testing.T) {
+		tests.RunWithBothDBs(t, s.date, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+			tests.StubLogsData(app)
+
 			date, dateErr := time.Parse(types.DefaultDateLayout, s.date)
 			if dateErr != nil {
 				t.Fatalf("Date error %v", dateErr)

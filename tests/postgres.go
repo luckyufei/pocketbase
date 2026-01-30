@@ -201,9 +201,25 @@ func (c *PostgresContainer) CreateDatabase(name string) error {
 	return err
 }
 
+// CreateDatabaseWithTemplate 使用模板创建新数据库
+// 如果模板数据库存在且有数据，新数据库会继承这些数据
+func (c *PostgresContainer) CreateDatabaseWithTemplate(name string) error {
+	// 直接创建新数据库（PostgreSQL 会自动使用 template1）
+	_, err := c.db.Exec(fmt.Sprintf("CREATE DATABASE %q", name))
+	return err
+}
+
+// DSNWithDatabase 返回指定数据库的连接字符串
+func (c *PostgresContainer) DSNWithDatabase(dbName string) string {
+	return fmt.Sprintf(
+		"postgres://%s:%s@%s:%s/%s?sslmode=disable",
+		c.user, c.password, c.host, c.port, dbName,
+	)
+}
+
 // DropDatabase 删除数据库
 func (c *PostgresContainer) DropDatabase(name string) error {
-	_, err := c.db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", name))
+	_, err := c.db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %q", name))
 	return err
 }
 

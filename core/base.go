@@ -1276,12 +1276,28 @@ func (app *BaseApp) OnBatchRequest() *hook.Hook[*BatchRequestEvent] {
 // -------------------------------------------------------------------
 
 func (app *BaseApp) initDataDB() error {
-	// 检查 DataDir 是否为 PostgreSQL DSN
+	// 优先使用 PostgresDSN（如果设置了）
 	var dbPath string
-	if IsPostgresDSN(app.DataDir()) {
+	var isPostgres bool
+	if app.config.PostgresDSN != "" {
+		dbPath = app.config.PostgresDSN
+		isPostgres = true
+	} else if IsPostgresDSN(app.DataDir()) {
+		// 兼容旧的方式：DataDir 包含 PostgreSQL DSN
 		dbPath = app.DataDir()
+		isPostgres = true
 	} else {
 		dbPath = filepath.Join(app.DataDir(), "data.db")
+		isPostgres = false
+	}
+
+	// 自动设置 DBAdapter（如果未手动设置）
+	if app.dbAdapter == nil {
+		if isPostgres {
+			app.dbAdapter = NewPostgresAdapter()
+		} else {
+			app.dbAdapter = NewSQLiteAdapter()
+		}
 	}
 
 	concurrentDB, err := app.config.DBConnect(dbPath)

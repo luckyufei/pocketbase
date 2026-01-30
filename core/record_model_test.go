@@ -148,266 +148,257 @@ func TestRecordBaseFilesPath(t *testing.T) {
 }
 
 func TestRecordOriginal(t *testing.T) {
-	t.Parallel()
-
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	record, err := app.FindAuthRecordByEmail("users", "test@example.com")
-	if err != nil {
-		t.Fatal(err)
-	}
-	originalId := record.Id
-	originalName := record.GetString("name")
-
-	extraFieldsCheck := []string{`"email":`, `"custom":`}
-
-	// change the fields
-	record.Id = "changed"
-	record.Set("name", "name_new")
-	record.Set("custom", "test_custom")
-	record.SetExpand(map[string]any{"test": 123})
-	record.IgnoreEmailVisibility(true)
-	record.IgnoreUnchangedFields(true)
-	record.WithCustomData(true)
-	record.Unhide(record.Collection().Fields.FieldNames()...)
-
-	// ensure that the email visibility and the custom data toggles are active
-	raw, err := record.MarshalJSON()
-	if err != nil {
-		t.Fatal(err)
-	}
-	rawStr := string(raw)
-	for _, f := range extraFieldsCheck {
-		if !strings.Contains(rawStr, f) {
-			t.Fatalf("Expected %s in\n%s", f, rawStr)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		record, err := app.FindAuthRecordByEmail("users", "test@example.com")
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
+		originalId := record.Id
+		originalName := record.GetString("name")
 
-	// check changes
-	if v := record.GetString("name"); v != "name_new" {
-		t.Fatalf("Expected name to be %q, got %q", "name_new", v)
-	}
-	if v := record.GetString("custom"); v != "test_custom" {
-		t.Fatalf("Expected custom to be %q, got %q", "test_custom", v)
-	}
+		extraFieldsCheck := []string{`"email":`, `"custom":`}
 
-	// check original
-	if v := record.Original().PK(); v != originalId {
-		t.Fatalf("Expected the original PK to be %q, got %q", originalId, v)
-	}
-	if v := record.Original().Id; v != originalId {
-		t.Fatalf("Expected the original id to be %q, got %q", originalId, v)
-	}
-	if v := record.Original().GetString("name"); v != originalName {
-		t.Fatalf("Expected the original name to be %q, got %q", originalName, v)
-	}
-	if v := record.Original().GetString("custom"); v != "" {
-		t.Fatalf("Expected the original custom to be %q, got %q", "", v)
-	}
-	if v := record.Original().Expand(); len(v) != 0 {
-		t.Fatalf("Expected empty original expand, got\n%v", v)
-	}
+		// change the fields
+		record.Id = "changed"
+		record.Set("name", "name_new")
+		record.Set("custom", "test_custom")
+		record.SetExpand(map[string]any{"test": 123})
+		record.IgnoreEmailVisibility(true)
+		record.IgnoreUnchangedFields(true)
+		record.WithCustomData(true)
+		record.Unhide(record.Collection().Fields.FieldNames()...)
 
-	// ensure that the email visibility and the custom flag toggles weren't copied
-	originalRaw, err := record.Original().MarshalJSON()
-	if err != nil {
-		t.Fatal(err)
-	}
-	originalRawStr := string(originalRaw)
-	for _, f := range extraFieldsCheck {
-		if strings.Contains(originalRawStr, f) {
-			t.Fatalf("Didn't expected %s in original\n%s", f, originalRawStr)
+		// ensure that the email visibility and the custom data toggles are active
+		raw, err := record.MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
+		rawStr := string(raw)
+		for _, f := range extraFieldsCheck {
+			if !strings.Contains(rawStr, f) {
+				t.Fatalf("Expected %s in\n%s", f, rawStr)
+			}
+		}
 
-	// loading new data shouldn't affect the original state
-	record.Load(map[string]any{"name": "name_new2"})
+		// check changes
+		if v := record.GetString("name"); v != "name_new" {
+			t.Fatalf("Expected name to be %q, got %q", "name_new", v)
+		}
+		if v := record.GetString("custom"); v != "test_custom" {
+			t.Fatalf("Expected custom to be %q, got %q", "test_custom", v)
+		}
 
-	if v := record.GetString("name"); v != "name_new2" {
-		t.Fatalf("Expected name to be %q, got %q", "name_new2", v)
-	}
+		// check original
+		if v := record.Original().PK(); v != originalId {
+			t.Fatalf("Expected the original PK to be %q, got %q", originalId, v)
+		}
+		if v := record.Original().Id; v != originalId {
+			t.Fatalf("Expected the original id to be %q, got %q", originalId, v)
+		}
+		if v := record.Original().GetString("name"); v != originalName {
+			t.Fatalf("Expected the original name to be %q, got %q", originalName, v)
+		}
+		if v := record.Original().GetString("custom"); v != "" {
+			t.Fatalf("Expected the original custom to be %q, got %q", "", v)
+		}
+		if v := record.Original().Expand(); len(v) != 0 {
+			t.Fatalf("Expected empty original expand, got\n%v", v)
+		}
 
-	if v := record.Original().GetString("name"); v != originalName {
-		t.Fatalf("Expected the original name still to be %q, got %q", originalName, v)
-	}
+		// ensure that the email visibility and the custom flag toggles weren't copied
+		originalRaw, err := record.Original().MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		originalRawStr := string(originalRaw)
+		for _, f := range extraFieldsCheck {
+			if strings.Contains(originalRawStr, f) {
+				t.Fatalf("Didn't expected %s in original\n%s", f, originalRawStr)
+			}
+		}
+
+		// loading new data shouldn't affect the original state
+		record.Load(map[string]any{"name": "name_new2"})
+
+		if v := record.GetString("name"); v != "name_new2" {
+			t.Fatalf("Expected name to be %q, got %q", "name_new2", v)
+		}
+
+		if v := record.Original().GetString("name"); v != originalName {
+			t.Fatalf("Expected the original name still to be %q, got %q", originalName, v)
+		}
+	})
 }
 
 func TestRecordFresh(t *testing.T) {
-	t.Parallel()
-
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	record, err := app.FindAuthRecordByEmail("users", "test@example.com")
-	if err != nil {
-		t.Fatal(err)
-	}
-	originalId := record.Id
-
-	extraFieldsCheck := []string{`"email":`, `"custom":`}
-
-	autodateTest := types.NowDateTime()
-
-	// change the fields
-	record.Id = "changed"
-	record.Set("name", "name_new")
-	record.Set("custom", "test_custom")
-	record.SetRaw("created", autodateTest)
-	record.SetExpand(map[string]any{"test": 123})
-	record.IgnoreEmailVisibility(true)
-	record.IgnoreUnchangedFields(true)
-	record.WithCustomData(true)
-	record.Unhide(record.Collection().Fields.FieldNames()...)
-
-	// ensure that the email visibility and the custom data toggles are active
-	raw, err := record.MarshalJSON()
-	if err != nil {
-		t.Fatal(err)
-	}
-	rawStr := string(raw)
-	for _, f := range extraFieldsCheck {
-		if !strings.Contains(rawStr, f) {
-			t.Fatalf("Expected %s in\n%s", f, rawStr)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		record, err := app.FindAuthRecordByEmail("users", "test@example.com")
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
+		originalId := record.Id
 
-	// check changes
-	if v := record.GetString("name"); v != "name_new" {
-		t.Fatalf("Expected name to be %q, got %q", "name_new", v)
-	}
-	if v := record.GetDateTime("created").String(); v != autodateTest.String() {
-		t.Fatalf("Expected created to be %q, got %q", autodateTest.String(), v)
-	}
-	if v := record.GetString("custom"); v != "test_custom" {
-		t.Fatalf("Expected custom to be %q, got %q", "test_custom", v)
-	}
+		extraFieldsCheck := []string{`"email":`, `"custom":`}
 
-	// check fresh
-	if v := record.Fresh().LastSavedPK(); v != originalId {
-		t.Fatalf("Expected the fresh LastSavedPK to be %q, got %q", originalId, v)
-	}
-	if v := record.Fresh().PK(); v != record.Id {
-		t.Fatalf("Expected the fresh PK to be %q, got %q", record.Id, v)
-	}
-	if v := record.Fresh().Id; v != record.Id {
-		t.Fatalf("Expected the fresh id to be %q, got %q", record.Id, v)
-	}
-	if v := record.Fresh().GetString("name"); v != record.GetString("name") {
-		t.Fatalf("Expected the fresh name to be %q, got %q", record.GetString("name"), v)
-	}
-	if v := record.Fresh().GetDateTime("created").String(); v != autodateTest.String() {
-		t.Fatalf("Expected the fresh created to be %q, got %q", autodateTest.String(), v)
-	}
-	if v := record.Fresh().GetDateTime("updated").String(); v != record.GetDateTime("updated").String() {
-		t.Fatalf("Expected the fresh updated to be %q, got %q", record.GetDateTime("updated").String(), v)
-	}
-	if v := record.Fresh().GetString("custom"); v != "" {
-		t.Fatalf("Expected the fresh custom to be %q, got %q", "", v)
-	}
-	if v := record.Fresh().Expand(); len(v) != 0 {
-		t.Fatalf("Expected empty fresh expand, got\n%v", v)
-	}
+		autodateTest := types.NowDateTime()
 
-	// ensure that the email visibility and the custom flag toggles weren't copied
-	freshRaw, err := record.Fresh().MarshalJSON()
-	if err != nil {
-		t.Fatal(err)
-	}
-	freshRawStr := string(freshRaw)
-	for _, f := range extraFieldsCheck {
-		if strings.Contains(freshRawStr, f) {
-			t.Fatalf("Didn't expected %s in fresh\n%s", f, freshRawStr)
+		// change the fields
+		record.Id = "changed"
+		record.Set("name", "name_new")
+		record.Set("custom", "test_custom")
+		record.SetRaw("created", autodateTest)
+		record.SetExpand(map[string]any{"test": 123})
+		record.IgnoreEmailVisibility(true)
+		record.IgnoreUnchangedFields(true)
+		record.WithCustomData(true)
+		record.Unhide(record.Collection().Fields.FieldNames()...)
+
+		// ensure that the email visibility and the custom data toggles are active
+		raw, err := record.MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
+		rawStr := string(raw)
+		for _, f := range extraFieldsCheck {
+			if !strings.Contains(rawStr, f) {
+				t.Fatalf("Expected %s in\n%s", f, rawStr)
+			}
+		}
+
+		// check changes
+		if v := record.GetString("name"); v != "name_new" {
+			t.Fatalf("Expected name to be %q, got %q", "name_new", v)
+		}
+		if v := record.GetDateTime("created").String(); v != autodateTest.String() {
+			t.Fatalf("Expected created to be %q, got %q", autodateTest.String(), v)
+		}
+		if v := record.GetString("custom"); v != "test_custom" {
+			t.Fatalf("Expected custom to be %q, got %q", "test_custom", v)
+		}
+
+		// check fresh
+		if v := record.Fresh().LastSavedPK(); v != originalId {
+			t.Fatalf("Expected the fresh LastSavedPK to be %q, got %q", originalId, v)
+		}
+		if v := record.Fresh().PK(); v != record.Id {
+			t.Fatalf("Expected the fresh PK to be %q, got %q", record.Id, v)
+		}
+		if v := record.Fresh().Id; v != record.Id {
+			t.Fatalf("Expected the fresh id to be %q, got %q", record.Id, v)
+		}
+		if v := record.Fresh().GetString("name"); v != record.GetString("name") {
+			t.Fatalf("Expected the fresh name to be %q, got %q", record.GetString("name"), v)
+		}
+		if v := record.Fresh().GetDateTime("created").String(); v != autodateTest.String() {
+			t.Fatalf("Expected the fresh created to be %q, got %q", autodateTest.String(), v)
+		}
+		if v := record.Fresh().GetDateTime("updated").String(); v != record.GetDateTime("updated").String() {
+			t.Fatalf("Expected the fresh updated to be %q, got %q", record.GetDateTime("updated").String(), v)
+		}
+		if v := record.Fresh().GetString("custom"); v != "" {
+			t.Fatalf("Expected the fresh custom to be %q, got %q", "", v)
+		}
+		if v := record.Fresh().Expand(); len(v) != 0 {
+			t.Fatalf("Expected empty fresh expand, got\n%v", v)
+		}
+
+		// ensure that the email visibility and the custom flag toggles weren't copied
+		freshRaw, err := record.Fresh().MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		freshRawStr := string(freshRaw)
+		for _, f := range extraFieldsCheck {
+			if strings.Contains(freshRawStr, f) {
+				t.Fatalf("Didn't expected %s in fresh\n%s", f, freshRawStr)
+			}
+		}
+	})
 }
 
 func TestRecordClone(t *testing.T) {
-	t.Parallel()
-
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	record, err := app.FindAuthRecordByEmail("users", "test@example.com")
-	if err != nil {
-		t.Fatal(err)
-	}
-	originalId := record.Id
-
-	extraFieldsCheck := []string{`"email":`, `"custom":`}
-
-	autodateTest := types.NowDateTime()
-
-	// change the fields
-	record.Id = "changed"
-	record.Set("name", "name_new")
-	record.Set("custom", "test_custom")
-	record.SetRaw("created", autodateTest)
-	record.SetExpand(map[string]any{"test": 123})
-	record.IgnoreEmailVisibility(true)
-	record.WithCustomData(true)
-	record.Unhide(record.Collection().Fields.FieldNames()...)
-
-	// ensure that the email visibility and the custom data toggles are active
-	raw, err := record.MarshalJSON()
-	if err != nil {
-		t.Fatal(err)
-	}
-	rawStr := string(raw)
-	for _, f := range extraFieldsCheck {
-		if !strings.Contains(rawStr, f) {
-			t.Fatalf("Expected %s in\n%s", f, rawStr)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		record, err := app.FindAuthRecordByEmail("users", "test@example.com")
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
+		originalId := record.Id
 
-	// check changes
-	if v := record.GetString("name"); v != "name_new" {
-		t.Fatalf("Expected name to be %q, got %q", "name_new", v)
-	}
-	if v := record.GetDateTime("created").String(); v != autodateTest.String() {
-		t.Fatalf("Expected created to be %q, got %q", autodateTest.String(), v)
-	}
-	if v := record.GetString("custom"); v != "test_custom" {
-		t.Fatalf("Expected custom to be %q, got %q", "test_custom", v)
-	}
+		extraFieldsCheck := []string{`"email":`, `"custom":`}
 
-	// check clone
-	if v := record.Clone().LastSavedPK(); v != originalId {
-		t.Fatalf("Expected the clone LastSavedPK to be %q, got %q", originalId, v)
-	}
-	if v := record.Clone().PK(); v != record.Id {
-		t.Fatalf("Expected the clone PK to be %q, got %q", record.Id, v)
-	}
-	if v := record.Clone().Id; v != record.Id {
-		t.Fatalf("Expected the clone id to be %q, got %q", record.Id, v)
-	}
-	if v := record.Clone().GetString("name"); v != record.GetString("name") {
-		t.Fatalf("Expected the clone name to be %q, got %q", record.GetString("name"), v)
-	}
-	if v := record.Clone().GetDateTime("created").String(); v != autodateTest.String() {
-		t.Fatalf("Expected the clone created to be %q, got %q", autodateTest.String(), v)
-	}
-	if v := record.Clone().GetDateTime("updated").String(); v != record.GetDateTime("updated").String() {
-		t.Fatalf("Expected the clone updated to be %q, got %q", record.GetDateTime("updated").String(), v)
-	}
-	if v := record.Clone().GetString("custom"); v != "test_custom" {
-		t.Fatalf("Expected the clone custom to be %q, got %q", "test_custom", v)
-	}
-	if _, ok := record.Clone().Expand()["test"]; !ok {
-		t.Fatalf("Expected non-empty clone expand")
-	}
+		autodateTest := types.NowDateTime()
 
-	// ensure that the email visibility and the custom data toggles state were copied
-	cloneRaw, err := record.Clone().MarshalJSON()
-	if err != nil {
-		t.Fatal(err)
-	}
-	cloneRawStr := string(cloneRaw)
-	for _, f := range extraFieldsCheck {
-		if !strings.Contains(cloneRawStr, f) {
-			t.Fatalf("Expected %s in clone\n%s", f, cloneRawStr)
+		// change the fields
+		record.Id = "changed"
+		record.Set("name", "name_new")
+		record.Set("custom", "test_custom")
+		record.SetRaw("created", autodateTest)
+		record.SetExpand(map[string]any{"test": 123})
+		record.IgnoreEmailVisibility(true)
+		record.WithCustomData(true)
+		record.Unhide(record.Collection().Fields.FieldNames()...)
+
+		// ensure that the email visibility and the custom data toggles are active
+		raw, err := record.MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
 		}
-	}
+		rawStr := string(raw)
+		for _, f := range extraFieldsCheck {
+			if !strings.Contains(rawStr, f) {
+				t.Fatalf("Expected %s in\n%s", f, rawStr)
+			}
+		}
+
+		// check changes
+		if v := record.GetString("name"); v != "name_new" {
+			t.Fatalf("Expected name to be %q, got %q", "name_new", v)
+		}
+		if v := record.GetDateTime("created").String(); v != autodateTest.String() {
+			t.Fatalf("Expected created to be %q, got %q", autodateTest.String(), v)
+		}
+		if v := record.GetString("custom"); v != "test_custom" {
+			t.Fatalf("Expected custom to be %q, got %q", "test_custom", v)
+		}
+
+		// check clone
+		if v := record.Clone().LastSavedPK(); v != originalId {
+			t.Fatalf("Expected the clone LastSavedPK to be %q, got %q", originalId, v)
+		}
+		if v := record.Clone().PK(); v != record.Id {
+			t.Fatalf("Expected the clone PK to be %q, got %q", record.Id, v)
+		}
+		if v := record.Clone().Id; v != record.Id {
+			t.Fatalf("Expected the clone id to be %q, got %q", record.Id, v)
+		}
+		if v := record.Clone().GetString("name"); v != record.GetString("name") {
+			t.Fatalf("Expected the clone name to be %q, got %q", record.GetString("name"), v)
+		}
+		if v := record.Clone().GetDateTime("created").String(); v != autodateTest.String() {
+			t.Fatalf("Expected the clone created to be %q, got %q", autodateTest.String(), v)
+		}
+		if v := record.Clone().GetDateTime("updated").String(); v != record.GetDateTime("updated").String() {
+			t.Fatalf("Expected the clone updated to be %q, got %q", record.GetDateTime("updated").String(), v)
+		}
+		if v := record.Clone().GetString("custom"); v != "test_custom" {
+			t.Fatalf("Expected the clone custom to be %q, got %q", "test_custom", v)
+		}
+		if _, ok := record.Clone().Expand()["test"]; !ok {
+			t.Fatalf("Expected non-empty clone expand")
+		}
+
+		// ensure that the email visibility and the custom data toggles state were copied
+		cloneRaw, err := record.Clone().MarshalJSON()
+		if err != nil {
+			t.Fatal(err)
+		}
+		cloneRawStr := string(cloneRaw)
+		for _, f := range extraFieldsCheck {
+			if !strings.Contains(cloneRawStr, f) {
+				t.Fatalf("Expected %s in clone\n%s", f, cloneRawStr)
+			}
+		}
+	})
 }
 
 func TestRecordExpand(t *testing.T) {
@@ -1054,33 +1045,29 @@ func TestRecordGetGeoPoint(t *testing.T) {
 }
 
 func TestRecordGetUnsavedFiles(t *testing.T) {
-	t.Parallel()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		f1, err := filesystem.NewFileFromBytes([]byte("test"), "f1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		f1.Name = "f1"
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+		f2, err := filesystem.NewFileFromBytes([]byte("test"), "f2")
+		if err != nil {
+			t.Fatal(err)
+		}
+		f2.Name = "f2"
 
-	f1, err := filesystem.NewFileFromBytes([]byte("test"), "f1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	f1.Name = "f1"
+		record, err := app.FindRecordById("demo3", "lcl9d87w22ml6jy")
+		if err != nil {
+			t.Fatal(err)
+		}
+		record.Set("files+", []any{f1, f2})
 
-	f2, err := filesystem.NewFileFromBytes([]byte("test"), "f2")
-	if err != nil {
-		t.Fatal(err)
-	}
-	f2.Name = "f2"
-
-	record, err := app.FindRecordById("demo3", "lcl9d87w22ml6jy")
-	if err != nil {
-		t.Fatal(err)
-	}
-	record.Set("files+", []any{f1, f2})
-
-	scenarios := []struct {
-		key      string
-		expected string
-	}{
+		scenarios := []struct {
+			key      string
+			expected string
+		}{
 		{
 			"",
 			"null",
@@ -1114,6 +1101,7 @@ func TestRecordGetUnsavedFiles(t *testing.T) {
 			}
 		})
 	}
+	})
 }
 
 func TestRecordUnmarshalJSONField(t *testing.T) {
@@ -1215,21 +1203,17 @@ func TestRecordFindFileFieldByFile(t *testing.T) {
 }
 
 func TestRecordDBExport(t *testing.T) {
-	t.Parallel()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		f1 := &core.TextField{Name: "field1"}
+		f2 := &core.FileField{Name: "field2", MaxSelect: 1, MaxSize: 1}
+		f3 := &core.SelectField{Name: "field3", MaxSelect: 2, Values: []string{"test1", "test2", "test3"}}
+		f4 := &core.RelationField{Name: "field4", MaxSelect: 2}
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+		colBase := core.NewBaseCollection("test_base")
+		colBase.Fields.Add(f1, f2, f3, f4)
 
-	f1 := &core.TextField{Name: "field1"}
-	f2 := &core.FileField{Name: "field2", MaxSelect: 1, MaxSize: 1}
-	f3 := &core.SelectField{Name: "field3", MaxSelect: 2, Values: []string{"test1", "test2", "test3"}}
-	f4 := &core.RelationField{Name: "field4", MaxSelect: 2}
-
-	colBase := core.NewBaseCollection("test_base")
-	colBase.Fields.Add(f1, f2, f3, f4)
-
-	colAuth := core.NewAuthCollection("test_auth")
-	colAuth.Fields.Add(f1, f2, f3, f4)
+		colAuth := core.NewAuthCollection("test_auth")
+		colAuth.Fields.Add(f1, f2, f3, f4)
 
 	scenarios := []struct {
 		collection *core.Collection
@@ -1289,80 +1273,78 @@ func TestRecordDBExport(t *testing.T) {
 			}
 		})
 	}
+	})
 }
 
 func TestRecordIgnoreUnchangedFields(t *testing.T) {
-	t.Parallel()
-
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	col, err := app.FindCollectionByNameOrId("demo3")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	new := core.NewRecord(col)
-
-	existing, err := app.FindRecordById(col, "mk5fmymtx4wsprk")
-	if err != nil {
-		t.Fatal(err)
-	}
-	existing.Set("title", "test_new")
-	existing.Set("files", existing.Get("files")) // no change
-
-	scenarios := []struct {
-		ignoreUnchangedFields bool
-		record                *core.Record
-		expected              []string
-	}{
-		{
-			false,
-			new,
-			[]string{"id", "created", "updated", "title", "files"},
-		},
-		{
-			true,
-			new,
-			[]string{"id", "created", "updated", "title", "files"},
-		},
-		{
-			false,
-			existing,
-			[]string{"id", "created", "updated", "title", "files"},
-		},
-		{
-			true,
-			existing,
-			[]string{"id", "title"},
-		},
-	}
-
-	for i, s := range scenarios {
-		action := "create"
-		if !s.record.IsNew() {
-			action = "update"
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		col, err := app.FindCollectionByNameOrId("demo3")
+		if err != nil {
+			t.Fatal(err)
 		}
 
-		t.Run(fmt.Sprintf("%d_%s_%v", i, action, s.ignoreUnchangedFields), func(t *testing.T) {
-			s.record.IgnoreUnchangedFields(s.ignoreUnchangedFields)
+		new := core.NewRecord(col)
 
-			result, err := s.record.DBExport(app)
-			if err != nil {
-				t.Fatal(err)
+		existing, err := app.FindRecordById(col, "mk5fmymtx4wsprk")
+		if err != nil {
+			t.Fatal(err)
+		}
+		existing.Set("title", "test_new")
+		existing.Set("files", existing.Get("files")) // no change
+
+		scenarios := []struct {
+			ignoreUnchangedFields bool
+			record                *core.Record
+			expected              []string
+		}{
+			{
+				false,
+				new,
+				[]string{"id", "created", "updated", "title", "files"},
+			},
+			{
+				true,
+				new,
+				[]string{"id", "created", "updated", "title", "files"},
+			},
+			{
+				false,
+				existing,
+				[]string{"id", "created", "updated", "title", "files"},
+			},
+			{
+				true,
+				existing,
+				[]string{"id", "title"},
+			},
+		}
+
+		for i, s := range scenarios {
+			action := "create"
+			if !s.record.IsNew() {
+				action = "update"
 			}
 
-			if len(result) != len(s.expected) {
-				t.Fatalf("Expected %d keys, got %d:\n%v", len(s.expected), len(result), result)
-			}
+			t.Run(fmt.Sprintf("%d_%s_%v", i, action, s.ignoreUnchangedFields), func(t *testing.T) {
+				s.record.IgnoreUnchangedFields(s.ignoreUnchangedFields)
 
-			for _, key := range s.expected {
-				if _, ok := result[key]; !ok {
-					t.Fatalf("Missing expected key %q in\n%v", key, result)
+				result, err := s.record.DBExport(app)
+				if err != nil {
+					t.Fatal(err)
 				}
-			}
-		})
-	}
+
+				if len(result) != len(s.expected) {
+					t.Fatalf("Expected %d keys, got %d:\n%v", len(s.expected), len(result), result)
+				}
+
+				for _, key := range s.expected {
+					if _, ok := result[key]; !ok {
+						t.Fatalf("Missing expected key %q in\n%v", key, result)
+					}
+				}
+			})
+		}
+	})
 }
 
 func TestRecordPublicExportAndMarshalJSON(t *testing.T) {
@@ -1623,20 +1605,16 @@ func TestRecordReplaceModifiers(t *testing.T) {
 }
 
 func TestRecordValidate(t *testing.T) {
-	t.Parallel()
-
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	// dummy collection to ensure that the specified field validators are triggered
-	collection := core.NewBaseCollection("validate_test")
-	collection.Fields.Add(
-		&core.TextField{Name: "f1", Min: 3},
-		&core.NumberField{Name: "f2", Required: true},
-	)
-	if err := app.Save(collection); err != nil {
-		t.Fatal(err)
-	}
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		// dummy collection to ensure that the specified field validators are triggered
+		collection := core.NewBaseCollection("validate_test")
+		collection.Fields.Add(
+			&core.TextField{Name: "f1", Min: 3},
+			&core.NumberField{Name: "f2", Required: true},
+		)
+		if err := app.Save(collection); err != nil {
+			t.Fatal(err)
+		}
 
 	record := core.NewRecord(collection)
 	record.Id = "!invalid"
@@ -1656,288 +1634,286 @@ func TestRecordValidate(t *testing.T) {
 		record.Set("f2", 1)
 		tests.TestValidationErrors(t, app.Validate(record), nil)
 	})
+	})
 }
 
 func TestRecordModelEventSync(t *testing.T) {
-	t.Parallel()
-
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	col, err := app.FindCollectionByNameOrId("demo3")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	testRecords := make([]*core.Record, 4)
-	for i := 0; i < 4; i++ {
-		testRecords[i] = core.NewRecord(col)
-		testRecords[i].Set("title", "sync_test_"+strconv.Itoa(i))
-		if err := app.Save(testRecords[i]); err != nil {
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		col, err := app.FindCollectionByNameOrId("demo3")
+		if err != nil {
 			t.Fatal(err)
 		}
-	}
 
-	createModelEvent := func() *core.ModelEvent {
-		event := new(core.ModelEvent)
-		event.App = app
-		event.Context = context.Background()
-		event.Type = "test_a"
-		event.Model = testRecords[0]
-		return event
-	}
-
-	createModelErrorEvent := func() *core.ModelErrorEvent {
-		event := new(core.ModelErrorEvent)
-		event.ModelEvent = *createModelEvent()
-		event.Error = errors.New("error_a")
-		return event
-	}
-
-	changeRecordEventBefore := func(e *core.RecordEvent) {
-		e.Type = "test_b"
-		//nolint:staticcheck
-		e.Context = context.WithValue(context.Background(), "test", 123)
-		e.Record = testRecords[1]
-	}
-
-	modelEventFinalizerChange := func(e *core.ModelEvent) {
-		e.Type = "test_c"
-		//nolint:staticcheck
-		e.Context = context.WithValue(context.Background(), "test", 456)
-		e.Model = testRecords[2]
-	}
-
-	changeRecordEventAfter := func(e *core.RecordEvent) {
-		e.Type = "test_d"
-		//nolint:staticcheck
-		e.Context = context.WithValue(context.Background(), "test", 789)
-		e.Record = testRecords[3]
-	}
-
-	expectedBeforeModelEventHandlerChecks := func(t *testing.T, e *core.ModelEvent) {
-		if e.Type != "test_a" {
-			t.Fatalf("Expected type %q, got %q", "test_a", e.Type)
+		testRecords := make([]*core.Record, 4)
+		for i := 0; i < 4; i++ {
+			testRecords[i] = core.NewRecord(col)
+			testRecords[i].Set("title", "sync_test_"+strconv.Itoa(i))
+			if err := app.Save(testRecords[i]); err != nil {
+				t.Fatal(err)
+			}
 		}
 
-		if v := e.Context.Value("test"); v != nil {
-			t.Fatalf("Expected context value %v, got %v", nil, v)
+		createModelEvent := func() *core.ModelEvent {
+			event := new(core.ModelEvent)
+			event.App = app
+			event.Context = context.Background()
+			event.Type = "test_a"
+			event.Model = testRecords[0]
+			return event
 		}
 
-		if e.Model.PK() != testRecords[0].Id {
-			t.Fatalf("Expected record with id %q, got %q (%d)", testRecords[0].Id, e.Model.PK(), 0)
-		}
-	}
-
-	expectedAfterModelEventHandlerChecks := func(t *testing.T, e *core.ModelEvent) {
-		if e.Type != "test_d" {
-			t.Fatalf("Expected type %q, got %q", "test_d", e.Type)
+		createModelErrorEvent := func() *core.ModelErrorEvent {
+			event := new(core.ModelErrorEvent)
+			event.ModelEvent = *createModelEvent()
+			event.Error = errors.New("error_a")
+			return event
 		}
 
-		if v := e.Context.Value("test"); v != 789 {
-			t.Fatalf("Expected context value %v, got %v", 789, v)
+		changeRecordEventBefore := func(e *core.RecordEvent) {
+			e.Type = "test_b"
+			//nolint:staticcheck
+			e.Context = context.WithValue(context.Background(), "test", 123)
+			e.Record = testRecords[1]
 		}
 
-		// note: currently the Model and Record values are not synced due to performance consideration
-		if e.Model.PK() != testRecords[2].Id {
-			t.Fatalf("Expected record with id %q, got %q (%d)", testRecords[2].Id, e.Model.PK(), 2)
-		}
-	}
-
-	expectedBeforeRecordEventHandlerChecks := func(t *testing.T, e *core.RecordEvent) {
-		if e.Type != "test_a" {
-			t.Fatalf("Expected type %q, got %q", "test_a", e.Type)
+		modelEventFinalizerChange := func(e *core.ModelEvent) {
+			e.Type = "test_c"
+			//nolint:staticcheck
+			e.Context = context.WithValue(context.Background(), "test", 456)
+			e.Model = testRecords[2]
 		}
 
-		if v := e.Context.Value("test"); v != nil {
-			t.Fatalf("Expected context value %v, got %v", nil, v)
+		changeRecordEventAfter := func(e *core.RecordEvent) {
+			e.Type = "test_d"
+			//nolint:staticcheck
+			e.Context = context.WithValue(context.Background(), "test", 789)
+			e.Record = testRecords[3]
 		}
 
-		if e.Record.Id != testRecords[0].Id {
-			t.Fatalf("Expected record with id %q, got %q (%d)", testRecords[0].Id, e.Record.Id, 2)
+		expectedBeforeModelEventHandlerChecks := func(t *testing.T, e *core.ModelEvent) {
+			if e.Type != "test_a" {
+				t.Fatalf("Expected type %q, got %q", "test_a", e.Type)
+			}
+
+			if v := e.Context.Value("test"); v != nil {
+				t.Fatalf("Expected context value %v, got %v", nil, v)
+			}
+
+			if e.Model.PK() != testRecords[0].Id {
+				t.Fatalf("Expected record with id %q, got %q (%d)", testRecords[0].Id, e.Model.PK(), 0)
+			}
 		}
-	}
 
-	expectedAfterRecordEventHandlerChecks := func(t *testing.T, e *core.RecordEvent) {
-		if e.Type != "test_c" {
-			t.Fatalf("Expected type %q, got %q", "test_c", e.Type)
+		expectedAfterModelEventHandlerChecks := func(t *testing.T, e *core.ModelEvent) {
+			if e.Type != "test_d" {
+				t.Fatalf("Expected type %q, got %q", "test_d", e.Type)
+			}
+
+			if v := e.Context.Value("test"); v != 789 {
+				t.Fatalf("Expected context value %v, got %v", 789, v)
+			}
+
+			// note: currently the Model and Record values are not synced due to performance consideration
+			if e.Model.PK() != testRecords[2].Id {
+				t.Fatalf("Expected record with id %q, got %q (%d)", testRecords[2].Id, e.Model.PK(), 2)
+			}
 		}
 
-		if v := e.Context.Value("test"); v != 456 {
-			t.Fatalf("Expected context value %v, got %v", 456, v)
+		expectedBeforeRecordEventHandlerChecks := func(t *testing.T, e *core.RecordEvent) {
+			if e.Type != "test_a" {
+				t.Fatalf("Expected type %q, got %q", "test_a", e.Type)
+			}
+
+			if v := e.Context.Value("test"); v != nil {
+				t.Fatalf("Expected context value %v, got %v", nil, v)
+			}
+
+			if e.Record.Id != testRecords[0].Id {
+				t.Fatalf("Expected record with id %q, got %q (%d)", testRecords[0].Id, e.Record.Id, 2)
+			}
 		}
 
-		// note: currently the Model and Record values are not synced due to performance consideration
-		if e.Record.Id != testRecords[1].Id {
-			t.Fatalf("Expected record with id %q, got %q (%d)", testRecords[1].Id, e.Record.Id, 1)
+		expectedAfterRecordEventHandlerChecks := func(t *testing.T, e *core.RecordEvent) {
+			if e.Type != "test_c" {
+				t.Fatalf("Expected type %q, got %q", "test_c", e.Type)
+			}
+
+			if v := e.Context.Value("test"); v != 456 {
+				t.Fatalf("Expected context value %v, got %v", 456, v)
+			}
+
+			// note: currently the Model and Record values are not synced due to performance consideration
+			if e.Record.Id != testRecords[1].Id {
+				t.Fatalf("Expected record with id %q, got %q (%d)", testRecords[1].Id, e.Record.Id, 1)
+			}
 		}
-	}
 
-	modelEventFinalizer := func(e *core.ModelEvent) error {
-		modelEventFinalizerChange(e)
-		return nil
-	}
-
-	modelErrorEventFinalizer := func(e *core.ModelErrorEvent) error {
-		modelEventFinalizerChange(&e.ModelEvent)
-		e.Error = errors.New("error_c")
-		return nil
-	}
-
-	modelEventHandler := &hook.Handler[*core.ModelEvent]{
-		Priority: -999,
-		Func: func(e *core.ModelEvent) error {
-			t.Run("before model", func(t *testing.T) {
-				expectedBeforeModelEventHandlerChecks(t, e)
-			})
-
-			_ = e.Next()
-
-			t.Run("after model", func(t *testing.T) {
-				expectedAfterModelEventHandlerChecks(t, e)
-			})
-
+		modelEventFinalizer := func(e *core.ModelEvent) error {
+			modelEventFinalizerChange(e)
 			return nil
-		},
-	}
+		}
 
-	modelErrorEventHandler := &hook.Handler[*core.ModelErrorEvent]{
-		Priority: -999,
-		Func: func(e *core.ModelErrorEvent) error {
-			t.Run("before model error", func(t *testing.T) {
-				expectedBeforeModelEventHandlerChecks(t, &e.ModelEvent)
-				if v := e.Error.Error(); v != "error_a" {
-					t.Fatalf("Expected error %q, got %q", "error_a", v)
-				}
-			})
-
-			_ = e.Next()
-
-			t.Run("after model error", func(t *testing.T) {
-				expectedAfterModelEventHandlerChecks(t, &e.ModelEvent)
-				if v := e.Error.Error(); v != "error_d" {
-					t.Fatalf("Expected error %q, got %q", "error_d", v)
-				}
-			})
-
+		modelErrorEventFinalizer := func(e *core.ModelErrorEvent) error {
+			modelEventFinalizerChange(&e.ModelEvent)
+			e.Error = errors.New("error_c")
 			return nil
-		},
-	}
+		}
 
-	recordEventHandler := &hook.Handler[*core.RecordEvent]{
-		Priority: -999,
-		Func: func(e *core.RecordEvent) error {
-			t.Run("before record", func(t *testing.T) {
-				expectedBeforeRecordEventHandlerChecks(t, e)
-			})
+		modelEventHandler := &hook.Handler[*core.ModelEvent]{
+			Priority: -999,
+			Func: func(e *core.ModelEvent) error {
+				t.Run("before model", func(t *testing.T) {
+					expectedBeforeModelEventHandlerChecks(t, e)
+				})
 
-			changeRecordEventBefore(e)
+				_ = e.Next()
 
-			_ = e.Next()
+				t.Run("after model", func(t *testing.T) {
+					expectedAfterModelEventHandlerChecks(t, e)
+				})
 
-			t.Run("after record", func(t *testing.T) {
-				expectedAfterRecordEventHandlerChecks(t, e)
-			})
+				return nil
+			},
+		}
 
-			changeRecordEventAfter(e)
+		modelErrorEventHandler := &hook.Handler[*core.ModelErrorEvent]{
+			Priority: -999,
+			Func: func(e *core.ModelErrorEvent) error {
+				t.Run("before model error", func(t *testing.T) {
+					expectedBeforeModelEventHandlerChecks(t, &e.ModelEvent)
+					if v := e.Error.Error(); v != "error_a" {
+						t.Fatalf("Expected error %q, got %q", "error_a", v)
+					}
+				})
 
-			return nil
-		},
-	}
+				_ = e.Next()
 
-	recordErrorEventHandler := &hook.Handler[*core.RecordErrorEvent]{
-		Priority: -999,
-		Func: func(e *core.RecordErrorEvent) error {
-			t.Run("before record error", func(t *testing.T) {
-				expectedBeforeRecordEventHandlerChecks(t, &e.RecordEvent)
-				if v := e.Error.Error(); v != "error_a" {
-					t.Fatalf("Expected error %q, got %q", "error_c", v)
-				}
-			})
+				t.Run("after model error", func(t *testing.T) {
+					expectedAfterModelEventHandlerChecks(t, &e.ModelEvent)
+					if v := e.Error.Error(); v != "error_d" {
+						t.Fatalf("Expected error %q, got %q", "error_d", v)
+					}
+				})
 
-			changeRecordEventBefore(&e.RecordEvent)
-			e.Error = errors.New("error_b")
+				return nil
+			},
+		}
 
-			_ = e.Next()
+		recordEventHandler := &hook.Handler[*core.RecordEvent]{
+			Priority: -999,
+			Func: func(e *core.RecordEvent) error {
+				t.Run("before record", func(t *testing.T) {
+					expectedBeforeRecordEventHandlerChecks(t, e)
+				})
 
-			t.Run("after record error", func(t *testing.T) {
-				expectedAfterRecordEventHandlerChecks(t, &e.RecordEvent)
-				if v := e.Error.Error(); v != "error_c" {
-					t.Fatalf("Expected error %q, got %q", "error_c", v)
-				}
-			})
+				changeRecordEventBefore(e)
 
-			changeRecordEventAfter(&e.RecordEvent)
-			e.Error = errors.New("error_d")
+				_ = e.Next()
 
-			return nil
-		},
-	}
+				t.Run("after record", func(t *testing.T) {
+					expectedAfterRecordEventHandlerChecks(t, e)
+				})
 
-	// OnModelValidate
-	app.OnRecordValidate().Bind(recordEventHandler)
-	app.OnModelValidate().Bind(modelEventHandler)
-	app.OnModelValidate().Trigger(createModelEvent(), modelEventFinalizer)
+				changeRecordEventAfter(e)
 
-	// OnModelCreate
-	app.OnRecordCreate().Bind(recordEventHandler)
-	app.OnModelCreate().Bind(modelEventHandler)
-	app.OnModelCreate().Trigger(createModelEvent(), modelEventFinalizer)
+				return nil
+			},
+		}
 
-	// OnModelCreateExecute
-	app.OnRecordCreateExecute().Bind(recordEventHandler)
-	app.OnModelCreateExecute().Bind(modelEventHandler)
-	app.OnModelCreateExecute().Trigger(createModelEvent(), modelEventFinalizer)
+		recordErrorEventHandler := &hook.Handler[*core.RecordErrorEvent]{
+			Priority: -999,
+			Func: func(e *core.RecordErrorEvent) error {
+				t.Run("before record error", func(t *testing.T) {
+					expectedBeforeRecordEventHandlerChecks(t, &e.RecordEvent)
+					if v := e.Error.Error(); v != "error_a" {
+						t.Fatalf("Expected error %q, got %q", "error_c", v)
+					}
+				})
 
-	// OnModelAfterCreateSuccess
-	app.OnRecordAfterCreateSuccess().Bind(recordEventHandler)
-	app.OnModelAfterCreateSuccess().Bind(modelEventHandler)
-	app.OnModelAfterCreateSuccess().Trigger(createModelEvent(), modelEventFinalizer)
+				changeRecordEventBefore(&e.RecordEvent)
+				e.Error = errors.New("error_b")
 
-	// OnModelAfterCreateError
-	app.OnRecordAfterCreateError().Bind(recordErrorEventHandler)
-	app.OnModelAfterCreateError().Bind(modelErrorEventHandler)
-	app.OnModelAfterCreateError().Trigger(createModelErrorEvent(), modelErrorEventFinalizer)
+				_ = e.Next()
 
-	// OnModelUpdate
-	app.OnRecordUpdate().Bind(recordEventHandler)
-	app.OnModelUpdate().Bind(modelEventHandler)
-	app.OnModelUpdate().Trigger(createModelEvent(), modelEventFinalizer)
+				t.Run("after record error", func(t *testing.T) {
+					expectedAfterRecordEventHandlerChecks(t, &e.RecordEvent)
+					if v := e.Error.Error(); v != "error_c" {
+						t.Fatalf("Expected error %q, got %q", "error_c", v)
+					}
+				})
 
-	// OnModelUpdateExecute
-	app.OnRecordUpdateExecute().Bind(recordEventHandler)
-	app.OnModelUpdateExecute().Bind(modelEventHandler)
-	app.OnModelUpdateExecute().Trigger(createModelEvent(), modelEventFinalizer)
+				changeRecordEventAfter(&e.RecordEvent)
+				e.Error = errors.New("error_d")
 
-	// OnModelAfterUpdateSuccess
-	app.OnRecordAfterUpdateSuccess().Bind(recordEventHandler)
-	app.OnModelAfterUpdateSuccess().Bind(modelEventHandler)
-	app.OnModelAfterUpdateSuccess().Trigger(createModelEvent(), modelEventFinalizer)
+				return nil
+			},
+		}
 
-	// OnModelAfterUpdateError
-	app.OnRecordAfterUpdateError().Bind(recordErrorEventHandler)
-	app.OnModelAfterUpdateError().Bind(modelErrorEventHandler)
-	app.OnModelAfterUpdateError().Trigger(createModelErrorEvent(), modelErrorEventFinalizer)
+		// OnModelValidate
+		app.OnRecordValidate().Bind(recordEventHandler)
+		app.OnModelValidate().Bind(modelEventHandler)
+		app.OnModelValidate().Trigger(createModelEvent(), modelEventFinalizer)
 
-	// OnModelDelete
-	app.OnRecordDelete().Bind(recordEventHandler)
-	app.OnModelDelete().Bind(modelEventHandler)
-	app.OnModelDelete().Trigger(createModelEvent(), modelEventFinalizer)
+		// OnModelCreate
+		app.OnRecordCreate().Bind(recordEventHandler)
+		app.OnModelCreate().Bind(modelEventHandler)
+		app.OnModelCreate().Trigger(createModelEvent(), modelEventFinalizer)
 
-	// OnModelDeleteExecute
-	app.OnRecordDeleteExecute().Bind(recordEventHandler)
-	app.OnModelDeleteExecute().Bind(modelEventHandler)
-	app.OnModelDeleteExecute().Trigger(createModelEvent(), modelEventFinalizer)
+		// OnModelCreateExecute
+		app.OnRecordCreateExecute().Bind(recordEventHandler)
+		app.OnModelCreateExecute().Bind(modelEventHandler)
+		app.OnModelCreateExecute().Trigger(createModelEvent(), modelEventFinalizer)
 
-	// OnModelAfterDeleteSuccess
-	app.OnRecordAfterDeleteSuccess().Bind(recordEventHandler)
-	app.OnModelAfterDeleteSuccess().Bind(modelEventHandler)
-	app.OnModelAfterDeleteSuccess().Trigger(createModelEvent(), modelEventFinalizer)
+		// OnModelAfterCreateSuccess
+		app.OnRecordAfterCreateSuccess().Bind(recordEventHandler)
+		app.OnModelAfterCreateSuccess().Bind(modelEventHandler)
+		app.OnModelAfterCreateSuccess().Trigger(createModelEvent(), modelEventFinalizer)
 
-	// OnModelAfterDeleteError
-	app.OnRecordAfterDeleteError().Bind(recordErrorEventHandler)
-	app.OnModelAfterDeleteError().Bind(modelErrorEventHandler)
-	app.OnModelAfterDeleteError().Trigger(createModelErrorEvent(), modelErrorEventFinalizer)
+		// OnModelAfterCreateError
+		app.OnRecordAfterCreateError().Bind(recordErrorEventHandler)
+		app.OnModelAfterCreateError().Bind(modelErrorEventHandler)
+		app.OnModelAfterCreateError().Trigger(createModelErrorEvent(), modelErrorEventFinalizer)
+
+		// OnModelUpdate
+		app.OnRecordUpdate().Bind(recordEventHandler)
+		app.OnModelUpdate().Bind(modelEventHandler)
+		app.OnModelUpdate().Trigger(createModelEvent(), modelEventFinalizer)
+
+		// OnModelUpdateExecute
+		app.OnRecordUpdateExecute().Bind(recordEventHandler)
+		app.OnModelUpdateExecute().Bind(modelEventHandler)
+		app.OnModelUpdateExecute().Trigger(createModelEvent(), modelEventFinalizer)
+
+		// OnModelAfterUpdateSuccess
+		app.OnRecordAfterUpdateSuccess().Bind(recordEventHandler)
+		app.OnModelAfterUpdateSuccess().Bind(modelEventHandler)
+		app.OnModelAfterUpdateSuccess().Trigger(createModelEvent(), modelEventFinalizer)
+
+		// OnModelAfterUpdateError
+		app.OnRecordAfterUpdateError().Bind(recordErrorEventHandler)
+		app.OnModelAfterUpdateError().Bind(modelErrorEventHandler)
+		app.OnModelAfterUpdateError().Trigger(createModelErrorEvent(), modelErrorEventFinalizer)
+
+		// OnModelDelete
+		app.OnRecordDelete().Bind(recordEventHandler)
+		app.OnModelDelete().Bind(modelEventHandler)
+		app.OnModelDelete().Trigger(createModelEvent(), modelEventFinalizer)
+
+		// OnModelDeleteExecute
+		app.OnRecordDeleteExecute().Bind(recordEventHandler)
+		app.OnModelDeleteExecute().Bind(modelEventHandler)
+		app.OnModelDeleteExecute().Trigger(createModelEvent(), modelEventFinalizer)
+
+		// OnModelAfterDeleteSuccess
+		app.OnRecordAfterDeleteSuccess().Bind(recordEventHandler)
+		app.OnModelAfterDeleteSuccess().Bind(modelEventHandler)
+		app.OnModelAfterDeleteSuccess().Trigger(createModelEvent(), modelEventFinalizer)
+
+		// OnModelAfterDeleteError
+		app.OnRecordAfterDeleteError().Bind(recordErrorEventHandler)
+		app.OnModelAfterDeleteError().Bind(modelErrorEventHandler)
+		app.OnModelAfterDeleteError().Trigger(createModelErrorEvent(), modelErrorEventFinalizer)
+	})
 }
 
 func TestRecordSave(t *testing.T) {
@@ -2033,10 +2009,7 @@ func TestRecordSave(t *testing.T) {
 	}
 
 	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			app, _ := tests.NewTestApp()
-			defer app.Cleanup()
-
+		tests.RunWithBothDBs(t, s.name, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
 			record, err := s.record(app)
 			if err != nil {
 				t.Fatalf("Failed to retrieve test record: %v", err)
@@ -2086,70 +2059,59 @@ func TestRecordSave(t *testing.T) {
 }
 
 func TestRecordSaveIdFromOtherCollection(t *testing.T) {
-	t.Parallel()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		baseCollection, _ := app.FindCollectionByNameOrId("demo2")
+		authCollection, _ := app.FindCollectionByNameOrId("nologin")
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+		// base collection test
+		r1 := core.NewRecord(baseCollection)
+		r1.Set("title", "test_new")
+		r1.Set("id", "mk5fmymtx4wsprk") // existing id of demo3 record
+		if err := app.Save(r1); err != nil {
+			t.Fatalf("Expected nil, got error %v", err)
+		}
 
-	baseCollection, _ := app.FindCollectionByNameOrId("demo2")
-	authCollection, _ := app.FindCollectionByNameOrId("nologin")
+		// auth collection test
+		r2 := core.NewRecord(authCollection)
+		r2.SetEmail("test_new@example.com")
+		r2.SetPassword("1234567890")
+		r2.Set("id", "gk390qegs4y47wn") // existing id of "clients" record
+		if err := app.Save(r2); err == nil {
+			t.Fatal("Expected error, got nil")
+		}
 
-	// base collection test
-	r1 := core.NewRecord(baseCollection)
-	r1.Set("title", "test_new")
-	r1.Set("id", "mk5fmymtx4wsprk") // existing id of demo3 record
-	if err := app.Save(r1); err != nil {
-		t.Fatalf("Expected nil, got error %v", err)
-	}
-
-	// auth collection test
-	r2 := core.NewRecord(authCollection)
-	r2.SetEmail("test_new@example.com")
-	r2.SetPassword("1234567890")
-	r2.Set("id", "gk390qegs4y47wn") // existing id of "clients" record
-	if err := app.Save(r2); err == nil {
-		t.Fatal("Expected error, got nil")
-	}
-
-	// try again with unique id
-	r2.Set("id", strings.Repeat("a", 15))
-	if err := app.Save(r2); err != nil {
-		t.Fatalf("Expected nil, got error %v", err)
-	}
+		// try again with unique id
+		r2.Set("id", strings.Repeat("a", 15))
+		if err := app.Save(r2); err != nil {
+			t.Fatalf("Expected nil, got error %v", err)
+		}
+	})
 }
 
 func TestRecordSaveIdUpdateNoValidation(t *testing.T) {
-	t.Parallel()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		rec, err := app.FindRecordById("demo3", "7nwo8tuiatetxdm")
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+		rec.Id = strings.Repeat("a", 15)
 
-	rec, err := app.FindRecordById("demo3", "7nwo8tuiatetxdm")
-	if err != nil {
-		t.Fatal(err)
-	}
+		err = app.SaveNoValidate(rec)
+		if err == nil {
+			t.Fatal("Expected save to fail, got nil")
+		}
 
-	rec.Id = strings.Repeat("a", 15)
-
-	err = app.SaveNoValidate(rec)
-	if err == nil {
-		t.Fatal("Expected save to fail, got nil")
-	}
-
-	// no changes
-	rec.Load(rec.Original().FieldsData())
-	err = app.SaveNoValidate(rec)
-	if err != nil {
-		t.Fatalf("Expected save to succeed, got error %v", err)
-	}
+		// no changes
+		rec.Load(rec.Original().FieldsData())
+		err = app.SaveNoValidate(rec)
+		if err != nil {
+			t.Fatalf("Expected save to succeed, got error %v", err)
+		}
+	})
 }
 
 func TestRecordSaveWithAutoTokenKeyRefresh(t *testing.T) {
-	t.Parallel()
-
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
 	scenarios := []struct {
 		name           string
 		payload        map[string]any
@@ -2173,7 +2135,7 @@ func TestRecordSaveWithAutoTokenKeyRefresh(t *testing.T) {
 	}
 
 	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
+		tests.RunWithBothDBs(t, s.name, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
 			record, err := app.FindFirstRecordByFilter("nologin", "1=1")
 			if err != nil {
 				t.Fatal(err)
@@ -2200,144 +2162,140 @@ func TestRecordSaveWithAutoTokenKeyRefresh(t *testing.T) {
 }
 
 func TestRecordDelete(t *testing.T) {
-	t.Parallel()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		demoCollection, _ := app.FindCollectionByNameOrId("demo2")
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+		// delete unsaved record
+		// ---
+		newRec := core.NewRecord(demoCollection)
+		if err := app.Delete(newRec); err == nil {
+			t.Fatal("(newRec) Didn't expect to succeed deleting unsaved record")
+		}
 
-	demoCollection, _ := app.FindCollectionByNameOrId("demo2")
+		// delete view record
+		// ---
+		viewRec, _ := app.FindRecordById("view2", "84nmscqy84lsi1t")
+		if err := app.Delete(viewRec); err == nil {
+			t.Fatal("(viewRec) Didn't expect to succeed deleting view record")
+		}
+		// check if it still exists
+		viewRec, _ = app.FindRecordById(viewRec.Collection().Id, viewRec.Id)
+		if viewRec == nil {
+			t.Fatal("(viewRec) Expected view record to still exists")
+		}
 
-	// delete unsaved record
-	// ---
-	newRec := core.NewRecord(demoCollection)
-	if err := app.Delete(newRec); err == nil {
-		t.Fatal("(newRec) Didn't expect to succeed deleting unsaved record")
-	}
+		// delete existing record + external auths
+		// ---
+		rec1, _ := app.FindRecordById("users", "4q1xlclmfloku33")
+		if err := app.Delete(rec1); err != nil {
+			t.Fatalf("(rec1) Expected nil, got error %v", err)
+		}
+		// check if it was really deleted
+		if refreshed, _ := app.FindRecordById(rec1.Collection().Id, rec1.Id); refreshed != nil {
+			t.Fatalf("(rec1) Expected record to be deleted, got %v", refreshed)
+		}
+		// check if the external auths were deleted
+		if auths, _ := app.FindAllExternalAuthsByRecord(rec1); len(auths) > 0 {
+			t.Fatalf("(rec1) Expected external auths to be deleted, got %v", auths)
+		}
 
-	// delete view record
-	// ---
-	viewRec, _ := app.FindRecordById("view2", "84nmscqy84lsi1t")
-	if err := app.Delete(viewRec); err == nil {
-		t.Fatal("(viewRec) Didn't expect to succeed deleting view record")
-	}
-	// check if it still exists
-	viewRec, _ = app.FindRecordById(viewRec.Collection().Id, viewRec.Id)
-	if viewRec == nil {
-		t.Fatal("(viewRec) Expected view record to still exists")
-	}
+		// delete existing record while being part of a non-cascade required relation
+		// ---
+		rec2, _ := app.FindRecordById("demo3", "7nwo8tuiatetxdm")
+		if err := app.Delete(rec2); err == nil {
+			t.Fatalf("(rec2) Expected error, got nil")
+		}
 
-	// delete existing record + external auths
-	// ---
-	rec1, _ := app.FindRecordById("users", "4q1xlclmfloku33")
-	if err := app.Delete(rec1); err != nil {
-		t.Fatalf("(rec1) Expected nil, got error %v", err)
-	}
-	// check if it was really deleted
-	if refreshed, _ := app.FindRecordById(rec1.Collection().Id, rec1.Id); refreshed != nil {
-		t.Fatalf("(rec1) Expected record to be deleted, got %v", refreshed)
-	}
-	// check if the external auths were deleted
-	if auths, _ := app.FindAllExternalAuthsByRecord(rec1); len(auths) > 0 {
-		t.Fatalf("(rec1) Expected external auths to be deleted, got %v", auths)
-	}
-
-	// delete existing record while being part of a non-cascade required relation
-	// ---
-	rec2, _ := app.FindRecordById("demo3", "7nwo8tuiatetxdm")
-	if err := app.Delete(rec2); err == nil {
-		t.Fatalf("(rec2) Expected error, got nil")
-	}
-
-	// delete existing record + cascade
-	// ---
-	calledQueries := []string{}
-	app.NonconcurrentDB().(*dbx.DB).QueryLogFunc = func(ctx context.Context, t time.Duration, sql string, rows *sql.Rows, err error) {
-		calledQueries = append(calledQueries, sql)
-	}
-	app.ConcurrentDB().(*dbx.DB).QueryLogFunc = func(ctx context.Context, t time.Duration, sql string, rows *sql.Rows, err error) {
-		calledQueries = append(calledQueries, sql)
-	}
-	app.NonconcurrentDB().(*dbx.DB).ExecLogFunc = func(ctx context.Context, t time.Duration, sql string, result sql.Result, err error) {
-		calledQueries = append(calledQueries, sql)
-	}
-	app.ConcurrentDB().(*dbx.DB).ExecLogFunc = func(ctx context.Context, t time.Duration, sql string, result sql.Result, err error) {
-		calledQueries = append(calledQueries, sql)
-	}
-	rec3, _ := app.FindRecordById("users", "oap640cot4yru2s")
-	// delete
-	if err := app.Delete(rec3); err != nil {
-		t.Fatalf("(rec3) Expected nil, got error %v", err)
-	}
-	// check if it was really deleted
-	rec3, _ = app.FindRecordById(rec3.Collection().Id, rec3.Id)
-	if rec3 != nil {
-		t.Fatalf("(rec3) Expected record to be deleted, got %v", rec3)
-	}
-	// check if the operation cascaded
-	rel, _ := app.FindRecordById("demo1", "84nmscqy84lsi1t")
-	if rel != nil {
-		t.Fatalf("(rec3) Expected the delete to cascade, found relation %v", rel)
-	}
-	// ensure that the json rel fields were prefixed
-	joinedQueries := strings.Join(calledQueries, " ")
-	expectedRelManyPart := "SELECT `demo1`.* FROM `demo1` WHERE EXISTS (SELECT 1 FROM json_each(CASE WHEN iif(json_valid([[demo1.rel_many]]), json_type([[demo1.rel_many]])='array', FALSE) THEN [[demo1.rel_many]] ELSE json_array([[demo1.rel_many]]) END) {{__je__}} WHERE [[__je__.value]]='"
-	if !strings.Contains(joinedQueries, expectedRelManyPart) {
-		t.Fatalf("(rec3) Expected the cascade delete to call the query \n%v, got \n%v", expectedRelManyPart, calledQueries)
-	}
-	expectedRelOnePart := "SELECT `demo1`.* FROM `demo1` WHERE (`demo1`.`rel_one`='"
-	if !strings.Contains(joinedQueries, expectedRelOnePart) {
-		t.Fatalf("(rec3) Expected the cascade delete to call the query \n%v, got \n%v", expectedRelOnePart, calledQueries)
-	}
+		// delete existing record + cascade
+		// ---
+		calledQueries := []string{}
+		app.NonconcurrentDB().(*dbx.DB).QueryLogFunc = func(ctx context.Context, t time.Duration, sql string, rows *sql.Rows, err error) {
+			calledQueries = append(calledQueries, sql)
+		}
+		app.ConcurrentDB().(*dbx.DB).QueryLogFunc = func(ctx context.Context, t time.Duration, sql string, rows *sql.Rows, err error) {
+			calledQueries = append(calledQueries, sql)
+		}
+		app.NonconcurrentDB().(*dbx.DB).ExecLogFunc = func(ctx context.Context, t time.Duration, sql string, result sql.Result, err error) {
+			calledQueries = append(calledQueries, sql)
+		}
+		app.ConcurrentDB().(*dbx.DB).ExecLogFunc = func(ctx context.Context, t time.Duration, sql string, result sql.Result, err error) {
+			calledQueries = append(calledQueries, sql)
+		}
+		rec3, _ := app.FindRecordById("users", "oap640cot4yru2s")
+		// delete
+		if err := app.Delete(rec3); err != nil {
+			t.Fatalf("(rec3) Expected nil, got error %v", err)
+		}
+		// check if it was really deleted
+		rec3, _ = app.FindRecordById(rec3.Collection().Id, rec3.Id)
+		if rec3 != nil {
+			t.Fatalf("(rec3) Expected record to be deleted, got %v", rec3)
+		}
+		// check if the operation cascaded
+		rel, _ := app.FindRecordById("demo1", "84nmscqy84lsi1t")
+		if rel != nil {
+			t.Fatalf("(rec3) Expected the delete to cascade, found relation %v", rel)
+		}
+		// ensure that the json rel fields were prefixed (SQLite specific check)
+		if dbType == tests.DBTypeSQLite {
+			joinedQueries := strings.Join(calledQueries, " ")
+			expectedRelManyPart := "SELECT `demo1`.* FROM `demo1` WHERE EXISTS (SELECT 1 FROM json_each(CASE WHEN iif(json_valid([[demo1.rel_many]]), json_type([[demo1.rel_many]])='array', FALSE) THEN [[demo1.rel_many]] ELSE json_array([[demo1.rel_many]]) END) {{__je__}} WHERE [[__je__.value]]='"
+			if !strings.Contains(joinedQueries, expectedRelManyPart) {
+				t.Fatalf("(rec3) Expected the cascade delete to call the query \n%v, got \n%v", expectedRelManyPart, calledQueries)
+			}
+			expectedRelOnePart := "SELECT `demo1`.* FROM `demo1` WHERE (`demo1`.`rel_one`='"
+			if !strings.Contains(joinedQueries, expectedRelOnePart) {
+				t.Fatalf("(rec3) Expected the cascade delete to call the query \n%v, got \n%v", expectedRelOnePart, calledQueries)
+			}
+		}
+	})
 }
 
 func TestRecordDeleteBatchProcessing(t *testing.T) {
-	t.Parallel()
-
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	if err := createMockBatchProcessingData(app); err != nil {
-		t.Fatal(err)
-	}
-
-	// find and delete the first c1 record to trigger cascade
-	mainRecord, _ := app.FindRecordById("c1", "a")
-	if err := app.Delete(mainRecord); err != nil {
-		t.Fatal(err)
-	}
-
-	// check if the main record was deleted
-	_, err := app.FindRecordById(mainRecord.Collection().Id, mainRecord.Id)
-	if err == nil {
-		t.Fatal("The main record wasn't deleted")
-	}
-
-	// check if the c1 b rel field were updated
-	c1RecordB, err := app.FindRecordById("c1", "b")
-	if err != nil || c1RecordB.GetString("rel") != "" {
-		t.Fatalf("Expected c1RecordB.rel to be nil, got %v", c1RecordB.GetString("rel"))
-	}
-
-	// check if the c2 rel fields were updated
-	c2Records, err := app.FindAllRecords("c2", nil)
-	if err != nil || len(c2Records) == 0 {
-		t.Fatalf("Failed to fetch c2 records: %v", err)
-	}
-	for _, r := range c2Records {
-		ids := r.GetStringSlice("rel")
-		if len(ids) != 1 || ids[0] != "b" {
-			t.Fatalf("Expected only 'b' rel id, got %v", ids)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		if err := createMockBatchProcessingData(app); err != nil {
+			t.Fatal(err)
 		}
-	}
 
-	// check if all c3 relations were deleted
-	c3Records, err := app.FindAllRecords("c3", nil)
-	if err != nil {
-		t.Fatalf("Failed to fetch c3 records: %v", err)
-	}
-	if total := len(c3Records); total != 0 {
-		t.Fatalf("Expected c3 records to be deleted, found %d", total)
-	}
+		// find and delete the first c1 record to trigger cascade
+		mainRecord, _ := app.FindRecordById("c1", "a")
+		if err := app.Delete(mainRecord); err != nil {
+			t.Fatal(err)
+		}
+
+		// check if the main record was deleted
+		_, err := app.FindRecordById(mainRecord.Collection().Id, mainRecord.Id)
+		if err == nil {
+			t.Fatal("The main record wasn't deleted")
+		}
+
+		// check if the c1 b rel field were updated
+		c1RecordB, err := app.FindRecordById("c1", "b")
+		if err != nil || c1RecordB.GetString("rel") != "" {
+			t.Fatalf("Expected c1RecordB.rel to be nil, got %v", c1RecordB.GetString("rel"))
+		}
+
+		// check if the c2 rel fields were updated
+		c2Records, err := app.FindAllRecords("c2", nil)
+		if err != nil || len(c2Records) == 0 {
+			t.Fatalf("Failed to fetch c2 records: %v", err)
+		}
+		for _, r := range c2Records {
+			ids := r.GetStringSlice("rel")
+			if len(ids) != 1 || ids[0] != "b" {
+				t.Fatalf("Expected only 'b' rel id, got %v", ids)
+			}
+		}
+
+		// check if all c3 relations were deleted
+		c3Records, err := app.FindAllRecords("c3", nil)
+		if err != nil {
+			t.Fatalf("Failed to fetch c3 records: %v", err)
+		}
+		if total := len(c3Records); total != 0 {
+			t.Fatalf("Expected c3 records to be deleted, found %d", total)
+		}
+	})
 }
 
 func createMockBatchProcessingData(app core.App) error {

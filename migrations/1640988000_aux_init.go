@@ -7,38 +7,21 @@ import (
 func init() {
 	core.SystemMigrations.Add(&core.Migration{
 		Up: func(txApp core.App) error {
-			var sql string
-			if txApp.IsPostgres() {
-				sql = `
-					CREATE EXTENSION IF NOT EXISTS pgcrypto;
+			// AuxDB 始终使用 SQLite，即使主数据库使用 PostgreSQL
+			// 因此这里不需要根据 IsPostgres() 区分，始终使用 SQLite 语法
+			sql := `
+				CREATE TABLE IF NOT EXISTS {{_logs}} (
+					[[id]]      TEXT PRIMARY KEY DEFAULT ('r'||lower(hex(randomblob(7)))) NOT NULL,
+					[[level]]   INTEGER DEFAULT 0 NOT NULL,
+					[[message]] TEXT DEFAULT "" NOT NULL,
+					[[data]]    JSON DEFAULT "{}" NOT NULL,
+					[[created]] TEXT DEFAULT (strftime('%Y-%m-%d %H:%M:%fZ')) NOT NULL
+				);
 
-					CREATE TABLE IF NOT EXISTS "_logs" (
-						"id"      TEXT PRIMARY KEY DEFAULT ('r'||lower(encode(gen_random_bytes(7), 'hex'))) NOT NULL,
-						"level"   INTEGER DEFAULT 0 NOT NULL,
-						"message" TEXT DEFAULT '' NOT NULL,
-						"data"    JSONB DEFAULT '{}'::jsonb NOT NULL,
-						"created" TIMESTAMPTZ DEFAULT NOW() NOT NULL
-					);
-
-					CREATE INDEX IF NOT EXISTS idx_logs_level ON "_logs" ("level");
-					CREATE INDEX IF NOT EXISTS idx_logs_message ON "_logs" ("message");
-					CREATE INDEX IF NOT EXISTS idx_logs_created ON "_logs" ("created");
-				`
-			} else {
-				sql = `
-					CREATE TABLE IF NOT EXISTS {{_logs}} (
-						[[id]]      TEXT PRIMARY KEY DEFAULT ('r'||lower(hex(randomblob(7)))) NOT NULL,
-						[[level]]   INTEGER DEFAULT 0 NOT NULL,
-						[[message]] TEXT DEFAULT "" NOT NULL,
-						[[data]]    JSON DEFAULT "{}" NOT NULL,
-						[[created]] TEXT DEFAULT (strftime('%Y-%m-%d %H:%M:%fZ')) NOT NULL
-					);
-
-					CREATE INDEX IF NOT EXISTS idx_logs_level on {{_logs}} ([[level]]);
-					CREATE INDEX IF NOT EXISTS idx_logs_message on {{_logs}} ([[message]]);
-					CREATE INDEX IF NOT EXISTS idx_logs_created_hour on {{_logs}} (strftime('%Y-%m-%d %H:00:00', [[created]]));
-				`
-			}
+				CREATE INDEX IF NOT EXISTS idx_logs_level on {{_logs}} ([[level]]);
+				CREATE INDEX IF NOT EXISTS idx_logs_message on {{_logs}} ([[message]]);
+				CREATE INDEX IF NOT EXISTS idx_logs_created_hour on {{_logs}} (strftime('%Y-%m-%d %H:00:00', [[created]]));
+			`
 			_, execErr := txApp.AuxDB().NewQuery(sql).Execute()
 			return execErr
 		},

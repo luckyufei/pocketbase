@@ -498,10 +498,8 @@ func TestCollectionPostScan(t *testing.T) {
 }
 
 func TestCollectionUnmarshalJSON(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	scenarios := []struct {
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		scenarios := []struct {
 		name        string
 		raw         string
 		collection  func() *core.Collection
@@ -637,6 +635,7 @@ func TestCollectionUnmarshalJSON(t *testing.T) {
 			}
 		})
 	}
+	})
 }
 
 func TestCollectionSerialize(t *testing.T) {
@@ -761,75 +760,72 @@ func TestCollectionSerialize(t *testing.T) {
 }
 
 func TestCollectionDBExport(t *testing.T) {
-	t.Parallel()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		date, err := types.ParseDateTime("2024-07-01 01:02:03.456Z")
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+		scenarios := []struct {
+			typ      string
+			expected string
+		}{
+			{
+				"unknown",
+				`{"createRule":"1=3","created":"2024-07-01 01:02:03.456Z","deleteRule":"1=5","fields":[{"hidden":false,"id":"f1_id","name":"f1","presentable":false,"required":false,"system":true,"type":"bool"},{"hidden":false,"id":"f2_id","name":"f2","presentable":false,"required":true,"system":false,"type":"bool"}],"id":"test_id","indexes":["CREATE INDEX idx1 on test_name(id)","CREATE INDEX idx2 on test_name(id)"],"listRule":"1=1","name":"test_name","options":"{}","system":true,"type":"unknown","updateRule":"1=4","updated":"2024-07-01 01:02:03.456Z","viewRule":"1=7"}`,
+			},
+			{
+				core.CollectionTypeBase,
+				`{"createRule":"1=3","created":"2024-07-01 01:02:03.456Z","deleteRule":"1=5","fields":[{"hidden":false,"id":"f1_id","name":"f1","presentable":false,"required":false,"system":true,"type":"bool"},{"hidden":false,"id":"f2_id","name":"f2","presentable":false,"required":true,"system":false,"type":"bool"}],"id":"test_id","indexes":["CREATE INDEX idx1 on test_name(id)","CREATE INDEX idx2 on test_name(id)"],"listRule":"1=1","name":"test_name","options":"{}","system":true,"type":"base","updateRule":"1=4","updated":"2024-07-01 01:02:03.456Z","viewRule":"1=7"}`,
+			},
+			{
+				core.CollectionTypeView,
+				`{"createRule":"1=3","created":"2024-07-01 01:02:03.456Z","deleteRule":"1=5","fields":[{"hidden":false,"id":"f1_id","name":"f1","presentable":false,"required":false,"system":true,"type":"bool"},{"hidden":false,"id":"f2_id","name":"f2","presentable":false,"required":true,"system":false,"type":"bool"}],"id":"test_id","indexes":["CREATE INDEX idx1 on test_name(id)","CREATE INDEX idx2 on test_name(id)"],"listRule":"1=1","name":"test_name","options":{"viewQuery":"select 1"},"system":true,"type":"view","updateRule":"1=4","updated":"2024-07-01 01:02:03.456Z","viewRule":"1=7"}`,
+			},
+			{
+				core.CollectionTypeAuth,
+				`{"createRule":"1=3","created":"2024-07-01 01:02:03.456Z","deleteRule":"1=5","fields":[{"hidden":false,"id":"f1_id","name":"f1","presentable":false,"required":false,"system":true,"type":"bool"},{"hidden":false,"id":"f2_id","name":"f2","presentable":false,"required":true,"system":false,"type":"bool"}],"id":"test_id","indexes":["CREATE INDEX idx1 on test_name(id)","CREATE INDEX idx2 on test_name(id)"],"listRule":"1=1","name":"test_name","options":{"authRule":null,"manageRule":"1=6","authAlert":{"enabled":false,"emailTemplate":{"subject":"","body":""}},"oauth2":{"providers":null,"mappedFields":{"id":"","name":"","username":"","avatarURL":""},"enabled":false},"passwordAuth":{"enabled":false,"identityFields":null},"mfa":{"enabled":false,"duration":0,"rule":""},"otp":{"enabled":false,"duration":0,"length":0,"emailTemplate":{"subject":"","body":""}},"authToken":{"duration":0},"passwordResetToken":{"duration":0},"emailChangeToken":{"duration":0},"verificationToken":{"duration":0},"fileToken":{"duration":0},"verificationTemplate":{"subject":"","body":""},"resetPasswordTemplate":{"subject":"","body":""},"confirmEmailChangeTemplate":{"subject":"","body":""}},"system":true,"type":"auth","updateRule":"1=4","updated":"2024-07-01 01:02:03.456Z","viewRule":"1=7"}`,
+			},
+		}
 
-	date, err := types.ParseDateTime("2024-07-01 01:02:03.456Z")
-	if err != nil {
-		t.Fatal(err)
-	}
+		for i, s := range scenarios {
+			t.Run(fmt.Sprintf("%d_%s", i, s.typ), func(t *testing.T) {
+				c := core.Collection{}
+				c.Type = s.typ
+				c.Id = "test_id"
+				c.Name = "test_name"
+				c.System = true
+				c.ListRule = types.Pointer("1=1")
+				c.ViewRule = types.Pointer("1=2")
+				c.CreateRule = types.Pointer("1=3")
+				c.UpdateRule = types.Pointer("1=4")
+				c.DeleteRule = types.Pointer("1=5")
+				c.ManageRule = types.Pointer("1=6")
+				c.ViewRule = types.Pointer("1=7")
+				c.Created = date
+				c.Updated = date
+				c.Indexes = types.JSONArray[string]{"CREATE INDEX idx1 on test_name(id)", "CREATE INDEX idx2 on test_name(id)"}
+				c.ViewQuery = "select 1"
+				c.Fields.Add(&core.BoolField{Id: "f1_id", Name: "f1", System: true})
+				c.Fields.Add(&core.BoolField{Id: "f2_id", Name: "f2", Required: true})
+				c.RawOptions = types.JSONRaw(`{"viewQuery": "select 2"}`) // should be ignored
 
-	scenarios := []struct {
-		typ      string
-		expected string
-	}{
-		{
-			"unknown",
-			`{"createRule":"1=3","created":"2024-07-01 01:02:03.456Z","deleteRule":"1=5","fields":[{"hidden":false,"id":"f1_id","name":"f1","presentable":false,"required":false,"system":true,"type":"bool"},{"hidden":false,"id":"f2_id","name":"f2","presentable":false,"required":true,"system":false,"type":"bool"}],"id":"test_id","indexes":["CREATE INDEX idx1 on test_name(id)","CREATE INDEX idx2 on test_name(id)"],"listRule":"1=1","name":"test_name","options":"{}","system":true,"type":"unknown","updateRule":"1=4","updated":"2024-07-01 01:02:03.456Z","viewRule":"1=7"}`,
-		},
-		{
-			core.CollectionTypeBase,
-			`{"createRule":"1=3","created":"2024-07-01 01:02:03.456Z","deleteRule":"1=5","fields":[{"hidden":false,"id":"f1_id","name":"f1","presentable":false,"required":false,"system":true,"type":"bool"},{"hidden":false,"id":"f2_id","name":"f2","presentable":false,"required":true,"system":false,"type":"bool"}],"id":"test_id","indexes":["CREATE INDEX idx1 on test_name(id)","CREATE INDEX idx2 on test_name(id)"],"listRule":"1=1","name":"test_name","options":"{}","system":true,"type":"base","updateRule":"1=4","updated":"2024-07-01 01:02:03.456Z","viewRule":"1=7"}`,
-		},
-		{
-			core.CollectionTypeView,
-			`{"createRule":"1=3","created":"2024-07-01 01:02:03.456Z","deleteRule":"1=5","fields":[{"hidden":false,"id":"f1_id","name":"f1","presentable":false,"required":false,"system":true,"type":"bool"},{"hidden":false,"id":"f2_id","name":"f2","presentable":false,"required":true,"system":false,"type":"bool"}],"id":"test_id","indexes":["CREATE INDEX idx1 on test_name(id)","CREATE INDEX idx2 on test_name(id)"],"listRule":"1=1","name":"test_name","options":{"viewQuery":"select 1"},"system":true,"type":"view","updateRule":"1=4","updated":"2024-07-01 01:02:03.456Z","viewRule":"1=7"}`,
-		},
-		{
-			core.CollectionTypeAuth,
-			`{"createRule":"1=3","created":"2024-07-01 01:02:03.456Z","deleteRule":"1=5","fields":[{"hidden":false,"id":"f1_id","name":"f1","presentable":false,"required":false,"system":true,"type":"bool"},{"hidden":false,"id":"f2_id","name":"f2","presentable":false,"required":true,"system":false,"type":"bool"}],"id":"test_id","indexes":["CREATE INDEX idx1 on test_name(id)","CREATE INDEX idx2 on test_name(id)"],"listRule":"1=1","name":"test_name","options":{"authRule":null,"manageRule":"1=6","authAlert":{"enabled":false,"emailTemplate":{"subject":"","body":""}},"oauth2":{"providers":null,"mappedFields":{"id":"","name":"","username":"","avatarURL":""},"enabled":false},"passwordAuth":{"enabled":false,"identityFields":null},"mfa":{"enabled":false,"duration":0,"rule":""},"otp":{"enabled":false,"duration":0,"length":0,"emailTemplate":{"subject":"","body":""}},"authToken":{"duration":0},"passwordResetToken":{"duration":0},"emailChangeToken":{"duration":0},"verificationToken":{"duration":0},"fileToken":{"duration":0},"verificationTemplate":{"subject":"","body":""},"resetPasswordTemplate":{"subject":"","body":""},"confirmEmailChangeTemplate":{"subject":"","body":""}},"system":true,"type":"auth","updateRule":"1=4","updated":"2024-07-01 01:02:03.456Z","viewRule":"1=7"}`,
-		},
-	}
+				result, err := c.DBExport(app)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-	for i, s := range scenarios {
-		t.Run(fmt.Sprintf("%d_%s", i, s.typ), func(t *testing.T) {
-			c := core.Collection{}
-			c.Type = s.typ
-			c.Id = "test_id"
-			c.Name = "test_name"
-			c.System = true
-			c.ListRule = types.Pointer("1=1")
-			c.ViewRule = types.Pointer("1=2")
-			c.CreateRule = types.Pointer("1=3")
-			c.UpdateRule = types.Pointer("1=4")
-			c.DeleteRule = types.Pointer("1=5")
-			c.ManageRule = types.Pointer("1=6")
-			c.ViewRule = types.Pointer("1=7")
-			c.Created = date
-			c.Updated = date
-			c.Indexes = types.JSONArray[string]{"CREATE INDEX idx1 on test_name(id)", "CREATE INDEX idx2 on test_name(id)"}
-			c.ViewQuery = "select 1"
-			c.Fields.Add(&core.BoolField{Id: "f1_id", Name: "f1", System: true})
-			c.Fields.Add(&core.BoolField{Id: "f2_id", Name: "f2", Required: true})
-			c.RawOptions = types.JSONRaw(`{"viewQuery": "select 2"}`) // should be ignored
+				raw, err := json.Marshal(result)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-			result, err := c.DBExport(app)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			raw, err := json.Marshal(result)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if str := string(raw); str != s.expected {
-				t.Fatalf("Expected\n%v\ngot\n%v", s.expected, str)
-			}
-		})
-	}
+				if str := string(raw); str != s.expected {
+					t.Fatalf("Expected\n%v\ngot\n%v", s.expected, str)
+				}
+			})
+		}
+	})
 }
 
 func TestCollectionIndexHelpers(t *testing.T) {
@@ -883,8 +879,6 @@ func TestCollectionIndexHelpers(t *testing.T) {
 // -------------------------------------------------------------------
 
 func TestCollectionDelete(t *testing.T) {
-	t.Parallel()
-
 	scenarios := []struct {
 		name                   string
 		collection             string
@@ -937,10 +931,7 @@ func TestCollectionDelete(t *testing.T) {
 	}
 
 	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			app, _ := tests.NewTestApp()
-			defer app.Cleanup()
-
+		tests.RunWithBothDBs(t, s.name, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
 			var col *core.Collection
 
 			if s.collection == "" {
@@ -981,282 +972,277 @@ func TestCollectionDelete(t *testing.T) {
 }
 
 func TestCollectionModelEventSync(t *testing.T) {
-	t.Parallel()
-
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	testCollections := make([]*core.Collection, 4)
-	for i := 0; i < 4; i++ {
-		testCollections[i] = core.NewBaseCollection("sync_test_" + strconv.Itoa(i))
-		if err := app.Save(testCollections[i]); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	createModelEvent := func() *core.ModelEvent {
-		event := new(core.ModelEvent)
-		event.App = app
-		event.Context = context.Background()
-		event.Type = "test_a"
-		event.Model = testCollections[0]
-		return event
-	}
-
-	createModelErrorEvent := func() *core.ModelErrorEvent {
-		event := new(core.ModelErrorEvent)
-		event.ModelEvent = *createModelEvent()
-		event.Error = errors.New("error_a")
-		return event
-	}
-
-	changeCollectionEventBefore := func(e *core.CollectionEvent) {
-		e.Type = "test_b"
-		//nolint:staticcheck
-		e.Context = context.WithValue(context.Background(), "test", 123)
-		e.Collection = testCollections[1]
-	}
-
-	modelEventFinalizerChange := func(e *core.ModelEvent) {
-		e.Type = "test_c"
-		//nolint:staticcheck
-		e.Context = context.WithValue(context.Background(), "test", 456)
-		e.Model = testCollections[2]
-	}
-
-	changeCollectionEventAfter := func(e *core.CollectionEvent) {
-		e.Type = "test_d"
-		//nolint:staticcheck
-		e.Context = context.WithValue(context.Background(), "test", 789)
-		e.Collection = testCollections[3]
-	}
-
-	expectedBeforeModelEventHandlerChecks := func(t *testing.T, e *core.ModelEvent) {
-		if e.Type != "test_a" {
-			t.Fatalf("Expected type %q, got %q", "test_a", e.Type)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		testCollections := make([]*core.Collection, 4)
+		for i := 0; i < 4; i++ {
+			testCollections[i] = core.NewBaseCollection("sync_test_" + strconv.Itoa(i))
+			if err := app.Save(testCollections[i]); err != nil {
+				t.Fatal(err)
+			}
 		}
 
-		if v := e.Context.Value("test"); v != nil {
-			t.Fatalf("Expected context value %v, got %v", nil, v)
+		createModelEvent := func() *core.ModelEvent {
+			event := new(core.ModelEvent)
+			event.App = app
+			event.Context = context.Background()
+			event.Type = "test_a"
+			event.Model = testCollections[0]
+			return event
 		}
 
-		if e.Model.PK() != testCollections[0].Id {
-			t.Fatalf("Expected collection with id %q, got %q (%d)", testCollections[0].Id, e.Model.PK(), 0)
-		}
-	}
-
-	expectedAfterModelEventHandlerChecks := func(t *testing.T, e *core.ModelEvent) {
-		if e.Type != "test_d" {
-			t.Fatalf("Expected type %q, got %q", "test_d", e.Type)
+		createModelErrorEvent := func() *core.ModelErrorEvent {
+			event := new(core.ModelErrorEvent)
+			event.ModelEvent = *createModelEvent()
+			event.Error = errors.New("error_a")
+			return event
 		}
 
-		if v := e.Context.Value("test"); v != 789 {
-			t.Fatalf("Expected context value %v, got %v", 789, v)
+		changeCollectionEventBefore := func(e *core.CollectionEvent) {
+			e.Type = "test_b"
+			//nolint:staticcheck
+			e.Context = context.WithValue(context.Background(), "test", 123)
+			e.Collection = testCollections[1]
 		}
 
-		if e.Model.PK() != testCollections[3].Id {
-			t.Fatalf("Expected collection with id %q, got %q (%d)", testCollections[3].Id, e.Model.PK(), 3)
-		}
-	}
-
-	expectedBeforeCollectionEventHandlerChecks := func(t *testing.T, e *core.CollectionEvent) {
-		if e.Type != "test_a" {
-			t.Fatalf("Expected type %q, got %q", "test_a", e.Type)
+		modelEventFinalizerChange := func(e *core.ModelEvent) {
+			e.Type = "test_c"
+			//nolint:staticcheck
+			e.Context = context.WithValue(context.Background(), "test", 456)
+			e.Model = testCollections[2]
 		}
 
-		if v := e.Context.Value("test"); v != nil {
-			t.Fatalf("Expected context value %v, got %v", nil, v)
+		changeCollectionEventAfter := func(e *core.CollectionEvent) {
+			e.Type = "test_d"
+			//nolint:staticcheck
+			e.Context = context.WithValue(context.Background(), "test", 789)
+			e.Collection = testCollections[3]
 		}
 
-		if e.Collection.Id != testCollections[0].Id {
-			t.Fatalf("Expected collection with id %q, got %q (%d)", testCollections[0].Id, e.Collection.Id, 0)
+		expectedBeforeModelEventHandlerChecks := func(t *testing.T, e *core.ModelEvent) {
+			if e.Type != "test_a" {
+				t.Fatalf("Expected type %q, got %q", "test_a", e.Type)
+			}
+
+			if v := e.Context.Value("test"); v != nil {
+				t.Fatalf("Expected context value %v, got %v", nil, v)
+			}
+
+			if e.Model.PK() != testCollections[0].Id {
+				t.Fatalf("Expected collection with id %q, got %q (%d)", testCollections[0].Id, e.Model.PK(), 0)
+			}
 		}
-	}
 
-	expectedAfterCollectionEventHandlerChecks := func(t *testing.T, e *core.CollectionEvent) {
-		if e.Type != "test_c" {
-			t.Fatalf("Expected type %q, got %q", "test_c", e.Type)
+		expectedAfterModelEventHandlerChecks := func(t *testing.T, e *core.ModelEvent) {
+			if e.Type != "test_d" {
+				t.Fatalf("Expected type %q, got %q", "test_d", e.Type)
+			}
+
+			if v := e.Context.Value("test"); v != 789 {
+				t.Fatalf("Expected context value %v, got %v", 789, v)
+			}
+
+			if e.Model.PK() != testCollections[3].Id {
+				t.Fatalf("Expected collection with id %q, got %q (%d)", testCollections[3].Id, e.Model.PK(), 3)
+			}
 		}
 
-		if v := e.Context.Value("test"); v != 456 {
-			t.Fatalf("Expected context value %v, got %v", 456, v)
+		expectedBeforeCollectionEventHandlerChecks := func(t *testing.T, e *core.CollectionEvent) {
+			if e.Type != "test_a" {
+				t.Fatalf("Expected type %q, got %q", "test_a", e.Type)
+			}
+
+			if v := e.Context.Value("test"); v != nil {
+				t.Fatalf("Expected context value %v, got %v", nil, v)
+			}
+
+			if e.Collection.Id != testCollections[0].Id {
+				t.Fatalf("Expected collection with id %q, got %q (%d)", testCollections[0].Id, e.Collection.Id, 0)
+			}
 		}
 
-		if e.Collection.Id != testCollections[2].Id {
-			t.Fatalf("Expected collection with id %q, got %q (%d)", testCollections[2].Id, e.Collection.Id, 2)
+		expectedAfterCollectionEventHandlerChecks := func(t *testing.T, e *core.CollectionEvent) {
+			if e.Type != "test_c" {
+				t.Fatalf("Expected type %q, got %q", "test_c", e.Type)
+			}
+
+			if v := e.Context.Value("test"); v != 456 {
+				t.Fatalf("Expected context value %v, got %v", 456, v)
+			}
+
+			if e.Collection.Id != testCollections[2].Id {
+				t.Fatalf("Expected collection with id %q, got %q (%d)", testCollections[2].Id, e.Collection.Id, 2)
+			}
 		}
-	}
 
-	modelEventFinalizer := func(e *core.ModelEvent) error {
-		modelEventFinalizerChange(e)
-		return nil
-	}
-
-	modelErrorEventFinalizer := func(e *core.ModelErrorEvent) error {
-		modelEventFinalizerChange(&e.ModelEvent)
-		e.Error = errors.New("error_c")
-		return nil
-	}
-
-	modelEventHandler := &hook.Handler[*core.ModelEvent]{
-		Priority: -999,
-		Func: func(e *core.ModelEvent) error {
-			t.Run("before model", func(t *testing.T) {
-				expectedBeforeModelEventHandlerChecks(t, e)
-			})
-
-			_ = e.Next()
-
-			t.Run("after model", func(t *testing.T) {
-				expectedAfterModelEventHandlerChecks(t, e)
-			})
-
+		modelEventFinalizer := func(e *core.ModelEvent) error {
+			modelEventFinalizerChange(e)
 			return nil
-		},
-	}
+		}
 
-	modelErrorEventHandler := &hook.Handler[*core.ModelErrorEvent]{
-		Priority: -999,
-		Func: func(e *core.ModelErrorEvent) error {
-			t.Run("before model error", func(t *testing.T) {
-				expectedBeforeModelEventHandlerChecks(t, &e.ModelEvent)
-				if v := e.Error.Error(); v != "error_a" {
-					t.Fatalf("Expected error %q, got %q", "error_a", v)
-				}
-			})
-
-			_ = e.Next()
-
-			t.Run("after model error", func(t *testing.T) {
-				expectedAfterModelEventHandlerChecks(t, &e.ModelEvent)
-				if v := e.Error.Error(); v != "error_d" {
-					t.Fatalf("Expected error %q, got %q", "error_d", v)
-				}
-			})
-
+		modelErrorEventFinalizer := func(e *core.ModelErrorEvent) error {
+			modelEventFinalizerChange(&e.ModelEvent)
+			e.Error = errors.New("error_c")
 			return nil
-		},
-	}
+		}
 
-	recordEventHandler := &hook.Handler[*core.CollectionEvent]{
-		Priority: -999,
-		Func: func(e *core.CollectionEvent) error {
-			t.Run("before collection", func(t *testing.T) {
-				expectedBeforeCollectionEventHandlerChecks(t, e)
-			})
+		modelEventHandler := &hook.Handler[*core.ModelEvent]{
+			Priority: -999,
+			Func: func(e *core.ModelEvent) error {
+				t.Run("before model", func(t *testing.T) {
+					expectedBeforeModelEventHandlerChecks(t, e)
+				})
 
-			changeCollectionEventBefore(e)
+				_ = e.Next()
 
-			_ = e.Next()
+				t.Run("after model", func(t *testing.T) {
+					expectedAfterModelEventHandlerChecks(t, e)
+				})
 
-			t.Run("after collection", func(t *testing.T) {
-				expectedAfterCollectionEventHandlerChecks(t, e)
-			})
+				return nil
+			},
+		}
 
-			changeCollectionEventAfter(e)
+		modelErrorEventHandler := &hook.Handler[*core.ModelErrorEvent]{
+			Priority: -999,
+			Func: func(e *core.ModelErrorEvent) error {
+				t.Run("before model error", func(t *testing.T) {
+					expectedBeforeModelEventHandlerChecks(t, &e.ModelEvent)
+					if v := e.Error.Error(); v != "error_a" {
+						t.Fatalf("Expected error %q, got %q", "error_a", v)
+					}
+				})
 
-			return nil
-		},
-	}
+				_ = e.Next()
 
-	collectionErrorEventHandler := &hook.Handler[*core.CollectionErrorEvent]{
-		Priority: -999,
-		Func: func(e *core.CollectionErrorEvent) error {
-			t.Run("before collection error", func(t *testing.T) {
-				expectedBeforeCollectionEventHandlerChecks(t, &e.CollectionEvent)
-				if v := e.Error.Error(); v != "error_a" {
-					t.Fatalf("Expected error %q, got %q", "error_c", v)
-				}
-			})
+				t.Run("after model error", func(t *testing.T) {
+					expectedAfterModelEventHandlerChecks(t, &e.ModelEvent)
+					if v := e.Error.Error(); v != "error_d" {
+						t.Fatalf("Expected error %q, got %q", "error_d", v)
+					}
+				})
 
-			changeCollectionEventBefore(&e.CollectionEvent)
-			e.Error = errors.New("error_b")
+				return nil
+			},
+		}
 
-			_ = e.Next()
+		recordEventHandler := &hook.Handler[*core.CollectionEvent]{
+			Priority: -999,
+			Func: func(e *core.CollectionEvent) error {
+				t.Run("before collection", func(t *testing.T) {
+					expectedBeforeCollectionEventHandlerChecks(t, e)
+				})
 
-			t.Run("after collection error", func(t *testing.T) {
-				expectedAfterCollectionEventHandlerChecks(t, &e.CollectionEvent)
-				if v := e.Error.Error(); v != "error_c" {
-					t.Fatalf("Expected error %q, got %q", "error_c", v)
-				}
-			})
+				changeCollectionEventBefore(e)
 
-			changeCollectionEventAfter(&e.CollectionEvent)
-			e.Error = errors.New("error_d")
+				_ = e.Next()
 
-			return nil
-		},
-	}
+				t.Run("after collection", func(t *testing.T) {
+					expectedAfterCollectionEventHandlerChecks(t, e)
+				})
 
-	// OnModelValidate
-	app.OnCollectionValidate().Bind(recordEventHandler)
-	app.OnModelValidate().Bind(modelEventHandler)
-	app.OnModelValidate().Trigger(createModelEvent(), modelEventFinalizer)
+				changeCollectionEventAfter(e)
 
-	// OnModelCreate
-	app.OnCollectionCreate().Bind(recordEventHandler)
-	app.OnModelCreate().Bind(modelEventHandler)
-	app.OnModelCreate().Trigger(createModelEvent(), modelEventFinalizer)
+				return nil
+			},
+		}
 
-	// OnModelCreateExecute
-	app.OnCollectionCreateExecute().Bind(recordEventHandler)
-	app.OnModelCreateExecute().Bind(modelEventHandler)
-	app.OnModelCreateExecute().Trigger(createModelEvent(), modelEventFinalizer)
+		collectionErrorEventHandler := &hook.Handler[*core.CollectionErrorEvent]{
+			Priority: -999,
+			Func: func(e *core.CollectionErrorEvent) error {
+				t.Run("before collection error", func(t *testing.T) {
+					expectedBeforeCollectionEventHandlerChecks(t, &e.CollectionEvent)
+					if v := e.Error.Error(); v != "error_a" {
+						t.Fatalf("Expected error %q, got %q", "error_c", v)
+					}
+				})
 
-	// OnModelAfterCreateSuccess
-	app.OnCollectionAfterCreateSuccess().Bind(recordEventHandler)
-	app.OnModelAfterCreateSuccess().Bind(modelEventHandler)
-	app.OnModelAfterCreateSuccess().Trigger(createModelEvent(), modelEventFinalizer)
+				changeCollectionEventBefore(&e.CollectionEvent)
+				e.Error = errors.New("error_b")
 
-	// OnModelAfterCreateError
-	app.OnCollectionAfterCreateError().Bind(collectionErrorEventHandler)
-	app.OnModelAfterCreateError().Bind(modelErrorEventHandler)
-	app.OnModelAfterCreateError().Trigger(createModelErrorEvent(), modelErrorEventFinalizer)
+				_ = e.Next()
 
-	// OnModelUpdate
-	app.OnCollectionUpdate().Bind(recordEventHandler)
-	app.OnModelUpdate().Bind(modelEventHandler)
-	app.OnModelUpdate().Trigger(createModelEvent(), modelEventFinalizer)
+				t.Run("after collection error", func(t *testing.T) {
+					expectedAfterCollectionEventHandlerChecks(t, &e.CollectionEvent)
+					if v := e.Error.Error(); v != "error_c" {
+						t.Fatalf("Expected error %q, got %q", "error_c", v)
+					}
+				})
 
-	// OnModelUpdateExecute
-	app.OnCollectionUpdateExecute().Bind(recordEventHandler)
-	app.OnModelUpdateExecute().Bind(modelEventHandler)
-	app.OnModelUpdateExecute().Trigger(createModelEvent(), modelEventFinalizer)
+				changeCollectionEventAfter(&e.CollectionEvent)
+				e.Error = errors.New("error_d")
 
-	// OnModelAfterUpdateSuccess
-	app.OnCollectionAfterUpdateSuccess().Bind(recordEventHandler)
-	app.OnModelAfterUpdateSuccess().Bind(modelEventHandler)
-	app.OnModelAfterUpdateSuccess().Trigger(createModelEvent(), modelEventFinalizer)
+				return nil
+			},
+		}
 
-	// OnModelAfterUpdateError
-	app.OnCollectionAfterUpdateError().Bind(collectionErrorEventHandler)
-	app.OnModelAfterUpdateError().Bind(modelErrorEventHandler)
-	app.OnModelAfterUpdateError().Trigger(createModelErrorEvent(), modelErrorEventFinalizer)
+		// OnModelValidate
+		app.OnCollectionValidate().Bind(recordEventHandler)
+		app.OnModelValidate().Bind(modelEventHandler)
+		app.OnModelValidate().Trigger(createModelEvent(), modelEventFinalizer)
 
-	// OnModelDelete
-	app.OnCollectionDelete().Bind(recordEventHandler)
-	app.OnModelDelete().Bind(modelEventHandler)
-	app.OnModelDelete().Trigger(createModelEvent(), modelEventFinalizer)
+		// OnModelCreate
+		app.OnCollectionCreate().Bind(recordEventHandler)
+		app.OnModelCreate().Bind(modelEventHandler)
+		app.OnModelCreate().Trigger(createModelEvent(), modelEventFinalizer)
 
-	// OnModelDeleteExecute
-	app.OnCollectionDeleteExecute().Bind(recordEventHandler)
-	app.OnModelDeleteExecute().Bind(modelEventHandler)
-	app.OnModelDeleteExecute().Trigger(createModelEvent(), modelEventFinalizer)
+		// OnModelCreateExecute
+		app.OnCollectionCreateExecute().Bind(recordEventHandler)
+		app.OnModelCreateExecute().Bind(modelEventHandler)
+		app.OnModelCreateExecute().Trigger(createModelEvent(), modelEventFinalizer)
 
-	// OnModelAfterDeleteSuccess
-	app.OnCollectionAfterDeleteSuccess().Bind(recordEventHandler)
-	app.OnModelAfterDeleteSuccess().Bind(modelEventHandler)
-	app.OnModelAfterDeleteSuccess().Trigger(createModelEvent(), modelEventFinalizer)
+		// OnModelAfterCreateSuccess
+		app.OnCollectionAfterCreateSuccess().Bind(recordEventHandler)
+		app.OnModelAfterCreateSuccess().Bind(modelEventHandler)
+		app.OnModelAfterCreateSuccess().Trigger(createModelEvent(), modelEventFinalizer)
 
-	// OnModelAfterDeleteError
-	app.OnCollectionAfterDeleteError().Bind(collectionErrorEventHandler)
-	app.OnModelAfterDeleteError().Bind(modelErrorEventHandler)
-	app.OnModelAfterDeleteError().Trigger(createModelErrorEvent(), modelErrorEventFinalizer)
+		// OnModelAfterCreateError
+		app.OnCollectionAfterCreateError().Bind(collectionErrorEventHandler)
+		app.OnModelAfterCreateError().Bind(modelErrorEventHandler)
+		app.OnModelAfterCreateError().Trigger(createModelErrorEvent(), modelErrorEventFinalizer)
+
+		// OnModelUpdate
+		app.OnCollectionUpdate().Bind(recordEventHandler)
+		app.OnModelUpdate().Bind(modelEventHandler)
+		app.OnModelUpdate().Trigger(createModelEvent(), modelEventFinalizer)
+
+		// OnModelUpdateExecute
+		app.OnCollectionUpdateExecute().Bind(recordEventHandler)
+		app.OnModelUpdateExecute().Bind(modelEventHandler)
+		app.OnModelUpdateExecute().Trigger(createModelEvent(), modelEventFinalizer)
+
+		// OnModelAfterUpdateSuccess
+		app.OnCollectionAfterUpdateSuccess().Bind(recordEventHandler)
+		app.OnModelAfterUpdateSuccess().Bind(modelEventHandler)
+		app.OnModelAfterUpdateSuccess().Trigger(createModelEvent(), modelEventFinalizer)
+
+		// OnModelAfterUpdateError
+		app.OnCollectionAfterUpdateError().Bind(collectionErrorEventHandler)
+		app.OnModelAfterUpdateError().Bind(modelErrorEventHandler)
+		app.OnModelAfterUpdateError().Trigger(createModelErrorEvent(), modelErrorEventFinalizer)
+
+		// OnModelDelete
+		app.OnCollectionDelete().Bind(recordEventHandler)
+		app.OnModelDelete().Bind(modelEventHandler)
+		app.OnModelDelete().Trigger(createModelEvent(), modelEventFinalizer)
+
+		// OnModelDeleteExecute
+		app.OnCollectionDeleteExecute().Bind(recordEventHandler)
+		app.OnModelDeleteExecute().Bind(modelEventHandler)
+		app.OnModelDeleteExecute().Trigger(createModelEvent(), modelEventFinalizer)
+
+		// OnModelAfterDeleteSuccess
+		app.OnCollectionAfterDeleteSuccess().Bind(recordEventHandler)
+		app.OnModelAfterDeleteSuccess().Bind(modelEventHandler)
+		app.OnModelAfterDeleteSuccess().Trigger(createModelEvent(), modelEventFinalizer)
+
+		// OnModelAfterDeleteError
+		app.OnCollectionAfterDeleteError().Bind(collectionErrorEventHandler)
+		app.OnModelAfterDeleteError().Bind(modelErrorEventHandler)
+		app.OnModelAfterDeleteError().Trigger(createModelErrorEvent(), modelErrorEventFinalizer)
+	})
 }
 
 func TestCollectionSaveModel(t *testing.T) {
-	t.Parallel()
-
 	scenarios := []struct {
 		name          string
 		collection    func(app core.App) (*core.Collection, error)
@@ -1403,10 +1389,7 @@ func TestCollectionSaveModel(t *testing.T) {
 	}
 
 	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			app, _ := tests.NewTestApp()
-			defer app.Cleanup()
-
+		tests.RunWithBothDBs(t, s.name, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
 			collection, err := s.collection(app)
 			if err != nil {
 				t.Fatalf("Failed to retrieve test collection: %v", err)
@@ -1476,64 +1459,61 @@ func TestCollectionSaveModel(t *testing.T) {
 
 // indirect update of a field used in view should cause view(s) update
 func TestCollectionSaveIndirectViewsUpdate(t *testing.T) {
-	t.Parallel()
-
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	collection, err := app.FindCollectionByNameOrId("demo1")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// update MaxSelect fields
-	{
-		relMany := collection.Fields.GetByName("rel_many").(*core.RelationField)
-		relMany.MaxSelect = 1
-
-		fileOne := collection.Fields.GetByName("file_one").(*core.FileField)
-		fileOne.MaxSelect = 10
-
-		if err := app.Save(collection); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	// check view1 fields
-	{
-		view1, err := app.FindCollectionByNameOrId("view1")
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collection, err := app.FindCollectionByNameOrId("demo1")
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		relMany := view1.Fields.GetByName("rel_many").(*core.RelationField)
-		if relMany.MaxSelect != 1 {
-			t.Fatalf("Expected view1.rel_many MaxSelect to be %d, got %v", 1, relMany.MaxSelect)
+		// update MaxSelect fields
+		{
+			relMany := collection.Fields.GetByName("rel_many").(*core.RelationField)
+			relMany.MaxSelect = 1
+
+			fileOne := collection.Fields.GetByName("file_one").(*core.FileField)
+			fileOne.MaxSelect = 10
+
+			if err := app.Save(collection); err != nil {
+				t.Fatal(err)
+			}
 		}
 
-		fileOne := view1.Fields.GetByName("file_one").(*core.FileField)
-		if fileOne.MaxSelect != 10 {
-			t.Fatalf("Expected view1.file_one MaxSelect to be %d, got %v", 10, fileOne.MaxSelect)
-		}
-	}
+		// check view1 fields
+		{
+			view1, err := app.FindCollectionByNameOrId("view1")
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	// check view2 fields
-	{
-		view2, err := app.FindCollectionByNameOrId("view2")
-		if err != nil {
-			t.Fatal(err)
+			relMany := view1.Fields.GetByName("rel_many").(*core.RelationField)
+			if relMany.MaxSelect != 1 {
+				t.Fatalf("Expected view1.rel_many MaxSelect to be %d, got %v", 1, relMany.MaxSelect)
+			}
+
+			fileOne := view1.Fields.GetByName("file_one").(*core.FileField)
+			if fileOne.MaxSelect != 10 {
+				t.Fatalf("Expected view1.file_one MaxSelect to be %d, got %v", 10, fileOne.MaxSelect)
+			}
 		}
 
-		relMany := view2.Fields.GetByName("rel_many").(*core.RelationField)
-		if relMany.MaxSelect != 1 {
-			t.Fatalf("Expected view2.rel_many MaxSelect to be %d, got %v", 1, relMany.MaxSelect)
+		// check view2 fields
+		{
+			view2, err := app.FindCollectionByNameOrId("view2")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			relMany := view2.Fields.GetByName("rel_many").(*core.RelationField)
+			if relMany.MaxSelect != 1 {
+				t.Fatalf("Expected view2.rel_many MaxSelect to be %d, got %v", 1, relMany.MaxSelect)
+			}
 		}
-	}
+	})
 }
 
 func TestCollectionSaveViewWrapping(t *testing.T) {
-	t.Parallel()
-
+	// 此测试专门验证 SQLite 的视图包装行为（使用 sqlite_master）
+	// PostgreSQL 的视图包装机制不同，不适用于此测试
 	viewName := "test_wrapping"
 
 	scenarios := []struct {
@@ -1609,10 +1589,7 @@ func TestCollectionSaveViewWrapping(t *testing.T) {
 	}
 
 	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			app, _ := tests.NewTestApp()
-			defer app.Cleanup()
-
+		tests.RunWithBothDBs(t, s.name, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
 			collection := core.NewViewCollection(viewName)
 			collection.ViewQuery = s.query
 
@@ -1621,17 +1598,28 @@ func TestCollectionSaveViewWrapping(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			var sql string
+			// SQLite 特定的视图 SQL 验证
+			if dbType == tests.DBTypeSQLite {
+				var sql string
 
-			rowErr := app.ConcurrentDB().NewQuery("SELECT sql FROM sqlite_master WHERE type='view' AND name={:name}").
-				Bind(dbx.Params{"name": viewName}).
-				Row(&sql)
-			if rowErr != nil {
-				t.Fatalf("Failed to retrieve view sql: %v", rowErr)
+				rowErr := app.ConcurrentDB().NewQuery("SELECT sql FROM sqlite_master WHERE type='view' AND name={:name}").
+					Bind(dbx.Params{"name": viewName}).
+					Row(&sql)
+				if rowErr != nil {
+					t.Fatalf("Failed to retrieve view sql: %v", rowErr)
+				}
+
+				if sql != s.expected {
+					t.Fatalf("Expected query \n%v, \ngot \n%v", s.expected, sql)
+				}
 			}
 
-			if sql != s.expected {
-				t.Fatalf("Expected query \n%v, \ngot \n%v", s.expected, sql)
+			// PostgreSQL: 只验证视图创建成功（视图包装语法不同）
+			if dbType == tests.DBTypePostgres {
+				// 验证视图存在
+				if !app.HasTable(viewName) {
+					t.Fatalf("Expected view %s to exist", viewName)
+				}
 			}
 		})
 	}

@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -122,6 +123,121 @@ func (scenario *ApiScenario) Test(t *testing.T) {
 	t.Run(scenario.normalizedName(), func(t *testing.T) {
 		scenario.test(t)
 	})
+}
+
+// TestBothDBs 在 SQLite 和 PostgreSQL 上运行相同的测试场景。
+//
+// 当设置了 TEST_POSTGRES=1 或 POSTGRES_DSN 环境变量时，
+// 会同时运行 PostgreSQL 版本的测试。
+//
+// 此方法允许渐进式迁移现有测试到双数据库模式：
+//   - 默认总是运行 SQLite 测试
+//   - PostgreSQL 测试仅在环境变量设置时运行
+//   - 测试失败会明确标识是哪个数据库
+//
+// Example:
+//
+//	func TestListExample(t *testing.T) {
+//	    scenario := tests.ApiScenario{
+//	        Name:           "list example collection",
+//	        Method:         http.MethodGet,
+//	        URL:            "/api/collections/example/records",
+//	        ExpectedStatus: 200,
+//	    }
+//	    scenario.TestBothDBs(t)
+//	}
+func (scenario *ApiScenario) TestBothDBs(t *testing.T) {
+	t.Run(scenario.normalizedName(), func(t *testing.T) {
+		// 始终测试 SQLite
+		t.Run("SQLite", func(t *testing.T) {
+			// 保存原始的 TestAppFactory
+			originalFactory := scenario.TestAppFactory
+
+			// 确保使用 SQLite (默认行为)
+			scenario.TestAppFactory = nil
+			defer func() { scenario.TestAppFactory = originalFactory }()
+
+			scenario.test(t)
+		})
+
+		// 如果设置了环境变量，也测试 PostgreSQL
+		if os.Getenv("TEST_POSTGRES") != "" || os.Getenv("POSTGRES_DSN") != "" {
+			t.Run("PostgreSQL", func(t *testing.T) {
+				// 保存原始的 TestAppFactory
+				originalFactory := scenario.TestAppFactory
+
+				// 使用 PostgreSQL TestApp
+				scenario.TestAppFactory = func(tb testing.TB) *TestApp {
+					app, err := NewPostgresTestApp()
+					if err != nil {
+						tb.Skipf("跳过 PostgreSQL 测试: %v", err)
+						return nil
+					}
+					return app
+				}
+				defer func() { scenario.TestAppFactory = originalFactory }()
+
+				scenario.test(t)
+			})
+		}
+	})
+}
+
+// TestBothDBsParallel 并行在 SQLite 和 PostgreSQL 上运行测试场景。
+// 与 TestBothDBs 类似，但 SQLite 和 PostgreSQL 测试会并行运行。
+func (scenario *ApiScenario) TestBothDBsParallel(t *testing.T) {
+	t.Run(scenario.normalizedName(), func(t *testing.T) {
+		// SQLite 测试
+		t.Run("SQLite", func(t *testing.T) {
+			t.Parallel()
+
+			// 创建场景副本以避免数据竞争
+			scenarioCopy := *scenario
+			scenarioCopy.TestAppFactory = nil
+			scenarioCopy.test(t)
+		})
+
+		// PostgreSQL 测试
+		if os.Getenv("TEST_POSTGRES") != "" || os.Getenv("POSTGRES_DSN") != "" {
+			t.Run("PostgreSQL", func(t *testing.T) {
+				t.Parallel()
+
+				// 创建场景副本以避免数据竞争
+				scenarioCopy := *scenario
+				scenarioCopy.TestAppFactory = func(tb testing.TB) *TestApp {
+					app, err := NewPostgresTestApp()
+					if err != nil {
+						tb.Skipf("跳过 PostgreSQL 测试: %v", err)
+						return nil
+					}
+					return app
+				}
+				scenarioCopy.test(t)
+			})
+		}
+	})
+}
+
+// ApiScenariosTestBothDBs 批量在双数据库上运行测试场景列表。
+// 适合现有测试文件的快速迁移。
+//
+// Example:
+//
+//	func TestRecordCrud(t *testing.T) {
+//	    scenarios := []tests.ApiScenario{...}
+//	    tests.ApiScenariosTestBothDBs(t, scenarios)
+//	}
+func ApiScenariosTestBothDBs(t *testing.T, scenarios []ApiScenario) {
+	for _, scenario := range scenarios {
+		scenario.TestBothDBs(t)
+	}
+}
+
+// ApiScenariosTestBothDBsParallel 批量并行在双数据库上运行测试场景列表。
+func ApiScenariosTestBothDBsParallel(t *testing.T, scenarios []ApiScenario) {
+	for _, scenario := range scenarios {
+		scenario.TestBothDBsParallel(t)
+	}
 }
 
 // Benchmark benchmarks the test scenario.

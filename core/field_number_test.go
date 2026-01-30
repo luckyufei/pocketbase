@@ -15,329 +15,333 @@ func TestNumberFieldBaseMethods(t *testing.T) {
 }
 
 func TestNumberFieldColumnType(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	f := &core.NumberField{}
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		f := &core.NumberField{}
 
-	expected := "NUMERIC DEFAULT 0 NOT NULL"
+		expected := "NUMERIC DEFAULT 0 NOT NULL"
 
-	if v := f.ColumnType(app); v != expected {
-		t.Fatalf("Expected\n%q\ngot\n%q", expected, v)
-	}
+		if v := f.ColumnType(app); v != expected {
+			t.Fatalf("Expected\n%q\ngot\n%q", expected, v)
+		}
+	})
 }
 
 func TestNumberFieldPrepareValue(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	f := &core.NumberField{}
-	record := core.NewRecord(core.NewBaseCollection("test"))
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		f := &core.NumberField{}
+		record := core.NewRecord(core.NewBaseCollection("test"))
 
-	scenarios := []struct {
-		raw      any
-		expected float64
-	}{
-		{"", 0},
-		{"test", 0},
-		{false, 0},
-		{true, 1},
-		{-2, -2},
-		{123.456, 123.456},
-	}
+		scenarios := []struct {
+			raw      any
+			expected float64
+		}{
+			{"", 0},
+			{"test", 0},
+			{false, 0},
+			{true, 1},
+			{-2, -2},
+			{123.456, 123.456},
+		}
 
-	for i, s := range scenarios {
-		t.Run(fmt.Sprintf("%d_%#v", i, s.raw), func(t *testing.T) {
-			vRaw, err := f.PrepareValue(record, s.raw)
-			if err != nil {
-				t.Fatal(err)
-			}
+		for i, s := range scenarios {
+			t.Run(fmt.Sprintf("%d_%#v", i, s.raw), func(t *testing.T) {
+				vRaw, err := f.PrepareValue(record, s.raw)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-			v, ok := vRaw.(float64)
-			if !ok {
-				t.Fatalf("Expected float64 instance, got %T", v)
-			}
+				v, ok := vRaw.(float64)
+				if !ok {
+					t.Fatalf("Expected float64 instance, got %T", v)
+				}
 
-			if v != s.expected {
-				t.Fatalf("Expected %f, got %f", s.expected, v)
-			}
-		})
-	}
+				if v != s.expected {
+					t.Fatalf("Expected %f, got %f", s.expected, v)
+				}
+			})
+		}
+	})
 }
 
 func TestNumberFieldValidateValue(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	collection := core.NewBaseCollection("test_collection")
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collection := core.NewBaseCollection("test_collection")
 
-	scenarios := []struct {
-		name        string
-		field       *core.NumberField
-		record      func() *core.Record
-		expectError bool
-	}{
-		{
-			"invalid raw value",
-			&core.NumberField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "123")
-				return record
+		scenarios := []struct {
+			name        string
+			field       *core.NumberField
+			record      func() *core.Record
+			expectError bool
+		}{
+			{
+				"invalid raw value",
+				&core.NumberField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "123")
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"zero field value (not required)",
-			&core.NumberField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", 0.0)
-				return record
+			{
+				"zero field value (not required)",
+				&core.NumberField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", 0.0)
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"zero field value (required)",
-			&core.NumberField{Name: "test", Required: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", 0.0)
-				return record
+			{
+				"zero field value (required)",
+				&core.NumberField{Name: "test", Required: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", 0.0)
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"non-zero field value (required)",
-			&core.NumberField{Name: "test", Required: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", 123.0)
-				return record
+			{
+				"non-zero field value (required)",
+				&core.NumberField{Name: "test", Required: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", 123.0)
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"decimal with onlyInt",
-			&core.NumberField{Name: "test", OnlyInt: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", 123.456)
-				return record
+			{
+				"decimal with onlyInt",
+				&core.NumberField{Name: "test", OnlyInt: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", 123.456)
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"int with onlyInt",
-			&core.NumberField{Name: "test", OnlyInt: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", 123.0)
-				return record
+			{
+				"int with onlyInt",
+				&core.NumberField{Name: "test", OnlyInt: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", 123.0)
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"< min",
-			&core.NumberField{Name: "test", Min: types.Pointer(2.0)},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", 1.0)
-				return record
+			{
+				"< min",
+				&core.NumberField{Name: "test", Min: types.Pointer(2.0)},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", 1.0)
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			">= min",
-			&core.NumberField{Name: "test", Min: types.Pointer(2.0)},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", 2.0)
-				return record
+			{
+				">= min",
+				&core.NumberField{Name: "test", Min: types.Pointer(2.0)},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", 2.0)
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"> max",
-			&core.NumberField{Name: "test", Max: types.Pointer(2.0)},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", 3.0)
-				return record
+			{
+				"> max",
+				&core.NumberField{Name: "test", Max: types.Pointer(2.0)},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", 3.0)
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"<= max",
-			&core.NumberField{Name: "test", Max: types.Pointer(2.0)},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", 2.0)
-				return record
+			{
+				"<= max",
+				&core.NumberField{Name: "test", Max: types.Pointer(2.0)},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", 2.0)
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"infinity",
-			&core.NumberField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.Set("test", "Inf")
-				return record
+			{
+				"infinity",
+				&core.NumberField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.Set("test", "Inf")
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"NaN",
-			&core.NumberField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.Set("test", "NaN")
-				return record
+			{
+				"NaN",
+				&core.NumberField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.Set("test", "NaN")
+					return record
+				},
+				true,
 			},
-			true,
-		},
-	}
+		}
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			err := s.field.ValidateValue(context.Background(), app, s.record())
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				err := s.field.ValidateValue(context.Background(), app, s.record())
 
-			hasErr := err != nil
-			if hasErr != s.expectError {
-				t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
-			}
-		})
-	}
+				hasErr := err != nil
+				if hasErr != s.expectError {
+					t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
+				}
+			})
+		}
+	})
 }
 
 func TestNumberFieldValidateSettings(t *testing.T) {
-	testDefaultFieldIdValidation(t, core.FieldTypeNumber)
-	testDefaultFieldNameValidation(t, core.FieldTypeNumber)
+	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		testDefaultFieldIdValidationWithApp(t, app, core.FieldTypeNumber)
+		testDefaultFieldNameValidationWithApp(t, app, core.FieldTypeNumber)
 
-	collection := core.NewBaseCollection("test_collection")
+		collection := core.NewBaseCollection("test_collection")
 
-	scenarios := []struct {
-		name         string
-		field        func() *core.NumberField
-		expectErrors []string
-	}{
-		{
-			"zero",
-			func() *core.NumberField {
-				return &core.NumberField{
-					Id:   "test",
-					Name: "test",
-				}
+		scenarios := []struct {
+			name         string
+			field        func() *core.NumberField
+			expectErrors []string
+		}{
+			{
+				"zero",
+				func() *core.NumberField {
+					return &core.NumberField{
+						Id:   "test",
+						Name: "test",
+					}
+				},
+				[]string{},
 			},
-			[]string{},
-		},
-		{
-			"decumal min",
-			func() *core.NumberField {
-				return &core.NumberField{
-					Id:   "test",
-					Name: "test",
-					Min:  types.Pointer(1.2),
-				}
+			{
+				"decumal min",
+				func() *core.NumberField {
+					return &core.NumberField{
+						Id:   "test",
+						Name: "test",
+						Min:  types.Pointer(1.2),
+					}
+				},
+				[]string{},
 			},
-			[]string{},
-		},
-		{
-			"decumal min (onlyInt)",
-			func() *core.NumberField {
-				return &core.NumberField{
-					Id:      "test",
-					Name:    "test",
-					OnlyInt: true,
-					Min:     types.Pointer(1.2),
-				}
+			{
+				"decumal min (onlyInt)",
+				func() *core.NumberField {
+					return &core.NumberField{
+						Id:      "test",
+						Name:    "test",
+						OnlyInt: true,
+						Min:     types.Pointer(1.2),
+					}
+				},
+				[]string{"min"},
 			},
-			[]string{"min"},
-		},
-		{
-			"int min (onlyInt)",
-			func() *core.NumberField {
-				return &core.NumberField{
-					Id:      "test",
-					Name:    "test",
-					OnlyInt: true,
-					Min:     types.Pointer(1.0),
-				}
+			{
+				"int min (onlyInt)",
+				func() *core.NumberField {
+					return &core.NumberField{
+						Id:      "test",
+						Name:    "test",
+						OnlyInt: true,
+						Min:     types.Pointer(1.0),
+					}
+				},
+				[]string{},
 			},
-			[]string{},
-		},
-		{
-			"decumal max",
-			func() *core.NumberField {
-				return &core.NumberField{
-					Id:   "test",
-					Name: "test",
-					Max:  types.Pointer(1.2),
-				}
+			{
+				"decumal max",
+				func() *core.NumberField {
+					return &core.NumberField{
+						Id:   "test",
+						Name: "test",
+						Max:  types.Pointer(1.2),
+					}
+				},
+				[]string{},
 			},
-			[]string{},
-		},
-		{
-			"decumal max (onlyInt)",
-			func() *core.NumberField {
-				return &core.NumberField{
-					Id:      "test",
-					Name:    "test",
-					OnlyInt: true,
-					Max:     types.Pointer(1.2),
-				}
+			{
+				"decumal max (onlyInt)",
+				func() *core.NumberField {
+					return &core.NumberField{
+						Id:      "test",
+						Name:    "test",
+						OnlyInt: true,
+						Max:     types.Pointer(1.2),
+					}
+				},
+				[]string{"max"},
 			},
-			[]string{"max"},
-		},
-		{
-			"int max (onlyInt)",
-			func() *core.NumberField {
-				return &core.NumberField{
-					Id:      "test",
-					Name:    "test",
-					OnlyInt: true,
-					Max:     types.Pointer(1.0),
-				}
+			{
+				"int max (onlyInt)",
+				func() *core.NumberField {
+					return &core.NumberField{
+						Id:      "test",
+						Name:    "test",
+						OnlyInt: true,
+						Max:     types.Pointer(1.0),
+					}
+				},
+				[]string{},
 			},
-			[]string{},
-		},
-		{
-			"min > max",
-			func() *core.NumberField {
-				return &core.NumberField{
-					Id:   "test",
-					Name: "test",
-					Min:  types.Pointer(2.0),
-					Max:  types.Pointer(1.0),
-				}
+			{
+				"min > max",
+				func() *core.NumberField {
+					return &core.NumberField{
+						Id:   "test",
+						Name: "test",
+						Min:  types.Pointer(2.0),
+						Max:  types.Pointer(1.0),
+					}
+				},
+				[]string{"max"},
 			},
-			[]string{"max"},
-		},
-		{
-			"min <= max",
-			func() *core.NumberField {
-				return &core.NumberField{
-					Id:   "test",
-					Name: "test",
-					Min:  types.Pointer(2.0),
-					Max:  types.Pointer(2.0),
-				}
+			{
+				"min <= max",
+				func() *core.NumberField {
+					return &core.NumberField{
+						Id:   "test",
+						Name: "test",
+						Min:  types.Pointer(2.0),
+						Max:  types.Pointer(2.0),
+					}
+				},
+				[]string{},
 			},
-			[]string{},
-		},
-	}
+		}
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			errs := s.field().ValidateSettings(context.Background(), app, collection)
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				errs := s.field().ValidateSettings(context.Background(), app, collection)
 
-			tests.TestValidationErrors(t, errs, s.expectErrors)
-		})
-	}
+				tests.TestValidationErrors(t, errs, s.expectErrors)
+			})
+		}
+	})
 }
 
 func TestNumberFieldFindSetter(t *testing.T) {

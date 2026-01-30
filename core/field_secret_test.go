@@ -18,51 +18,49 @@ func TestSecretFieldBaseMethods(t *testing.T) {
 }
 
 func TestSecretFieldColumnType(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		f := &core.SecretField{}
 
-	f := &core.SecretField{}
+		expected := "TEXT DEFAULT '' NOT NULL"
 
-	expected := "TEXT DEFAULT '' NOT NULL"
-
-	if v := f.ColumnType(app); v != expected {
-		t.Fatalf("Expected\n%q\ngot\n%q", expected, v)
-	}
+		if v := f.ColumnType(app); v != expected {
+			t.Fatalf("Expected\n%q\ngot\n%q", expected, v)
+		}
+	})
 }
 
 func TestSecretFieldPrepareValue(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		f := &core.SecretField{Name: "test"}
+		record := core.NewRecord(core.NewBaseCollection("test"))
 
-	f := &core.SecretField{Name: "test"}
-	record := core.NewRecord(core.NewBaseCollection("test"))
+		scenarios := []struct {
+			raw      any
+			expected string
+		}{
+			{"", ""},
+			{"test", "test"},
+			{"sk-xxx-123", "sk-xxx-123"},
+		}
 
-	scenarios := []struct {
-		raw      any
-		expected string
-	}{
-		{"", ""},
-		{"test", "test"},
-		{"sk-xxx-123", "sk-xxx-123"},
-	}
+		for i, s := range scenarios {
+			t.Run(fmt.Sprintf("%d_%#v", i, s.raw), func(t *testing.T) {
+				v, err := f.PrepareValue(record, s.raw)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-	for i, s := range scenarios {
-		t.Run(fmt.Sprintf("%d_%#v", i, s.raw), func(t *testing.T) {
-			v, err := f.PrepareValue(record, s.raw)
-			if err != nil {
-				t.Fatal(err)
-			}
+				sv, ok := v.(*core.SecretFieldValue)
+				if !ok {
+					t.Fatalf("Expected SecretFieldValue instance, got %T", v)
+				}
 
-			sv, ok := v.(*core.SecretFieldValue)
-			if !ok {
-				t.Fatalf("Expected SecretFieldValue instance, got %T", v)
-			}
-
-			if sv.Encrypted != s.expected {
-				t.Fatalf("Expected encrypted %q, got %q", s.expected, sv.Encrypted)
-			}
-		})
-	}
+				if sv.Encrypted != s.expected {
+					t.Fatalf("Expected encrypted %q, got %q", s.expected, sv.Encrypted)
+				}
+			})
+		}
+	})
 }
 
 func TestSecretFieldDriverValue(t *testing.T) {
@@ -70,52 +68,53 @@ func TestSecretFieldDriverValue(t *testing.T) {
 	os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	defer os.Unsetenv(core.MasterKeyEnvVar)
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		f := &core.SecretField{Name: "test"}
 
-	f := &core.SecretField{Name: "test"}
+		err := errors.New("example_err")
 
-	scenarios := []struct {
-		name        string
-		raw         any
-		expectError bool
-	}{
-		{
-			"empty value",
-			&core.SecretFieldValue{},
-			false,
-		},
-		{
-			"with encrypted value",
-			&core.SecretFieldValue{Encrypted: "encrypted_data"},
-			false,
-		},
-		{
-			"with last error",
-			&core.SecretFieldValue{LastError: errors.New("test error")},
-			true,
-		},
-	}
+		scenarios := []struct {
+			name        string
+			raw         any
+			expectError bool
+		}{
+			{
+				"empty value",
+				&core.SecretFieldValue{},
+				false,
+			},
+			{
+				"with encrypted value",
+				&core.SecretFieldValue{Encrypted: "encrypted_data"},
+				false,
+			},
+			{
+				"with last error",
+				&core.SecretFieldValue{LastError: err},
+				true,
+			},
+		}
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			record := core.NewRecord(core.NewBaseCollection("test"))
-			record.SetRaw(f.GetName(), s.raw)
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				record := core.NewRecord(core.NewBaseCollection("test"))
+				record.SetRaw(f.GetName(), s.raw)
 
-			v, err := f.DriverValue(record)
+				v, err := f.DriverValue(record)
 
-			hasErr := err != nil
-			if hasErr != s.expectError {
-				t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
-			}
-
-			if !s.expectError {
-				if _, ok := v.(string); !ok {
-					t.Fatalf("Expected string, got %T", v)
+				hasErr := err != nil
+				if hasErr != s.expectError {
+					t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
 				}
-			}
-		})
-	}
+
+				if !s.expectError {
+					if _, ok := v.(string); !ok {
+						t.Fatalf("Expected string, got %T", v)
+					}
+				}
+			})
+		}
+	})
 }
 
 func TestSecretFieldValidateValue(t *testing.T) {
@@ -123,236 +122,232 @@ func TestSecretFieldValidateValue(t *testing.T) {
 	os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	defer os.Unsetenv(core.MasterKeyEnvVar)
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collection := core.NewBaseCollection("test_collection")
 
-	collection := core.NewBaseCollection("test_collection")
+		scenarios := []struct {
+			name        string
+			field       *core.SecretField
+			record      func() *core.Record
+			expectError bool
+		}{
+			{
+				"zero field value (not required)",
+				&core.SecretField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", &core.SecretFieldValue{})
+					return record
+				},
+				false,
+			},
+			{
+				"zero field value (required)",
+				&core.SecretField{Name: "test", Required: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", &core.SecretFieldValue{})
+					return record
+				},
+				true,
+			},
+			{
+				"non-empty plain value (required)",
+				&core.SecretField{Name: "test", Required: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", &core.SecretFieldValue{Plain: "test", Encrypted: "encrypted"})
+					return record
+				},
+				false,
+			},
+			{
+				"non-empty encrypted only (required)",
+				&core.SecretField{Name: "test", Required: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", &core.SecretFieldValue{Encrypted: "encrypted"})
+					return record
+				},
+				false,
+			},
+			{
+				"with LastError",
+				&core.SecretField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", &core.SecretFieldValue{LastError: errors.New("test")})
+					return record
+				},
+				true,
+			},
+			{
+				"> MaxSize",
+				&core.SecretField{Name: "test", MaxSize: 5},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", &core.SecretFieldValue{Plain: "123456"})
+					return record
+				},
+				true,
+			},
+			{
+				"<= MaxSize",
+				&core.SecretField{Name: "test", MaxSize: 5},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", &core.SecretFieldValue{Plain: "12345"})
+					return record
+				},
+				false,
+			},
+			{
+				"> default MaxSize",
+				&core.SecretField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", &core.SecretFieldValue{Plain: strings.Repeat("a", core.SecretFieldDefaultMaxSize+1)})
+					return record
+				},
+				true,
+			},
+			{
+				"empty string value (valid)",
+				&core.SecretField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", &core.SecretFieldValue{Plain: ""})
+					return record
+				},
+				false,
+			},
+			{
+				"special characters (unicode)",
+				&core.SecretField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", &core.SecretFieldValue{Plain: "你好世界🔐"})
+					return record
+				},
+				false,
+			},
+			{
+				"special characters (newline and tab)",
+				&core.SecretField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", &core.SecretFieldValue{Plain: "line1\nline2\ttab"})
+					return record
+				},
+				false,
+			},
+		}
 
-	scenarios := []struct {
-		name        string
-		field       *core.SecretField
-		record      func() *core.Record
-		expectError bool
-	}{
-		{
-			"zero field value (not required)",
-			&core.SecretField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", &core.SecretFieldValue{})
-				return record
-			},
-			false,
-		},
-		{
-			"zero field value (required)",
-			&core.SecretField{Name: "test", Required: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", &core.SecretFieldValue{})
-				return record
-			},
-			true,
-		},
-		{
-			"non-empty plain value (required)",
-			&core.SecretField{Name: "test", Required: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", &core.SecretFieldValue{Plain: "test", Encrypted: "encrypted"})
-				return record
-			},
-			false,
-		},
-		{
-			"non-empty encrypted only (required)",
-			&core.SecretField{Name: "test", Required: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", &core.SecretFieldValue{Encrypted: "encrypted"})
-				return record
-			},
-			false,
-		},
-		{
-			"with LastError",
-			&core.SecretField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", &core.SecretFieldValue{LastError: errors.New("test")})
-				return record
-			},
-			true,
-		},
-		{
-			"> MaxSize",
-			&core.SecretField{Name: "test", MaxSize: 5},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", &core.SecretFieldValue{Plain: "123456"})
-				return record
-			},
-			true,
-		},
-		{
-			"<= MaxSize",
-			&core.SecretField{Name: "test", MaxSize: 5},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", &core.SecretFieldValue{Plain: "12345"})
-				return record
-			},
-			false,
-		},
-		{
-			"> default MaxSize",
-			&core.SecretField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", &core.SecretFieldValue{Plain: strings.Repeat("a", core.SecretFieldDefaultMaxSize+1)})
-				return record
-			},
-			true,
-		},
-		{
-			"empty string value (valid)",
-			&core.SecretField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", &core.SecretFieldValue{Plain: ""})
-				return record
-			},
-			false,
-		},
-		{
-			"special characters (unicode)",
-			&core.SecretField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", &core.SecretFieldValue{Plain: "你好世界🔐"})
-				return record
-			},
-			false,
-		},
-		{
-			"special characters (newline and tab)",
-			&core.SecretField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", &core.SecretFieldValue{Plain: "line1\nline2\ttab"})
-				return record
-			},
-			false,
-		},
-	}
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				err := s.field.ValidateValue(context.Background(), app, s.record())
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			err := s.field.ValidateValue(context.Background(), app, s.record())
-
-			hasErr := err != nil
-			if hasErr != s.expectError {
-				t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
-			}
-		})
-	}
+				hasErr := err != nil
+				if hasErr != s.expectError {
+					t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
+				}
+			})
+		}
+	})
 }
 
 func TestSecretFieldValidateSettings(t *testing.T) {
 	testDefaultFieldIdValidation(t, core.FieldTypeSecret)
 	testDefaultFieldNameValidation(t, core.FieldTypeSecret)
 
-	// 设置 master key 以启用 secrets
-	os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
-	defer os.Unsetenv(core.MasterKeyEnvVar)
-
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	scenarios := []struct {
-		name         string
-		field        func(col *core.Collection) *core.SecretField
-		expectErrors []string
-	}{
-		{
-			"zero minimal",
-			func(col *core.Collection) *core.SecretField {
-				return &core.SecretField{
-					Id:   "test",
-					Name: "test",
-				}
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		// 设置 master key 以启用 secrets（在 DualDBTest 内部设置以确保并行测试中可用）
+		os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+		defer os.Unsetenv(core.MasterKeyEnvVar)
+		scenarios := []struct {
+			name         string
+			field        func(col *core.Collection) *core.SecretField
+			expectErrors []string
+		}{
+			{
+				"zero minimal",
+				func(col *core.Collection) *core.SecretField {
+					return &core.SecretField{
+						Id:   "test",
+						Name: "test",
+					}
+				},
+				[]string{},
 			},
-			[]string{},
-		},
-		{
-			"MaxSize < 0",
-			func(col *core.Collection) *core.SecretField {
-				return &core.SecretField{
-					Id:      "test",
-					Name:    "test",
-					MaxSize: -1,
-				}
+			{
+				"MaxSize < 0",
+				func(col *core.Collection) *core.SecretField {
+					return &core.SecretField{
+						Id:      "test",
+						Name:    "test",
+						MaxSize: -1,
+					}
+				},
+				[]string{"maxSize"},
 			},
-			[]string{"maxSize"},
-		},
-		{
-			"MaxSize > default max",
-			func(col *core.Collection) *core.SecretField {
-				return &core.SecretField{
-					Id:      "test",
-					Name:    "test",
-					MaxSize: core.SecretFieldDefaultMaxSize + 1,
-				}
+			{
+				"MaxSize > default max",
+				func(col *core.Collection) *core.SecretField {
+					return &core.SecretField{
+						Id:      "test",
+						Name:    "test",
+						MaxSize: core.SecretFieldDefaultMaxSize + 1,
+					}
+				},
+				[]string{"maxSize"},
 			},
-			[]string{"maxSize"},
-		},
-		{
-			"valid MaxSize",
-			func(col *core.Collection) *core.SecretField {
-				return &core.SecretField{
-					Id:      "test",
-					Name:    "test",
-					MaxSize: 1024,
-				}
+			{
+				"valid MaxSize",
+				func(col *core.Collection) *core.SecretField {
+					return &core.SecretField{
+						Id:      "test",
+						Name:    "test",
+						MaxSize: 1024,
+					}
+				},
+				[]string{},
 			},
-			[]string{},
-		},
-	}
+		}
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			collection := core.NewBaseCollection("test_collection")
-			collection.Fields.GetByName("id").SetId("test")
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				collection := core.NewBaseCollection("test_collection")
+				collection.Fields.GetByName("id").SetId("test")
 
-			field := s.field(collection)
+				field := s.field(collection)
 
-			collection.Fields.Add(field)
+				collection.Fields.Add(field)
 
-			errs := field.ValidateSettings(context.Background(), app, collection)
+				errs := field.ValidateSettings(context.Background(), app, collection)
 
-			tests.TestValidationErrors(t, errs, s.expectErrors)
-		})
-	}
+				tests.TestValidationErrors(t, errs, s.expectErrors)
+			})
+		}
+	})
 }
 
 func TestSecretFieldValidateSettings_SecretsDisabled(t *testing.T) {
 	// 确保 master key 未设置
 	os.Unsetenv(core.MasterKeyEnvVar)
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collection := core.NewBaseCollection("test_collection")
+		field := &core.SecretField{
+			Id:   "test",
+			Name: "test",
+		}
 
-	collection := core.NewBaseCollection("test_collection")
-	field := &core.SecretField{
-		Id:   "test",
-		Name: "test",
-	}
+		err := field.ValidateSettings(context.Background(), app, collection)
 
-	err := field.ValidateSettings(context.Background(), app, collection)
-
-	if err == nil {
-		t.Fatal("Expected error when secrets disabled, got nil")
-	}
+		if err == nil {
+			t.Fatal("Expected error when secrets disabled, got nil")
+		}
+	})
 }
 
 func TestSecretFieldFindSetter(t *testing.T) {
@@ -360,66 +355,65 @@ func TestSecretFieldFindSetter(t *testing.T) {
 	os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	defer os.Unsetenv(core.MasterKeyEnvVar)
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		scenarios := []struct {
+			name       string
+			key        string
+			value      any
+			field      *core.SecretField
+			hasSetter  bool
+			checkPlain string
+		}{
+			{
+				"no match",
+				"example",
+				"abc",
+				&core.SecretField{Name: "test"},
+				false,
+				"",
+			},
+			{
+				"exact match",
+				"test",
+				"sk-abc123",
+				&core.SecretField{Name: "test"},
+				true,
+				"sk-abc123",
+			},
+		}
 
-	scenarios := []struct {
-		name       string
-		key        string
-		value      any
-		field      *core.SecretField
-		hasSetter  bool
-		checkPlain string
-	}{
-		{
-			"no match",
-			"example",
-			"abc",
-			&core.SecretField{Name: "test"},
-			false,
-			"",
-		},
-		{
-			"exact match",
-			"test",
-			"sk-abc123",
-			&core.SecretField{Name: "test"},
-			true,
-			"sk-abc123",
-		},
-	}
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				collection := core.NewBaseCollection("test_collection")
+				collection.Fields.Add(s.field)
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			collection := core.NewBaseCollection("test_collection")
-			collection.Fields.Add(s.field)
+				setter := s.field.FindSetter(s.key)
 
-			setter := s.field.FindSetter(s.key)
+				hasSetter := setter != nil
+				if hasSetter != s.hasSetter {
+					t.Fatalf("Expected hasSetter %v, got %v", s.hasSetter, hasSetter)
+				}
 
-			hasSetter := setter != nil
-			if hasSetter != s.hasSetter {
-				t.Fatalf("Expected hasSetter %v, got %v", s.hasSetter, hasSetter)
-			}
+				if !hasSetter {
+					return
+				}
 
-			if !hasSetter {
-				return
-			}
+				record := core.NewRecord(collection)
+				setter(record, s.value)
 
-			record := core.NewRecord(collection)
-			setter(record, s.value)
+				// 验证 plain 值被正确设置
+				raw := record.GetRaw(s.field.GetName())
+				sv, ok := raw.(*core.SecretFieldValue)
+				if !ok {
+					t.Fatalf("Expected SecretFieldValue, got %T", raw)
+				}
 
-			// 验证 plain 值被正确设置
-			raw := record.GetRaw(s.field.GetName())
-			sv, ok := raw.(*core.SecretFieldValue)
-			if !ok {
-				t.Fatalf("Expected SecretFieldValue, got %T", raw)
-			}
-
-			if sv.Plain != s.checkPlain {
-				t.Fatalf("Expected plain %q, got %q", s.checkPlain, sv.Plain)
-			}
-		})
-	}
+				if sv.Plain != s.checkPlain {
+					t.Fatalf("Expected plain %q, got %q", s.checkPlain, sv.Plain)
+				}
+			})
+		}
+	})
 }
 
 func TestSecretFieldFindGetter(t *testing.T) {
@@ -427,69 +421,68 @@ func TestSecretFieldFindGetter(t *testing.T) {
 	os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	defer os.Unsetenv(core.MasterKeyEnvVar)
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		scenarios := []struct {
+			name      string
+			key       string
+			field     *core.SecretField
+			rawValue  *core.SecretFieldValue
+			hasGetter bool
+			expected  string
+		}{
+			{
+				"no match",
+				"example",
+				&core.SecretField{Name: "test"},
+				&core.SecretFieldValue{Plain: "test_value"},
+				false,
+				"",
+			},
+			{
+				"field name match - return plain",
+				"test",
+				&core.SecretField{Name: "test"},
+				&core.SecretFieldValue{Plain: "test_value"},
+				true,
+				"test_value",
+			},
+			{
+				"field name match - empty",
+				"test",
+				&core.SecretField{Name: "test"},
+				&core.SecretFieldValue{},
+				true,
+				"",
+			},
+		}
 
-	scenarios := []struct {
-		name      string
-		key       string
-		field     *core.SecretField
-		rawValue  *core.SecretFieldValue
-		hasGetter bool
-		expected  string
-	}{
-		{
-			"no match",
-			"example",
-			&core.SecretField{Name: "test"},
-			&core.SecretFieldValue{Plain: "test_value"},
-			false,
-			"",
-		},
-		{
-			"field name match - return plain",
-			"test",
-			&core.SecretField{Name: "test"},
-			&core.SecretFieldValue{Plain: "test_value"},
-			true,
-			"test_value",
-		},
-		{
-			"field name match - empty",
-			"test",
-			&core.SecretField{Name: "test"},
-			&core.SecretFieldValue{},
-			true,
-			"",
-		},
-	}
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				collection := core.NewBaseCollection("test_collection")
+				collection.Fields.Add(s.field)
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			collection := core.NewBaseCollection("test_collection")
-			collection.Fields.Add(s.field)
+				getter := s.field.FindGetter(s.key)
 
-			getter := s.field.FindGetter(s.key)
+				hasGetter := getter != nil
+				if hasGetter != s.hasGetter {
+					t.Fatalf("Expected hasGetter %v, got %v", s.hasGetter, hasGetter)
+				}
 
-			hasGetter := getter != nil
-			if hasGetter != s.hasGetter {
-				t.Fatalf("Expected hasGetter %v, got %v", s.hasGetter, hasGetter)
-			}
+				if !hasGetter {
+					return
+				}
 
-			if !hasGetter {
-				return
-			}
+				record := core.NewRecord(collection)
+				record.SetRaw(s.field.GetName(), s.rawValue)
 
-			record := core.NewRecord(collection)
-			record.SetRaw(s.field.GetName(), s.rawValue)
+				result := getter(record)
 
-			result := getter(record)
-
-			if result != s.expected {
-				t.Fatalf("Expected %q, got %#v", s.expected, result)
-			}
-		})
-	}
+				if result != s.expected {
+					t.Fatalf("Expected %q, got %#v", s.expected, result)
+				}
+			})
+		}
+	})
 }
 
 func TestSecretFieldEncryptDecryptRoundTrip(t *testing.T) {
@@ -497,51 +490,50 @@ func TestSecretFieldEncryptDecryptRoundTrip(t *testing.T) {
 	os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	defer os.Unsetenv(core.MasterKeyEnvVar)
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	// 创建包含 secret 字段的 collection
-	collection := core.NewBaseCollection("test_secrets")
-	collection.Fields.Add(&core.SecretField{
-		Id:   "secret_field",
-		Name: "api_key",
-	})
-
-	if err := app.Save(collection); err != nil {
-		t.Fatalf("Failed to save collection: %v", err)
-	}
-
-	testCases := []string{
-		"sk-test-key-12345",
-		"",
-		"你好世界🔐",
-		"line1\nline2\ttab",
-		strings.Repeat("a", 100),
-	}
-
-	for _, plaintext := range testCases {
-		t.Run(fmt.Sprintf("value_%s", plaintext[:min(10, len(plaintext))]), func(t *testing.T) {
-			// 创建记录
-			record := core.NewRecord(collection)
-			record.Set("api_key", plaintext)
-
-			if err := app.Save(record); err != nil {
-				t.Fatalf("Failed to save record: %v", err)
-			}
-
-			// 从数据库重新加载
-			loaded, err := app.FindRecordById(collection.Name, record.Id)
-			if err != nil {
-				t.Fatalf("Failed to load record: %v", err)
-			}
-
-			// 验证解密后的值
-			decrypted := loaded.GetString("api_key")
-			if decrypted != plaintext {
-				t.Fatalf("Expected %q, got %q", plaintext, decrypted)
-			}
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		// 创建包含 secret 字段的 collection
+		collection := core.NewBaseCollection("test_secrets")
+		collection.Fields.Add(&core.SecretField{
+			Id:   "secret_field",
+			Name: "api_key",
 		})
-	}
+
+		if err := app.Save(collection); err != nil {
+			t.Fatalf("Failed to save collection: %v", err)
+		}
+
+		testCases := []string{
+			"sk-test-key-12345",
+			"",
+			"你好世界🔐",
+			"line1\nline2\ttab",
+			strings.Repeat("a", 100),
+		}
+
+		for _, plaintext := range testCases {
+			t.Run(fmt.Sprintf("value_%s", plaintext[:min(10, len(plaintext))]), func(t *testing.T) {
+				// 创建记录
+				record := core.NewRecord(collection)
+				record.Set("api_key", plaintext)
+
+				if err := app.Save(record); err != nil {
+					t.Fatalf("Failed to save record: %v", err)
+				}
+
+				// 从数据库重新加载
+				loaded, err := app.FindRecordById(collection.Name, record.Id)
+				if err != nil {
+					t.Fatalf("Failed to load record: %v", err)
+				}
+
+				// 验证解密后的值
+				decrypted := loaded.GetString("api_key")
+				if decrypted != plaintext {
+					t.Fatalf("Expected %q, got %q", plaintext, decrypted)
+				}
+			})
+		}
+	})
 }
 
 func TestSecretFieldDatabaseStoresEncrypted(t *testing.T) {
@@ -549,107 +541,102 @@ func TestSecretFieldDatabaseStoresEncrypted(t *testing.T) {
 	os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	defer os.Unsetenv(core.MasterKeyEnvVar)
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		// 创建包含 secret 字段的 collection
+		collection := core.NewBaseCollection("test_encrypted")
+		collection.Fields.Add(&core.SecretField{
+			Id:   "secret_field",
+			Name: "api_key",
+		})
 
-	// 创建包含 secret 字段的 collection
-	collection := core.NewBaseCollection("test_encrypted")
-	collection.Fields.Add(&core.SecretField{
-		Id:   "secret_field",
-		Name: "api_key",
+		if err := app.Save(collection); err != nil {
+			t.Fatalf("Failed to save collection: %v", err)
+		}
+
+		plaintext := "sk-secret-key-12345"
+
+		// 创建记录
+		record := core.NewRecord(collection)
+		record.Set("api_key", plaintext)
+
+		if err := app.Save(record); err != nil {
+			t.Fatalf("Failed to save record: %v", err)
+		}
+
+		// 直接查询数据库验证存储的是密文
+		var storedValue string
+		err := app.DB().
+			NewQuery("SELECT api_key FROM test_encrypted WHERE id = {:id}").
+			Bind(map[string]any{"id": record.Id}).
+			Row(&storedValue)
+
+		if err != nil {
+			t.Fatalf("Failed to query database: %v", err)
+		}
+
+		// 存储的值不应该是明文
+		if storedValue == plaintext {
+			t.Fatal("Database stores plaintext instead of encrypted value")
+		}
+
+		// 存储的值应该是非空的 base64 字符串
+		if storedValue == "" {
+			t.Fatal("Database stores empty string")
+		}
 	})
-
-	if err := app.Save(collection); err != nil {
-		t.Fatalf("Failed to save collection: %v", err)
-	}
-
-	plaintext := "sk-secret-key-12345"
-
-	// 创建记录
-	record := core.NewRecord(collection)
-	record.Set("api_key", plaintext)
-
-	if err := app.Save(record); err != nil {
-		t.Fatalf("Failed to save record: %v", err)
-	}
-
-	// 直接查询数据库验证存储的是密文
-	var storedValue string
-	err := app.DB().
-		NewQuery("SELECT api_key FROM test_encrypted WHERE id = {:id}").
-		Bind(map[string]any{"id": record.Id}).
-		Row(&storedValue)
-
-	if err != nil {
-		t.Fatalf("Failed to query database: %v", err)
-	}
-
-	// 存储的值不应该是明文
-	if storedValue == plaintext {
-		t.Fatal("Database stores plaintext instead of encrypted value")
-	}
-
-	// 存储的值应该是非空的 base64 字符串
-	if storedValue == "" {
-		t.Fatal("Database stores empty string")
-	}
 }
 
 func TestSecretFieldMasterKeyChanged(t *testing.T) {
 	// 第一个 master key
 	os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		// 创建包含 secret 字段的 collection
+		collection := core.NewBaseCollection("test_key_change")
+		collection.Fields.Add(&core.SecretField{
+			Id:   "secret_field",
+			Name: "api_key",
+		})
 
-	// 创建包含 secret 字段的 collection
-	collection := core.NewBaseCollection("test_key_change")
-	collection.Fields.Add(&core.SecretField{
-		Id:   "secret_field",
-		Name: "api_key",
+		if err := app.Save(collection); err != nil {
+			t.Fatalf("Failed to save collection: %v", err)
+		}
+
+		// 创建记录
+		record := core.NewRecord(collection)
+		record.Set("api_key", "sk-secret-key")
+
+		if err := app.Save(record); err != nil {
+			t.Fatalf("Failed to save record: %v", err)
+		}
+
+		// 保存加密后的值
+		var encryptedValue string
+		app.DB().
+			NewQuery("SELECT api_key FROM test_key_change WHERE id = {:id}").
+			Bind(map[string]any{"id": record.Id}).
+			Row(&encryptedValue)
+
+		os.Unsetenv(core.MasterKeyEnvVar)
+
+		// 使用不同的 master key
+		os.Setenv(core.MasterKeyEnvVar, "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210")
+
+		// 尝试加载记录 - 解密应该失败或返回空值
+		loaded, err := app.FindRecordById("test_key_change", record.Id)
+		if err != nil {
+			// 如果出错说明表已存在
+			t.Skipf("Record not found after key change: %v", err)
+		}
+
+		// 使用错误的 key 解密应该返回空字符串
+		decrypted := loaded.GetString("api_key")
+		if decrypted == "sk-secret-key" {
+			t.Fatal("Should not be able to decrypt with different master key")
+		}
 	})
 
-	if err := app.Save(collection); err != nil {
-		t.Fatalf("Failed to save collection: %v", err)
-	}
-
-	// 创建记录
-	record := core.NewRecord(collection)
-	record.Set("api_key", "sk-secret-key")
-
-	if err := app.Save(record); err != nil {
-		t.Fatalf("Failed to save record: %v", err)
-	}
-
-	// 保存加密后的值
-	var encryptedValue string
-	app.DB().
-		NewQuery("SELECT api_key FROM test_key_change WHERE id = {:id}").
-		Bind(map[string]any{"id": record.Id}).
-		Row(&encryptedValue)
-
 	os.Unsetenv(core.MasterKeyEnvVar)
-	app.Cleanup()
-
-	// 使用不同的 master key 重新启动
-	os.Setenv(core.MasterKeyEnvVar, "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210")
-	defer os.Unsetenv(core.MasterKeyEnvVar)
-
-	app2, _ := tests.NewTestApp()
-	defer app2.Cleanup()
-
-	// 尝试加载记录 - 解密应该失败或返回空值
-	loaded, err := app2.FindRecordById("test_key_change", record.Id)
-	if err != nil {
-		// 如果表不存在是正常的，因为是新的测试 app
-		t.Skip("Table doesn't exist in new app context")
-	}
-
-	// 使用错误的 key 解密应该返回空字符串
-	decrypted := loaded.GetString("api_key")
-	if decrypted == "sk-secret-key" {
-		t.Fatal("Should not be able to decrypt with different master key")
-	}
 }
 
 func TestSecretFieldJSONMarshal(t *testing.T) {
@@ -732,63 +719,62 @@ func TestSecretFieldConstraints(t *testing.T) {
 	os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	defer os.Unsetenv(core.MasterKeyEnvVar)
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		// 创建包含 secret 字段的 collection
+		collection := core.NewBaseCollection("test_constraints")
+		collection.Fields.Add(&core.SecretField{
+			Id:     "secret_field",
+			Name:   "api_key",
+			Hidden: true, // 默认应该是 true
+		})
 
-	// 创建包含 secret 字段的 collection
-	collection := core.NewBaseCollection("test_constraints")
-	collection.Fields.Add(&core.SecretField{
-		Id:     "secret_field",
-		Name:   "api_key",
-		Hidden: true, // 默认应该是 true
-	})
-
-	if err := app.Save(collection); err != nil {
-		t.Fatalf("Failed to save collection: %v", err)
-	}
-
-	// 创建一些测试数据
-	record := core.NewRecord(collection)
-	record.Set("api_key", "sk-test-123")
-	if err := app.Save(record); err != nil {
-		t.Fatalf("Failed to save record: %v", err)
-	}
-
-	t.Run("hidden field prevents filtering", func(t *testing.T) {
-		// 创建字段解析器，不允许隐藏字段
-		resolver := core.NewRecordFieldResolver(app, collection, nil, false)
-
-		// 尝试使用 secret 字段过滤应该失败
-		// 因为 Hidden=true 且 allowHiddenFields=false
-		field := collection.Fields.GetByName("api_key")
-		if field == nil {
-			t.Fatal("Field 'api_key' not found")
+		if err := app.Save(collection); err != nil {
+			t.Fatalf("Failed to save collection: %v", err)
 		}
 
-		if !field.GetHidden() {
-			t.Error("Secret field should be hidden by default")
+		// 创建一些测试数据
+		record := core.NewRecord(collection)
+		record.Set("api_key", "sk-test-123")
+		if err := app.Save(record); err != nil {
+			t.Fatalf("Failed to save record: %v", err)
 		}
 
-		// 使用解析器解析 api_key 字段应该失败
-		_, err := resolver.Resolve("api_key")
-		if err == nil {
-			t.Error("Expected error when filtering on hidden secret field, got nil")
-		}
-	})
+		t.Run("hidden field prevents filtering", func(t *testing.T) {
+			// 创建字段解析器，不允许隐藏字段
+			resolver := core.NewRecordFieldResolver(app, collection, nil, false)
 
-	t.Run("superuser can filter hidden fields", func(t *testing.T) {
-		// 创建字段解析器，允许隐藏字段（模拟 superuser）
-		resolver := core.NewRecordFieldResolver(app, collection, nil, true)
+			// 尝试使用 secret 字段过滤应该失败
+			// 因为 Hidden=true 且 allowHiddenFields=false
+			field := collection.Fields.GetByName("api_key")
+			if field == nil {
+				t.Fatal("Field 'api_key' not found")
+			}
 
-		// 使用解析器解析 api_key 字段应该成功
-		result, err := resolver.Resolve("api_key")
-		if err != nil {
-			t.Fatalf("Expected superuser to filter hidden field, got error: %v", err)
-		}
+			if !field.GetHidden() {
+				t.Error("Secret field should be hidden by default")
+			}
 
-		if result == nil {
-			t.Error("Expected non-nil result for superuser")
-		}
+			// 使用解析器解析 api_key 字段应该失败
+			_, err := resolver.Resolve("api_key")
+			if err == nil {
+				t.Error("Expected error when filtering on hidden secret field, got nil")
+			}
+		})
+
+		t.Run("superuser can filter hidden fields", func(t *testing.T) {
+			// 创建字段解析器，允许隐藏字段（模拟 superuser）
+			resolver := core.NewRecordFieldResolver(app, collection, nil, true)
+
+			// 使用解析器解析 api_key 字段应该成功
+			result, err := resolver.Resolve("api_key")
+			if err != nil {
+				t.Fatalf("Expected superuser to filter hidden field, got error: %v", err)
+			}
+
+			if result == nil {
+				t.Error("Expected non-nil result for superuser")
+			}
+		})
 	})
 }
 
@@ -798,123 +784,122 @@ func TestSecretFieldHookIntegration(t *testing.T) {
 	os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	defer os.Unsetenv(core.MasterKeyEnvVar)
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		// 创建包含 secret 字段的 collection
+		collection := core.NewBaseCollection("test_hook")
+		collection.Fields.Add(&core.SecretField{
+			Id:   "secret_field",
+			Name: "api_key",
+		})
 
-	// 创建包含 secret 字段的 collection
-	collection := core.NewBaseCollection("test_hook")
-	collection.Fields.Add(&core.SecretField{
-		Id:   "secret_field",
-		Name: "api_key",
-	})
-
-	if err := app.Save(collection); err != nil {
-		t.Fatalf("Failed to save collection: %v", err)
-	}
-
-	t.Run("GetString returns plaintext in hook", func(t *testing.T) {
-		// 创建记录
-		record := core.NewRecord(collection)
-		record.Set("api_key", "sk-hook-test-123")
-
-		if err := app.Save(record); err != nil {
-			t.Fatalf("Failed to save record: %v", err)
+		if err := app.Save(collection); err != nil {
+			t.Fatalf("Failed to save collection: %v", err)
 		}
 
-		// 从数据库重新加载（模拟 hook 场景）
-		loaded, err := app.FindRecordById(collection.Name, record.Id)
-		if err != nil {
-			t.Fatalf("Failed to load record: %v", err)
-		}
+		t.Run("GetString returns plaintext in hook", func(t *testing.T) {
+			// 创建记录
+			record := core.NewRecord(collection)
+			record.Set("api_key", "sk-hook-test-123")
 
-		// T016: GetString 应该返回明文
-		plaintext := loaded.GetString("api_key")
-		if plaintext != "sk-hook-test-123" {
-			t.Errorf("Expected 'sk-hook-test-123', got %q", plaintext)
-		}
-	})
+			if err := app.Save(record); err != nil {
+				t.Fatalf("Failed to save record: %v", err)
+			}
 
-	t.Run("Get returns plaintext string in hook", func(t *testing.T) {
-		record := core.NewRecord(collection)
-		record.Set("api_key", "sk-get-test")
+			// 从数据库重新加载（模拟 hook 场景）
+			loaded, err := app.FindRecordById(collection.Name, record.Id)
+			if err != nil {
+				t.Fatalf("Failed to load record: %v", err)
+			}
 
-		if err := app.Save(record); err != nil {
-			t.Fatalf("Failed to save record: %v", err)
-		}
+			// T016: GetString 应该返回明文
+			plaintext := loaded.GetString("api_key")
+			if plaintext != "sk-hook-test-123" {
+				t.Errorf("Expected 'sk-hook-test-123', got %q", plaintext)
+			}
+		})
 
-		loaded, err := app.FindRecordById(collection.Name, record.Id)
-		if err != nil {
-			t.Fatalf("Failed to load record: %v", err)
-		}
+		t.Run("Get returns plaintext string in hook", func(t *testing.T) {
+			record := core.NewRecord(collection)
+			record.Set("api_key", "sk-get-test")
 
-		// T017: Get 应该返回明文字符串
-		value := loaded.Get("api_key")
-		strValue, ok := value.(string)
-		if !ok {
-			t.Fatalf("Expected string, got %T", value)
-		}
-		if strValue != "sk-get-test" {
-			t.Errorf("Expected 'sk-get-test', got %q", strValue)
-		}
-	})
+			if err := app.Save(record); err != nil {
+				t.Fatalf("Failed to save record: %v", err)
+			}
 
-	t.Run("GetRaw returns SecretFieldValue in hook", func(t *testing.T) {
-		record := core.NewRecord(collection)
-		record.Set("api_key", "sk-raw-test")
+			loaded, err := app.FindRecordById(collection.Name, record.Id)
+			if err != nil {
+				t.Fatalf("Failed to load record: %v", err)
+			}
 
-		if err := app.Save(record); err != nil {
-			t.Fatalf("Failed to save record: %v", err)
-		}
+			// T017: Get 应该返回明文字符串
+			value := loaded.Get("api_key")
+			strValue, ok := value.(string)
+			if !ok {
+				t.Fatalf("Expected string, got %T", value)
+			}
+			if strValue != "sk-get-test" {
+				t.Errorf("Expected 'sk-get-test', got %q", strValue)
+			}
+		})
 
-		loaded, err := app.FindRecordById(collection.Name, record.Id)
-		if err != nil {
-			t.Fatalf("Failed to load record: %v", err)
-		}
+		t.Run("GetRaw returns SecretFieldValue in hook", func(t *testing.T) {
+			record := core.NewRecord(collection)
+			record.Set("api_key", "sk-raw-test")
 
-		// T018: GetRaw 应该返回 SecretFieldValue
-		raw := loaded.GetRaw("api_key")
-		sv, ok := raw.(*core.SecretFieldValue)
-		if !ok {
-			t.Fatalf("Expected *SecretFieldValue, got %T", raw)
-		}
+			if err := app.Save(record); err != nil {
+				t.Fatalf("Failed to save record: %v", err)
+			}
 
-		// 应该有密文
-		if sv.Encrypted == "" {
-			t.Error("Expected non-empty encrypted value")
-		}
-	})
+			loaded, err := app.FindRecordById(collection.Name, record.Id)
+			if err != nil {
+				t.Fatalf("Failed to load record: %v", err)
+			}
 
-	t.Run("modify secret in hook", func(t *testing.T) {
-		// 创建记录
-		record := core.NewRecord(collection)
-		record.Set("api_key", "sk-original")
+			// T018: GetRaw 应该返回 SecretFieldValue
+			raw := loaded.GetRaw("api_key")
+			sv, ok := raw.(*core.SecretFieldValue)
+			if !ok {
+				t.Fatalf("Expected *SecretFieldValue, got %T", raw)
+			}
 
-		if err := app.Save(record); err != nil {
-			t.Fatalf("Failed to save record: %v", err)
-		}
+			// 应该有密文
+			if sv.Encrypted == "" {
+				t.Error("Expected non-empty encrypted value")
+			}
+		})
 
-		// 加载记录
-		loaded, err := app.FindRecordById(collection.Name, record.Id)
-		if err != nil {
-			t.Fatalf("Failed to load record: %v", err)
-		}
+		t.Run("modify secret in hook", func(t *testing.T) {
+			// 创建记录
+			record := core.NewRecord(collection)
+			record.Set("api_key", "sk-original")
 
-		// T020: 在 hook 中修改 secret 值
-		loaded.Set("api_key", "sk-modified")
+			if err := app.Save(record); err != nil {
+				t.Fatalf("Failed to save record: %v", err)
+			}
 
-		if err := app.Save(loaded); err != nil {
-			t.Fatalf("Failed to save modified record: %v", err)
-		}
+			// 加载记录
+			loaded, err := app.FindRecordById(collection.Name, record.Id)
+			if err != nil {
+				t.Fatalf("Failed to load record: %v", err)
+			}
 
-		// 验证修改
-		reloaded, err := app.FindRecordById(collection.Name, record.Id)
-		if err != nil {
-			t.Fatalf("Failed to reload record: %v", err)
-		}
+			// T020: 在 hook 中修改 secret 值
+			loaded.Set("api_key", "sk-modified")
 
-		if reloaded.GetString("api_key") != "sk-modified" {
-			t.Errorf("Expected 'sk-modified', got %q", reloaded.GetString("api_key"))
-		}
+			if err := app.Save(loaded); err != nil {
+				t.Fatalf("Failed to save modified record: %v", err)
+			}
+
+			// 验证修改
+			reloaded, err := app.FindRecordById(collection.Name, record.Id)
+			if err != nil {
+				t.Fatalf("Failed to reload record: %v", err)
+			}
+
+			if reloaded.GetString("api_key") != "sk-modified" {
+				t.Errorf("Expected 'sk-modified', got %q", reloaded.GetString("api_key"))
+			}
+		})
 	})
 }
 
@@ -924,74 +909,73 @@ func TestSecretFieldImportExport(t *testing.T) {
 	os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	defer os.Unsetenv(core.MasterKeyEnvVar)
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		// 创建包含 secret 字段的 collection
+		collection := core.NewBaseCollection("test_export")
+		collection.Fields.Add(&core.SecretField{
+			Id:   "secret_field",
+			Name: "api_key",
+		})
 
-	// 创建包含 secret 字段的 collection
-	collection := core.NewBaseCollection("test_export")
-	collection.Fields.Add(&core.SecretField{
-		Id:   "secret_field",
-		Name: "api_key",
-	})
-
-	if err := app.Save(collection); err != nil {
-		t.Fatalf("Failed to save collection: %v", err)
-	}
-
-	t.Run("T034 - export stores ciphertext not plaintext", func(t *testing.T) {
-		record := core.NewRecord(collection)
-		record.Set("api_key", "sk-export-test-key")
-
-		if err := app.Save(record); err != nil {
-			t.Fatalf("Failed to save record: %v", err)
+		if err := app.Save(collection); err != nil {
+			t.Fatalf("Failed to save collection: %v", err)
 		}
 
-		// 直接查询数据库获取存储的值
-		var storedValue string
-		err := app.DB().
-			NewQuery("SELECT api_key FROM test_export WHERE id = {:id}").
-			Bind(map[string]any{"id": record.Id}).
-			Row(&storedValue)
-		if err != nil {
-			t.Fatalf("Failed to query database: %v", err)
-		}
+		t.Run("T034 - export stores ciphertext not plaintext", func(t *testing.T) {
+			record := core.NewRecord(collection)
+			record.Set("api_key", "sk-export-test-key")
 
-		// 存储的值不应该是明文
-		if storedValue == "sk-export-test-key" {
-			t.Error("Database stores plaintext, should store ciphertext")
-		}
+			if err := app.Save(record); err != nil {
+				t.Fatalf("Failed to save record: %v", err)
+			}
 
-		// 存储的值应该是非空的 base64 字符串
-		if storedValue == "" {
-			t.Error("Database stores empty string")
-		}
-	})
+			// 直接查询数据库获取存储的值
+			var storedValue string
+			err := app.DB().
+				NewQuery("SELECT api_key FROM test_export WHERE id = {:id}").
+				Bind(map[string]any{"id": record.Id}).
+				Row(&storedValue)
+			if err != nil {
+				t.Fatalf("Failed to query database: %v", err)
+			}
 
-	t.Run("T035 - import plaintext gets encrypted", func(t *testing.T) {
-		// 创建记录，模拟导入明文
-		record := core.NewRecord(collection)
-		record.Set("api_key", "sk-import-plaintext")
+			// 存储的值不应该是明文
+			if storedValue == "sk-export-test-key" {
+				t.Error("Database stores plaintext, should store ciphertext")
+			}
 
-		if err := app.Save(record); err != nil {
-			t.Fatalf("Failed to save record: %v", err)
-		}
+			// 存储的值应该是非空的 base64 字符串
+			if storedValue == "" {
+				t.Error("Database stores empty string")
+			}
+		})
 
-		// 验证数据库存储的是密文
-		var storedValue string
-		app.DB().
-			NewQuery("SELECT api_key FROM test_export WHERE id = {:id}").
-			Bind(map[string]any{"id": record.Id}).
-			Row(&storedValue)
+		t.Run("T035 - import plaintext gets encrypted", func(t *testing.T) {
+			// 创建记录，模拟导入明文
+			record := core.NewRecord(collection)
+			record.Set("api_key", "sk-import-plaintext")
 
-		if storedValue == "sk-import-plaintext" {
-			t.Error("Import should encrypt plaintext before storage")
-		}
+			if err := app.Save(record); err != nil {
+				t.Fatalf("Failed to save record: %v", err)
+			}
 
-		// 验证可以正确解密
-		loaded, _ := app.FindRecordById(collection.Name, record.Id)
-		if loaded.GetString("api_key") != "sk-import-plaintext" {
-			t.Errorf("Expected 'sk-import-plaintext', got %q", loaded.GetString("api_key"))
-		}
+			// 验证数据库存储的是密文
+			var storedValue string
+			app.DB().
+				NewQuery("SELECT api_key FROM test_export WHERE id = {:id}").
+				Bind(map[string]any{"id": record.Id}).
+				Row(&storedValue)
+
+			if storedValue == "sk-import-plaintext" {
+				t.Error("Import should encrypt plaintext before storage")
+			}
+
+			// 验证可以正确解密
+			loaded, _ := app.FindRecordById(collection.Name, record.Id)
+			if loaded.GetString("api_key") != "sk-import-plaintext" {
+				t.Errorf("Expected 'sk-import-plaintext', got %q", loaded.GetString("api_key"))
+			}
+		})
 	})
 }
 
@@ -1001,67 +985,66 @@ func TestSecretFieldSecurity(t *testing.T) {
 	os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	defer os.Unsetenv(core.MasterKeyEnvVar)
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		// 创建包含 secret 字段的 collection
+		collection := core.NewBaseCollection("test_security")
+		collection.Fields.Add(&core.SecretField{
+			Id:     "secret_field",
+			Name:   "api_key",
+			Hidden: true,
+		})
 
-	// 创建包含 secret 字段的 collection
-	collection := core.NewBaseCollection("test_security")
-	collection.Fields.Add(&core.SecretField{
-		Id:     "secret_field",
-		Name:   "api_key",
-		Hidden: true,
-	})
-
-	if err := app.Save(collection); err != nil {
-		t.Fatalf("Failed to save collection: %v", err)
-	}
-
-	t.Run("T041 - hidden field prevents unauthorized access", func(t *testing.T) {
-		// 创建字段解析器，不允许隐藏字段（模拟普通用户）
-		resolver := core.NewRecordFieldResolver(app, collection, nil, false)
-
-		// 尝试使用 secret 字段过滤应该失败
-		_, err := resolver.Resolve("api_key")
-		if err == nil {
-			t.Error("Expected error when filtering on hidden secret field")
-		}
-	})
-
-	t.Run("T041a - concurrent read/write consistency", func(t *testing.T) {
-		// 创建测试记录
-		record := core.NewRecord(collection)
-		record.Set("api_key", "sk-concurrent-test")
-		if err := app.Save(record); err != nil {
-			t.Fatalf("Failed to save record: %v", err)
+		if err := app.Save(collection); err != nil {
+			t.Fatalf("Failed to save collection: %v", err)
 		}
 
-		// 并发读写测试
-		const numGoroutines = 10
-		done := make(chan bool, numGoroutines)
+		t.Run("T041 - hidden field prevents unauthorized access", func(t *testing.T) {
+			// 创建字段解析器，不允许隐藏字段（模拟普通用户）
+			resolver := core.NewRecordFieldResolver(app, collection, nil, false)
 
-		for i := 0; i < numGoroutines; i++ {
-			go func(idx int) {
-				defer func() { done <- true }()
+			// 尝试使用 secret 字段过滤应该失败
+			_, err := resolver.Resolve("api_key")
+			if err == nil {
+				t.Error("Expected error when filtering on hidden secret field")
+			}
+		})
 
-				// 读取
-				loaded, err := app.FindRecordById(collection.Name, record.Id)
-				if err != nil {
-					t.Errorf("Goroutine %d: failed to load record: %v", idx, err)
-					return
-				}
+		t.Run("T041a - concurrent read/write consistency", func(t *testing.T) {
+			// 创建测试记录
+			record := core.NewRecord(collection)
+			record.Set("api_key", "sk-concurrent-test")
+			if err := app.Save(record); err != nil {
+				t.Fatalf("Failed to save record: %v", err)
+			}
 
-				// 验证可以解密
-				value := loaded.GetString("api_key")
-				if value != "sk-concurrent-test" {
-					t.Errorf("Goroutine %d: expected 'sk-concurrent-test', got %q", idx, value)
-				}
-			}(i)
-		}
+			// 并发读写测试
+			const numGoroutines = 10
+			done := make(chan bool, numGoroutines)
 
-		// 等待所有 goroutine 完成
-		for i := 0; i < numGoroutines; i++ {
-			<-done
-		}
+			for i := 0; i < numGoroutines; i++ {
+				go func(idx int) {
+					defer func() { done <- true }()
+
+					// 读取
+					loaded, err := app.FindRecordById(collection.Name, record.Id)
+					if err != nil {
+						t.Errorf("Goroutine %d: failed to load record: %v", idx, err)
+						return
+					}
+
+					// 验证可以解密
+					value := loaded.GetString("api_key")
+					if value != "sk-concurrent-test" {
+						t.Errorf("Goroutine %d: expected 'sk-concurrent-test', got %q", idx, value)
+					}
+				}(i)
+			}
+
+			// 等待所有 goroutine 完成
+			for i := 0; i < numGoroutines; i++ {
+				<-done
+			}
+		})
 	})
 }
 

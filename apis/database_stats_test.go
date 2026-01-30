@@ -52,7 +52,7 @@ func TestDatabaseStats(t *testing.T) {
 }
 
 func TestDetectDatabaseType(t *testing.T) {
-	t.Parallel()
+	// 注意: 不能使用 t.Parallel() 因为子测试使用 t.Setenv
 
 	scenarios := []struct {
 		name     string

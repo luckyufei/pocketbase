@@ -16,262 +16,272 @@ func TestJSONFieldBaseMethods(t *testing.T) {
 }
 
 func TestJSONFieldColumnType(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	f := &core.JSONField{}
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		f := &core.JSONField{}
 
-	expected := "JSON DEFAULT NULL"
+		var expected string
+		if dbType == tests.DBTypePostgres {
+			expected = "JSONB DEFAULT NULL"
+		} else {
+			expected = "JSON DEFAULT NULL"
+		}
 
-	if v := f.ColumnType(app); v != expected {
-		t.Fatalf("Expected\n%q\ngot\n%q", expected, v)
-	}
+		if v := f.ColumnType(app); v != expected {
+			t.Fatalf("Expected\n%q\ngot\n%q", expected, v)
+		}
+	})
 }
 
 func TestJSONFieldPrepareValue(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	f := &core.JSONField{}
-	record := core.NewRecord(core.NewBaseCollection("test"))
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		f := &core.JSONField{}
+		record := core.NewRecord(core.NewBaseCollection("test"))
 
-	scenarios := []struct {
-		raw      any
-		expected string
-	}{
-		{"null", `null`},
-		{"", `""`},
-		{"true", `true`},
-		{"false", `false`},
-		{"test", `"test"`},
-		{"123", `123`},
-		{"-456", `-456`},
-		{"[1,2,3]", `[1,2,3]`},
-		{"[1,2,3", `"[1,2,3"`},
-		{`{"a":1,"b":2}`, `{"a":1,"b":2}`},
-		{`{"a":1,"b":2`, `"{\"a\":1,\"b\":2"`},
-		{[]int{1, 2, 3}, `[1,2,3]`},
-		{map[string]int{"a": 1, "b": 2}, `{"a":1,"b":2}`},
-		{nil, `null`},
-		{false, `false`},
-		{true, `true`},
-		{-78, `-78`},
-		{123.456, `123.456`},
-	}
+		scenarios := []struct {
+			raw      any
+			expected string
+		}{
+			{"null", `null`},
+			{"", `""`},
+			{"true", `true`},
+			{"false", `false`},
+			{"test", `"test"`},
+			{"123", `123`},
+			{"-456", `-456`},
+			{"[1,2,3]", `[1,2,3]`},
+			{"[1,2,3", `"[1,2,3"`},
+			{`{"a":1,"b":2}`, `{"a":1,"b":2}`},
+			{`{"a":1,"b":2`, `"{\"a\":1,\"b\":2"`},
+			{[]int{1, 2, 3}, `[1,2,3]`},
+			{map[string]int{"a": 1, "b": 2}, `{"a":1,"b":2}`},
+			{nil, `null`},
+			{false, `false`},
+			{true, `true`},
+			{-78, `-78`},
+			{123.456, `123.456`},
+		}
 
-	for i, s := range scenarios {
-		t.Run(fmt.Sprintf("%d_%#v", i, s.raw), func(t *testing.T) {
-			v, err := f.PrepareValue(record, s.raw)
-			if err != nil {
-				t.Fatal(err)
-			}
+		for i, s := range scenarios {
+			t.Run(fmt.Sprintf("%d_%#v", i, s.raw), func(t *testing.T) {
+				v, err := f.PrepareValue(record, s.raw)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-			raw, ok := v.(types.JSONRaw)
-			if !ok {
-				t.Fatalf("Expected string instance, got %T", v)
-			}
-			rawStr := raw.String()
+				raw, ok := v.(types.JSONRaw)
+				if !ok {
+					t.Fatalf("Expected string instance, got %T", v)
+				}
+				rawStr := raw.String()
 
-			if rawStr != s.expected {
-				t.Fatalf("Expected\n%#v\ngot\n%#v", s.expected, rawStr)
-			}
-		})
-	}
+				if rawStr != s.expected {
+					t.Fatalf("Expected\n%#v\ngot\n%#v", s.expected, rawStr)
+				}
+			})
+		}
+	})
 }
 
 func TestJSONFieldValidateValue(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	collection := core.NewBaseCollection("test_collection")
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collection := core.NewBaseCollection("test_collection")
 
-	scenarios := []struct {
-		name        string
-		field       *core.JSONField
-		record      func() *core.Record
-		expectError bool
-	}{
-		{
-			"invalid raw value",
-			&core.JSONField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", 123)
-				return record
+		scenarios := []struct {
+			name        string
+			field       *core.JSONField
+			record      func() *core.Record
+			expectError bool
+		}{
+			{
+				"invalid raw value",
+				&core.JSONField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", 123)
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"zero field value (not required)",
-			&core.JSONField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", types.JSONRaw{})
-				return record
+			{
+				"zero field value (not required)",
+				&core.JSONField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", types.JSONRaw{})
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"zero field value (required)",
-			&core.JSONField{Name: "test", Required: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", types.JSONRaw{})
-				return record
+			{
+				"zero field value (required)",
+				&core.JSONField{Name: "test", Required: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", types.JSONRaw{})
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"non-zero field value (required)",
-			&core.JSONField{Name: "test", Required: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", types.JSONRaw("[1,2,3]"))
-				return record
+			{
+				"non-zero field value (required)",
+				&core.JSONField{Name: "test", Required: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", types.JSONRaw("[1,2,3]"))
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"non-zero field value (required)",
-			&core.JSONField{Name: "test", Required: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", types.JSONRaw(`"aaa"`))
-				return record
+			{
+				"non-zero field value (required)",
+				&core.JSONField{Name: "test", Required: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", types.JSONRaw(`"aaa"`))
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"> default MaxSize",
-			&core.JSONField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", types.JSONRaw(`"`+strings.Repeat("a", (1<<20))+`"`))
-				return record
+			{
+				"> default MaxSize",
+				&core.JSONField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", types.JSONRaw(`"`+strings.Repeat("a", (1<<20))+`"`))
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"> MaxSize",
-			&core.JSONField{Name: "test", MaxSize: 5},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", types.JSONRaw(`"aaaa"`))
-				return record
+			{
+				"> MaxSize",
+				&core.JSONField{Name: "test", MaxSize: 5},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", types.JSONRaw(`"aaaa"`))
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"<= MaxSize",
-			&core.JSONField{Name: "test", MaxSize: 5},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", types.JSONRaw(`"aaa"`))
-				return record
+			{
+				"<= MaxSize",
+				&core.JSONField{Name: "test", MaxSize: 5},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", types.JSONRaw(`"aaa"`))
+					return record
+				},
+				false,
 			},
-			false,
-		},
-	}
+		}
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			err := s.field.ValidateValue(context.Background(), app, s.record())
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				err := s.field.ValidateValue(context.Background(), app, s.record())
 
-			hasErr := err != nil
-			if hasErr != s.expectError {
-				t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
-			}
-		})
-	}
+				hasErr := err != nil
+				if hasErr != s.expectError {
+					t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
+				}
+			})
+		}
+	})
 }
 
 func TestJSONFieldValidateSettings(t *testing.T) {
-	testDefaultFieldIdValidation(t, core.FieldTypeJSON)
-	testDefaultFieldNameValidation(t, core.FieldTypeJSON)
+	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		testDefaultFieldIdValidationWithApp(t, app, core.FieldTypeJSON)
+		testDefaultFieldNameValidationWithApp(t, app, core.FieldTypeJSON)
 
-	collection := core.NewBaseCollection("test_collection")
+		collection := core.NewBaseCollection("test_collection")
 
-	scenarios := []struct {
-		name         string
-		field        func() *core.JSONField
-		expectErrors []string
-	}{
-		{
-			"MaxSize < 0",
-			func() *core.JSONField {
-				return &core.JSONField{
-					Id:      "test",
-					Name:    "test",
-					MaxSize: -1,
-				}
+		scenarios := []struct {
+			name         string
+			field        func() *core.JSONField
+			expectErrors []string
+		}{
+			{
+				"MaxSize < 0",
+				func() *core.JSONField {
+					return &core.JSONField{
+						Id:      "test",
+						Name:    "test",
+						MaxSize: -1,
+					}
+				},
+				[]string{"maxSize"},
 			},
-			[]string{"maxSize"},
-		},
-		{
-			"MaxSize = 0",
-			func() *core.JSONField {
-				return &core.JSONField{
-					Id:   "test",
-					Name: "test",
-				}
+			{
+				"MaxSize = 0",
+				func() *core.JSONField {
+					return &core.JSONField{
+						Id:   "test",
+						Name: "test",
+					}
+				},
+				[]string{},
 			},
-			[]string{},
-		},
-		{
-			"MaxSize > 0",
-			func() *core.JSONField {
-				return &core.JSONField{
-					Id:      "test",
-					Name:    "test",
-					MaxSize: 1,
-				}
+			{
+				"MaxSize > 0",
+				func() *core.JSONField {
+					return &core.JSONField{
+						Id:      "test",
+						Name:    "test",
+						MaxSize: 1,
+					}
+				},
+				[]string{},
 			},
-			[]string{},
-		},
-		{
-			"MaxSize > safe json int",
-			func() *core.JSONField {
-				return &core.JSONField{
-					Id:      "test",
-					Name:    "test",
-					MaxSize: 1 << 53,
-				}
+			{
+				"MaxSize > safe json int",
+				func() *core.JSONField {
+					return &core.JSONField{
+						Id:      "test",
+						Name:    "test",
+						MaxSize: 1 << 53,
+					}
+				},
+				[]string{"maxSize"},
 			},
-			[]string{"maxSize"},
-		},
-	}
+		}
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			errs := s.field().ValidateSettings(context.Background(), app, collection)
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				errs := s.field().ValidateSettings(context.Background(), app, collection)
 
-			tests.TestValidationErrors(t, errs, s.expectErrors)
-		})
-	}
+				tests.TestValidationErrors(t, errs, s.expectErrors)
+			})
+		}
+	})
 }
 
 func TestJSONFieldCalculateMaxBodySize(t *testing.T) {
-	testApp, _ := tests.NewTestApp()
-	defer testApp.Cleanup()
+	t.Parallel()
 
-	scenarios := []struct {
-		field    *core.JSONField
-		expected int64
-	}{
-		{&core.JSONField{}, core.DefaultJSONFieldMaxSize},
-		{&core.JSONField{MaxSize: 10}, 10},
-	}
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		scenarios := []struct {
+			field    *core.JSONField
+			expected int64
+		}{
+			{&core.JSONField{}, core.DefaultJSONFieldMaxSize},
+			{&core.JSONField{MaxSize: 10}, 10},
+		}
 
-	for i, s := range scenarios {
-		t.Run(fmt.Sprintf("%d_%d", i, s.field.MaxSize), func(t *testing.T) {
-			result := s.field.CalculateMaxBodySize()
+		for i, s := range scenarios {
+			t.Run(fmt.Sprintf("%d_%d", i, s.field.MaxSize), func(t *testing.T) {
+				result := s.field.CalculateMaxBodySize()
 
-			if result != s.expected {
-				t.Fatalf("Expected %d, got %d", s.expected, result)
-			}
-		})
-	}
+				if result != s.expected {
+					t.Fatalf("Expected %d, got %d", s.expected, result)
+				}
+			})
+		}
+	})
 }

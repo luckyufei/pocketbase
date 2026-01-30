@@ -3,9 +3,12 @@
 package tests
 
 import (
+	"fmt"
+	"log"
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -72,15 +75,19 @@ func DualDBTest(t *testing.T, testFunc func(t *testing.T, app *TestApp, dbType D
 		t.Run("PostgreSQL", func(t *testing.T) {
 			t.Parallel()
 
+			t.Log("[PostgreSQL] 开始创建测试应用...")
+
 			var app *TestApp
 			var err error
 
 			if config.PostgresDSN != "" {
+				t.Log("[PostgreSQL] 使用外部 PostgreSQL DSN")
 				// 使用外部 PostgreSQL
 				app, err = NewTestAppWithConfig(core.BaseAppConfig{
 					PostgresDSN: config.PostgresDSN,
 				})
 			} else {
+				t.Log("[PostgreSQL] 使用 Docker PostgreSQL (NewPostgresTestApp)")
 				// 使用 Docker PostgreSQL
 				app, err = NewPostgresTestApp()
 			}
@@ -91,6 +98,7 @@ func DualDBTest(t *testing.T, testFunc func(t *testing.T, app *TestApp, dbType D
 			}
 			defer app.Cleanup()
 
+			t.Log("[PostgreSQL] 测试应用创建成功，开始执行测试")
 			testFunc(t, app, DBTypePostgres)
 		})
 	}
@@ -131,9 +139,13 @@ func getSharedPostgresContainer() (*PostgresContainer, error) {
 }
 
 // NewPostgresTestApp 创建使用 PostgreSQL 的测试应用
+// 该函数会自动从 SQLite 测试数据库导入测试数据到 PostgreSQL
+// 每次调用都会创建一个新的独立数据库以保证测试隔离
 func NewPostgresTestApp(optTestDataDir ...string) (*TestApp, error) {
+	log.Printf("[NewPostgresTestApp] 开始创建 PostgreSQL 测试应用")
 	container, err := getSharedPostgresContainer()
 	if err != nil {
+		log.Printf("[NewPostgresTestApp] 获取 PostgreSQL 容器失败: %v", err)
 		return nil, err
 	}
 
@@ -142,10 +154,40 @@ func NewPostgresTestApp(optTestDataDir ...string) (*TestApp, error) {
 		testDataDir = optTestDataDir[0]
 	}
 
-	return NewTestAppWithConfig(core.BaseAppConfig{
+	// 为这个测试创建一个独立的数据库
+	dbName := fmt.Sprintf("pb_test_%d", time.Now().UnixNano())
+	log.Printf("[NewPostgresTestApp] 创建测试数据库: %s", dbName)
+	if err := container.CreateDatabaseWithTemplate(dbName); err != nil {
+		log.Printf("[NewPostgresTestApp] 创建测试数据库失败: %v", err)
+		return nil, fmt.Errorf("创建测试数据库失败: %w", err)
+	}
+
+	// 使用新的数据库 DSN
+	dsn := container.DSNWithDatabase(dbName)
+	log.Printf("[NewPostgresTestApp] 使用 DSN: %s", dsn)
+
+	app, err := NewTestAppWithConfig(core.BaseAppConfig{
 		DataDir:     testDataDir,
-		PostgresDSN: container.DSN(),
+		PostgresDSN: dsn,
 	})
+	if err != nil {
+		log.Printf("[NewPostgresTestApp] 创建 TestApp 失败: %v", err)
+		// 清理创建的数据库
+		container.DropDatabase(dbName)
+		return nil, err
+	}
+
+	log.Printf("[NewPostgresTestApp] TestApp 创建成功，开始导入测试数据")
+	// 导入 SQLite 测试数据到 PostgreSQL
+	if err := ImportTestDataToPostgres(app.BaseApp); err != nil {
+		log.Printf("[NewPostgresTestApp] 导入测试数据失败: %v", err)
+		app.Cleanup()
+		container.DropDatabase(dbName)
+		return nil, fmt.Errorf("导入测试数据到 PostgreSQL 失败: %w", err)
+	}
+
+	log.Printf("[NewPostgresTestApp] PostgreSQL 测试应用创建完成")
+	return app, nil
 }
 
 // RunWithBothDBs 为子测试表格同时运行 SQLite 和 PostgreSQL

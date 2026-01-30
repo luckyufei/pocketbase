@@ -15,660 +15,695 @@ func TestTextFieldBaseMethods(t *testing.T) {
 }
 
 func TestTextFieldColumnType(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	f := &core.TextField{}
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		scenarios := []struct {
+			name     string
+			field    *core.TextField
+			expected string
+		}{
+			{
+				"non-primary key",
+				&core.TextField{},
+				"TEXT DEFAULT '' NOT NULL",
+			},
+			{
+				"primary key - SQLite",
+				&core.TextField{PrimaryKey: true},
+				"TEXT PRIMARY KEY DEFAULT ('r'||lower(hex(randomblob(7)))) NOT NULL",
+			},
+			{
+				"primary key - PostgreSQL",
+				&core.TextField{PrimaryKey: true},
+				"TEXT PRIMARY KEY DEFAULT ('r'||lower(encode(gen_random_bytes(7), 'hex'))) NOT NULL",
+			},
+		}
 
-	expected := "TEXT DEFAULT '' NOT NULL"
+		for _, s := range scenarios {
+			// 跳过不匹配当前数据库的主键场景
+			if s.name == "primary key - SQLite" && dbType == tests.DBTypePostgres {
+				continue
+			}
+			if s.name == "primary key - PostgreSQL" && dbType == tests.DBTypeSQLite {
+				continue
+			}
 
-	if v := f.ColumnType(app); v != expected {
-		t.Fatalf("Expected\n%q\ngot\n%q", expected, v)
-	}
+			t.Run(s.name, func(t *testing.T) {
+				if v := s.field.ColumnType(app); v != s.expected {
+					t.Fatalf("Expected\n%q\ngot\n%q", s.expected, v)
+				}
+			})
+		}
+	})
 }
 
 func TestTextFieldPrepareValue(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	f := &core.TextField{}
-	record := core.NewRecord(core.NewBaseCollection("test"))
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		f := &core.TextField{}
+		record := core.NewRecord(core.NewBaseCollection("test"))
 
-	scenarios := []struct {
-		raw      any
-		expected string
-	}{
-		{"", ""},
-		{"test", "test"},
-		{false, "false"},
-		{true, "true"},
-		{123.456, "123.456"},
-	}
+		scenarios := []struct {
+			raw      any
+			expected string
+		}{
+			{"", ""},
+			{"test", "test"},
+			{false, "false"},
+			{true, "true"},
+			{123.456, "123.456"},
+		}
 
-	for i, s := range scenarios {
-		t.Run(fmt.Sprintf("%d_%#v", i, s.raw), func(t *testing.T) {
-			v, err := f.PrepareValue(record, s.raw)
-			if err != nil {
-				t.Fatal(err)
-			}
+		for i, s := range scenarios {
+			t.Run(fmt.Sprintf("%d_%#v", i, s.raw), func(t *testing.T) {
+				v, err := f.PrepareValue(record, s.raw)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-			vStr, ok := v.(string)
-			if !ok {
-				t.Fatalf("Expected string instance, got %T", v)
-			}
+				vStr, ok := v.(string)
+				if !ok {
+					t.Fatalf("Expected string instance, got %T", v)
+				}
 
-			if vStr != s.expected {
-				t.Fatalf("Expected %q, got %q", s.expected, v)
-			}
-		})
-	}
+				if vStr != s.expected {
+					t.Fatalf("Expected %q, got %q", s.expected, v)
+				}
+			})
+		}
+	})
 }
 
 func TestTextFieldValidateValue(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	collection, err := app.FindCollectionByNameOrId("demo1")
-	if err != nil {
-		t.Fatal(err)
-	}
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collection, err := app.FindCollectionByNameOrId("demo1")
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	existingRecord, err := app.FindFirstRecordByFilter(collection, "id != ''")
-	if err != nil {
-		t.Fatal(err)
-	}
+		existingRecord, err := app.FindFirstRecordByFilter(collection, "id != ''")
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	scenarios := []struct {
-		name        string
-		field       *core.TextField
-		record      func() *core.Record
-		expectError bool
-	}{
-		{
-			"invalid raw value",
-			&core.TextField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", 123)
-				return record
+		scenarios := []struct {
+			name        string
+			field       *core.TextField
+			record      func() *core.Record
+			expectError bool
+		}{
+			{
+				"invalid raw value",
+				&core.TextField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", 123)
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"zero field value (not required)",
-			&core.TextField{Name: "test", Pattern: `\d+`, Min: 10, Max: 100}, // other fields validators should be ignored
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "")
-				return record
+			{
+				"zero field value (not required)",
+				&core.TextField{Name: "test", Pattern: `\d+`, Min: 10, Max: 100}, // other fields validators should be ignored
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "")
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"zero field value (required)",
-			&core.TextField{Name: "test", Required: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "")
-				return record
+			{
+				"zero field value (required)",
+				&core.TextField{Name: "test", Required: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "")
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"non-zero field value (required)",
-			&core.TextField{Name: "test", Required: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "abc")
-				return record
+			{
+				"non-zero field value (required)",
+				&core.TextField{Name: "test", Required: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "abc")
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"special forbidden character / (non-primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: false},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "abc/")
-				return record
+			{
+				"special forbidden character / (non-primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: false},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "abc/")
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"special forbidden character \\ (non-primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: false},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "abc\\")
-				return record
+			{
+				"special forbidden character \\ (non-primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: false},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "abc\\")
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"special forbidden character . (non-primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: false},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "abc.")
-				return record
+			{
+				"special forbidden character . (non-primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: false},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "abc.")
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"special forbidden character ' ' (non-primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: false},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "ab c")
-				return record
+			{
+				"special forbidden character ' ' (non-primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: false},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "ab c")
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"special forbidden character * (non-primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: false},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "abc*")
-				return record
+			{
+				"special forbidden character * (non-primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: false},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "abc*")
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"special forbidden character / (primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "abc/")
-				return record
+			{
+				"special forbidden character / (primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "abc/")
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"special forbidden character \\ (primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "abc\\")
-				return record
+			{
+				"special forbidden character \\ (primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "abc\\")
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"special forbidden character . (primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "abc.")
-				return record
+			{
+				"special forbidden character . (primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "abc.")
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"special forbidden character ' ' (primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "ab c")
-				return record
+			{
+				"special forbidden character ' ' (primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "ab c")
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"special forbidden character * (primaryKey; used in the realtime events too)",
-			&core.TextField{Name: "test", PrimaryKey: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "abc*")
-				return record
+			{
+				"special forbidden character * (primaryKey; used in the realtime events too)",
+				&core.TextField{Name: "test", PrimaryKey: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "abc*")
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"reserved pk literal (non-primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: false},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "aUx")
-				return record
+			{
+				"reserved pk literal (non-primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: false},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "aUx")
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"reserved pk literal (primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "aUx")
-				return record
+			{
+				"reserved pk literal (primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "aUx")
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"reserved pk literal (non-exact match, primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "aUx-")
-				return record
+			{
+				"reserved pk literal (non-exact match, primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "aUx-")
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"zero field value (primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "")
-				return record
+			{
+				"zero field value (primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "")
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"non-zero field value (primaryKey)",
-			&core.TextField{Name: "test", PrimaryKey: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "abcd")
-				return record
+			{
+				"non-zero field value (primaryKey)",
+				&core.TextField{Name: "test", PrimaryKey: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "abcd")
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"case-insensitive duplicated primary key check",
-			&core.TextField{Name: "test", PrimaryKey: true},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", strings.ToUpper(existingRecord.Id))
-				return record
+			{
+				"case-insensitive duplicated primary key check",
+				&core.TextField{Name: "test", PrimaryKey: true},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", strings.ToUpper(existingRecord.Id))
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"< min",
-			&core.TextField{Name: "test", Min: 4},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "абв") // multi-byte
-				return record
+			{
+				"< min",
+				&core.TextField{Name: "test", Min: 4},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "абв") // multi-byte
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			">= min",
-			&core.TextField{Name: "test", Min: 3},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "абв") // multi-byte
-				return record
+			{
+				">= min",
+				&core.TextField{Name: "test", Min: 3},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "абв") // multi-byte
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"> default max",
-			&core.TextField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", strings.Repeat("a", 5001))
-				return record
+			{
+				"> default max",
+				&core.TextField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", strings.Repeat("a", 5001))
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"<= default max",
-			&core.TextField{Name: "test"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", strings.Repeat("a", 500))
-				return record
+			{
+				"<= default max",
+				&core.TextField{Name: "test"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", strings.Repeat("a", 500))
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"> max",
-			&core.TextField{Name: "test", Max: 2},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "абв") // multi-byte
-				return record
+			{
+				"> max",
+				&core.TextField{Name: "test", Max: 2},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "абв") // multi-byte
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"<= max",
-			&core.TextField{Name: "test", Min: 3},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "абв") // multi-byte
-				return record
+			{
+				"<= max",
+				&core.TextField{Name: "test", Min: 3},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "абв") // multi-byte
+					return record
+				},
+				false,
 			},
-			false,
-		},
-		{
-			"mismatched pattern",
-			&core.TextField{Name: "test", Pattern: `\d+`},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "abc")
-				return record
+			{
+				"mismatched pattern",
+				&core.TextField{Name: "test", Pattern: `\d+`},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "abc")
+					return record
+				},
+				true,
 			},
-			true,
-		},
-		{
-			"matched pattern",
-			&core.TextField{Name: "test", Pattern: `\d+`},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "123")
-				return record
+			{
+				"matched pattern",
+				&core.TextField{Name: "test", Pattern: `\d+`},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "123")
+					return record
+				},
+				false,
 			},
-			false,
-		},
-	}
+		}
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			err := s.field.ValidateValue(context.Background(), app, s.record())
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				err := s.field.ValidateValue(context.Background(), app, s.record())
 
-			hasErr := err != nil
-			if hasErr != s.expectError {
-				t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
-			}
-		})
-	}
+				hasErr := err != nil
+				if hasErr != s.expectError {
+					t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
+				}
+			})
+		}
+	})
 }
 
 func TestTextFieldValidateSettings(t *testing.T) {
-	testDefaultFieldIdValidation(t, core.FieldTypeText)
-	testDefaultFieldNameValidation(t, core.FieldTypeText)
+	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		testDefaultFieldIdValidationWithApp(t, app, core.FieldTypeText)
+		testDefaultFieldNameValidationWithApp(t, app, core.FieldTypeText)
 
-	scenarios := []struct {
-		name         string
-		field        func() *core.TextField
-		expectErrors []string
-	}{
-		{
-			"zero minimal",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:   "test",
-					Name: "test",
-				}
+		scenarios := []struct {
+			name         string
+			field        func() *core.TextField
+			expectErrors []string
+		}{
+			{
+				"zero minimal",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:   "test",
+						Name: "test",
+					}
+				},
+				[]string{},
 			},
-			[]string{},
-		},
-		{
-			"primaryKey without required",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:         "test",
-					Name:       "id",
-					PrimaryKey: true,
-					Pattern:    `\d+`,
-				}
+			{
+				"primaryKey without required",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:         "test",
+						Name:       "id",
+						PrimaryKey: true,
+						Pattern:    `\d+`,
+					}
+				},
+				[]string{"required"},
 			},
-			[]string{"required"},
-		},
-		{
-			"primaryKey without pattern",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:         "test",
-					Name:       "id",
-					PrimaryKey: true,
-					Required:   true,
-				}
+			{
+				"primaryKey without pattern",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:         "test",
+						Name:       "id",
+						PrimaryKey: true,
+						Required:   true,
+					}
+				},
+				[]string{"pattern"},
 			},
-			[]string{"pattern"},
-		},
-		{
-			"primaryKey with hidden",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:         "test",
-					Name:       "id",
-					Required:   true,
-					PrimaryKey: true,
-					Hidden:     true,
-					Pattern:    `\d+`,
-				}
+			{
+				"primaryKey with hidden",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:         "test",
+						Name:       "id",
+						Required:   true,
+						PrimaryKey: true,
+						Hidden:     true,
+						Pattern:    `\d+`,
+					}
+				},
+				[]string{"hidden"},
 			},
-			[]string{"hidden"},
-		},
-		{
-			"primaryKey with name != id",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:         "test",
-					Name:       "test",
-					PrimaryKey: true,
-					Required:   true,
-					Pattern:    `\d+`,
-				}
+			{
+				"primaryKey with name != id",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:         "test",
+						Name:       "test",
+						PrimaryKey: true,
+						Required:   true,
+						Pattern:    `\d+`,
+					}
+				},
+				[]string{"name"},
 			},
-			[]string{"name"},
-		},
-		{
-			"multiple primaryKey fields",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:         "test2",
-					Name:       "id",
-					PrimaryKey: true,
-					Pattern:    `\d+`,
-					Required:   true,
-				}
+			{
+				"multiple primaryKey fields",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:         "test2",
+						Name:       "id",
+						PrimaryKey: true,
+						Pattern:    `\d+`,
+						Required:   true,
+					}
+				},
+				[]string{"primaryKey"},
 			},
-			[]string{"primaryKey"},
-		},
-		{
-			"invalid pattern",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:      "test2",
-					Name:    "id",
-					Pattern: `(invalid`,
-				}
+			{
+				"invalid pattern",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:      "test2",
+						Name:    "id",
+						Pattern: `(invalid`,
+					}
+				},
+				[]string{"pattern"},
 			},
-			[]string{"pattern"},
-		},
-		{
-			"valid pattern",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:      "test2",
-					Name:    "id",
-					Pattern: `\d+`,
-				}
+			{
+				"valid pattern",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:      "test2",
+						Name:    "id",
+						Pattern: `\d+`,
+					}
+				},
+				[]string{},
 			},
-			[]string{},
-		},
-		{
-			"invalid autogeneratePattern",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:                  "test2",
-					Name:                "id",
-					AutogeneratePattern: `(invalid`,
-				}
+			{
+				"invalid autogeneratePattern",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:                  "test2",
+						Name:                "id",
+						AutogeneratePattern: `(invalid`,
+					}
+				},
+				[]string{"autogeneratePattern"},
 			},
-			[]string{"autogeneratePattern"},
-		},
-		{
-			"valid autogeneratePattern",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:                  "test2",
-					Name:                "id",
-					AutogeneratePattern: `[a-z]+`,
-				}
+			{
+				"valid autogeneratePattern",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:                  "test2",
+						Name:                "id",
+						AutogeneratePattern: `[a-z]+`,
+					}
+				},
+				[]string{},
 			},
-			[]string{},
-		},
-		{
-			"conflicting pattern and autogeneratePattern",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:                  "test2",
-					Name:                "id",
-					Pattern:             `\d+`,
-					AutogeneratePattern: `[a-z]+`,
-				}
+			{
+				"conflicting pattern and autogeneratePattern",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:                  "test2",
+						Name:                "id",
+						Pattern:             `\d+`,
+						AutogeneratePattern: `[a-z]+`,
+					}
+				},
+				[]string{"autogeneratePattern"},
 			},
-			[]string{"autogeneratePattern"},
-		},
-		{
-			"Max > safe json int",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:   "test",
-					Name: "test",
-					Max:  1 << 53,
-				}
+			{
+				"Max > safe json int",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:   "test",
+						Name: "test",
+						Max:  1 << 53,
+					}
+				},
+				[]string{"max"},
 			},
-			[]string{"max"},
-		},
-		{
-			"Max < 0",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:   "test",
-					Name: "test",
-					Max:  -1,
-				}
+			{
+				"Max < 0",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:   "test",
+						Name: "test",
+						Max:  -1,
+					}
+				},
+				[]string{"max"},
 			},
-			[]string{"max"},
-		},
-		{
-			"Min > safe json int",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:   "test",
-					Name: "test",
-					Min:  1 << 53,
-				}
+			{
+				"Min > safe json int",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:   "test",
+						Name: "test",
+						Min:  1 << 53,
+					}
+				},
+				[]string{"min"},
 			},
-			[]string{"min"},
-		},
-		{
-			"Min < 0",
-			func() *core.TextField {
-				return &core.TextField{
-					Id:   "test",
-					Name: "test",
-					Min:  -1,
-				}
+			{
+				"Min < 0",
+				func() *core.TextField {
+					return &core.TextField{
+						Id:   "test",
+						Name: "test",
+						Min:  -1,
+					}
+				},
+				[]string{"min"},
 			},
-			[]string{"min"},
-		},
-	}
+		}
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			field := s.field()
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				field := s.field()
 
-			collection := core.NewBaseCollection("test_collection")
-			collection.Fields.GetByName("id").SetId("test") // set a dummy known id so that it can be replaced
-			collection.Fields.Add(field)
+				collection := core.NewBaseCollection("test_collection")
+				collection.Fields.GetByName("id").SetId("test") // set a dummy known id so that it can be replaced
+				collection.Fields.Add(field)
 
-			errs := field.ValidateSettings(context.Background(), app, collection)
+				errs := field.ValidateSettings(context.Background(), app, collection)
 
-			tests.TestValidationErrors(t, errs, s.expectErrors)
-		})
-	}
+				tests.TestValidationErrors(t, errs, s.expectErrors)
+			})
+		}
+	})
 }
 
 func TestTextFieldAutogenerate(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	collection := core.NewBaseCollection("test_collection")
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collection := core.NewBaseCollection("test_collection")
 
-	scenarios := []struct {
-		name       string
-		actionName string
-		field      *core.TextField
-		record     func() *core.Record
-		expected   string
-	}{
-		{
-			"non-matching action",
-			core.InterceptorActionUpdate,
-			&core.TextField{Name: "test", AutogeneratePattern: "abc"},
-			func() *core.Record {
-				return core.NewRecord(collection)
+		scenarios := []struct {
+			name       string
+			actionName string
+			field      *core.TextField
+			record     func() *core.Record
+			expected   string
+		}{
+			{
+				"non-matching action",
+				core.InterceptorActionUpdate,
+				&core.TextField{Name: "test", AutogeneratePattern: "abc"},
+				func() *core.Record {
+					return core.NewRecord(collection)
+				},
+				"",
 			},
-			"",
-		},
-		{
-			"matching action (create)",
-			core.InterceptorActionCreate,
-			&core.TextField{Name: "test", AutogeneratePattern: "abc"},
-			func() *core.Record {
-				return core.NewRecord(collection)
+			{
+				"matching action (create)",
+				core.InterceptorActionCreate,
+				&core.TextField{Name: "test", AutogeneratePattern: "abc"},
+				func() *core.Record {
+					return core.NewRecord(collection)
+				},
+				"abc",
 			},
-			"abc",
-		},
-		{
-			"matching action (validate)",
-			core.InterceptorActionValidate,
-			&core.TextField{Name: "test", AutogeneratePattern: "abc"},
-			func() *core.Record {
-				return core.NewRecord(collection)
+			{
+				"matching action (validate)",
+				core.InterceptorActionValidate,
+				&core.TextField{Name: "test", AutogeneratePattern: "abc"},
+				func() *core.Record {
+					return core.NewRecord(collection)
+				},
+				"abc",
 			},
-			"abc",
-		},
-		{
-			"existing non-zero value",
-			core.InterceptorActionCreate,
-			&core.TextField{Name: "test", AutogeneratePattern: "abc"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.SetRaw("test", "123")
-				return record
+			{
+				"existing non-zero value",
+				core.InterceptorActionCreate,
+				&core.TextField{Name: "test", AutogeneratePattern: "abc"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.SetRaw("test", "123")
+					return record
+				},
+				"123",
 			},
-			"123",
-		},
-		{
-			"non-new record",
-			core.InterceptorActionValidate,
-			&core.TextField{Name: "test", AutogeneratePattern: "abc"},
-			func() *core.Record {
-				record := core.NewRecord(collection)
-				record.Id = "test"
-				record.PostScan()
-				return record
+			{
+				"non-new record",
+				core.InterceptorActionValidate,
+				&core.TextField{Name: "test", AutogeneratePattern: "abc"},
+				func() *core.Record {
+					record := core.NewRecord(collection)
+					record.Id = "test"
+					record.PostScan()
+					return record
+				},
+				"",
 			},
-			"",
-		},
-	}
+		}
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			actionCalls := 0
-			record := s.record()
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				actionCalls := 0
+				record := s.record()
 
-			err := s.field.Intercept(context.Background(), app, record, s.actionName, func() error {
-				actionCalls++
-				return nil
+				err := s.field.Intercept(context.Background(), app, record, s.actionName, func() error {
+					actionCalls++
+					return nil
+				})
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if actionCalls != 1 {
+					t.Fatalf("Expected actionCalls %d, got %d", 1, actionCalls)
+				}
+
+				v := record.GetString(s.field.GetName())
+				if v != s.expected {
+					t.Fatalf("Expected value %q, got %q", s.expected, v)
+				}
 			})
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if actionCalls != 1 {
-				t.Fatalf("Expected actionCalls %d, got %d", 1, actionCalls)
-			}
-
-			v := record.GetString(s.field.GetName())
-			if v != s.expected {
-				t.Fatalf("Expected value %q, got %q", s.expected, v)
-			}
-		})
-	}
+		}
+	})
 }
 
 func TestTextFieldFindSetter(t *testing.T) {

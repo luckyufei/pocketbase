@@ -358,3 +358,504 @@ func TestRequestInfoFieldsPostgres(t *testing.T) {
 		})
 	}
 }
+
+// TestNestedRelationsPostgres 测试嵌套关联查询
+// 这是 SQLite 测试覆盖但 PostgreSQL 之前缺失的关键场景
+func TestNestedRelationsPostgres(t *testing.T) {
+	app := createPostgresTestApp(t)
+	defer app.Cleanup()
+
+	scenarios := []struct {
+		name       string
+		collection string
+		filter     string
+	}{
+		{
+			name:       "单层嵌套关联 (单值)",
+			collection: "demo4",
+			filter:     "self_rel_one.title > ''",
+		},
+		{
+			name:       "双层嵌套关联 (单值)",
+			collection: "demo4",
+			filter:     "self_rel_one.self_rel_one.title > ''",
+		},
+		{
+			name:       "嵌套关联 (多值 opt/any)",
+			collection: "demo4",
+			filter:     "self_rel_many.self_rel_one.title ?> ''",
+		},
+		{
+			name:       "嵌套关联 (多值 multi-match)",
+			collection: "demo4",
+			filter:     "self_rel_many.self_rel_one.title > ''",
+		},
+		{
+			name:       "深层嵌套关联 (4层)",
+			collection: "demo4",
+			filter:     "self_rel_many.self_rel_one.self_rel_many.self_rel_one.title ?> ''",
+		},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			collection, err := app.FindCollectionByNameOrId(s.collection)
+			if err != nil {
+				t.Fatalf("找不到集合 %q: %v", s.collection, err)
+			}
+
+			requestInfo := &core.RequestInfo{}
+			resolver := core.NewRecordFieldResolver(app, collection, requestInfo, true)
+			query := app.RecordQuery(collection)
+
+			expr, err := search.FilterData(s.filter).BuildExpr(resolver)
+			if err != nil {
+				t.Fatalf("构建过滤表达式失败: %v", err)
+			}
+
+			query.AndWhere(expr)
+
+			if err := resolver.UpdateQuery(query); err != nil {
+				t.Fatalf("UpdateQuery 失败: %v", err)
+			}
+
+			// 验证查询能执行 (PostgreSQL 特有的 LEFT JOIN ON true 语法)
+			var records []*core.Record
+			if err := query.All(&records); err != nil {
+				t.Fatalf("执行查询失败: %v", err)
+			}
+		})
+	}
+}
+
+// TestBackRelationsViaPostgres 测试反向关联 _via_ 查询
+func TestBackRelationsViaPostgres(t *testing.T) {
+	app := createPostgresTestApp(t)
+	defer app.Cleanup()
+
+	scenarios := []struct {
+		name       string
+		collection string
+		filter     string
+	}{
+		{
+			name:       "反向关联 via 单值字段 (multi-match)",
+			collection: "demo3",
+			filter:     "demo4_via_rel_one_cascade.id = ''",
+		},
+		{
+			name:       "反向关联 via 单值字段 (唯一索引)",
+			collection: "demo3",
+			filter:     "demo4_via_rel_one_unique.id = ''",
+		},
+		{
+			name:       "反向关联 via 多值字段 (opt/any)",
+			collection: "demo3",
+			filter:     "demo4_via_rel_many_cascade.id ?= ''",
+		},
+		{
+			name:       "反向关联 via 多值字段 (multi-match)",
+			collection: "demo3",
+			filter:     "demo4_via_rel_many_cascade.id = ''",
+		},
+		{
+			name:       "递归反向关联",
+			collection: "demo3",
+			filter:     "demo4_via_rel_many_cascade.rel_one_cascade.demo4_via_rel_many_cascade.id ?= ''",
+		},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			collection, err := app.FindCollectionByNameOrId(s.collection)
+			if err != nil {
+				t.Fatalf("找不到集合 %q: %v", s.collection, err)
+			}
+
+			requestInfo := &core.RequestInfo{}
+			resolver := core.NewRecordFieldResolver(app, collection, requestInfo, true)
+			query := app.RecordQuery(collection)
+
+			expr, err := search.FilterData(s.filter).BuildExpr(resolver)
+			if err != nil {
+				t.Fatalf("构建过滤表达式失败: %v", err)
+			}
+
+			query.AndWhere(expr)
+
+			if err := resolver.UpdateQuery(query); err != nil {
+				t.Fatalf("UpdateQuery 失败: %v", err)
+			}
+
+			var records []*core.Record
+			if err := query.All(&records); err != nil {
+				t.Fatalf("执行查询失败: %v", err)
+			}
+		})
+	}
+}
+
+// TestModifiersPostgres 测试字段修饰符在 PostgreSQL 下的行为
+func TestModifiersPostgres(t *testing.T) {
+	app := createPostgresTestApp(t)
+	defer app.Cleanup()
+
+	// 获取 auth 用户用于 @request.auth
+	authRecord, err := app.FindRecordById("users", "4q1xlclmfloku33")
+	if err != nil {
+		t.Skipf("找不到测试用户: %v", err)
+	}
+
+	scenarios := []struct {
+		name        string
+		collection  string
+		filter      string
+		requestInfo *core.RequestInfo
+	}{
+		{
+			name:       ":lower 修饰符",
+			collection: "demo4",
+			filter:     "title:lower = 'test'",
+			requestInfo: &core.RequestInfo{
+				Auth: authRecord,
+			},
+		},
+		{
+			name:       ":length 修饰符 (多值字段)",
+			collection: "demo4",
+			filter:     "self_rel_many:length > 0",
+			requestInfo: &core.RequestInfo{
+				Auth: authRecord,
+			},
+		},
+		{
+			name:       ":isset 修饰符 (@request.query)",
+			collection: "demo4",
+			filter:     "@request.query.test:isset = true",
+			requestInfo: &core.RequestInfo{
+				Auth: authRecord,
+				Query: map[string]string{
+					"test": "value",
+				},
+			},
+		},
+		{
+			name:       ":isset 修饰符 (@request.body)",
+			collection: "demo4",
+			filter:     "@request.body.title:isset = true",
+			requestInfo: &core.RequestInfo{
+				Auth: authRecord,
+				Body: map[string]any{
+					"title": "test",
+				},
+			},
+		},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			collection, err := app.FindCollectionByNameOrId(s.collection)
+			if err != nil {
+				t.Fatalf("找不到集合 %q: %v", s.collection, err)
+			}
+
+			resolver := core.NewRecordFieldResolver(app, collection, s.requestInfo, true)
+			query := app.RecordQuery(collection)
+
+			expr, err := search.FilterData(s.filter).BuildExpr(resolver)
+			if err != nil {
+				t.Fatalf("构建过滤表达式失败: %v", err)
+			}
+
+			query.AndWhere(expr)
+
+			if err := resolver.UpdateQuery(query); err != nil {
+				t.Fatalf("UpdateQuery 失败: %v", err)
+			}
+
+			var records []*core.Record
+			if err := query.All(&records); err != nil {
+				t.Fatalf("执行查询失败: %v", err)
+			}
+		})
+	}
+}
+
+// TestEachModifierPostgres 测试 :each 修饰符在 PostgreSQL 下的行为
+// 这是 SQLite 和 PostgreSQL SQL 语法差异较大的场景
+func TestEachModifierPostgres(t *testing.T) {
+	app := createPostgresTestApp(t)
+	defer app.Cleanup()
+
+	scenarios := []struct {
+		name       string
+		collection string
+		filter     string
+	}{
+		{
+			name:       ":each 修饰符 (select_many)",
+			collection: "demo1",
+			filter:     "select_many:each = 'optionA'",
+		},
+		{
+			name:       ":each 修饰符 (file_many)",
+			collection: "demo1",
+			filter:     "file_many:each != ''",
+		},
+		{
+			name:       ":each 与 opt/any 操作符组合",
+			collection: "demo1",
+			filter:     "select_many:each ?= 'optionA'",
+		},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			collection, err := app.FindCollectionByNameOrId(s.collection)
+			if err != nil {
+				t.Fatalf("找不到集合 %q: %v", s.collection, err)
+			}
+
+			requestInfo := &core.RequestInfo{}
+			resolver := core.NewRecordFieldResolver(app, collection, requestInfo, true)
+			query := app.RecordQuery(collection)
+
+			expr, err := search.FilterData(s.filter).BuildExpr(resolver)
+			if err != nil {
+				t.Fatalf("构建过滤表达式失败: %v", err)
+			}
+
+			query.AndWhere(expr)
+
+			if err := resolver.UpdateQuery(query); err != nil {
+				t.Fatalf("UpdateQuery 失败: %v", err)
+			}
+
+			var records []*core.Record
+			if err := query.All(&records); err != nil {
+				t.Fatalf("执行查询失败: %v", err)
+			}
+		})
+	}
+}
+
+// TestHiddenFieldsPostgres 测试隐藏字段 (emailVisibility) 在 PostgreSQL 下的行为
+func TestHiddenFieldsPostgres(t *testing.T) {
+	app := createPostgresTestApp(t)
+	defer app.Cleanup()
+
+	scenarios := []struct {
+		name              string
+		collection        string
+		filter            string
+		allowHiddenFields bool
+		expectErr         bool
+	}{
+		{
+			name:              "直接访问隐藏字段 (不允许)",
+			collection:        "users",
+			filter:            "email > ''",
+			allowHiddenFields: false,
+			expectErr:         false, // 不会报错，但会添加 emailVisibility 条件
+		},
+		{
+			name:              "直接访问隐藏字段 (允许)",
+			collection:        "users",
+			filter:            "email > ''",
+			allowHiddenFields: true,
+			expectErr:         false,
+		},
+		{
+			name:              "隐藏字段 + :lower 修饰符",
+			collection:        "users",
+			filter:            "email:lower = 'test@example.com'",
+			allowHiddenFields: false,
+			expectErr:         false,
+		},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			collection, err := app.FindCollectionByNameOrId(s.collection)
+			if err != nil {
+				t.Fatalf("找不到集合 %q: %v", s.collection, err)
+			}
+
+			requestInfo := &core.RequestInfo{}
+			resolver := core.NewRecordFieldResolver(app, collection, requestInfo, s.allowHiddenFields)
+			query := app.RecordQuery(collection)
+
+			expr, err := search.FilterData(s.filter).BuildExpr(resolver)
+			if err != nil {
+				if !s.expectErr {
+					t.Fatalf("构建过滤表达式失败: %v", err)
+				}
+				return
+			}
+
+			query.AndWhere(expr)
+
+			if err := resolver.UpdateQuery(query); err != nil {
+				if !s.expectErr {
+					t.Fatalf("UpdateQuery 失败: %v", err)
+				}
+				return
+			}
+
+			var records []*core.Record
+			if err := query.All(&records); err != nil {
+				if !s.expectErr {
+					t.Fatalf("执行查询失败: %v", err)
+				}
+				return
+			}
+
+			if s.expectErr {
+				t.Error("预期错误但查询成功")
+			}
+		})
+	}
+}
+
+// TestRequestAuthFieldsPostgres 测试 @request.auth.* 字段在 PostgreSQL 下的行为
+func TestRequestAuthFieldsPostgres(t *testing.T) {
+	app := createPostgresTestApp(t)
+	defer app.Cleanup()
+
+	// 获取 auth 用户
+	authRecord, err := app.FindRecordById("users", "4q1xlclmfloku33")
+	if err != nil {
+		t.Skipf("找不到测试用户: %v", err)
+	}
+
+	scenarios := []struct {
+		name       string
+		collection string
+		filter     string
+	}{
+		{
+			name:       "@request.auth.id",
+			collection: "demo4",
+			filter:     "@request.auth.id != ''",
+		},
+		{
+			name:       "@request.auth 嵌套关联字段",
+			collection: "demo4",
+			filter:     "@request.auth.rel.title != ''",
+		},
+		{
+			name:       "@request.auth 缺失字段处理",
+			collection: "demo4",
+			filter:     "@request.auth.missing.field != ''",
+		},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			collection, err := app.FindCollectionByNameOrId(s.collection)
+			if err != nil {
+				t.Fatalf("找不到集合 %q: %v", s.collection, err)
+			}
+
+			requestInfo := &core.RequestInfo{
+				Auth: authRecord,
+			}
+
+			resolver := core.NewRecordFieldResolver(app, collection, requestInfo, true)
+			query := app.RecordQuery(collection)
+
+			expr, err := search.FilterData(s.filter).BuildExpr(resolver)
+			if err != nil {
+				t.Fatalf("构建过滤表达式失败: %v", err)
+			}
+
+			query.AndWhere(expr)
+
+			if err := resolver.UpdateQuery(query); err != nil {
+				t.Fatalf("UpdateQuery 失败: %v", err)
+			}
+
+			var records []*core.Record
+			if err := query.All(&records); err != nil {
+				t.Fatalf("执行查询失败: %v", err)
+			}
+		})
+	}
+}
+
+// TestComplexRulesPostgres 测试复杂规则组合在 PostgreSQL 下的行为
+// 这是最容易出现 SQLite/PostgreSQL 语法差异的场景
+func TestComplexRulesPostgres(t *testing.T) {
+	app := createPostgresTestApp(t)
+	defer app.Cleanup()
+
+	authRecord, err := app.FindRecordById("users", "4q1xlclmfloku33")
+	if err != nil {
+		t.Skipf("找不到测试用户: %v", err)
+	}
+
+	scenarios := []struct {
+		name       string
+		collection string
+		rule       string
+	}{
+		{
+			name:       "多个 @collection 联合查询",
+			collection: "demo4",
+			rule:       "@collection.demo1.text ?> '' || @collection.demo2.active ?> ''",
+		},
+		{
+			name:       "@collection + 嵌套关联",
+			collection: "demo4",
+			rule:       "@collection.demo1.id != '' && self_rel_one.title != ''",
+		},
+		{
+			name:       "多层 multi-match 组合",
+			collection: "demo4",
+			rule:       "self_rel_many.title = '' || self_rel_one.json_object.a > ''",
+		},
+		{
+			name:       "@collection 与带规则的集合",
+			collection: "demo4",
+			rule:       "@collection.demo3.title > ''",
+		},
+	}
+
+	for _, s := range scenarios {
+		t.Run(s.name, func(t *testing.T) {
+			collection, err := app.FindCollectionByNameOrId(s.collection)
+			if err != nil {
+				t.Fatalf("找不到集合 %q: %v", s.collection, err)
+			}
+
+			collectionCopy := *collection
+			collectionCopy.ListRule = &s.rule
+
+			requestInfo := &core.RequestInfo{
+				Auth: authRecord,
+			}
+
+			resolver := core.NewRecordFieldResolver(app, &collectionCopy, requestInfo, true)
+			query := app.RecordQuery(&collectionCopy)
+
+			expr, err := search.FilterData(s.rule).BuildExpr(resolver)
+			if err != nil {
+				t.Fatalf("构建过滤表达式失败: %v", err)
+			}
+
+			query.AndWhere(expr)
+
+			if err := resolver.UpdateQuery(query); err != nil {
+				t.Fatalf("UpdateQuery 失败: %v", err)
+			}
+
+			// 打印生成的 SQL 以便调试
+			t.Logf("生成的 SQL: %s", query.Build().SQL())
+
+			var records []*core.Record
+			if err := query.All(&records); err != nil {
+				t.Fatalf("执行查询失败 (PostgreSQL 语法错误): %v", err)
+			}
+		})
+	}
+}
