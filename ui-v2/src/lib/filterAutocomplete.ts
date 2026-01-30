@@ -50,6 +50,11 @@ export function getCollectionAutocompleteKeys(
   prefix: string = '',
   level: number = 0
 ): string[] {
+  // 防御性检查：如果 collections 为空或 undefined，直接返回空数组
+  if (!collections || !Array.isArray(collections) || collections.length === 0) {
+    return []
+  }
+
   const collection = collections.find(
     (item) => item.name === collectionNameOrId || item.id === collectionNameOrId
   )
@@ -108,6 +113,11 @@ export function getCollectionAutocompleteKeys(
  * 获取 @collection.* 自动补全键
  */
 export function getCollectionJoinAutocompleteKeys(collections: CollectionModel[]): string[] {
+  // 防御性检查
+  if (!collections || !Array.isArray(collections)) {
+    return []
+  }
+
   const result: string[] = []
 
   for (const collection of collections) {
@@ -136,6 +146,11 @@ export function getRequestAutocompleteKeys(
     '@request.auth.collectionId',
     '@request.auth.collectionName',
   ])
+
+  // 防御性检查
+  if (!collections || !Array.isArray(collections)) {
+    return [...resultSet]
+  }
 
   // 加载 auth 集合字段
   const authCollections = collections.filter((c) => c.type === 'auth' && !c.system)

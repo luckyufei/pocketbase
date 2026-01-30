@@ -15,7 +15,7 @@ interface FilterAutocompleteInputProps {
   value: string
   onChange: (value: string) => void
   onSubmit?: (value: string) => void
-  collections: CollectionModel[]
+  collections?: CollectionModel[]
   baseCollection?: CollectionModel | null
   placeholder?: string
   disabled?: boolean
@@ -32,7 +32,7 @@ export function FilterAutocompleteInput({
   value,
   onChange,
   onSubmit,
-  collections,
+  collections = [],
   baseCollection,
   placeholder = 'Filter records, e.g. created > @now',
   disabled = false,
