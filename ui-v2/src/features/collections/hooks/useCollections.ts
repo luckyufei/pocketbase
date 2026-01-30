@@ -187,6 +187,26 @@ export function useCollections() {
     [fetchCollections, setLoading, setError]
   )
 
+  /**
+   * 清空 Collection 的所有记录（Truncate）
+   */
+  const truncateCollection = useCallback(
+    async (idOrName: string) => {
+      setLoading(true)
+      setError(null)
+      try {
+        await pb.collections.truncate(idOrName)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '清空 Collection 失败'
+        setError(message)
+        throw err
+      } finally {
+        setLoading(false)
+      }
+    },
+    [setLoading, setError]
+  )
+
   return {
     collections,
     loading,
@@ -199,6 +219,7 @@ export function useCollections() {
     saveCollection,
     destroyCollection,
     importCollections,
+    truncateCollection,
   }
 }
 

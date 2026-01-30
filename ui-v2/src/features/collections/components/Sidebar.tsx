@@ -230,6 +230,22 @@ export function CollectionsSidebar() {
         onClose={() => setPanelOpen(false)}
         collection={editingCollection}
         onSave={handleSave}
+        onDelete={() => {
+          // 如果删除的是当前选中的 collection，跳转到首页
+          if (activeCollection?.id === editingCollection?.id) {
+            navigate('/collections')
+          }
+          fetchCollections()
+        }}
+        onTruncate={() => {
+          // 清空记录后刷新
+          fetchCollections()
+        }}
+        onDuplicate={(clonedCollection) => {
+          // 打开新面板显示克隆的 collection
+          setEditingCollection(clonedCollection)
+          setPanelOpen(true)
+        }}
       />
     </div>
   )

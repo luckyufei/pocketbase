@@ -3,11 +3,10 @@
  * API 文档面板
  */
 import { useState, useMemo, useCallback } from 'react'
-import { X, Copy, Check, ExternalLink } from 'lucide-react'
+import { Copy, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import {
   getCollectionTabs,
@@ -46,6 +45,10 @@ export function CollectionDocsPanel({ collection, open, onOpenChange }: Collecti
     return getCollectionTabs(collection.type)
   }, [collection])
 
+  // 基础 tabs 数量（用于在 auth collection 时添加分隔线）
+  // BASE_TABS 包含: list, view, create, update, delete, realtime, batch = 7 个
+  const baseTabsCount = 7
+
   // 当集合变化时重置标签
   useMemo(() => {
     if (tabs.length > 0 && !tabs.find((t) => t.id === activeTab)) {
@@ -57,44 +60,58 @@ export function CollectionDocsPanel({ collection, open, onOpenChange }: Collecti
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[600px] sm:w-[800px] sm:max-w-none">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <span>API 文档</span>
-            <span className="text-muted-foreground">- {collection.name}</span>
-          </SheetTitle>
-        </SheetHeader>
-
-        <div className="mt-4 h-[calc(100vh-120px)]">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <ScrollArea className="w-full">
-              <TabsList className="w-full justify-start">
-                {tabs.map((tab) => (
-                  <TabsTrigger
-                    key={tab.id}
-                    value={tab.id}
-                    disabled={tab.disabled}
-                    className="text-xs"
-                  >
-                    {tab.label}
-                  </TabsTrigger>
+      <SheetContent className="w-[700px] sm:w-[900px] sm:max-w-none p-0">
+        <div className="flex h-full">
+          {/* 左侧垂直导航 */}
+          <aside className="w-44 border-r bg-muted/30 flex flex-col">
+            <div className="p-4 border-b">
+              <h2 className="font-semibold text-sm">API 文档</h2>
+              <p className="text-xs text-muted-foreground mt-1 truncate">{collection.name}</p>
+            </div>
+            <ScrollArea className="flex-1">
+              <nav className="p-2 space-y-1">
+                {tabs.map((tab, index) => (
+                  <div key={tab.id}>
+                    {/* 在 auth collection 的基础 tabs 和认证 tabs 之间添加分隔线 */}
+                    {collection.type === 'auth' && index === baseTabsCount && (
+                      <hr className="my-2 border-border" />
+                    )}
+                    <button
+                      type="button"
+                      disabled={tab.disabled}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={cn(
+                        'w-full text-left px-3 py-2 text-sm rounded-md transition-colors',
+                        activeTab === tab.id
+                          ? 'bg-blue-50 text-blue-600 font-medium'
+                          : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+                        tab.disabled && 'opacity-50 cursor-not-allowed'
+                      )}
+                    >
+                      {tab.label}
+                    </button>
+                  </div>
                 ))}
-              </TabsList>
+              </nav>
             </ScrollArea>
+          </aside>
 
-            <ScrollArea className="h-[calc(100%-60px)] mt-4">
-              {tabs.map((tab) => (
-                <TabsContent key={tab.id} value={tab.id} className="mt-0">
-                  <ApiDocContent
-                    collection={collection}
-                    action={tab.id}
-                    sdkTab={sdkTab}
-                    onSdkTabChange={setSdkTab}
-                  />
-                </TabsContent>
-              ))}
+          {/* 右侧内容区 */}
+          <div className="flex-1 flex flex-col min-w-0">
+            <SheetHeader className="p-4 border-b">
+              <SheetTitle className="text-base">
+                {tabs.find((t) => t.id === activeTab)?.label || 'API 文档'}
+              </SheetTitle>
+            </SheetHeader>
+            <ScrollArea className="flex-1 p-4">
+              <ApiDocContent
+                collection={collection}
+                action={activeTab}
+                sdkTab={sdkTab}
+                onSdkTabChange={setSdkTab}
+              />
             </ScrollArea>
-          </Tabs>
+          </div>
         </div>
       </SheetContent>
     </Sheet>

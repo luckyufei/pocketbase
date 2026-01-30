@@ -2,27 +2,31 @@
  * Records 页面
  */
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAtomValue, useSetAtom } from 'jotai'
-import { Plus, RefreshCw, Trash2 } from 'lucide-react'
+import { Plus, RefreshCw, Trash2, Settings, Code } from 'lucide-react'
 import { activeCollectionAtom, collectionsAtom } from '@/features/collections/store'
 import { setPageTitle } from '@/store/app'
 import { addToast } from '@/store/toasts'
 import { showConfirmation } from '@/store/confirmation'
 import { useRecords } from '@/features/records/hooks/useRecords'
+import { useCollections } from '@/features/collections/hooks/useCollections'
 import { isAllSelectedAtom } from '@/features/records/store'
 import { RecordsTable } from '@/features/records/components/RecordsTable'
-import { UpsertPanel } from '@/features/records/components/UpsertPanel'
+import { UpsertPanel as RecordUpsertPanel } from '@/features/records/components/UpsertPanel'
+import { UpsertPanel as CollectionUpsertPanel } from '@/features/collections/components/UpsertPanel'
+import { CollectionDocsPanel } from '@/features/collections/components/docs/CollectionDocsPanel'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import type { RecordModel } from 'pocketbase'
+import type { RecordModel, CollectionModel } from 'pocketbase'
 
 // 懒加载 FilterAutocompleteInput（因为 CodeMirror 比较重）
 const FilterAutocompleteInput = lazy(() => import('@/components/FilterAutocompleteInput'))
 
 export function RecordsPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const { collectionId } = useParams()
   const collection = useAtomValue(activeCollectionAtom)
   const collections = useAtomValue(collectionsAtom)
@@ -33,6 +37,11 @@ export function RecordsPage() {
 
   const [panelOpen, setPanelOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<RecordModel | null>(null)
+  const [collectionPanelOpen, setCollectionPanelOpen] = useState(false)
+  const [editingCollection, setEditingCollection] = useState<CollectionModel | null>(null)
+  const [docsPanelOpen, setDocsPanelOpen] = useState(false)
+
+  const { saveCollection, fetchCollections } = useCollections()
 
   const {
     records,
@@ -111,13 +120,44 @@ export function RecordsPage() {
 
   // 处理保存
   const handleSave = useCallback(
-    async (data: Record<string, unknown>) => {
+    async (data: Record<string, unknown>, files?: Record<string, File[]>) => {
       try {
+        // 如果有文件上传，需要使用 FormData
+        let saveData: Record<string, unknown> | FormData = data
+
+        if (files && Object.keys(files).some((key) => files[key]?.length > 0)) {
+          const formData = new FormData()
+
+          // 添加普通字段
+          for (const [key, value] of Object.entries(data)) {
+            if (value === undefined || value === null) continue
+            if (Array.isArray(value)) {
+              // 数组字段（如 relation、select 等）
+              for (const item of value) {
+                formData.append(key, String(item))
+              }
+            } else if (typeof value === 'object') {
+              formData.append(key, JSON.stringify(value))
+            } else {
+              formData.append(key, String(value))
+            }
+          }
+
+          // 添加新文件
+          for (const [fieldName, fieldFiles] of Object.entries(files)) {
+            for (const file of fieldFiles) {
+              formData.append(`${fieldName}+`, file)
+            }
+          }
+
+          saveData = formData
+        }
+
         if (editingRecord) {
-          await saveRecord(editingRecord.id, data)
+          await saveRecord(editingRecord.id, saveData)
           toast({ type: 'success', message: t('records.updateSuccess', '更新成功') })
         } else {
-          await createRecord(data)
+          await createRecord(saveData)
           toast({ type: 'success', message: t('records.createSuccess', '创建成功') })
         }
       } catch (err) {
@@ -155,6 +195,25 @@ export function RecordsPage() {
     })
   }, [selectedIds, confirm, destroyRecords, toast, t])
 
+  // 处理 Collection 保存
+  const handleCollectionSave = useCallback(
+    async (data: Partial<CollectionModel>) => {
+      try {
+        if (collection?.id) {
+          await saveCollection(collection.id, data)
+          toast({ type: 'success', message: t('collections.updateSuccess', '更新成功') })
+        }
+      } catch (err) {
+        toast({
+          type: 'error',
+          message: err instanceof Error ? err.message : t('collections.saveError', '保存失败'),
+        })
+        throw err
+      }
+    },
+    [collection, saveCollection, toast, t]
+  )
+
   if (!collection) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -167,8 +226,32 @@ export function RecordsPage() {
     <div className="h-full flex flex-col">
       {/* 工具栏 */}
       <div className="flex items-center justify-between p-4 border-b">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">{collection.name}</h2>
+          {/* 编辑 Collection 按钮 */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setEditingCollection(collection)
+              setCollectionPanelOpen(true)
+            }}
+            title={t('collections.edit', '编辑 Collection')}
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+          {/* 刷新 Records 按钮 */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            onClick={() => fetchRecords()}
+            disabled={loading}
+            title={t('records.refresh', '刷新')}
+          >
+            <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} />
+          </Button>
           <span className="text-sm text-muted-foreground">
             {records.totalItems} {t('records.total', '条记录')}
           </span>
@@ -191,8 +274,9 @@ export function RecordsPage() {
               {t('records.deleteSelected', `删除 (${selectedIds.size})`)}
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => fetchRecords()} disabled={loading}>
-            <RefreshCw className={cn('w-4 h-4', loading && 'animate-spin')} />
+          <Button variant="outline" size="sm" onClick={() => setDocsPanelOpen(true)}>
+            <Code className="w-4 h-4 mr-1" />
+            {t('records.apiPreview', 'API Preview')}
           </Button>
           <Button size="sm" onClick={handleNew}>
             <Plus className="w-4 h-4 mr-1" />
@@ -206,6 +290,7 @@ export function RecordsPage() {
         <RecordsTable
           records={records.items}
           fields={collection.fields || []}
+          collection={collection}
           selectedIds={selectedIds}
           isAllSelected={isAllSelected}
           sortState={sortState}
@@ -241,13 +326,40 @@ export function RecordsPage() {
         </div>
       )}
 
-      {/* 编辑面板 */}
-      <UpsertPanel
+      {/* Record 编辑面板 */}
+      <RecordUpsertPanel
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
         record={editingRecord}
         fields={collection.fields || []}
+        collection={collection}
         onSave={handleSave}
+      />
+
+      {/* Collection 编辑面板 */}
+      <CollectionUpsertPanel
+        open={collectionPanelOpen}
+        onClose={() => setCollectionPanelOpen(false)}
+        collection={editingCollection}
+        onSave={handleCollectionSave}
+        onDelete={() => {
+          navigate('/collections')
+          fetchCollections()
+        }}
+        onTruncate={() => {
+          fetchRecords()
+        }}
+        onDuplicate={(clonedCollection) => {
+          setEditingCollection(clonedCollection)
+          setCollectionPanelOpen(true)
+        }}
+      />
+
+      {/* API 文档面板 */}
+      <CollectionDocsPanel
+        collection={collection}
+        open={docsPanelOpen}
+        onOpenChange={setDocsPanelOpen}
       />
     </div>
   )

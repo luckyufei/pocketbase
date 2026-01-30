@@ -1,6 +1,6 @@
 // T059: Records 表格组件
-import { memo, useCallback } from 'react'
-import type { RecordModel, SchemaField } from 'pocketbase'
+import { memo, useMemo } from 'react'
+import type { RecordModel, SchemaField, CollectionModel } from 'pocketbase'
 import {
   Table,
   TableBody,
@@ -18,6 +18,7 @@ import type { SortState } from '../store'
 interface RecordsTableProps {
   records: RecordModel[]
   fields: SchemaField[]
+  collection?: CollectionModel | null
   selectedIds: Set<string>
   isAllSelected: boolean
   sortState: SortState | null
@@ -27,6 +28,16 @@ interface RecordsTableProps {
   onRowClick: (record: RecordModel) => void
 }
 
+// 基础跳过的字段（在列表中不显示）
+// id 和 created 是固定显示的，所以也要跳过
+const BASE_SKIP_FIELDS = ['id', 'created', 'updated', 'collectionId', 'collectionName']
+
+// Auth collection 额外跳过的字段（这些是内部字段）
+const AUTH_SKIP_FIELDS = ['tokenKey', 'password']
+
+// _superusers collection 额外跳过的字段
+const SUPERUSERS_SKIP_FIELDS = ['verified', 'emailVisibility']
+
 /**
  * Records 表格组件
  * 使用 React.memo 优化渲染性能
@@ -34,6 +45,7 @@ interface RecordsTableProps {
 export const RecordsTable = memo(function RecordsTable({
   records,
   fields,
+  collection,
   selectedIds,
   isAllSelected,
   sortState,
@@ -42,10 +54,36 @@ export const RecordsTable = memo(function RecordsTable({
   onSelectAll,
   onRowClick,
 }: RecordsTableProps) {
-  // 过滤掉 id、created、updated 字段（这些单独显示）
-  const displayFields = fields.filter(
-    (f) => !['id', 'created', 'updated'].includes(f.name) && f.type !== 'autodate'
-  )
+  const isAuthCollection = collection?.type === 'auth'
+  const isSuperusers = collection?.name === '_superusers'
+
+  // 计算要显示的字段
+  const displayFields = useMemo(() => {
+    let skipNames = [...BASE_SKIP_FIELDS]
+
+    // Auth collection 跳过内部字段
+    if (isAuthCollection) {
+      skipNames = [...skipNames, ...AUTH_SKIP_FIELDS]
+    }
+
+    // _superusers 额外跳过 verified 和 emailVisibility
+    if (isSuperusers) {
+      skipNames = [...skipNames, ...SUPERUSERS_SKIP_FIELDS]
+    }
+
+    return fields.filter((f) => {
+      // 跳过隐藏字段
+      if (f.hidden) return false
+      // 跳过 autodate 类型
+      if (f.type === 'autodate') return false
+      // 跳过指定名称的字段
+      if (skipNames.includes(f.name)) return false
+      return true
+    })
+  }, [fields, isAuthCollection, isSuperusers])
+
+  // 找到 id 字段（primaryKey）
+  const idField = fields.find((f) => f.name === 'id')
 
   const renderSortIcon = (field: string) => {
     if (sortState?.field !== field) {
@@ -61,13 +99,13 @@ export const RecordsTable = memo(function RecordsTable({
   const renderCellValue = (record: RecordModel, field: SchemaField) => {
     const value = record[field.name]
 
-    if (value === null || value === undefined) {
+    if (value === null || value === undefined || value === '') {
       return <span className="text-muted-foreground">-</span>
     }
 
     switch (field.type) {
       case 'bool':
-        return value ? '是' : '否'
+        return value ? '✓' : '✗'
       case 'date':
         return new Date(value).toLocaleDateString()
       case 'json':
@@ -77,15 +115,29 @@ export const RecordsTable = memo(function RecordsTable({
           </code>
         )
       case 'file':
-        return Array.isArray(value) ? `${value.length} 个文件` : value
+        if (Array.isArray(value)) {
+          return value.length > 0 ? `${value.length} 个文件` : '-'
+        }
+        return value
       case 'relation':
-        return Array.isArray(value) ? `${value.length} 条关联` : value
+        if (Array.isArray(value)) {
+          return value.length > 0 ? `${value.length} 条关联` : '-'
+        }
+        return value
       case 'select':
-        return Array.isArray(value) ? value.join(', ') : value
+        if (Array.isArray(value)) {
+          return value.length > 0 ? value.join(', ') : '-'
+        }
+        return value
+      case 'email':
+        return <span className="text-blue-600">{String(value)}</span>
       default:
         return String(value).slice(0, 100)
     }
   }
+
+  // 限制显示的列数（防止太多列）
+  const visibleFields = displayFields.slice(0, 6)
 
   return (
     <Table>
@@ -94,13 +146,15 @@ export const RecordsTable = memo(function RecordsTable({
           <TableHead className="w-12">
             <Checkbox checked={isAllSelected} onCheckedChange={onSelectAll} aria-label="全选" />
           </TableHead>
+          {/* id 列始终显示在最前面 */}
           <TableHead className="w-36">
             <Button variant="ghost" size="sm" className="h-8 -ml-3" onClick={() => onSort('id')}>
               id
               {renderSortIcon('id')}
             </Button>
           </TableHead>
-          {displayFields.slice(0, 5).map((field) => (
+          {/* 其他字段按顺序显示 */}
+          {visibleFields.map((field) => (
             <TableHead key={field.name}>
               <Button
                 variant="ghost"
@@ -113,6 +167,7 @@ export const RecordsTable = memo(function RecordsTable({
               </Button>
             </TableHead>
           ))}
+          {/* 创建时间列 */}
           <TableHead className="w-36">
             <Button
               variant="ghost"
@@ -120,7 +175,7 @@ export const RecordsTable = memo(function RecordsTable({
               className="h-8 -ml-3"
               onClick={() => onSort('created')}
             >
-              创建时间
+              created
               {renderSortIcon('created')}
             </Button>
           </TableHead>
@@ -130,7 +185,7 @@ export const RecordsTable = memo(function RecordsTable({
         {records.length === 0 ? (
           <TableRow>
             <TableCell
-              colSpan={displayFields.slice(0, 5).length + 3}
+              colSpan={visibleFields.length + 3}
               className="h-32 text-center text-muted-foreground"
             >
               暂无数据
@@ -150,7 +205,7 @@ export const RecordsTable = memo(function RecordsTable({
                   aria-label={`选择 ${record.id}`}
                 />
               </TableCell>
-              <TableCell 
+              <TableCell
                 className="font-mono text-xs select-all cursor-pointer hover:bg-muted/50"
                 onClick={(e) => {
                   e.stopPropagation()
@@ -160,7 +215,7 @@ export const RecordsTable = memo(function RecordsTable({
               >
                 {record.id}
               </TableCell>
-              {displayFields.slice(0, 5).map((field) => (
+              {visibleFields.map((field) => (
                 <TableCell key={field.name} className="max-w-[200px] truncate">
                   {renderCellValue(record, field)}
                 </TableCell>

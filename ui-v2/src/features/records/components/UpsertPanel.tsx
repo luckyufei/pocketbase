@@ -1,42 +1,82 @@
 // T061: Record 创建/编辑面板
-import { useState, useEffect } from 'react'
-import type { RecordModel, CollectionField } from 'pocketbase'
+import { useState, useEffect, useCallback } from 'react'
+import type { RecordModel, CollectionField, CollectionModel } from 'pocketbase'
 import { OverlayPanel } from '@/components/OverlayPanel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Eye, EyeOff } from 'lucide-react'
+import { FileField } from './fields/FileField'
+import { AuthFields } from './fields/AuthFields'
 
 interface UpsertPanelProps {
   open: boolean
   onClose: () => void
   record?: RecordModel | null
   fields: CollectionField[]
-  onSave: (data: Record<string, unknown>) => Promise<void>
+  collection?: CollectionModel | null
+  onSave: (data: Record<string, unknown>, files?: Record<string, File[]>) => Promise<void>
 }
+
+// 基础跳过的字段
+const BASE_SKIP_FIELD_NAMES = ['id', 'created', 'updated', 'collectionId', 'collectionName']
+
+// Auth collection 额外跳过的字段（由 AuthFields 组件单独处理）
+const AUTH_SKIP_FIELD_NAMES = [
+  ...BASE_SKIP_FIELD_NAMES,
+  'email',
+  'emailVisibility',
+  'verified',
+  'tokenKey',
+  'password',
+]
 
 /**
  * Record 创建/编辑面板
  */
-export function UpsertPanel({ open, onClose, record, fields, onSave }: UpsertPanelProps) {
+export function UpsertPanel({
+  open,
+  onClose,
+  record,
+  fields,
+  collection,
+  onSave,
+}: UpsertPanelProps) {
   const [formData, setFormData] = useState<Record<string, unknown>>({})
+  const [newFiles, setNewFiles] = useState<Record<string, File[]>>({})
   const [saving, setSaving] = useState(false)
 
   const isEdit = !!record?.id
+  const isAuthCollection = collection?.type === 'auth'
 
-  // 过滤掉不可编辑的字段（id、created、updated、autodate 类型）
-  // 注意：系统字段（f.system）如 _proxies 的字段仍需允许编辑
-  const skipFieldNames = ['id', 'created', 'updated', 'collectionId', 'collectionName']
+  // 根据 collection 类型选择要跳过的字段
+  const skipFieldNames = isAuthCollection ? AUTH_SKIP_FIELD_NAMES : BASE_SKIP_FIELD_NAMES
+
+  // 过滤掉不可编辑的字段
   const editableFields = fields.filter(
     (f) => !skipFieldNames.includes(f.name) && f.type !== 'autodate'
   )
 
+  // 初始化表单数据
   useEffect(() => {
+    if (!open) return
+
     if (record) {
-      setFormData(record)
+      setFormData({ ...record })
     } else {
       // 初始化默认值
       const defaults: Record<string, unknown> = {}
+
+      // Auth collection 默认值
+      if (isAuthCollection) {
+        defaults.email = ''
+        defaults.emailVisibility = false
+        defaults.verified = false
+        defaults.password = ''
+        defaults.passwordConfirm = ''
+      }
+
       editableFields.forEach((field) => {
         switch (field.type) {
           case 'bool':
@@ -52,8 +92,10 @@ export function UpsertPanel({ open, onClose, record, fields, onSave }: UpsertPan
             defaults[field.name] = field.maxSelect === 1 ? '' : []
             break
           case 'relation':
-          case 'file':
             defaults[field.name] = field.maxSelect === 1 ? '' : []
+            break
+          case 'file':
+            defaults[field.name] = []
             break
           default:
             defaults[field.name] = ''
@@ -61,13 +103,15 @@ export function UpsertPanel({ open, onClose, record, fields, onSave }: UpsertPan
       })
       setFormData(defaults)
     }
-  }, [record, fields, open])
+    // 重置新文件
+    setNewFiles({})
+  }, [record, fields, open, isAuthCollection])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     try {
-      await onSave(formData)
+      await onSave(formData, newFiles)
       onClose()
     } catch (error) {
       console.error('Save record failed:', error)
@@ -76,9 +120,18 @@ export function UpsertPanel({ open, onClose, record, fields, onSave }: UpsertPan
     }
   }
 
-  const handleFieldChange = (name: string, value: unknown) => {
+  const handleFieldChange = useCallback((name: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+  }, [])
+
+  // 处理文件字段变更
+  const handleFileChange = useCallback(
+    (fieldName: string, existingFiles: string[], uploadedFiles: File[]) => {
+      setFormData((prev) => ({ ...prev, [fieldName]: existingFiles }))
+      setNewFiles((prev) => ({ ...prev, [fieldName]: uploadedFiles }))
+    },
+    []
+  )
 
   const renderField = (field: CollectionField) => {
     const value = formData[field.name]
@@ -164,6 +217,38 @@ export function UpsertPanel({ open, onClose, record, fields, onSave }: UpsertPan
           />
         )
 
+      case 'file':
+        return (
+          <FileField
+            field={{
+              name: field.name,
+              type: field.type,
+              required: field.required,
+              options: {
+                maxSelect: field.maxSelect,
+                maxSize: field.maxSize,
+                mimeTypes: field.mimeTypes,
+                thumbs: field.thumbs,
+                protected: field.protected,
+              },
+            }}
+            value={Array.isArray(value) ? value : value ? [value as string] : []}
+            newFiles={newFiles[field.name] || []}
+            onChange={(files, uploaded) => handleFileChange(field.name, files, uploaded || [])}
+            record={record || undefined}
+          />
+        )
+
+      case 'password':
+        // 普通 password 字段（非 auth collection 的 password）
+        return (
+          <PasswordInput
+            id={field.name}
+            value={(value as string) || ''}
+            onChange={(v) => handleFieldChange(field.name, v)}
+          />
+        )
+
       default:
         return (
           <Input
@@ -184,21 +269,30 @@ export function UpsertPanel({ open, onClose, record, fields, onSave }: UpsertPan
             <Label htmlFor="id" className="text-muted-foreground">
               id
             </Label>
-            <Input
-              id="id"
-              value={record.id}
-              disabled
-              className="font-mono text-sm bg-muted"
-            />
+            <Input id="id" value={record.id} disabled className="font-mono text-sm bg-muted" />
           </div>
         )}
 
-        {editableFields.length === 0 ? (
+        {/* Auth Collection 专用字段 */}
+        {isAuthCollection && collection && (
+          <>
+            <AuthFields
+              record={formData}
+              onChange={handleFieldChange}
+              collection={collection}
+              isNew={!isEdit}
+            />
+            {editableFields.length > 0 && <hr className="my-4" />}
+          </>
+        )}
+
+        {/* 普通字段 */}
+        {editableFields.length === 0 && !isAuthCollection ? (
           <div className="text-muted-foreground text-center py-4">没有可编辑的字段</div>
         ) : (
           editableFields.map((field) => (
             <div key={field.name} className="space-y-2">
-              {field.type !== 'bool' && (
+              {field.type !== 'bool' && field.type !== 'file' && (
                 <Label htmlFor={field.name}>
                   {field.name}
                   {field.required && <span className="text-destructive ml-1">*</span>}
@@ -219,6 +313,46 @@ export function UpsertPanel({ open, onClose, record, fields, onSave }: UpsertPan
         </div>
       </form>
     </OverlayPanel>
+  )
+}
+
+/**
+ * 密码输入组件（带显示/隐藏切换）
+ */
+function PasswordInput({
+  id,
+  value,
+  onChange,
+}: {
+  id: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  const [show, setShow] = useState(false)
+
+  return (
+    <div className="relative">
+      <Input
+        id={id}
+        type={show ? 'text' : 'password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="pr-10"
+      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+        onClick={() => setShow(!show)}
+      >
+        {show ? (
+          <EyeOff className="h-4 w-4 text-muted-foreground" />
+        ) : (
+          <Eye className="h-4 w-4 text-muted-foreground" />
+        )}
+      </Button>
+    </div>
   )
 }
 
