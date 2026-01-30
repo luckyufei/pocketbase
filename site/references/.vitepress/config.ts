@@ -80,6 +80,7 @@ const sidebarEn = [
     items: [
       { text: 'PostgreSQL', link: '/en/postgresql' },
       { text: 'Jobs', link: '/en/jobs' },
+      { text: 'Process Manager', link: '/en/process-manager' },
       { text: 'Secrets', link: '/en/secrets' },
       { text: 'Proxy', link: '/en/proxy' },
     ]
@@ -174,6 +175,7 @@ const sidebarZh = [
     items: [
       { text: 'PostgreSQL', link: '/zh/postgresql' },
       { text: '任务队列', link: '/zh/jobs' },
+      { text: '进程管理器', link: '/zh/process-manager' },
       { text: '密钥管理', link: '/zh/secrets' },
       { text: '代理网关', link: '/zh/proxy' },
     ]
