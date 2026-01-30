@@ -55,9 +55,6 @@ func NewRouter(app core.App) (*router.Router[*core.RequestEvent], error) {
 	bindDatabaseStatsRoutes(apiGroup)
 	bindSecretsApi(app, pbRouter)
 
-	// 注册代理路由（/-/* 网关）
-	bindProxyApi(app, pbRouter)
-
 	return pbRouter, nil
 }
 

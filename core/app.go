@@ -85,10 +85,6 @@ type App interface {
 	// SubscriptionsBroker returns the app realtime subscriptions broker instance.
 	SubscriptionsBroker() *subscriptions.Broker
 
-	// ProxyManager returns the app proxy manager instance
-	// for handling native gateway proxy routes.
-	ProxyManager() *ProxyManager
-
 	// KV returns the app KVStore instance for key-value storage operations.
 	// Provides Redis-like API with L1 in-process cache and L2 PostgreSQL storage.
 	KV() KVStore

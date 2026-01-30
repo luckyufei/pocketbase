@@ -10,6 +10,7 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/plugins/gateway"
 	"github.com/pocketbase/pocketbase/plugins/ghupdate"
 	"github.com/pocketbase/pocketbase/plugins/jsvm"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
@@ -95,6 +96,11 @@ func main() {
 		CheckTimestamp: tofauth.Bool(true),
 	}
 	tofauth.MustRegister(app, tofConfig)
+
+	// Gateway 插件 - API 网关代理转发
+	// 支持代理 LLM API（OpenAI、Claude 等）和本地 Sidecar
+	// 使用 ReverseProxy + "暴力归一化" 策略解决协议兼容问题
+	gateway.MustRegister(app, gateway.Config{})
 
 	// load jsvm (pb_hooks and pb_migrations)
 	jsvm.MustRegister(app, jsvm.Config{

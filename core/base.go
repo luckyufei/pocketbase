@@ -198,9 +198,6 @@ type BaseApp struct {
 
 	onBatchRequest *hook.Hook[*BatchRequestEvent]
 
-	// proxy manager for native gateway
-	proxyManager *ProxyManager
-
 	// kv store for key-value storage
 	kvStore *kvStore
 
@@ -449,13 +446,6 @@ func (app *BaseApp) Bootstrap() error {
 
 		if err := app.ReloadSettings(); err != nil {
 			return err
-		}
-
-		// initialize proxy manager and load proxies
-		app.initProxyManager()
-		if err := app.loadProxies(); err != nil {
-			// log warning but don't fail bootstrap
-			app.Logger().Warn("Failed to load proxies", "error", err)
 		}
 
 		// initialize KV store and register cleanup job
@@ -1518,7 +1508,6 @@ func (app *BaseApp) registerBaseHooks() {
 	app.registerMFAHooks()
 	app.registerOTPHooks()
 	app.registerAuthOriginHooks()
-	app.registerProxyHooks()
 }
 
 // getLoggerMinLevel returns the logger min level based on the

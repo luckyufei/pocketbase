@@ -251,12 +251,12 @@ func TestJSONFieldQueryPostgres(t *testing.T) {
 	}{
 		{
 			name:       "JSON 字段等值比较",
-			collection: "demo1",
+			collection: "demo4",
 			filter:     "json_array ?= 'test'",
 		},
 		{
 			name:       "JSON 嵌套字段访问",
-			collection: "demo1",
+			collection: "demo4",
 			filter:     "json_object.name = 'test'",
 		},
 	}
