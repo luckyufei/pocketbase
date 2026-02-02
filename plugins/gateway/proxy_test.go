@@ -210,11 +210,16 @@ func TestManagerTransport(t *testing.T) {
 		t.Error("Transport() should not return nil")
 	}
 
-	// 验证 Transport 配置
+	// 验证 Transport 配置（HardenedTransport 默认值）
 	if !transport.ForceAttemptHTTP2 {
 		t.Error("Transport.ForceAttemptHTTP2 should be true")
 	}
-	if transport.MaxIdleConns != 100 {
-		t.Errorf("Transport.MaxIdleConns = %d, want 100", transport.MaxIdleConns)
+	// HardenedTransport 使用 1000 而非 100
+	if transport.MaxIdleConns != 1000 {
+		t.Errorf("Transport.MaxIdleConns = %d, want 1000", transport.MaxIdleConns)
+	}
+	// 验证 MaxIdleConnsPerHost（这是关键配置）
+	if transport.MaxIdleConnsPerHost != 100 {
+		t.Errorf("Transport.MaxIdleConnsPerHost = %d, want 100", transport.MaxIdleConnsPerHost)
 	}
 }

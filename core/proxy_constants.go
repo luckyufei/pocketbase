@@ -15,4 +15,9 @@ const (
 	ProxyFieldHeaders    = "headers"    // 注入的请求头配置 (JSON)
 	ProxyFieldTimeout    = "timeout"    // 超时时间 (秒)
 	ProxyFieldActive     = "active"     // 是否启用
+
+	// Gateway Hardening 扩展字段 (020-gateway-hardening)
+	ProxyFieldMaxConcurrent  = "maxConcurrent"  // 最大并发数 (FR-008)
+	ProxyFieldCircuitBreaker = "circuitBreaker" // 熔断器配置 (FR-012)
+	ProxyFieldTimeoutConfig  = "timeoutConfig"  // 精细超时配置
 )

@@ -34,6 +34,22 @@ type ProxyConfig struct {
 	Headers    map[string]string // 注入的请求头
 	Timeout    int               // 超时时间（秒）
 	Active     bool              // 是否启用
+
+	// --- Gateway Hardening 扩展字段 (020-gateway-hardening) ---
+
+	// MaxConcurrent 最大并发数
+	// 0 或负数表示不限制
+	// FR-008
+	MaxConcurrent int `json:"max_concurrent"`
+
+	// CircuitBreaker 熔断器配置
+	// nil 表示不启用熔断
+	// FR-012
+	CircuitBreaker *CircuitBreakerConfig `json:"circuit_breaker"`
+
+	// TimeoutConfig 精细超时配置
+	// nil 表示使用默认值
+	TimeoutConfig *TimeoutConfig `json:"timeout_config"`
 }
 
 // NewProxyConfig 创建一个带默认值的代理配置

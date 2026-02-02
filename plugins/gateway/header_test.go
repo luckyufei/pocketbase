@@ -179,3 +179,103 @@ func TestReplaceAuthVars(t *testing.T) {
 		})
 	}
 }
+
+// TestReplaceSecretVars 测试 secrets 变量替换
+func TestReplaceSecretVars(t *testing.T) {
+	// 设置环境变量用于回退
+	os.Setenv("FALLBACK_SECRET", "fallback-value")
+	defer os.Unsetenv("FALLBACK_SECRET")
+
+	tests := []struct {
+		name         string
+		template     string
+		secretGetter SecretGetter
+		want         string
+		wantErr      bool
+	}{
+		{
+			name:     "no secret vars",
+			template: "plain text",
+			secretGetter: func(name string) (string, error) {
+				return "", nil
+			},
+			want:    "plain text",
+			wantErr: false,
+		},
+		{
+			name:     "secret from getter",
+			template: "Bearer {secret.API_KEY}",
+			secretGetter: func(name string) (string, error) {
+				if name == "API_KEY" {
+					return "secret-api-key", nil
+				}
+				return "", nil
+			},
+			want:    "Bearer secret-api-key",
+			wantErr: false,
+		},
+		{
+			name:     "secret fallback to env",
+			template: "{secret.FALLBACK_SECRET}",
+			secretGetter: func(name string) (string, error) {
+				return "", nil // 返回空，触发环境变量回退
+			},
+			want:    "fallback-value",
+			wantErr: false,
+		},
+		{
+			name:     "secret not found",
+			template: "{secret.NONEXISTENT}",
+			secretGetter: func(name string) (string, error) {
+				return "", nil
+			},
+			want:    "",
+			wantErr: true, // 应该返回错误
+		},
+		{
+			name:     "nil secret getter fallback",
+			template: "{secret.FALLBACK_SECRET}",
+			secretGetter: nil,
+			want:    "fallback-value",
+			wantErr: false,
+		},
+		{
+			name:     "multiple secrets",
+			template: "{secret.KEY1}-{secret.KEY2}",
+			secretGetter: func(name string) (string, error) {
+				secrets := map[string]string{
+					"KEY1": "value1",
+					"KEY2": "value2",
+				}
+				return secrets[name], nil
+			},
+			want:    "value1-value2",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := replaceSecretVars(tt.template, tt.secretGetter)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("replaceSecretVars() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && got != tt.want {
+				t.Errorf("replaceSecretVars() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestBuildProxyHeadersWithError 测试构建代理请求头错误处理
+func TestBuildProxyHeadersWithError(t *testing.T) {
+	headers := map[string]string{
+		"Authorization": "{env.MISSING_VAR}",
+	}
+
+	_, err := BuildProxyHeaders(headers, nil, nil)
+	if err == nil {
+		t.Error("BuildProxyHeaders should return error for missing env var")
+	}
+}

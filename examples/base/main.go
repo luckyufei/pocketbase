@@ -14,6 +14,7 @@ import (
 	"github.com/pocketbase/pocketbase/plugins/ghupdate"
 	"github.com/pocketbase/pocketbase/plugins/jsvm"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
+	"github.com/pocketbase/pocketbase/plugins/processman"
 	"github.com/pocketbase/pocketbase/plugins/tofauth"
 	"github.com/pocketbase/pocketbase/tools/hook"
 	"github.com/pocketbase/pocketbase/tools/osutils"
@@ -82,6 +83,14 @@ func main() {
 		"fallback the request to index.html on missing static path, e.g. when pretty urls are used with SPA",
 	)
 
+	var pmConfigFile string
+	app.RootCmd.PersistentFlags().StringVar(
+		&pmConfigFile,
+		"pmConfig",
+		"",
+		"the Process Manager configuration file (default: pb_data/pm.json)",
+	)
+
 	app.RootCmd.ParseFlags(os.Args[1:])
 
 	// ---------------------------------------------------------------
@@ -125,6 +134,13 @@ func main() {
 
 	// GitHub selfupdate
 	ghupdate.MustRegister(app, app.RootCmd, ghupdate.Config{})
+
+	// Process Manager plugin
+	// 用于管理外部进程（如 Python MCP 服务器）
+	// DevMode 自动复用 app.IsDev()
+	processman.MustRegister(app, processman.Config{
+		ConfigFile: pmConfigFile,
+	})
 
 	// static route to serves files from the provided public dir
 	// (if publicDir exists and the route path is not already defined)

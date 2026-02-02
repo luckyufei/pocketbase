@@ -38,6 +38,18 @@ const InstallerPage = lazy(() =>
   }))
 )
 
+// Gateway 页面懒加载
+const ProxyListPage = lazy(() =>
+  import('@/features/gateway/components/ProxyListPage').then((m) => ({
+    default: m.ProxyListPage,
+  }))
+)
+const ProxyDetailPage = lazy(() =>
+  import('@/features/gateway/components/ProxyDetailPage').then((m) => ({
+    default: m.ProxyDetailPage,
+  }))
+)
+
 // 设置页面懒加载
 const SettingsLayout = lazy(() =>
   import('@/pages/settings').then((m) => ({ default: m.SettingsLayout }))
@@ -50,6 +62,7 @@ const Admins = lazy(() => import('@/pages/settings').then((m) => ({ default: m.A
 const Export = lazy(() => import('@/pages/settings').then((m) => ({ default: m.Export })))
 const Import = lazy(() => import('@/pages/settings').then((m) => ({ default: m.Import })))
 const Jobs = lazy(() => import('@/pages/settings/Jobs'))
+const Processes = lazy(() => import('@/pages/settings/Processes'))
 
 // 认证相关页面
 const RequestPasswordReset = lazy(() => import('@/pages/RequestPasswordReset'))
@@ -168,6 +181,20 @@ export const router = createBrowserRouter([
         element: withSuspense(AnalyticsPage),
       },
 
+      // Gateway - 代理配置管理
+      {
+        path: 'gateway',
+        element: withSuspense(ProxyListPage),
+      },
+      {
+        path: 'gateway/new',
+        element: withSuspense(ProxyDetailPage),
+      },
+      {
+        path: 'gateway/:id',
+        element: withSuspense(ProxyDetailPage),
+      },
+
       // Settings - 懒加载
       {
         path: 'settings',
@@ -244,6 +271,10 @@ export const router = createBrowserRouter([
           {
             path: 'jobs',
             element: withSuspense(Jobs),
+          },
+          {
+            path: 'processes',
+            element: withSuspense(Processes),
           },
         ],
       },

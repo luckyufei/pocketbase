@@ -14,6 +14,7 @@ import {
   LogOut,
   Moon,
   Sun,
+  Network,
 } from 'lucide-react'
 import { appNameAtom } from '@/store/app'
 import { superuserAtom } from '@/store/auth'
@@ -103,6 +104,11 @@ export function Sidebar() {
           to="/analytics"
           icon={<BarChart3 className="w-4 h-4" />}
           label={t('nav.analytics', 'Analytics')}
+        />
+        <NavItem
+          to="/gateway"
+          icon={<Network className="w-4 h-4" />}
+          label={t('nav.gateway', 'Gateway')}
         />
 
         <div className="pt-4 border-t mt-4">

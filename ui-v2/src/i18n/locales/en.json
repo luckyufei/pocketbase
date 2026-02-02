@@ -312,5 +312,83 @@
     "title": "Page Not Found",
     "description": "The page you are looking for does not exist or has been moved.",
     "goHome": "Go Home"
+  },
+  "processes": {
+    "title": "Process Management",
+    "refresh": "Refresh",
+    "lastRefresh": "Last refresh",
+    "stats": {
+      "running": "Running",
+      "stopped": "Stopped",
+      "crashed": "Crashed",
+      "total": "Total"
+    },
+    "filter": {
+      "status": "Status",
+      "allStatus": "All Status",
+      "searchPlaceholder": "Search process ID...",
+      "clear": "Clear"
+    },
+    "card": {
+      "pid": "PID",
+      "uptime": "Uptime",
+      "restarts": "Restarts",
+      "viewDetails": "View Details",
+      "viewLogs": "View Logs",
+      "start": "Start",
+      "restart": "Restart",
+      "stop": "Stop"
+    },
+    "status": {
+      "running": "Running",
+      "stopped": "Stopped",
+      "crashed": "Crashed",
+      "starting": "Starting"
+    },
+    "empty": {
+      "noProcesses": "No processes",
+      "noMatches": "No matching processes",
+      "description": "Try adjusting your filters or check process configuration"
+    },
+    "confirm": {
+      "restartTitle": "Confirm Restart",
+      "stopTitle": "Confirm Stop",
+      "restartMessage": "Are you sure you want to restart process \"{{processId}}\"?",
+      "stopMessage": "Are you sure you want to stop process \"{{processId}}\"? The process will no longer run.",
+      "cancel": "Cancel",
+      "restart": "Restart",
+      "stop": "Stop"
+    },
+    "details": {
+      "title": "Process Details",
+      "basicInfo": "Basic Information",
+      "processId": "Process ID",
+      "status": "Status",
+      "pid": "PID",
+      "uptime": "Uptime",
+      "restartCount": "Restart Count",
+      "lastError": "Last Error",
+      "noError": "None"
+    },
+    "toast": {
+      "startSuccess": "Process started successfully",
+      "startError": "Failed to start process",
+      "restartSuccess": "Process restarted successfully",
+      "restartError": "Failed to restart process",
+      "stopSuccess": "Process stopped successfully",
+      "stopError": "Failed to stop process",
+      "loadError": "Failed to load processes"
+    },
+    "logs": {
+      "title": "Logs",
+      "live": "Live",
+      "pause": "Pause",
+      "resume": "Resume",
+      "autoScroll": "Auto Scroll",
+      "empty": "No logs yet",
+      "totalLines": "Total lines",
+      "scrollToBottom": "Scroll to bottom",
+      "loadError": "Failed to load logs"
+    }
   }
 }

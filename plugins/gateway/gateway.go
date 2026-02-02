@@ -10,6 +10,12 @@
 // - "暴力归一化" 策略解决 Body Size Mismatch 问题
 // - 支持 SSE 流式响应
 // - Hot Reload 支持
+// - Gateway Hardening (020-gateway-hardening)
+//   - HardenedTransport 精细化超时控制
+//   - ConcurrencyLimiter 并发限制
+//   - CircuitBreaker 熔断保护
+//   - BytesPool 内存池优化
+//   - MetricsCollector 可观测性
 package gateway
 
 import (
@@ -25,6 +31,14 @@ const DefaultFlushInterval = 100 * time.Millisecond
 type Config struct {
 	// Disabled 禁用插件
 	Disabled bool
+
+	// EnableMetrics 启用 Prometheus 指标收集
+	// T052: 初始化全局 MetricsCollector
+	EnableMetrics bool
+
+	// TransportConfig 自定义 Transport 配置（可选）
+	// 默认使用 DefaultTransportConfig()
+	TransportConfig *TransportConfig
 }
 
 // gatewayPlugin 插件实例
@@ -57,6 +71,7 @@ func Register(app core.App, config Config) error {
 }
 
 // register 执行插件注册
+// T052: 初始化全局 BytesPool 和 MetricsCollector
 func (p *gatewayPlugin) register() error {
 	// 1. 在 Bootstrap 完成后初始化 Manager 并加载代理
 	// 注意：必须在 e.Next() 之后执行，此时数据库才已初始化
@@ -66,8 +81,26 @@ func (p *gatewayPlugin) register() error {
 			return err
 		}
 
+		// T052: 构建 ManagerConfig
+		managerConfig := ManagerConfig{
+			// T035, T052: 使用全局 BytesPool
+			BufferPool: DefaultBytesPool(),
+		}
+
+		// 配置 Transport
+		if p.config.TransportConfig != nil {
+			managerConfig.TransportConfig = *p.config.TransportConfig
+		} else {
+			managerConfig.TransportConfig = DefaultTransportConfig()
+		}
+
+		// T052: 启用 Metrics
+		if p.config.EnableMetrics {
+			managerConfig.Metrics = NewMetricsCollector()
+		}
+
 		// 创建 Manager
-		p.manager = NewManager(p.app)
+		p.manager = NewManagerWithConfig(p.app, managerConfig)
 
 		// 加载代理配置
 		if err := p.loadProxies(); err != nil {
@@ -90,6 +123,7 @@ func (p *gatewayPlugin) register() error {
 }
 
 // loadProxies 从数据库加载代理配置
+// 包含 Gateway Hardening 扩展字段
 func (p *gatewayPlugin) loadProxies() error {
 	if p.manager == nil {
 		return nil
@@ -117,6 +151,24 @@ func (p *gatewayPlugin) loadProxies() error {
 		headers := make(map[string]string)
 		record.UnmarshalJSONField(ProxyFieldHeaders, &headers)
 		config.Headers = headers
+
+		// T031: 加载 Gateway Hardening 扩展字段
+		// maxConcurrent
+		config.MaxConcurrent = record.GetInt(core.ProxyFieldMaxConcurrent)
+
+		// circuitBreaker JSON
+		var cbConfig CircuitBreakerConfig
+		if err := record.UnmarshalJSONField(core.ProxyFieldCircuitBreaker, &cbConfig); err == nil {
+			if cbConfig.Enabled {
+				config.CircuitBreaker = &cbConfig
+			}
+		}
+
+		// timeoutConfig JSON
+		var tcConfig TimeoutConfig
+		if err := record.UnmarshalJSONField(core.ProxyFieldTimeoutConfig, &tcConfig); err == nil {
+			config.TimeoutConfig = &tcConfig
+		}
 
 		configs = append(configs, config)
 	}

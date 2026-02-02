@@ -312,5 +312,83 @@
     "title": "页面未找到",
     "description": "您访问的页面不存在或已被移动。",
     "goHome": "返回首页"
+  },
+  "processes": {
+    "title": "进程管理",
+    "refresh": "刷新",
+    "lastRefresh": "上次刷新",
+    "stats": {
+      "running": "运行中",
+      "stopped": "已停止",
+      "crashed": "已崩溃",
+      "total": "总计"
+    },
+    "filter": {
+      "status": "状态",
+      "allStatus": "全部状态",
+      "searchPlaceholder": "搜索进程 ID...",
+      "clear": "清除"
+    },
+    "card": {
+      "pid": "PID",
+      "uptime": "运行时长",
+      "restarts": "重启次数",
+      "viewDetails": "查看详情",
+      "viewLogs": "查看日志",
+      "start": "启动",
+      "restart": "重启",
+      "stop": "停止"
+    },
+    "status": {
+      "running": "运行中",
+      "stopped": "已停止",
+      "crashed": "已崩溃",
+      "starting": "启动中"
+    },
+    "empty": {
+      "noProcesses": "暂无进程",
+      "noMatches": "没有匹配的进程",
+      "description": "请尝试调整筛选条件或检查进程配置"
+    },
+    "confirm": {
+      "restartTitle": "确认重启",
+      "stopTitle": "确认停止",
+      "restartMessage": "确定要重启进程 \"{{processId}}\" 吗？",
+      "stopMessage": "确定要停止进程 \"{{processId}}\" 吗？停止后进程将不再运行。",
+      "cancel": "取消",
+      "restart": "重启",
+      "stop": "停止"
+    },
+    "details": {
+      "title": "进程详情",
+      "basicInfo": "基本信息",
+      "processId": "进程 ID",
+      "status": "状态",
+      "pid": "PID",
+      "uptime": "运行时长",
+      "restartCount": "重启次数",
+      "lastError": "最近错误",
+      "noError": "无"
+    },
+    "toast": {
+      "startSuccess": "进程启动成功",
+      "startError": "进程启动失败",
+      "restartSuccess": "进程重启成功",
+      "restartError": "进程重启失败",
+      "stopSuccess": "进程已停止",
+      "stopError": "进程停止失败",
+      "loadError": "加载进程列表失败"
+    },
+    "logs": {
+      "title": "日志",
+      "live": "实时",
+      "pause": "暂停",
+      "resume": "继续",
+      "autoScroll": "自动滚动",
+      "empty": "暂无日志",
+      "totalLines": "总行数",
+      "scrollToBottom": "滚动到底部",
+      "loadError": "加载日志失败"
+    }
   }
 }

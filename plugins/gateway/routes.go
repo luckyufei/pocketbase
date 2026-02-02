@@ -1,10 +1,12 @@
 package gateway
 
 import (
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 )
 
 // registerRoutes 注册代理路由
+// T046: 注册 /api/gateway/metrics 路由
 func (p *gatewayPlugin) registerRoutes(e *core.ServeEvent) {
 	// 注册 /-/* 网关路由（推荐的代理前缀）
 	// 使用通配符匹配所有 /-/ 开头的路径
@@ -19,6 +21,13 @@ func (p *gatewayPlugin) registerRoutes(e *core.ServeEvent) {
 	e.Router.DELETE(proxyPath, handler)
 	e.Router.HEAD(proxyPath, handler)
 	e.Router.OPTIONS(proxyPath, handler)
+
+	// T046: 注册 metrics 端点
+	// FR-018: /api/gateway/metrics 端点
+	e.Router.GET("/api/gateway/metrics", p.metricsHandler()).Bind(
+		// T047: 添加认证中间件保护 metrics 端点（仅 superuser）
+		apis.RequireSuperuserAuth(),
+	)
 }
 
 // proxyHandler 创建代理请求处理器
@@ -67,6 +76,26 @@ func (p *gatewayPlugin) proxyHandler() func(e *core.RequestEvent) error {
 		// 执行代理转发
 		p.serveProxy(e, proxy, authInfo)
 
+		return nil
+	}
+}
+
+// metricsHandler 创建 metrics 端点处理器
+// T046: 实现 /api/gateway/metrics 端点
+// FR-018: 输出 Prometheus 格式指标
+func (p *gatewayPlugin) metricsHandler() func(e *core.RequestEvent) error {
+	return func(e *core.RequestEvent) error {
+		metrics := p.manager.Metrics()
+		if metrics == nil {
+			// 如果 metrics 未启用，返回空响应
+			e.Response.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			e.Response.WriteHeader(200)
+			e.Response.Write([]byte("# No metrics available\n"))
+			return nil
+		}
+
+		// 使用 MetricsCollector 的 ServeHTTP 方法输出 Prometheus 格式
+		metrics.ServeHTTP(e.Response, e.Request)
 		return nil
 	}
 }
