@@ -207,9 +207,6 @@ type BaseApp struct {
 	// job store for job queue
 	jobStore *jobStore
 
-	// trace for distributed tracing
-	trace *Trace
-
 	// analytics for native user behavior analytics
 	analytics *Analytics
 }
@@ -467,12 +464,6 @@ func (app *BaseApp) Bootstrap() error {
 
 		// initialize Secrets store
 		app.initSecretsStore()
-
-		// initialize Trace system
-		if err := app.initTrace(); err != nil {
-			app.Logger().Warn("Failed to initialize trace system", "error", err)
-			// 不返回错误，Trace 初始化失败不应阻止应用启动
-		}
 
 		// initialize Analytics system
 		if err := app.initAnalytics(); err != nil {

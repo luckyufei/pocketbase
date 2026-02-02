@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/pocketbase/pocketbase"
@@ -14,6 +15,8 @@ import (
 	"github.com/pocketbase/pocketbase/plugins/jsvm"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 	"github.com/pocketbase/pocketbase/plugins/tofauth"
+	"github.com/pocketbase/pocketbase/plugins/trace"
+	"github.com/pocketbase/pocketbase/plugins/trace/filters"
 	"github.com/pocketbase/pocketbase/tools/hook"
 	"github.com/pocketbase/pocketbase/tools/osutils"
 )
@@ -86,6 +89,22 @@ func main() {
 	// ---------------------------------------------------------------
 	// Plugins and hooks:
 	// ---------------------------------------------------------------
+
+	// Trace 插件 - 分布式追踪
+	// 支持三种模式: ModeOff（禁用）, ModeConditional（条件采集）, ModeFull（全量采集）
+	// 也可以通过环境变量配置: PB_TRACE_MODE, PB_TRACE_SAMPLE_RATE 等
+	trace.MustRegister(app, trace.Config{
+		Mode:          trace.ModeConditional,              // 条件采集模式
+		SampleRate:    0.1,                                // 10% 采样率
+		DyeMaxUsers:   100,                                // 最多 100 个染色用户
+		DyeDefaultTTL: 24 * time.Hour,                     // 染色默认 24 小时过期
+		RetentionDays: 7,                                  // 保留 7 天数据
+		Filters: []trace.Filter{
+			filters.ErrorOnly(),                           // 采集错误请求
+			filters.SlowRequest(500 * time.Millisecond),   // 采集慢请求 (>500ms)
+			filters.PathExclude("/health", "/metrics"),    // 排除健康检查路径
+		},
+	})
 
 	// TOF 认证插件
 	// 自动从环境变量 TOF_APP_KEY 和 TOF_APP_TOKEN 读取配置

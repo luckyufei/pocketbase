@@ -29,6 +29,85 @@ make test
 ```
 Uses standard Go testing. Tests are a mix of unit and integration tests spread across `*_test.go` files alongside their implementations.
 
+### PostgreSQL 测试规范（强制要求）
+
+**核心原则：PostgreSQL 测试必须连接真实数据库，禁止使用 Mock**
+
+这是因为：
+- Mock 无法发现数据库驱动的特定行为（如 JSONB 空值处理）
+- 真实数据库测试能暴露 SQL 语法差异和类型转换问题
+- 提高生产环境可靠性
+
+**测试方式优先级**：
+
+1. **Docker 容器自动启动**（推荐）：使用 `tests.PostgresContainer` 自动启动 PostgreSQL
+2. **外部数据库**：通过环境变量 `PB_TEST_POSTGRES_DSN` 指定
+3. **跳过测试**：设置 `SKIP_DOCKER_TESTS=1` 跳过 Docker 测试
+
+**测试代码模板**：
+
+```go
+import (
+    "sync"
+    "testing"
+    "github.com/pocketbase/pocketbase/tests"
+)
+
+var (
+    pgContainer     *tests.PostgresContainer
+    pgContainerOnce sync.Once
+    pgContainerErr  error
+)
+
+func getTestPostgresContainer() (*tests.PostgresContainer, error) {
+    pgContainerOnce.Do(func() {
+        pgContainer, pgContainerErr = tests.NewPostgresContainer(tests.PostgresConfig{
+            Version: "15",
+            DBName:  "my_test_db",
+        })
+    })
+    return pgContainer, pgContainerErr
+}
+
+func skipIfNoPostgres(t *testing.T) string {
+    t.Helper()
+    
+    // 优先使用环境变量
+    if dsn := os.Getenv("PB_TEST_POSTGRES_DSN"); dsn != "" {
+        return dsn
+    }
+    
+    // 跳过 Docker 测试
+    if os.Getenv("SKIP_DOCKER_TESTS") == "1" {
+        t.Skip("跳过 Docker 测试 (SKIP_DOCKER_TESTS=1)")
+        return ""
+    }
+    
+    // 自动启动 Docker 容器
+    container, err := getTestPostgresContainer()
+    if err != nil {
+        t.Skipf("跳过 PostgreSQL 测试: %v", err)
+        return ""
+    }
+    
+    return container.DSN()
+}
+
+func TestMyPostgresFeature(t *testing.T) {
+    dsn := skipIfNoPostgres(t)
+    // 使用 dsn 连接真实数据库进行测试
+}
+```
+
+**禁止行为**：
+- ❌ 使用 `mockRepository` 或类似 mock 对象测试 PostgreSQL 相关功能
+- ❌ 仅通过接口验证而不执行实际数据库操作
+- ❌ 跳过 PostgreSQL 特有的功能测试（如 JSONB、GIN 索引）
+
+**测试辅助工具**：
+- `tests/postgres.go` - PostgreSQL Docker 容器管理
+- `tests/dual_db_test_helper.go` - 双数据库（SQLite + PostgreSQL）测试框架
+
 ### Run a Single Test
 ```bash
 go test -v -run TestFunctionName ./path/to/package
@@ -140,6 +219,8 @@ Optional extensions:
 - **`migratecmd/`**: CLI command for managing migrations with auto-migration support. Generates Go or JS migration templates.
 
 - **`ghupdate/`**: GitHub-based self-update functionality.
+
+- **`trace/`**: 可观测性追踪插件，提供分布式追踪功能。支持三种运行模式（Off/Conditional/Full）、条件采集过滤器、用户染色追踪等功能。详见下方 [Trace Plugin](#trace-plugin-pluginstrace) 章节。
 
 ### Entry Point (`pocketbase.go`)
 
@@ -306,6 +387,7 @@ func main() {
 | **migratecmd** | `github.com/pocketbase/pocketbase/plugins/migratecmd` | CLI migration commands and auto-migration | `migrate` command, auto-migrations |
 | **tofauth** | `github.com/pocketbase/pocketbase/plugins/tofauth` | Tencent Open Framework authentication | TOF SSO integration |
 | **migrations** | `_ "github.com/pocketbase/pocketbase/migrations"` | System table migrations | `_jobs`, `_secrets`, `_kv` tables |
+| **trace** | `github.com/pocketbase/pocketbase/plugins/trace` | 可观测性追踪功能 | 分布式追踪、条件采集、用户染色 |
 
 ### Why Plugins Are Not Auto-Imported
 
@@ -527,3 +609,166 @@ apps/web/src/features/core/services/
 
 ## Recent Changes
 - 001-system-monitoring: Added Go 1.24.0 (backend), JavaScript/Svelte 4.x (frontend)
+
+---
+
+## Trace Plugin (`plugins/trace/`)
+
+可观测性追踪插件，提供分布式追踪功能。采用 Opt-in 设计，不注册时返回 `NoopTracer`（零开销）。
+
+### 快速开始
+
+```go
+import (
+    "time"
+    "github.com/pocketbase/pocketbase/plugins/trace"
+    "github.com/pocketbase/pocketbase/plugins/trace/filters"
+)
+
+func main() {
+    app := pocketbase.New()
+    
+    // 注册 trace 插件
+    trace.MustRegister(app, trace.Config{
+        Mode:          trace.ModeConditional,
+        SampleRate:    0.1,                    // 10% 采样
+        DyeMaxUsers:   100,                    // 最大染色用户数
+        DyeDefaultTTL: 24 * time.Hour,         // 染色默认 TTL
+        RetentionDays: 7,                      // 数据保留天数
+        Filters: []trace.Filter{
+            filters.ErrorOnly(),               // 仅采集错误
+            filters.SlowRequest(500 * time.Millisecond), // 慢请求 > 500ms
+            filters.PathExclude("/health", "/metrics"),  // 排除路径
+        },
+    })
+    
+    app.Start()
+}
+```
+
+### 运行模式 (TraceMode)
+
+| 模式 | 常量 | 说明 |
+|------|------|------|
+| 关闭 | `trace.ModeOff` | 完全关闭追踪，零开销 |
+| 条件采集 | `trace.ModeConditional` | 根据过滤器条件决定是否采集（默认）|
+| 全量采集 | `trace.ModeFull` | 采集所有请求 |
+
+### 过滤器 (Filters)
+
+过滤器分为两个阶段：
+
+**Pre-execution（请求前）**:
+- `filters.PathPrefix(prefixes...)` - 仅采集指定路径前缀
+- `filters.PathExclude(patterns...)` - 排除指定路径
+- `filters.PathMatch(patterns...)` - 路径正则匹配
+- `filters.SampleRate(rate)` - 采样率控制 (0.0-1.0)
+- `filters.DyedUser(store)` - 染色用户优先采集
+
+**Post-execution（请求后）**:
+- `filters.ErrorOnly()` - 仅采集错误响应 (status >= 400)
+- `filters.SlowRequest(threshold)` - 仅采集慢请求
+- `filters.VIPUser(userIDs...)` - VIP 用户全量采集
+- `filters.Custom(fn)` - 自定义过滤函数
+
+### 环境变量配置
+
+| 环境变量 | 说明 | 示例 |
+|---------|------|------|
+| `PB_TRACE_MODE` | 运行模式 | `off`, `conditional`, `full` |
+| `PB_TRACE_SAMPLE_RATE` | 采样率 | `0.1` (10%) |
+| `PB_TRACE_RETENTION_DAYS` | 数据保留天数 | `7` |
+| `PB_TRACE_BUFFER_SIZE` | Ring Buffer 大小 | `10000` |
+| `PB_TRACE_FLUSH_INTERVAL` | 刷新间隔（秒）| `1` |
+| `PB_TRACE_DYE_USERS` | 预设染色用户 | `user1,user2` |
+| `PB_TRACE_DYE_MAX` | 最大染色用户数 | `100` |
+| `PB_TRACE_DYE_TTL` | 染色默认 TTL | `1h`, `24h`, `30m` |
+
+### 用户染色 API
+
+**Programmatic API**:
+
+```go
+// 获取 Tracer 实例
+tracer := trace.GetTracer(app)
+
+// 添加染色用户
+trace.DyeUser(tracer, "user123", time.Hour)
+
+// 添加染色用户（带原因）
+trace.DyeUserWithReason(tracer, "user123", time.Hour, "support", "调试用户问题")
+
+// 移除染色用户
+trace.UndyeUser(tracer, "user123")
+
+// 检查是否染色
+if trace.IsDyed(tracer, "user123") {
+    // 用户已染色
+}
+
+// 获取染色用户信息
+if user, ok := trace.GetDyedUser(tracer, "user123"); ok {
+    fmt.Printf("染色至: %v\n", user.ExpiresAt)
+}
+
+// 列出所有染色用户
+users := trace.ListDyedUsers(tracer)
+
+// 更新染色 TTL
+trace.UpdateDyeTTL(tracer, "user123", 2*time.Hour)
+
+// 获取染色用户数量
+count := trace.DyedUserCount(tracer)
+```
+
+**HTTP API**:
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/_/trace/dyed-users` | 获取染色用户列表 |
+| POST | `/api/_/trace/dyed-users` | 添加染色用户 |
+| DELETE | `/api/_/trace/dyed-users/:id` | 删除染色用户 |
+| PUT | `/api/_/trace/dyed-users/:id/ttl` | 更新染色 TTL |
+
+### 目录结构
+
+```
+plugins/trace/
+├── register.go          # MustRegister/Register 函数
+├── config.go            # Config 结构体和环境变量解析
+├── mode.go              # TraceMode 常量定义
+├── filter.go            # Filter 接口定义
+├── span.go              # Span 类型导出
+├── buffer.go            # Ring Buffer 实现
+├── context.go           # Context 传递
+├── middleware.go        # HTTP 追踪中间件
+├── routes.go            # HTTP API 路由
+├── repository.go        # TraceRepository 接口
+├── repository_sqlite.go # SQLite 存储实现
+├── repository_pg.go     # PostgreSQL 存储实现
+├── dye_api.go           # 染色 Programmatic API
+├── filters/             # 内置过滤器
+│   ├── error_only.go    # ErrorOnly 过滤器
+│   ├── slow_request.go  # SlowRequest 过滤器
+│   ├── path.go          # PathPrefix/PathExclude/PathMatch
+│   ├── sample.go        # SampleRate 过滤器
+│   ├── vip_user.go      # VIPUser 过滤器
+│   ├── dyed_user.go     # DyedUser 过滤器
+│   └── custom.go        # Custom 自定义过滤器
+└── dye/                 # 染色存储
+    ├── store.go         # DyeStore 接口
+    ├── store_memory.go  # MemoryDyeStore 实现
+    └── routes.go        # 染色 HTTP API 路由
+```
+
+### 性能基准
+
+| 操作 | 耗时 | 内存分配 |
+|------|------|---------|
+| NoopTracer.StartSpan | ~2ns | 0 allocs |
+| ErrorOnly Filter | ~0.3ns | 0 allocs |
+| PathPrefix Filter | ~3ns | 0 allocs |
+| DyeStore.IsDyed (命中) | ~59ns | 0 allocs |
+| DyeStore.IsDyed (未命中) | ~26ns | 0 allocs |
+| RingBuffer.Push | ~14ns | 0 allocs |
+| SQLite.SaveBatch(100) | ~646μs | ~89KB |
