@@ -324,6 +324,39 @@ func TestTransportConfigValidation(t *testing.T) {
 	}
 }
 
+// TestNewHardenedTransportNegativeValues 验证负值配置处理
+func TestNewHardenedTransportNegativeValues(t *testing.T) {
+	config := TransportConfig{
+		DialTimeout:           -1,
+		DialKeepAlive:         -1,
+		ResponseHeaderTimeout: -1,
+		IdleConnTimeout:       -1,
+		MaxIdleConns:          -1,
+		MaxIdleConnsPerHost:   -1,
+		TLSHandshakeTimeout:   -1,
+		ExpectContinueTimeout: -1,
+	}
+
+	transport := NewHardenedTransport(config)
+
+	// 验证负值被处理为 0 或默认值
+	if transport.MaxIdleConns != 1000 {
+		t.Errorf("MaxIdleConns: negative should use default 1000, got %d", transport.MaxIdleConns)
+	}
+	if transport.MaxIdleConnsPerHost != 100 {
+		t.Errorf("MaxIdleConnsPerHost: negative should use default 100, got %d", transport.MaxIdleConnsPerHost)
+	}
+	if transport.IdleConnTimeout != 0 {
+		t.Errorf("IdleConnTimeout: negative should be 0, got %v", transport.IdleConnTimeout)
+	}
+	if transport.TLSHandshakeTimeout != 0 {
+		t.Errorf("TLSHandshakeTimeout: negative should be 0, got %v", transport.TLSHandshakeTimeout)
+	}
+	if transport.ExpectContinueTimeout != 0 {
+		t.Errorf("ExpectContinueTimeout: negative should be 0, got %v", transport.ExpectContinueTimeout)
+	}
+}
+
 // TestTransportConcurrentUse 验证并发安全性
 func TestTransportConcurrentUse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -1,14 +1,13 @@
-package migrations
+package dbutils
 
 import (
-	"github.com/pocketbase/pocketbase/core"
-	"github.com/pocketbase/pocketbase/tools/dbutils"
+	"github.com/pocketbase/dbx"
 )
 
 // PostgresInitSQL 返回 PostgreSQL 初始化 SQL
 // 包含辅助函数和扩展
 func PostgresInitSQL() string {
-	return dbutils.CreatePGHelperFunctions() + `
+	return CreatePGHelperFunctions() + `
 
 -- 启用必要的扩展
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -20,15 +19,15 @@ CREATE EXTENSION IF NOT EXISTS "citext";
 
 // InitPostgresHelpers 初始化 PostgreSQL 辅助函数
 // 应在数据库连接后、迁移前调用
-func InitPostgresHelpers(app core.App) error {
+func InitPostgresHelpers(db dbx.Builder) error {
 	// 检查是否为 PostgreSQL
-	dbType := dbutils.DetectDBTypeFromBuilder(app.DB())
+	dbType := DetectDBTypeFromBuilder(db)
 	if !dbType.IsPostgres() {
 		return nil // 非 PostgreSQL，跳过
 	}
 
 	// 执行初始化 SQL
-	_, err := app.DB().NewQuery(PostgresInitSQL()).Execute()
+	_, err := db.NewQuery(PostgresInitSQL()).Execute()
 	return err
 }
 

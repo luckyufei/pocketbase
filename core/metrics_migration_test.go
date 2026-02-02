@@ -1,4 +1,4 @@
-package migrations_test
+package core_test
 
 import (
 	"testing"

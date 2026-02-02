@@ -13,16 +13,18 @@ import (
 // T048: ResponseWriter 包装器
 type responseWriter struct {
 	http.ResponseWriter
-	statusCode int
-	written    bool
+	statusCode      int
+	written         bool
+	upstreamLatency time.Duration // T045: 记录上游延迟
 }
 
 // newResponseWriter 创建 ResponseWriter 包装器
 func newResponseWriter(w http.ResponseWriter) *responseWriter {
 	return &responseWriter{
-		ResponseWriter: w,
-		statusCode:     0,
-		written:        false,
+		ResponseWriter:  w,
+		statusCode:      0,
+		written:         false,
+		upstreamLatency: 0,
 	}
 }
 
@@ -47,6 +49,12 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 // StatusCode 返回记录的状态码
 func (rw *responseWriter) StatusCode() int {
 	return rw.statusCode
+}
+
+// UpstreamLatency 返回记录的上游延迟
+// T045: 用于记录 upstream_latency_ms
+func (rw *responseWriter) UpstreamLatency() time.Duration {
+	return rw.upstreamLatency
 }
 
 // writeTooManyRequestsError 写入 429 响应
@@ -133,18 +141,21 @@ func wrapHandler(
 		// 6. 记录开始时间
 		start := time.Now()
 
-		// 7. 执行实际 handler
+		// 7. 执行实际 handler（上游代理）
 		handler.ServeHTTP(rw, r)
 
-		// 8. 记录指标
-		duration := time.Since(start)
+		// 8. 记录上游延迟 (T045)
+		upstreamLatency := time.Since(start)
+		rw.upstreamLatency = upstreamLatency
+
+		// 9. 记录指标
 		statusCode := rw.StatusCode()
 
 		if metrics != nil {
-			metrics.RecordRequest(proxyName, statusCode, duration)
+			metrics.RecordRequest(proxyName, statusCode, upstreamLatency)
 		}
 
-		// 9. 更新熔断器状态
+		// 10. 更新熔断器状态
 		if breaker != nil {
 			if statusCode >= 500 {
 				breaker.RecordFailure()
@@ -157,5 +168,8 @@ func wrapHandler(
 				metrics.SetCircuitState(proxyName, breaker.State())
 			}
 		}
+
+		// 11. 将上游延迟存入 context（供外部日志使用）
+		// 注意：由于 request 已完成，这里通过 ResponseWriter 暴露
 	})
 }

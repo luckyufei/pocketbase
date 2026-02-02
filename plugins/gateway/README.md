@@ -10,6 +10,17 @@ API Gateway 插件，支持代理转发 LLM API（OpenAI、Claude 等）和本�
 - **结构化错误** - JSON 格式错误响应，便于前端处理
 - **Hot Reload** - 配置变更自动生效，无需重启
 
+### Gateway Hardening (v0.20+)
+
+生产级增强功能：
+
+- **精细化超时控制** - DialTimeout, ResponseHeaderTimeout, IdleConnTimeout
+- **优化连接池** - MaxIdleConns=1000, MaxIdleConnsPerHost=100
+- **并发限制** - 基于 semaphore 的流量控制，保护脆弱后端
+- **熔断器** - 三态熔断 (Closed/Open/HalfOpen)，自动故障隔离
+- **内存池** - sync.Pool 复用 Buffer，减少 GC 压力
+- **Prometheus 指标** - `/api/gateway/metrics` 端点
+
 ## 安装
 
 在 `main.go` 中注册插件：
@@ -36,7 +47,9 @@ func main() {
 
 ```go
 type Config struct {
-    Disabled bool // 禁用插件（默认 false）
+    Disabled      bool            // 禁用插件（默认 false）
+    EnableMetrics bool            // 启用 Prometheus 指标（默认 false）
+    TransportConfig *TransportConfig // 自定义 Transport 配置
 }
 ```
 
@@ -51,6 +64,63 @@ type Config struct {
 | headers | json | 注入的请求头（支持模板） |
 | timeout | int | 超时时间（秒，默认 30） |
 | active | bool | 是否启用（默认 true） |
+| **maxConcurrent** | int | 最大并发数（0=不限制）|
+| **circuitBreaker** | json | 熔断器配置 |
+| **timeoutConfig** | json | 精细超时配置 |
+
+### Gateway Hardening 配置示例
+
+```json
+{
+  "maxConcurrent": 10,
+  "circuitBreaker": {
+    "enabled": true,
+    "failure_threshold": 5,
+    "recovery_timeout": 30,
+    "half_open_requests": 1
+  },
+  "timeoutConfig": {
+    "dial": 2,
+    "response_header": 30,
+    "idle": 90
+  }
+}
+```
+
+#### 并发限制 (maxConcurrent)
+
+保护处理能力有限的后端服务（如 Python Sidecar）：
+
+- `maxConcurrent: 0` - 不限制（默认）
+- `maxConcurrent: 10` - 最多 10 个并发请求
+- 超限请求返回 `429 Too Many Requests` + `Retry-After` 头
+
+#### 熔断器 (circuitBreaker)
+
+自动故障隔离，防止级联失败：
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| enabled | false | 是否启用 |
+| failure_threshold | 5 | 连续失败多少次触发熔断 |
+| recovery_timeout | 30 | 熔断后多少秒尝试恢复 |
+| half_open_requests | 1 | HalfOpen 状态允许通过的请求数 |
+
+**状态机：**
+```
+Closed → (N次失败) → Open → (超时) → HalfOpen → (成功) → Closed
+                                   → (失败) → Open
+```
+
+#### 超时配置 (timeoutConfig)
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| dial | 2 | 建连超时（秒）|
+| response_header | 30 | 首字节超时（秒），0=不限制 |
+| idle | 90 | 空闲连接超时（秒）|
+
+**AI 场景推荐**：设置 `response_header: 0` 禁用首字节超时，因为 LLM 推理可能需要较长时间。
 
 ### 请求头模板语法
 
@@ -166,18 +236,121 @@ proxy := &httputil.ReverseProxy{
 
 ## Transport 配置
 
-全局共享的 HTTP Transport：
+全局共享的 HardenedTransport（优化后）：
 
 ```go
 transport := &http.Transport{
-    Proxy:                 http.ProxyFromEnvironment, // 支持系统代理
-    ForceAttemptHTTP2:     true,                      // HTTP/2 优化
-    MaxIdleConns:          100,                       // 连接池大小
-    IdleConnTimeout:       90 * time.Second,          // 空闲超时
-    TLSHandshakeTimeout:   10 * time.Second,
+    Proxy:                 http.ProxyFromEnvironment,
+    ForceAttemptHTTP2:     true,
+    MaxIdleConns:          1000,  // 总连接池 (原 100)
+    MaxIdleConnsPerHost:   100,   // 单上游连接池 (原 2)
+    IdleConnTimeout:       90 * time.Second,
+    TLSHandshakeTimeout:   5 * time.Second,
     ExpectContinueTimeout: 1 * time.Second,
+    DialContext: (&net.Dialer{
+        Timeout:   2 * time.Second,  // 建连超时
+        KeepAlive: 30 * time.Second, // TCP KeepAlive
+    }).DialContext,
 }
 ```
+
+### 连接池优化说明
+
+| 配置 | 原值 | 优化后 | 说明 |
+|------|------|--------|------|
+| MaxIdleConns | 100 | 1000 | 支持更多并发连接 |
+| MaxIdleConnsPerHost | 2 | 100 | **关键**：Go 默认只有 2，严重限制复用 |
+
+连接复用率测试结果：100 个请求仅创建 1 个连接，复用率 **99%+**。
+
+## Prometheus 指标
+
+访问 `/api/gateway/metrics`（需要 superuser 权限）：
+
+```prometheus
+# HELP gateway_requests_total Total number of requests
+# TYPE gateway_requests_total counter
+gateway_requests_total{proxy="openai",status="200"} 1523
+gateway_requests_total{proxy="openai",status="429"} 12
+gateway_requests_total{proxy="openai",status="503"} 3
+
+# HELP gateway_latency_seconds Request latency histogram
+# TYPE gateway_latency_seconds histogram
+gateway_latency_seconds_bucket{proxy="openai",le="0.01"} 500
+gateway_latency_seconds_bucket{proxy="openai",le="0.05"} 1200
+gateway_latency_seconds_bucket{proxy="openai",le="0.1"} 1450
+gateway_latency_seconds_bucket{proxy="openai",le="+Inf"} 1523
+gateway_latency_seconds_sum{proxy="openai"} 45.23
+gateway_latency_seconds_count{proxy="openai"} 1523
+
+# HELP gateway_active_connections Current active connections
+# TYPE gateway_active_connections gauge
+gateway_active_connections{proxy="openai"} 5
+
+# HELP gateway_circuit_breaker_state Circuit breaker state (0=closed, 1=open, 2=half-open)
+# TYPE gateway_circuit_breaker_state gauge
+gateway_circuit_breaker_state{proxy="openai"} 0
+```
+
+### Grafana Dashboard
+
+推荐面板：
+
+1. **QPS** - `rate(gateway_requests_total[1m])`
+2. **Error Rate** - `rate(gateway_requests_total{status=~"5.."}[1m]) / rate(gateway_requests_total[1m])`
+3. **P99 Latency** - `histogram_quantile(0.99, rate(gateway_latency_seconds_bucket[5m]))`
+4. **Active Connections** - `gateway_active_connections`
+5. **Circuit State** - `gateway_circuit_breaker_state`
+
+## 性能调优指南
+
+### 场景 1：高并发 API 代理
+
+```json
+{
+  "maxConcurrent": 0,
+  "timeoutConfig": {
+    "dial": 2,
+    "response_header": 30,
+    "idle": 90
+  }
+}
+```
+
+- 不限制并发（由连接池自动调节）
+- 标准超时配置
+
+### 场景 2：保护脆弱后端（Python Sidecar）
+
+```json
+{
+  "maxConcurrent": 5,
+  "circuitBreaker": {
+    "enabled": true,
+    "failure_threshold": 3,
+    "recovery_timeout": 30
+  }
+}
+```
+
+- 限制并发为 5（匹配 Python 进程数）
+- 启用熔断保护
+
+### 场景 3：AI 长推理
+
+```json
+{
+  "maxConcurrent": 10,
+  "timeoutConfig": {
+    "dial": 2,
+    "response_header": 0,
+    "idle": 90
+  }
+}
+```
+
+- 禁用首字节超时（`response_header: 0`）
+- 适度限制并发（AI 服务资源有限）
 
 ## License
 

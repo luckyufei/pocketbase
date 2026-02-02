@@ -262,6 +262,15 @@ func TestConcurrencyLimiterNilSafe(t *testing.T) {
 	if limiter.AcquireBlocking(context.Background()) != nil {
 		t.Error("nil.AcquireBlocking() should return nil")
 	}
+
+	// 新增: 测试 nil 的 InUse 和 Max
+	if limiter.InUse() != 0 {
+		t.Errorf("nil.InUse() should return 0, got %d", limiter.InUse())
+	}
+
+	if limiter.Max() != 0 {
+		t.Errorf("nil.Max() should return 0, got %d", limiter.Max())
+	}
 }
 
 // TestConcurrencyLimiterInUse 验证 InUse 方法

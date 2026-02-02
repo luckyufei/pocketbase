@@ -345,6 +345,86 @@ func TestCircuitBreakerFailureCount(t *testing.T) {
 	}
 }
 
+// TestCircuitBreakerConfig 验证配置获取
+func TestCircuitBreakerConfig(t *testing.T) {
+	// 测试正常配置
+	config := CircuitBreakerConfig{
+		Enabled:          true,
+		FailureThreshold: 7,
+		RecoveryTimeout:  45,
+		HalfOpenRequests: 3,
+	}
+	cb := NewCircuitBreaker(config)
+
+	got := cb.Config()
+	if got.Enabled != true {
+		t.Error("Config().Enabled should be true")
+	}
+	if got.FailureThreshold != 7 {
+		t.Errorf("Config().FailureThreshold: want 7, got %d", got.FailureThreshold)
+	}
+	if got.RecoveryTimeout != 45 {
+		t.Errorf("Config().RecoveryTimeout: want 45, got %d", got.RecoveryTimeout)
+	}
+	if got.HalfOpenRequests != 3 {
+		t.Errorf("Config().HalfOpenRequests: want 3, got %d", got.HalfOpenRequests)
+	}
+
+	// 测试 nil 安全
+	var nilCb *CircuitBreaker = nil
+	nilConfig := nilCb.Config()
+	if nilConfig.Enabled {
+		t.Error("nil.Config().Enabled should be false")
+	}
+	if nilConfig.FailureThreshold != 0 {
+		t.Error("nil.Config().FailureThreshold should be 0")
+	}
+}
+
+// TestCircuitBreakerNilFailureCount 验证 nil 的 FailureCount
+func TestCircuitBreakerNilFailureCount(t *testing.T) {
+	var cb *CircuitBreaker = nil
+	if cb.FailureCount() != 0 {
+		t.Errorf("nil.FailureCount() should return 0, got %d", cb.FailureCount())
+	}
+}
+
+// TestNewCircuitBreakerDefaultValues 验证创建时应用默认值
+func TestNewCircuitBreakerDefaultValues(t *testing.T) {
+	// 测试零值配置应用默认值
+	config := CircuitBreakerConfig{
+		Enabled:          true,
+		FailureThreshold: 0,  // 应该使用默认值 5
+		RecoveryTimeout:  0,  // 应该使用默认值 30
+		HalfOpenRequests: 0,  // 应该使用默认值 1
+	}
+	cb := NewCircuitBreaker(config)
+
+	got := cb.Config()
+	if got.FailureThreshold != 5 {
+		t.Errorf("Default FailureThreshold: want 5, got %d", got.FailureThreshold)
+	}
+	if got.RecoveryTimeout != 30 {
+		t.Errorf("Default RecoveryTimeout: want 30, got %d", got.RecoveryTimeout)
+	}
+	if got.HalfOpenRequests != 1 {
+		t.Errorf("Default HalfOpenRequests: want 1, got %d", got.HalfOpenRequests)
+	}
+
+	// 测试负值配置应用默认值
+	config2 := CircuitBreakerConfig{
+		Enabled:          true,
+		FailureThreshold: -1,
+		RecoveryTimeout:  -1,
+		HalfOpenRequests: -1,
+	}
+	cb2 := NewCircuitBreaker(config2)
+	got2 := cb2.Config()
+	if got2.FailureThreshold != 5 {
+		t.Errorf("Negative FailureThreshold should default to 5, got %d", got2.FailureThreshold)
+	}
+}
+
 // BenchmarkCircuitBreakerRecordFailure 性能基准测试
 func BenchmarkCircuitBreakerRecordFailure(b *testing.B) {
 	config := CircuitBreakerConfig{

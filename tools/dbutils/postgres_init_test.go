@@ -1,14 +1,14 @@
-package migrations_test
+package dbutils_test
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/pocketbase/pocketbase/migrations"
+	"github.com/pocketbase/pocketbase/tools/dbutils"
 )
 
 func TestPostgresInitSQL(t *testing.T) {
-	sql := migrations.PostgresInitSQL()
+	sql := dbutils.PostgresInitSQL()
 
 	// 验证包含必要的函数
 	requiredFunctions := []string{
@@ -39,7 +39,7 @@ func TestPostgresInitSQL(t *testing.T) {
 }
 
 func TestPostgresCollectionsTableSQL(t *testing.T) {
-	sql := migrations.PostgresCollectionsTableSQL()
+	sql := dbutils.PostgresCollectionsTableSQL()
 
 	// 验证使用 PostgreSQL 语法
 	if !strings.Contains(sql, "JSONB") {
@@ -69,7 +69,7 @@ func TestPostgresCollectionsTableSQL(t *testing.T) {
 }
 
 func TestPostgresParamsTableSQL(t *testing.T) {
-	sql := migrations.PostgresParamsTableSQL()
+	sql := dbutils.PostgresParamsTableSQL()
 
 	if !strings.Contains(sql, "JSONB") {
 		t.Fatal("Should use JSONB type")
@@ -81,14 +81,14 @@ func TestPostgresParamsTableSQL(t *testing.T) {
 }
 
 func TestGeneratePostgresRecordTableSQL(t *testing.T) {
-	fields := []migrations.FieldDef{
+	fields := []dbutils.FieldDef{
 		{Name: "name", PostgresType: "TEXT", NotNull: true},
 		{Name: "email", PostgresType: "CITEXT", NotNull: true},
 		{Name: "data", PostgresType: "JSONB", Default: "'{}'::jsonb"},
 		{Name: "created", PostgresType: "TIMESTAMPTZ", NotNull: true, Default: "NOW()"},
 	}
 
-	sql := migrations.GeneratePostgresRecordTableSQL("test_table", fields)
+	sql := dbutils.GeneratePostgresRecordTableSQL("test_table", fields)
 
 	// 验证表名
 	if !strings.Contains(sql, `"test_table"`) {
@@ -133,7 +133,7 @@ func TestConvertSQLiteTypeToPostgres(t *testing.T) {
 
 	for _, s := range scenarios {
 		t.Run(s.sqliteType, func(t *testing.T) {
-			result := migrations.ConvertSQLiteTypeToPostgres(s.sqliteType)
+			result := dbutils.ConvertSQLiteTypeToPostgres(s.sqliteType)
 			if result != s.expectedType {
 				t.Fatalf("Expected %s, got %s", s.expectedType, result)
 			}
@@ -154,7 +154,7 @@ func TestTypeMapping(t *testing.T) {
 	}
 
 	for sqliteType, expectedPgType := range expectedMappings {
-		if pgType, ok := migrations.TypeMapping[sqliteType]; !ok {
+		if pgType, ok := dbutils.TypeMapping[sqliteType]; !ok {
 			t.Fatalf("Missing mapping for %s", sqliteType)
 		} else if pgType != expectedPgType {
 			t.Fatalf("Wrong mapping for %s: expected %s, got %s", sqliteType, expectedPgType, pgType)

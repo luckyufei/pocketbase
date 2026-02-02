@@ -2,18 +2,18 @@
 package tests
 
 import (
-	"github.com/pocketbase/pocketbase/migrations"
+	"github.com/pocketbase/pocketbase/tools/dbutils"
 )
 
 // PostgresTestSchema 返回用于测试的 PostgreSQL Schema SQL
 func PostgresTestSchema() string {
-	return migrations.PostgresInitSQL() + `
+	return dbutils.PostgresInitSQL() + `
 
 -- _params 表
-` + migrations.PostgresParamsTableSQL() + `
+` + dbutils.PostgresParamsTableSQL() + `
 
 -- _collections 表
-` + migrations.PostgresCollectionsTableSQL() + `
+` + dbutils.PostgresCollectionsTableSQL() + `
 
 -- _mfas 表
 CREATE TABLE IF NOT EXISTS "_mfas" (

@@ -6,6 +6,7 @@ import (
 	"runtime"
 
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/dbutils"
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
@@ -36,7 +37,7 @@ func init() {
 
 		var collectionSQL string
 		if txApp.IsPostgres() {
-			collectionSQL = PostgresCollectionsTableSQL()
+			collectionSQL = dbutils.PostgresCollectionsTableSQL()
 		} else {
 			collectionSQL = `
 				CREATE TABLE {{_collections}} (
@@ -114,7 +115,7 @@ func createParamsTable(txApp core.App) error {
 	var sql string
 	if txApp.IsPostgres() {
 		// 先初始化 PostgreSQL 扩展和辅助函数
-		sql = PostgresInitSQL() + PostgresParamsTableSQL()
+		sql = dbutils.PostgresInitSQL() + dbutils.PostgresParamsTableSQL()
 	} else {
 		sql = `
 			CREATE TABLE {{_params}} (

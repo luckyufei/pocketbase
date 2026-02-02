@@ -348,3 +348,83 @@ func TestIsWebSocketUpgrade(t *testing.T) {
 		})
 	}
 }
+
+// TestWrapHandlerWebSocketRejection 验证 WebSocket 请求被拒绝 (T031a)
+func TestWrapHandlerWebSocketRejection(t *testing.T) {
+	backend := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("Backend should not be called for WebSocket requests")
+	})
+
+	wrapped := wrapHandler(backend, "test-proxy", nil, nil, nil)
+
+	// 发送 WebSocket 升级请求
+	req := httptest.NewRequest("GET", "/ws", nil)
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "websocket")
+
+	rec := httptest.NewRecorder()
+	wrapped.ServeHTTP(rec, req)
+
+	// 验证返回 501 Not Implemented
+	if rec.Code != http.StatusNotImplemented {
+		t.Errorf("Status: want 501, got %d", rec.Code)
+	}
+
+	body := rec.Body.String()
+	if !strings.Contains(body, "WebSocket Not Supported") {
+		t.Errorf("Response should mention WebSocket, got: %s", body)
+	}
+}
+
+// TestWrapHandlerSuccessRecordSuccess 验证成功响应更新熔断器
+func TestWrapHandlerSuccessRecordSuccess(t *testing.T) {
+	backend := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	cb := NewCircuitBreaker(CircuitBreakerConfig{
+		Enabled:          true,
+		FailureThreshold: 5,
+		RecoveryTimeout:  60,
+	})
+
+	// 先记录一些失败
+	cb.RecordFailure()
+	cb.RecordFailure()
+	if cb.FailureCount() != 2 {
+		t.Fatalf("FailureCount should be 2, got %d", cb.FailureCount())
+	}
+
+	metrics := NewMetricsCollector()
+	wrapped := wrapHandler(backend, "test-proxy", nil, cb, metrics)
+
+	// 发送成功请求
+	req := httptest.NewRequest("GET", "/test", nil)
+	rec := httptest.NewRecorder()
+	wrapped.ServeHTTP(rec, req)
+
+	// 验证成功后失败计数被重置
+	if cb.FailureCount() != 0 {
+		t.Errorf("FailureCount should be 0 after success, got %d", cb.FailureCount())
+	}
+}
+
+// TestWrapHandlerNoMetrics 验证无 metrics 时不 panic
+func TestWrapHandlerNoMetrics(t *testing.T) {
+	backend := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// 所有组件都是 nil
+	wrapped := wrapHandler(backend, "test-proxy", nil, nil, nil)
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	rec := httptest.NewRecorder()
+
+	// 不应该 panic
+	wrapped.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("Status: want 200, got %d", rec.Code)
+	}
+}

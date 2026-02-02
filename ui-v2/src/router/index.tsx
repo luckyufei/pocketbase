@@ -38,6 +38,18 @@ const InstallerPage = lazy(() =>
   }))
 )
 
+// Gateway 页面懒加载
+const ProxyListPage = lazy(() =>
+  import('@/features/gateway/components/ProxyListPage').then((m) => ({
+    default: m.ProxyListPage,
+  }))
+)
+const ProxyDetailPage = lazy(() =>
+  import('@/features/gateway/components/ProxyDetailPage').then((m) => ({
+    default: m.ProxyDetailPage,
+  }))
+)
+
 // 设置页面懒加载
 const SettingsLayout = lazy(() =>
   import('@/pages/settings').then((m) => ({ default: m.SettingsLayout }))
@@ -167,6 +179,20 @@ export const router = createBrowserRouter([
       {
         path: 'analytics',
         element: withSuspense(AnalyticsPage),
+      },
+
+      // Gateway - 代理配置管理
+      {
+        path: 'gateway',
+        element: withSuspense(ProxyListPage),
+      },
+      {
+        path: 'gateway/new',
+        element: withSuspense(ProxyDetailPage),
+      },
+      {
+        path: 'gateway/:id',
+        element: withSuspense(ProxyDetailPage),
       },
 
       // Settings - 懒加载
