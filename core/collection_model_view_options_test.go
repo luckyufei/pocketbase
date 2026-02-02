@@ -62,10 +62,7 @@ func TestCollectionViewOptionsValidate(t *testing.T) {
 	}
 
 	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			app, _ := tests.NewTestApp()
-			defer app.Cleanup()
-
+		tests.RunWithBothDBs(t, s.name, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
 			collection, err := s.collection(app)
 			if err != nil {
 				t.Fatalf("Failed to retrieve test collection: %v", err)

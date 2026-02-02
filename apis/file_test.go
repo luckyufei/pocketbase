@@ -85,7 +85,7 @@ func TestFileToken(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -488,7 +488,7 @@ func TestFileDownload(t *testing.T) {
 		head.Test(t)
 
 		// regular request test
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 

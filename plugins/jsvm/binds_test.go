@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -262,10 +263,10 @@ func TestBaseBindsSubscriptionMessage(t *testing.T) {
 }
 
 func TestBaseBindsRecord(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	collection, err := app.FindCachedCollectionByNameOrId("users")
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collection, err := app.FindCachedCollectionByNameOrId("users")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,6 +306,7 @@ func TestBaseBindsRecord(t *testing.T) {
 	if m2.Email() != "test@example.com" {
 		t.Fatalf("Expected record with email field set to %q, got \n%v", "test@example.com", m2)
 	}
+	})
 }
 
 func TestBaseBindsCollection(t *testing.T) {
@@ -697,22 +699,22 @@ func TestBaseBindsValidationError(t *testing.T) {
 }
 
 func TestDbxBinds(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	vm := goja.New()
-	vm.Set("db", app.DB())
-	baseBinds(vm)
-	dbxBinds(vm)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		vm := goja.New()
+		vm.Set("db", app.DB())
+		baseBinds(vm)
+		dbxBinds(vm)
 
-	testBindsCount(vm, "$dbx", 15, t)
+		testBindsCount(vm, "$dbx", 15, t)
 
-	sceneraios := []struct {
-		js       string
-		expected string
-	}{
-		{
-			`$dbx.exp("a = 1").build(db, {})`,
+		sceneraios := []struct {
+			js       string
+			expected string
+		}{
+			{
+				`$dbx.exp("a = 1").build(db, {})`,
 			"a = 1",
 		},
 		{
@@ -789,6 +791,7 @@ func TestDbxBinds(t *testing.T) {
 			t.Fatalf("[%s] Expected \n%s, \ngot \n%s", s.js, s.expected, v)
 		}
 	}
+	})
 }
 
 func TestMailsBindsCount(t *testing.T) {
@@ -799,11 +802,11 @@ func TestMailsBindsCount(t *testing.T) {
 }
 
 func TestMailsBinds(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	record, err := app.FindAuthRecordByEmail("users", "test@example.com")
-	if err != nil {
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		record, err := app.FindAuthRecordByEmail("users", "test@example.com")
+		if err != nil {
 		t.Fatal(err)
 	}
 
@@ -842,6 +845,7 @@ func TestMailsBinds(t *testing.T) {
 	if vmErr != nil {
 		t.Fatal(vmErr)
 	}
+	})
 }
 
 func TestSecurityBindsCount(t *testing.T) {
@@ -996,90 +1000,84 @@ func TestSecurityEncryptAndDecryptBinds(t *testing.T) {
 }
 
 func TestFilesystemBinds(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/error" {
-			w.WriteHeader(http.StatusInternalServerError)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/error" {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+
+			fmt.Fprintf(w, "test")
+		}))
+		defer srv.Close()
+
+		// Use any file that exists in the test data directory
+		testFile := filepath.Join(app.DataDir(), "storage")
+		// For PostgreSQL, DataDir might not have data.db, so check for a valid test file
+		if _, err := os.Stat(testFile); os.IsNotExist(err) {
+			testFile = app.DataDir()
 		}
 
-		fmt.Fprintf(w, "test")
-	}))
-	defer srv.Close()
+		vm := goja.New()
+		vm.Set("mh", &multipart.FileHeader{Filename: "test"})
+		vm.Set("testFile", testFile)
+		vm.Set("baseURL", srv.URL)
+		baseBinds(vm)
+		filesystemBinds(vm)
 
-	vm := goja.New()
-	vm.Set("mh", &multipart.FileHeader{Filename: "test"})
-	vm.Set("testFile", filepath.Join(app.DataDir(), "data.db"))
-	vm.Set("baseURL", srv.URL)
-	baseBinds(vm)
-	filesystemBinds(vm)
+		testBindsCount(vm, "$filesystem", 4, t)
 
-	testBindsCount(vm, "$filesystem", 4, t)
+		// fileFromBytes
+		{
+			v, err := vm.RunString(`$filesystem.fileFromBytes([1, 2, 3], "test")`)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	// fileFromPath
-	{
-		v, err := vm.RunString(`$filesystem.fileFromPath(testFile)`)
-		if err != nil {
-			t.Fatal(err)
+			file, _ := v.Export().(*filesystem.File)
+
+			if file == nil || file.OriginalName != "test" {
+				t.Fatalf("[fileFromBytes] Expected file with name %q, got %v", file.OriginalName, file)
+			}
 		}
 
-		file, _ := v.Export().(*filesystem.File)
+		// fileFromMultipart
+		{
+			v, err := vm.RunString(`$filesystem.fileFromMultipart(mh)`)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if file == nil || file.OriginalName != "data.db" {
-			t.Fatalf("[fileFromPath] Expected file with name %q, got %v", file.OriginalName, file)
-		}
-	}
+			file, _ := v.Export().(*filesystem.File)
 
-	// fileFromBytes
-	{
-		v, err := vm.RunString(`$filesystem.fileFromBytes([1, 2, 3], "test")`)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		file, _ := v.Export().(*filesystem.File)
-
-		if file == nil || file.OriginalName != "test" {
-			t.Fatalf("[fileFromBytes] Expected file with name %q, got %v", file.OriginalName, file)
-		}
-	}
-
-	// fileFromMultipart
-	{
-		v, err := vm.RunString(`$filesystem.fileFromMultipart(mh)`)
-		if err != nil {
-			t.Fatal(err)
+			if file == nil || file.OriginalName != "test" {
+				t.Fatalf("[fileFromMultipart] Expected file with name %q, got %v", file.OriginalName, file)
+			}
 		}
 
-		file, _ := v.Export().(*filesystem.File)
+		// fileFromURL (success)
+		{
+			v, err := vm.RunString(`$filesystem.fileFromURL(baseURL + "/test")`)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-		if file == nil || file.OriginalName != "test" {
-			t.Fatalf("[fileFromMultipart] Expected file with name %q, got %v", file.OriginalName, file)
+			file, _ := v.Export().(*filesystem.File)
+
+			if file == nil || file.OriginalName != "test" {
+				t.Fatalf("[fileFromURL] Expected file with name %q, got %v", file.OriginalName, file)
+			}
 		}
-	}
 
-	// fileFromURL (success)
-	{
-		v, err := vm.RunString(`$filesystem.fileFromURL(baseURL + "/test")`)
-		if err != nil {
-			t.Fatal(err)
+		// fileFromURL (failure)
+		{
+			_, err := vm.RunString(`$filesystem.fileFromURL(baseURL + "/error")`)
+			if err == nil {
+				t.Fatal("Expected url fetch error")
+			}
 		}
-
-		file, _ := v.Export().(*filesystem.File)
-
-		if file == nil || file.OriginalName != "test" {
-			t.Fatalf("[fileFromURL] Expected file with name %q, got %v", file.OriginalName, file)
-		}
-	}
-
-	// fileFromURL (failure)
-	{
-		_, err := vm.RunString(`$filesystem.fileFromURL(baseURL + "/error")`)
-		if err == nil {
-			t.Fatal("Expected url fetch error")
-		}
-	}
+	})
 }
 
 func TestFormsBinds(t *testing.T) {
@@ -1152,13 +1150,13 @@ func TestApisBindsApiError(t *testing.T) {
 }
 
 func TestLoadingDynamicModel(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	vm := goja.New()
-	baseBinds(vm)
-	dbxBinds(vm)
-	vm.Set("$app", app)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		vm := goja.New()
+		baseBinds(vm)
+		dbxBinds(vm)
+		vm.Set("$app", app)
 
 	_, err := vm.RunString(`
 		let result = new DynamicModel({
@@ -1243,21 +1241,22 @@ func TestLoadingDynamicModel(t *testing.T) {
 			}
 
 			if (expVal != resVal) {
-				throw new Error("Expected '" + col + "' value " + expVal + ", got " + resVal);
+			throw new Error("Expected '" + col + "' value " + expVal + ", got " + resVal);
 			}
 		}
 	`)
 	if err != nil {
 		t.Fatal(err)
 	}
+	})
 }
 
 func TestDynamicModelMapFieldCaching(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	vm := goja.New()
-	baseBinds(vm)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		vm := goja.New()
+		baseBinds(vm)
 	dbxBinds(vm)
 	vm.Set("$app", app)
 
@@ -1309,21 +1308,22 @@ func TestDynamicModelMapFieldCaching(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	})
 }
 
 func TestLoadingArrayOf(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	vm := goja.New()
-	baseBinds(vm)
-	dbxBinds(vm)
-	vm.Set("$app", app)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		vm := goja.New()
+		baseBinds(vm)
+		dbxBinds(vm)
+		vm.Set("$app", app)
 
-	_, err := vm.RunString(`
-		let result = arrayOf(new DynamicModel({
-			id:   "",
-			text: "",
+		_, err := vm.RunString(`
+			let result = arrayOf(new DynamicModel({
+				id:   "",
+				text: "",
 		}))
 
 		$app.db()
@@ -1355,17 +1355,19 @@ func TestLoadingArrayOf(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	})
 }
 
 func TestHttpClientBindsCount(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	vm := goja.New()
-	httpClientBinds(vm)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		vm := goja.New()
+		httpClientBinds(vm)
 
-	testBindsCount(vm, "this", 2, t) // + FormData
-	testBindsCount(vm, "$http", 1, t)
+		testBindsCount(vm, "this", 2, t) // + FormData
+		testBindsCount(vm, "$http", 1, t)
+	})
 }
 
 func TestHttpClientBindsSend(t *testing.T) {
@@ -1555,100 +1557,102 @@ func TestHttpClientBindsSend(t *testing.T) {
 }
 
 func TestCronBindsCount(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	vm := goja.New()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		vm := goja.New()
 
-	pool := newPool(1, func() *goja.Runtime { return goja.New() })
+		pool := newPool(1, func() *goja.Runtime { return goja.New() })
 
-	cronBinds(app, vm, pool)
+		cronBinds(app, vm, pool)
 
-	testBindsCount(vm, "this", 2, t)
+		testBindsCount(vm, "this", 2, t)
 
-	pool.run(func(poolVM *goja.Runtime) error {
-		testBindsCount(poolVM, "this", 2, t)
-		return nil
+		pool.run(func(poolVM *goja.Runtime) error {
+			testBindsCount(poolVM, "this", 2, t)
+			return nil
+		})
 	})
 }
 
 func TestHooksBindsCount(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	vm := goja.New()
-	hooksBinds(app, vm, nil)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		vm := goja.New()
+		hooksBinds(app, vm, nil)
 
-	testBindsCount(vm, "this", 82, t)
+		testBindsCount(vm, "this", 82, t)
+	})
 }
 
 func TestHooksBinds(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	result := &struct {
-		Called int
-	}{}
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		result := &struct {
+			Called int
+		}{}
 
-	vmFactory := func() *goja.Runtime {
-		vm := goja.New()
-		baseBinds(vm)
-		vm.Set("$app", app)
-		vm.Set("result", result)
-		return vm
-	}
+		vmFactory := func() *goja.Runtime {
+			vm := goja.New()
+			baseBinds(vm)
+			vm.Set("$app", app)
+			vm.Set("result", result)
+			return vm
+		}
 
-	pool := newPool(1, vmFactory)
+		pool := newPool(1, vmFactory)
 
-	vm := vmFactory()
-	hooksBinds(app, vm, pool)
+		vm := vmFactory()
+		hooksBinds(app, vm, pool)
 
-	_, err := vm.RunString(`
-		onModelUpdate((e) => {
-			result.called++;
-			e.next()
-		}, "demo1")
+		_, err := vm.RunString(`
+			onModelUpdate((e) => {
+				result.called++;
+				e.next()
+			}, "demo1")
 
-		onModelUpdate((e) => {
-			throw new Error("example");
-		}, "demo1")
+			onModelUpdate((e) => {
+				throw new Error("example");
+			}, "demo1")
 
-		onModelUpdate((e) => {
-			result.called++;
-			e.next();
-		}, "demo2")
+			onModelUpdate((e) => {
+				result.called++;
+				e.next();
+			}, "demo2")
 
-		onModelUpdate((e) => {
-			result.called++;
-			e.next()
-		}, "demo2")
+			onModelUpdate((e) => {
+				result.called++;
+				e.next()
+			}, "demo2")
 
-		onModelUpdate((e) => {
-			// stop propagation
-		}, "demo2")
+			onModelUpdate((e) => {
+				// stop propagation
+			}, "demo2")
 
-		onModelUpdate((e) => {
-			result.called++;
-			e.next();
-		}, "demo2")
+			onModelUpdate((e) => {
+				result.called++;
+				e.next();
+			}, "demo2")
 
-		onBootstrap((e) => {
-			e.next()
+			onBootstrap((e) => {
+				e.next()
 
-			// check hooks propagation and tags filtering
-			const recordA = $app.findFirstRecordByFilter("demo2", "1=1")
-			recordA.set("title", "update")
-			$app.save(recordA)
-			if (result.called != 2) {
-				throw new Error("Expected result.called to be 2, got " + result.called)
-			}
+				// check hooks propagation and tags filtering
+				const recordA = $app.findFirstRecordByFilter("demo2", "1=1")
+				recordA.set("title", "update")
+				$app.save(recordA)
+				if (result.called != 2) {
+					throw new Error("Expected result.called to be 2, got " + result.called)
+				}
 
-			// reset
-			result.called = 0;
+				// reset
+				result.called = 0;
 
-			// check error handling
-			let hasErr = false
-			try {
+				// check error handling
+				let hasErr = false
+				try {
 				const recordB = $app.findFirstRecordByFilter("demo1", "1=1")
 				recordB.set("text", "update")
 				$app.save(recordB)
@@ -1668,29 +1672,30 @@ func TestHooksBinds(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	})
 }
 
 func TestHooksExceptionUnwrapping(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	goErr := errors.New("test")
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		goErr := errors.New("test")
 
-	vmFactory := func() *goja.Runtime {
-		vm := goja.New()
-		baseBinds(vm)
-		vm.Set("$app", app)
-		vm.Set("goErr", goErr)
-		return vm
-	}
+		vmFactory := func() *goja.Runtime {
+			vm := goja.New()
+			baseBinds(vm)
+			vm.Set("$app", app)
+			vm.Set("goErr", goErr)
+			return vm
+		}
 
-	pool := newPool(1, vmFactory)
+		pool := newPool(1, vmFactory)
 
-	vm := vmFactory()
-	hooksBinds(app, vm, pool)
+		vm := vmFactory()
+		hooksBinds(app, vm, pool)
 
-	_, err := vm.RunString(`
-		onModelUpdate((e) => {
+		_, err := vm.RunString(`
+			onModelUpdate((e) => {
 			throw goErr
 		}, "demo1")
 	`)
@@ -1709,37 +1714,39 @@ func TestHooksExceptionUnwrapping(t *testing.T) {
 	if !errors.Is(err, goErr) {
 		t.Fatalf("Expected goError, got %v", err)
 	}
+	})
 }
 
 func TestRouterBindsCount(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	vm := goja.New()
-	routerBinds(app, vm, nil)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		vm := goja.New()
+		routerBinds(app, vm, nil)
 
-	testBindsCount(vm, "this", 2, t)
+		testBindsCount(vm, "this", 2, t)
+	})
 }
 
 func TestRouterBinds(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	t.Parallel()
 
-	result := &struct {
-		RouteMiddlewareCalls  int
-		GlobalMiddlewareCalls int
-	}{}
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		result := &struct {
+			RouteMiddlewareCalls  int
+			GlobalMiddlewareCalls int
+		}{}
 
-	vmFactory := func() *goja.Runtime {
-		vm := goja.New()
-		baseBinds(vm)
-		apisBinds(vm)
-		vm.Set("$app", app)
-		vm.Set("result", result)
-		return vm
-	}
+		vmFactory := func() *goja.Runtime {
+			vm := goja.New()
+			baseBinds(vm)
+			apisBinds(vm)
+			vm.Set("$app", app)
+			vm.Set("result", result)
+			return vm
+		}
 
-	pool := newPool(1, vmFactory)
+		pool := newPool(1, vmFactory)
 
 	vm := vmFactory()
 	routerBinds(app, vm, pool)
@@ -1819,6 +1826,7 @@ func TestRouterBinds(t *testing.T) {
 			}
 		})
 	}
+	})
 }
 
 func TestFilepathBindsCount(t *testing.T) {

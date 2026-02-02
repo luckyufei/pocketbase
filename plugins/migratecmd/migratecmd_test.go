@@ -379,32 +379,30 @@ func init() {
 
 	for _, s := range scenarios {
 		t.Run(s.lang, func(t *testing.T) {
-			app, _ := tests.NewTestApp()
-			defer app.Cleanup()
+			tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+				migrationsDir := filepath.Join(app.DataDir(), "_test_migrations")
 
-			migrationsDir := filepath.Join(app.DataDir(), "_test_migrations")
+				migratecmd.MustRegister(app, nil, migratecmd.Config{
+					TemplateLang: s.lang,
+					Automigrate:  true,
+					Dir:          migrationsDir,
+				})
 
-			migratecmd.MustRegister(app, nil, migratecmd.Config{
-				TemplateLang: s.lang,
-				Automigrate:  true,
-				Dir:          migrationsDir,
-			})
+				app.Bootstrap()
 
-			app.Bootstrap()
-
-			collection := core.NewAuthCollection("new_name")
-			collection.System = true
-			collection.ListRule = types.Pointer("@request.auth.id != '' && 1 > 0 || 'backtick`test' = 0")
-			collection.ViewRule = types.Pointer(`id = "1"`)
-			collection.Indexes = types.JSONArray[string]{"create index test on new_name (id)"}
-			collection.ManageRule = types.Pointer("1 != 2")
-			//  should be ignored
-			collection.OAuth2.Providers = []core.OAuth2ProviderConfig{{Name: "gitlab", ClientId: "abc", ClientSecret: "123"}}
-			testSecret := strings.Repeat("a", 30)
-			collection.AuthToken.Secret = testSecret
-			collection.FileToken.Secret = testSecret
-			collection.EmailChangeToken.Secret = testSecret
-			collection.PasswordResetToken.Secret = testSecret
+				collection := core.NewAuthCollection("new_name")
+				collection.System = true
+				collection.ListRule = types.Pointer("@request.auth.id != '' && 1 > 0 || 'backtick`test' = 0")
+				collection.ViewRule = types.Pointer(`id = "1"`)
+				collection.Indexes = types.JSONArray[string]{"create index test on new_name (id)"}
+				collection.ManageRule = types.Pointer("1 != 2")
+				//  should be ignored
+				collection.OAuth2.Providers = []core.OAuth2ProviderConfig{{Name: "gitlab", ClientId: "abc", ClientSecret: "123"}}
+				testSecret := strings.Repeat("a", 30)
+				collection.AuthToken.Secret = testSecret
+				collection.FileToken.Secret = testSecret
+				collection.EmailChangeToken.Secret = testSecret
+				collection.PasswordResetToken.Secret = testSecret
 			collection.VerificationToken.Secret = testSecret
 
 			// save the newly created dummy collection (with mock request event)
@@ -447,8 +445,9 @@ func init() {
 				`\w+`,
 			)
 			if !list.ExistInSliceWithRegex(contentStr, []string{expectedTemplate}) {
-				t.Fatalf("Expected template \n%v \ngot \n%v", s.expectedTemplate, contentStr)
+			t.Fatalf("Expected template \n%v \ngot \n%v", s.expectedTemplate, contentStr)
 			}
+			})
 		})
 	}
 }
@@ -816,32 +815,30 @@ func init() {
 
 	for _, s := range scenarios {
 		t.Run(s.lang, func(t *testing.T) {
-			app, _ := tests.NewTestApp()
-			defer app.Cleanup()
+			tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+				migrationsDir := filepath.Join(app.DataDir(), "_test_migrations")
 
-			migrationsDir := filepath.Join(app.DataDir(), "_test_migrations")
+				// create dummy collection
+				collection := core.NewAuthCollection("test123")
+				collection.ListRule = types.Pointer("@request.auth.id != '' && 1 > 0 || 'backtick`test' = 0")
+				collection.ViewRule = types.Pointer(`id = "1"`)
+				collection.Indexes = types.JSONArray[string]{"create index test on test123 (id)"}
+				collection.ManageRule = types.Pointer("1 != 2")
+				if err := app.Save(collection); err != nil {
+					t.Fatalf("Failed to save dummy collection, got: %v", err)
+				}
 
-			// create dummy collection
-			collection := core.NewAuthCollection("test123")
-			collection.ListRule = types.Pointer("@request.auth.id != '' && 1 > 0 || 'backtick`test' = 0")
-			collection.ViewRule = types.Pointer(`id = "1"`)
-			collection.Indexes = types.JSONArray[string]{"create index test on test123 (id)"}
-			collection.ManageRule = types.Pointer("1 != 2")
-			if err := app.Save(collection); err != nil {
-				t.Fatalf("Failed to save dummy collection, got: %v", err)
-			}
+				migratecmd.MustRegister(app, nil, migratecmd.Config{
+					TemplateLang: s.lang,
+					Automigrate:  true,
+					Dir:          migrationsDir,
+				})
 
-			migratecmd.MustRegister(app, nil, migratecmd.Config{
-				TemplateLang: s.lang,
-				Automigrate:  true,
-				Dir:          migrationsDir,
-			})
+				app.Bootstrap()
 
-			app.Bootstrap()
-
-			// delete the newly created dummy collection (with mock request event)
-			event := new(core.CollectionRequestEvent)
-			event.RequestEvent = &core.RequestEvent{}
+				// delete the newly created dummy collection (with mock request event)
+				event := new(core.CollectionRequestEvent)
+				event.RequestEvent = &core.RequestEvent{}
 			event.App = app
 			event.Collection = collection
 			err := app.OnCollectionDeleteRequest().Trigger(event, func(e *core.CollectionRequestEvent) error {
@@ -881,6 +878,7 @@ func init() {
 			if !list.ExistInSliceWithRegex(contentStr, []string{expectedTemplate}) {
 				t.Fatalf("Expected template \n%v \ngot \n%v", s.expectedTemplate, contentStr)
 			}
+			})
 		})
 	}
 }
@@ -1157,31 +1155,29 @@ func init() {
 
 	for _, s := range scenarios {
 		t.Run(s.lang, func(t *testing.T) {
-			app, _ := tests.NewTestApp()
-			defer app.Cleanup()
+			tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+				migrationsDir := filepath.Join(app.DataDir(), "_test_migrations")
 
-			migrationsDir := filepath.Join(app.DataDir(), "_test_migrations")
-
-			// create dummy collection
-			collection := core.NewAuthCollection("test123")
-			collection.ListRule = types.Pointer("@request.auth.id != '' && 1 != 2")
-			collection.ViewRule = types.Pointer(`id = "1"`)
-			collection.UpdateRule = types.Pointer(`id = "2"`)
-			collection.CreateRule = nil
-			collection.DeleteRule = types.Pointer(`id = "3"`)
-			collection.Indexes = types.JSONArray[string]{"create index test1 on test123 (f1_name)"}
-			collection.ManageRule = types.Pointer("1 != 2")
-			collection.Fields.Add(&core.TextField{
-				Id:       "f1_id",
-				Name:     "f1_name",
-				Required: true,
-			})
-			collection.Fields.Add(&core.NumberField{
-				Id:   "f2_id",
-				Name: "f2_name",
-				Min:  types.Pointer(10.0),
-			})
-			collection.Fields.Add(&core.BoolField{
+				// create dummy collection
+				collection := core.NewAuthCollection("test123")
+				collection.ListRule = types.Pointer("@request.auth.id != '' && 1 != 2")
+				collection.ViewRule = types.Pointer(`id = "1"`)
+				collection.UpdateRule = types.Pointer(`id = "2"`)
+				collection.CreateRule = nil
+				collection.DeleteRule = types.Pointer(`id = "3"`)
+				collection.Indexes = types.JSONArray[string]{"create index test1 on test123 (f1_name)"}
+				collection.ManageRule = types.Pointer("1 != 2")
+				collection.Fields.Add(&core.TextField{
+					Id:       "f1_id",
+					Name:     "f1_name",
+					Required: true,
+				})
+				collection.Fields.Add(&core.NumberField{
+					Id:   "f2_id",
+					Name: "f2_name",
+					Min:  types.Pointer(10.0),
+				})
+				collection.Fields.Add(&core.BoolField{
 				Id:   "f3_id",
 				Name: "f3_name",
 			})
@@ -1269,6 +1265,7 @@ func init() {
 			if !list.ExistInSliceWithRegex(contentStr, []string{expectedTemplate}) {
 				t.Fatalf("Expected template \n%v \ngot \n%v", s.expectedTemplate, contentStr)
 			}
+			})
 		})
 	}
 }
@@ -1289,32 +1286,30 @@ func TestAutomigrateCollectionNoChanges(t *testing.T) {
 
 	for _, s := range scenarios {
 		t.Run(s.lang, func(t *testing.T) {
-			app, _ := tests.NewTestApp()
-			defer app.Cleanup()
+			tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+				migrationsDir := filepath.Join(app.DataDir(), "_test_migrations")
 
-			migrationsDir := filepath.Join(app.DataDir(), "_test_migrations")
+				// create dummy collection
+				collection := core.NewAuthCollection("test123")
 
-			// create dummy collection
-			collection := core.NewAuthCollection("test123")
+				if err := app.Save(collection); err != nil {
+					t.Fatalf("Failed to save dummy collection, got %v", err)
+				}
 
-			if err := app.Save(collection); err != nil {
-				t.Fatalf("Failed to save dummy collection, got %v", err)
-			}
+				// init plugin
+				migratecmd.MustRegister(app, nil, migratecmd.Config{
+					TemplateLang: s.lang,
+					Automigrate:  true,
+					Dir:          migrationsDir,
+				})
+				app.Bootstrap()
 
-			// init plugin
-			migratecmd.MustRegister(app, nil, migratecmd.Config{
-				TemplateLang: s.lang,
-				Automigrate:  true,
-				Dir:          migrationsDir,
-			})
-			app.Bootstrap()
-
-			//  should be ignored
-			collection.OAuth2.Providers = []core.OAuth2ProviderConfig{{Name: "gitlab", ClientId: "abc", ClientSecret: "123"}}
-			testSecret := strings.Repeat("b", 30)
-			collection.AuthToken.Secret = testSecret
-			collection.FileToken.Secret = testSecret
-			collection.EmailChangeToken.Secret = testSecret
+				//  should be ignored
+				collection.OAuth2.Providers = []core.OAuth2ProviderConfig{{Name: "gitlab", ClientId: "abc", ClientSecret: "123"}}
+				testSecret := strings.Repeat("b", 30)
+				collection.AuthToken.Secret = testSecret
+				collection.FileToken.Secret = testSecret
+				collection.EmailChangeToken.Secret = testSecret
 			collection.PasswordResetToken.Secret = testSecret
 			collection.VerificationToken.Secret = testSecret
 
@@ -1332,8 +1327,9 @@ func TestAutomigrateCollectionNoChanges(t *testing.T) {
 
 			files, _ := os.ReadDir(migrationsDir)
 			if total := len(files); total != 0 {
-				t.Fatalf("Expected 0 files to be generated, got %d", total)
+			t.Fatalf("Expected 0 files to be generated, got %d", total)
 			}
+			})
 		})
 	}
 }
@@ -1361,40 +1357,38 @@ func TestMigrationFilenameFormat_ReadableTimestamp(t *testing.T) {
 
 	for _, s := range scenarios {
 		t.Run(s.name, func(t *testing.T) {
-			app, _ := tests.NewTestApp()
-			defer app.Cleanup()
+			tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+				migrationsDir := filepath.Join(app.DataDir(), "_test_migrations_timestamp")
 
-			migrationsDir := filepath.Join(app.DataDir(), "_test_migrations_timestamp")
+				migratecmd.MustRegister(app, nil, migratecmd.Config{
+					TemplateLang: s.lang,
+					Automigrate:  true,
+					Dir:          migrationsDir,
+				})
 
-			migratecmd.MustRegister(app, nil, migratecmd.Config{
-				TemplateLang: s.lang,
-				Automigrate:  true,
-				Dir:          migrationsDir,
-			})
+				app.Bootstrap()
 
-			app.Bootstrap()
+				// Create a collection to trigger automigrate
+				collection := core.NewBaseCollection("timestamp_test")
+				event := new(core.CollectionRequestEvent)
+				event.RequestEvent = &core.RequestEvent{}
+				event.App = app
+				event.Collection = collection
+				err := app.OnCollectionCreateRequest().Trigger(event, func(e *core.CollectionRequestEvent) error {
+					return e.App.Save(e.Collection)
+				})
+				if err != nil {
+					t.Fatalf("Failed to save collection: %v", err)
+				}
 
-			// Create a collection to trigger automigrate
-			collection := core.NewBaseCollection("timestamp_test")
-			event := new(core.CollectionRequestEvent)
-			event.RequestEvent = &core.RequestEvent{}
-			event.App = app
-			event.Collection = collection
-			err := app.OnCollectionCreateRequest().Trigger(event, func(e *core.CollectionRequestEvent) error {
-				return e.App.Save(e.Collection)
-			})
-			if err != nil {
-				t.Fatalf("Failed to save collection: %v", err)
-			}
+				files, err := os.ReadDir(migrationsDir)
+				if err != nil {
+					t.Fatalf("Failed to read migrations dir: %v", err)
+				}
 
-			files, err := os.ReadDir(migrationsDir)
-			if err != nil {
-				t.Fatalf("Failed to read migrations dir: %v", err)
-			}
-
-			if len(files) != 1 {
-				t.Fatalf("Expected 1 migration file, got %d", len(files))
-			}
+				if len(files) != 1 {
+					t.Fatalf("Expected 1 migration file, got %d", len(files))
+				}
 
 			filename := files[0].Name()
 
@@ -1409,6 +1403,7 @@ func TestMigrationFilenameFormat_ReadableTimestamp(t *testing.T) {
 			if err != nil {
 				t.Errorf("Timestamp prefix %q is not a valid YYYYMMDDHHMMSS format: %v", timestampStr, err)
 			}
+			})
 		})
 	}
 }

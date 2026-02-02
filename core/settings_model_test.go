@@ -15,13 +15,12 @@ import (
 func TestSettingsDelete(t *testing.T) {
 	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	err := app.Delete(app.Settings())
-	if err == nil {
-		t.Fatal("Exected settings delete to fail")
-	}
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		err := app.Delete(app.Settings())
+		if err == nil {
+			t.Fatal("Exected settings delete to fail")
+		}
+	})
 }
 
 func TestSettingsMerge(t *testing.T) {
@@ -116,49 +115,48 @@ func TestSettingsMarshalJSON(t *testing.T) {
 func TestSettingsValidate(t *testing.T) {
 	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		s := app.Settings()
 
-	s := app.Settings()
+		// set invalid settings data
+		s.Meta.AppName = ""
+		s.Logs.MaxDays = -10
+		s.SMTP.Enabled = true
+		s.SMTP.Host = ""
+		s.S3.Enabled = true
+		s.S3.Endpoint = "invalid"
+		s.Backups.Cron = "invalid"
+		s.Backups.CronMaxKeep = -10
+		s.Batch.Enabled = true
+		s.Batch.MaxRequests = -1
+		s.Batch.Timeout = -1
+		s.RateLimits.Enabled = true
+		s.RateLimits.Rules = nil
 
-	// set invalid settings data
-	s.Meta.AppName = ""
-	s.Logs.MaxDays = -10
-	s.SMTP.Enabled = true
-	s.SMTP.Host = ""
-	s.S3.Enabled = true
-	s.S3.Endpoint = "invalid"
-	s.Backups.Cron = "invalid"
-	s.Backups.CronMaxKeep = -10
-	s.Batch.Enabled = true
-	s.Batch.MaxRequests = -1
-	s.Batch.Timeout = -1
-	s.RateLimits.Enabled = true
-	s.RateLimits.Rules = nil
-
-	// check if Validate() is triggering the members validate methods.
-	err := app.Validate(s)
-	if err == nil {
-		t.Fatalf("Expected error, got nil")
-	}
-
-	expectations := []string{
-		`"meta":{`,
-		`"logs":{`,
-		`"smtp":{`,
-		`"s3":{`,
-		`"backups":{`,
-		`"batch":{`,
-		`"rateLimits":{`,
-	}
-
-	errBytes, _ := json.Marshal(err)
-	jsonErr := string(errBytes)
-	for _, expected := range expectations {
-		if !strings.Contains(jsonErr, expected) {
-			t.Errorf("Expected error key %s in %v", expected, jsonErr)
+		// check if Validate() is triggering the members validate methods.
+		err := app.Validate(s)
+		if err == nil {
+			t.Fatalf("Expected error, got nil")
 		}
-	}
+
+		expectations := []string{
+			`"meta":{`,
+			`"logs":{`,
+			`"smtp":{`,
+			`"s3":{`,
+			`"backups":{`,
+			`"batch":{`,
+			`"rateLimits":{`,
+		}
+
+		errBytes, _ := json.Marshal(err)
+		jsonErr := string(errBytes)
+		for _, expected := range expectations {
+			if !strings.Contains(jsonErr, expected) {
+				t.Errorf("Expected error key %s in %v", expected, jsonErr)
+			}
+		}
+	})
 }
 
 func TestMetaConfigValidate(t *testing.T) {

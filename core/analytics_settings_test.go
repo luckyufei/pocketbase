@@ -12,23 +12,22 @@ import (
 func TestAnalyticsSettingsConfigDefaults(t *testing.T) {
 	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		settings := app.Settings()
 
-	settings := app.Settings()
+		// 验证默认值
+		if !settings.Analytics.Enabled {
+			t.Error("Expected Analytics.Enabled to be true by default")
+		}
 
-	// 验证默认值
-	if !settings.Analytics.Enabled {
-		t.Error("Expected Analytics.Enabled to be true by default")
-	}
+		if settings.Analytics.Retention != 90 {
+			t.Errorf("Expected Analytics.Retention to be 90, got %d", settings.Analytics.Retention)
+		}
 
-	if settings.Analytics.Retention != 90 {
-		t.Errorf("Expected Analytics.Retention to be 90, got %d", settings.Analytics.Retention)
-	}
-
-	if settings.Analytics.S3Bucket != "" {
-		t.Errorf("Expected Analytics.S3Bucket to be empty by default, got %q", settings.Analytics.S3Bucket)
-	}
+		if settings.Analytics.S3Bucket != "" {
+			t.Errorf("Expected Analytics.S3Bucket to be empty by default, got %q", settings.Analytics.S3Bucket)
+		}
+	})
 }
 
 // TestAnalyticsSettingsConfigValidation 测试 AnalyticsSettingsConfig 验证
@@ -150,17 +149,16 @@ func TestAnalyticsSettingsConfigJSON(t *testing.T) {
 func TestSettingsIncludesAnalytics(t *testing.T) {
 	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		settings := app.Settings()
 
-	settings := app.Settings()
+		// 验证默认 Analytics 设置
+		if !settings.Analytics.Enabled {
+			t.Error("Expected Analytics.Enabled to be true by default")
+		}
 
-	// 验证默认 Analytics 设置
-	if !settings.Analytics.Enabled {
-		t.Error("Expected Analytics.Enabled to be true by default")
-	}
-
-	if settings.Analytics.Retention != 90 {
-		t.Errorf("Expected Analytics.Retention to be 90, got %d", settings.Analytics.Retention)
-	}
+		if settings.Analytics.Retention != 90 {
+			t.Errorf("Expected Analytics.Retention to be 90, got %d", settings.Analytics.Retention)
+		}
+	})
 }

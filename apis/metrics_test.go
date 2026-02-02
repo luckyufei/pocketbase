@@ -117,7 +117,7 @@ func TestMetricsAPIGetHistory(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -169,7 +169,7 @@ func TestMetricsAPIGetCurrent(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -247,7 +247,7 @@ func TestMetricsMiddleware(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -326,7 +326,7 @@ func TestMetricsAPIServiceUnavailable(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -357,7 +357,7 @@ func TestMetricsAPICurrentNotFound(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -402,7 +402,7 @@ func TestMetricsAPIWithZeroParams(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 

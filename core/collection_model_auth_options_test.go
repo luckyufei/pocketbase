@@ -17,323 +17,322 @@ import (
 func TestCollectionAuthOptionsValidate(t *testing.T) {
 	t.Parallel()
 
-	scenarios := []struct {
-		name           string
-		collection     func(app core.App) (*core.Collection, error)
-		expectedErrors []string
-	}{
-		// authRule
-		{
-			name: "nil authRule",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.AuthRule = nil
-				return c, nil
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		scenarios := []struct {
+			name           string
+			collection     func(app core.App) (*core.Collection, error)
+			expectedErrors []string
+		}{
+			// authRule
+			{
+				name: "nil authRule",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.AuthRule = nil
+					return c, nil
+				},
+				expectedErrors: []string{},
 			},
-			expectedErrors: []string{},
-		},
-		{
-			name: "empty authRule",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.AuthRule = types.Pointer("")
-				return c, nil
+			{
+				name: "empty authRule",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.AuthRule = types.Pointer("")
+					return c, nil
+				},
+				expectedErrors: []string{},
 			},
-			expectedErrors: []string{},
-		},
-		{
-			name: "invalid authRule",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.AuthRule = types.Pointer("missing != ''")
-				return c, nil
+			{
+				name: "invalid authRule",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.AuthRule = types.Pointer("missing != ''")
+					return c, nil
+				},
+				expectedErrors: []string{"authRule"},
 			},
-			expectedErrors: []string{"authRule"},
-		},
-		{
-			name: "valid authRule",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.AuthRule = types.Pointer("id != ''")
-				return c, nil
+			{
+				name: "valid authRule",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.AuthRule = types.Pointer("id != ''")
+					return c, nil
+				},
+				expectedErrors: []string{},
 			},
-			expectedErrors: []string{},
-		},
 
-		// manageRule
-		{
-			name: "nil manageRule",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.ManageRule = nil
-				return c, nil
+			// manageRule
+			{
+				name: "nil manageRule",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.ManageRule = nil
+					return c, nil
+				},
+				expectedErrors: []string{},
 			},
-			expectedErrors: []string{},
-		},
-		{
-			name: "empty manageRule",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.ManageRule = types.Pointer("")
-				return c, nil
+			{
+				name: "empty manageRule",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.ManageRule = types.Pointer("")
+					return c, nil
+				},
+				expectedErrors: []string{"manageRule"},
 			},
-			expectedErrors: []string{"manageRule"},
-		},
-		{
-			name: "invalid manageRule",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.ManageRule = types.Pointer("missing != ''")
-				return c, nil
+			{
+				name: "invalid manageRule",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.ManageRule = types.Pointer("missing != ''")
+					return c, nil
+				},
+				expectedErrors: []string{"manageRule"},
 			},
-			expectedErrors: []string{"manageRule"},
-		},
-		{
-			name: "valid manageRule",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.ManageRule = types.Pointer("id != ''")
-				return c, nil
+			{
+				name: "valid manageRule",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.ManageRule = types.Pointer("id != ''")
+					return c, nil
+				},
+				expectedErrors: []string{},
 			},
-			expectedErrors: []string{},
-		},
 
-		// passwordAuth
-		{
-			name: "trigger passwordAuth validations",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.PasswordAuth = core.PasswordAuthConfig{
-					Enabled: true,
+			// passwordAuth
+			{
+				name: "trigger passwordAuth validations",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.PasswordAuth = core.PasswordAuthConfig{
+						Enabled: true,
+					}
+					return c, nil
+				},
+				expectedErrors: []string{"passwordAuth"},
+			},
+			{
+				name: "passwordAuth with non-unique identity fields",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.Fields.Add(&core.TextField{Name: "test"})
+					c.PasswordAuth = core.PasswordAuthConfig{
+						Enabled:        true,
+						IdentityFields: []string{"email", "test"},
+					}
+					return c, nil
+				},
+				expectedErrors: []string{"passwordAuth"},
+			},
+			{
+				name: "passwordAuth with non-unique identity fields",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.Fields.Add(&core.TextField{Name: "test"})
+					c.AddIndex("auth_test_idx", true, "test", "")
+					c.PasswordAuth = core.PasswordAuthConfig{
+						Enabled:        true,
+						IdentityFields: []string{"email", "test"},
+					}
+					return c, nil
+				},
+				expectedErrors: []string{},
+			},
+
+			// oauth2
+			{
+				name: "trigger oauth2 validations",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.OAuth2 = core.OAuth2Config{
+						Enabled: true,
+						Providers: []core.OAuth2ProviderConfig{
+							{Name: "missing"},
+						},
+					}
+					return c, nil
+				},
+				expectedErrors: []string{"oauth2"},
+			},
+
+			// otp
+			{
+				name: "trigger otp validations",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.OTP = core.OTPConfig{
+						Enabled:  true,
+						Duration: -10,
+					}
+					return c, nil
+				},
+				expectedErrors: []string{"otp"},
+			},
+
+			// mfa
+			{
+				name: "trigger mfa validations",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.MFA = core.MFAConfig{
+						Enabled:  true,
+						Duration: -10,
+					}
+					return c, nil
+				},
+				expectedErrors: []string{"mfa"},
+			},
+			{
+				name: "mfa enabled with < 2 auth methods",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.MFA.Enabled = true
+					c.PasswordAuth.Enabled = true
+					c.OTP.Enabled = false
+					c.OAuth2.Enabled = false
+					return c, nil
+				},
+				expectedErrors: []string{"mfa"},
+			},
+			{
+				name: "mfa enabled with >= 2 auth methods",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.MFA.Enabled = true
+					c.PasswordAuth.Enabled = true
+					c.OTP.Enabled = true
+					c.OAuth2.Enabled = false
+					return c, nil
+				},
+				expectedErrors: []string{},
+			},
+			{
+				name: "mfa disabled with invalid rule",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.PasswordAuth.Enabled = true
+					c.OTP.Enabled = true
+					c.MFA.Enabled = false
+					c.MFA.Rule = "invalid"
+					return c, nil
+				},
+				expectedErrors: []string{},
+			},
+			{
+				name: "mfa enabled with invalid rule",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.PasswordAuth.Enabled = true
+					c.OTP.Enabled = true
+					c.MFA.Enabled = true
+					c.MFA.Rule = "invalid"
+					return c, nil
+				},
+				expectedErrors: []string{"mfa"},
+			},
+			{
+				name: "mfa enabled with valid rule",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.PasswordAuth.Enabled = true
+					c.OTP.Enabled = true
+					c.MFA.Enabled = true
+					c.MFA.Rule = "1=1"
+					return c, nil
+				},
+				expectedErrors: []string{},
+			},
+
+			// tokens
+			{
+				name: "trigger authToken validations",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.AuthToken.Secret = ""
+					return c, nil
+				},
+				expectedErrors: []string{"authToken"},
+			},
+			{
+				name: "trigger passwordResetToken validations",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.PasswordResetToken.Secret = ""
+					return c, nil
+				},
+				expectedErrors: []string{"passwordResetToken"},
+			},
+			{
+				name: "trigger emailChangeToken validations",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.EmailChangeToken.Secret = ""
+					return c, nil
+				},
+				expectedErrors: []string{"emailChangeToken"},
+			},
+			{
+				name: "trigger verificationToken validations",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.VerificationToken.Secret = ""
+					return c, nil
+				},
+				expectedErrors: []string{"verificationToken"},
+			},
+			{
+				name: "trigger fileToken validations",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.FileToken.Secret = ""
+					return c, nil
+				},
+				expectedErrors: []string{"fileToken"},
+			},
+
+			// templates
+			{
+				name: "trigger verificationTemplate validations",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.VerificationTemplate.Body = ""
+					return c, nil
+				},
+				expectedErrors: []string{"verificationTemplate"},
+			},
+			{
+				name: "trigger resetPasswordTemplate validations",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.ResetPasswordTemplate.Body = ""
+					return c, nil
+				},
+				expectedErrors: []string{"resetPasswordTemplate"},
+			},
+			{
+				name: "trigger confirmEmailChangeTemplate validations",
+				collection: func(app core.App) (*core.Collection, error) {
+					c := core.NewAuthCollection("new_auth")
+					c.ConfirmEmailChangeTemplate.Body = ""
+					return c, nil
+				},
+				expectedErrors: []string{"confirmEmailChangeTemplate"},
+			},
+		}
+
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				collection, err := s.collection(app)
+				if err != nil {
+					t.Fatalf("Failed to retrieve test collection: %v", err)
 				}
-				return c, nil
-			},
-			expectedErrors: []string{"passwordAuth"},
-		},
-		{
-			name: "passwordAuth with non-unique identity fields",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.Fields.Add(&core.TextField{Name: "test"})
-				c.PasswordAuth = core.PasswordAuthConfig{
-					Enabled:        true,
-					IdentityFields: []string{"email", "test"},
-				}
-				return c, nil
-			},
-			expectedErrors: []string{"passwordAuth"},
-		},
-		{
-			name: "passwordAuth with non-unique identity fields",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.Fields.Add(&core.TextField{Name: "test"})
-				c.AddIndex("auth_test_idx", true, "test", "")
-				c.PasswordAuth = core.PasswordAuthConfig{
-					Enabled:        true,
-					IdentityFields: []string{"email", "test"},
-				}
-				return c, nil
-			},
-			expectedErrors: []string{},
-		},
 
-		// oauth2
-		{
-			name: "trigger oauth2 validations",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.OAuth2 = core.OAuth2Config{
-					Enabled: true,
-					Providers: []core.OAuth2ProviderConfig{
-						{Name: "missing"},
-					},
-				}
-				return c, nil
-			},
-			expectedErrors: []string{"oauth2"},
-		},
+				result := app.Validate(collection)
 
-		// otp
-		{
-			name: "trigger otp validations",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.OTP = core.OTPConfig{
-					Enabled:  true,
-					Duration: -10,
-				}
-				return c, nil
-			},
-			expectedErrors: []string{"otp"},
-		},
-
-		// mfa
-		{
-			name: "trigger mfa validations",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.MFA = core.MFAConfig{
-					Enabled:  true,
-					Duration: -10,
-				}
-				return c, nil
-			},
-			expectedErrors: []string{"mfa"},
-		},
-		{
-			name: "mfa enabled with < 2 auth methods",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.MFA.Enabled = true
-				c.PasswordAuth.Enabled = true
-				c.OTP.Enabled = false
-				c.OAuth2.Enabled = false
-				return c, nil
-			},
-			expectedErrors: []string{"mfa"},
-		},
-		{
-			name: "mfa enabled with >= 2 auth methods",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.MFA.Enabled = true
-				c.PasswordAuth.Enabled = true
-				c.OTP.Enabled = true
-				c.OAuth2.Enabled = false
-				return c, nil
-			},
-			expectedErrors: []string{},
-		},
-		{
-			name: "mfa disabled with invalid rule",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.PasswordAuth.Enabled = true
-				c.OTP.Enabled = true
-				c.MFA.Enabled = false
-				c.MFA.Rule = "invalid"
-				return c, nil
-			},
-			expectedErrors: []string{},
-		},
-		{
-			name: "mfa enabled with invalid rule",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.PasswordAuth.Enabled = true
-				c.OTP.Enabled = true
-				c.MFA.Enabled = true
-				c.MFA.Rule = "invalid"
-				return c, nil
-			},
-			expectedErrors: []string{"mfa"},
-		},
-		{
-			name: "mfa enabled with valid rule",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.PasswordAuth.Enabled = true
-				c.OTP.Enabled = true
-				c.MFA.Enabled = true
-				c.MFA.Rule = "1=1"
-				return c, nil
-			},
-			expectedErrors: []string{},
-		},
-
-		// tokens
-		{
-			name: "trigger authToken validations",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.AuthToken.Secret = ""
-				return c, nil
-			},
-			expectedErrors: []string{"authToken"},
-		},
-		{
-			name: "trigger passwordResetToken validations",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.PasswordResetToken.Secret = ""
-				return c, nil
-			},
-			expectedErrors: []string{"passwordResetToken"},
-		},
-		{
-			name: "trigger emailChangeToken validations",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.EmailChangeToken.Secret = ""
-				return c, nil
-			},
-			expectedErrors: []string{"emailChangeToken"},
-		},
-		{
-			name: "trigger verificationToken validations",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.VerificationToken.Secret = ""
-				return c, nil
-			},
-			expectedErrors: []string{"verificationToken"},
-		},
-		{
-			name: "trigger fileToken validations",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.FileToken.Secret = ""
-				return c, nil
-			},
-			expectedErrors: []string{"fileToken"},
-		},
-
-		// templates
-		{
-			name: "trigger verificationTemplate validations",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.VerificationTemplate.Body = ""
-				return c, nil
-			},
-			expectedErrors: []string{"verificationTemplate"},
-		},
-		{
-			name: "trigger resetPasswordTemplate validations",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.ResetPasswordTemplate.Body = ""
-				return c, nil
-			},
-			expectedErrors: []string{"resetPasswordTemplate"},
-		},
-		{
-			name: "trigger confirmEmailChangeTemplate validations",
-			collection: func(app core.App) (*core.Collection, error) {
-				c := core.NewAuthCollection("new_auth")
-				c.ConfirmEmailChangeTemplate.Body = ""
-				return c, nil
-			},
-			expectedErrors: []string{"confirmEmailChangeTemplate"},
-		},
-	}
-
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			app, _ := tests.NewTestApp()
-			defer app.Cleanup()
-
-			collection, err := s.collection(app)
-			if err != nil {
-				t.Fatalf("Failed to retrieve test collection: %v", err)
-			}
-
-			result := app.Validate(collection)
-
-			tests.TestValidationErrors(t, result, s.expectedErrors)
-		})
-	}
+				tests.TestValidationErrors(t, result, s.expectedErrors)
+			})
+		}
+	})
 }
 
 func TestEmailTemplateValidate(t *testing.T) {

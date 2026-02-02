@@ -79,7 +79,7 @@ func TestLogsList(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -143,7 +143,7 @@ func TestLogView(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -207,6 +207,6 @@ func TestLogsStats(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }

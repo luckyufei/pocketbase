@@ -62,7 +62,7 @@ func TestJobEnqueueAPI(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -81,7 +81,7 @@ func TestJobGetAPI(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -112,7 +112,7 @@ func TestJobGetExistingAPI(t *testing.T) {
 			return app
 		},
 	}
-	scenario.Test(t)
+	scenario.TestBothDBs(t)
 }
 
 func TestJobListAPI(t *testing.T) {
@@ -170,7 +170,7 @@ func TestJobListAPI(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -189,7 +189,7 @@ func TestJobRequeueAPI(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -208,7 +208,7 @@ func TestJobDeleteAPI(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -237,6 +237,6 @@ func TestJobStatsAPI(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }

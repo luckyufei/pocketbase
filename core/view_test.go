@@ -11,15 +11,30 @@ import (
 	"github.com/pocketbase/pocketbase/tests"
 )
 
+// ensureNoTempViews 检查确保没有临时视图存在
+// 该函数根据数据库类型使用不同的查询
 func ensureNoTempViews(app core.App, t *testing.T) {
 	var total int
+	var err error
 
-	err := app.DB().Select("count(*)").
-		From("sqlite_schema").
-		AndWhere(dbx.HashExp{"type": "view"}).
-		AndWhere(dbx.NewExp(`[[name]] LIKE '%\_temp\_%' ESCAPE '\'`)).
-		Limit(1).
-		Row(&total)
+	if app.IsPostgres() {
+		// PostgreSQL: 从 information_schema.views 查询
+		err = app.DB().Select("count(*)").
+			From("information_schema.views").
+			AndWhere(dbx.NewExp(`table_schema = 'public'`)).
+			AndWhere(dbx.NewExp(`table_name LIKE '%_temp_%'`)).
+			Limit(1).
+			Row(&total)
+	} else {
+		// SQLite: 从 sqlite_schema 查询
+		err = app.DB().Select("count(*)").
+			From("sqlite_schema").
+			AndWhere(dbx.HashExp{"type": "view"}).
+			AndWhere(dbx.NewExp(`[[name]] LIKE '%\_temp\_%' ESCAPE '\'`)).
+			Limit(1).
+			Row(&total)
+	}
+
 	if err != nil {
 		t.Fatalf("Failed to check for temp views: %v", err)
 	}
@@ -32,52 +47,49 @@ func ensureNoTempViews(app core.App, t *testing.T) {
 func TestDeleteView(t *testing.T) {
 	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	scenarios := []struct {
-		viewName    string
-		expectError bool
-	}{
-		{"", true},
-		{"demo1", true},    // not a view table
-		{"missing", false}, // missing or already deleted
-		{"view1", false},   // existing
-		{"VieW1", false},   // view names are case insensitives
-	}
-
-	for i, s := range scenarios {
-		err := app.DeleteView(s.viewName)
-
-		hasErr := err != nil
-		if hasErr != s.expectError {
-			t.Errorf("[%d - %q] Expected hasErr %v, got %v (%v)", i, s.viewName, s.expectError, hasErr, err)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		scenarios := []struct {
+			viewName    string
+			expectError bool
+		}{
+			{"", true},
+			{"demo1", true},    // not a view table
+			{"missing", false}, // missing or already deleted
+			{"view1", false},   // existing
+			{"VieW1", false},   // view names are case insensitives
 		}
-	}
 
-	ensureNoTempViews(app, t)
+		for i, s := range scenarios {
+			err := app.DeleteView(s.viewName)
+
+			hasErr := err != nil
+			if hasErr != s.expectError {
+				t.Errorf("[%d - %q] Expected hasErr %v, got %v (%v)", i, s.viewName, s.expectError, hasErr, err)
+			}
+		}
+
+		ensureNoTempViews(app, t)
+	})
 }
 
 func TestSaveView(t *testing.T) {
 	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	scenarios := []struct {
-		scenarioName  string
-		viewName      string
-		query         string
-		expectError   bool
-		expectColumns []string
-	}{
-		{
-			"empty name and query",
-			"",
-			"",
-			true,
-			nil,
-		},
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		scenarios := []struct {
+			scenarioName  string
+			viewName      string
+			query         string
+			expectError   bool
+			expectColumns []string
+		}{
+			{
+				"empty name and query",
+				"",
+				"",
+				true,
+				nil,
+			},
 		{
 			"empty name",
 			"",
@@ -148,102 +160,100 @@ func TestSaveView(t *testing.T) {
 		},
 	}
 
-	for _, s := range scenarios {
-		t.Run(s.scenarioName, func(t *testing.T) {
-			err := app.SaveView(s.viewName, s.query)
+		for _, s := range scenarios {
+			t.Run(s.scenarioName, func(t *testing.T) {
+				err := app.SaveView(s.viewName, s.query)
 
-			hasErr := err != nil
-			if hasErr != s.expectError {
-				t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
-			}
-
-			if hasErr {
-				return
-			}
-
-			infoRows, err := app.TableInfo(s.viewName)
-			if err != nil {
-				t.Fatalf("Failed to fetch table info for %s: %v", s.viewName, err)
-			}
-
-			if len(s.expectColumns) != len(infoRows) {
-				t.Fatalf("Expected %d columns, got %d", len(s.expectColumns), len(infoRows))
-			}
-
-			for _, row := range infoRows {
-				if !slices.Contains(s.expectColumns, row.Name) {
-					t.Fatalf("Missing %q column in %v", row.Name, s.expectColumns)
+				hasErr := err != nil
+				if hasErr != s.expectError {
+					t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
 				}
-			}
-		})
-	}
 
-	ensureNoTempViews(app, t)
+				if hasErr {
+					return
+				}
+
+				infoRows, err := app.TableInfo(s.viewName)
+				if err != nil {
+					t.Fatalf("Failed to fetch table info for %s: %v", s.viewName, err)
+				}
+
+				if len(s.expectColumns) != len(infoRows) {
+					t.Fatalf("Expected %d columns, got %d", len(s.expectColumns), len(infoRows))
+				}
+
+				for _, row := range infoRows {
+					if !slices.Contains(s.expectColumns, row.Name) {
+						t.Fatalf("Missing %q column in %v", row.Name, s.expectColumns)
+					}
+				}
+			})
+		}
+
+		ensureNoTempViews(app, t)
+	})
 }
 
 func TestCreateViewFieldsWithDiscardedNestedTransaction(t *testing.T) {
 	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		app.RunInTransaction(func(txApp core.App) error {
+			_, err := txApp.CreateViewFields("select id from missing")
+			if err == nil {
+				t.Fatal("Expected error, got nil")
+			}
 
-	app.RunInTransaction(func(txApp core.App) error {
-		_, err := txApp.CreateViewFields("select id from missing")
-		if err == nil {
-			t.Fatal("Expected error, got nil")
-		}
+			return nil
+		})
 
-		return nil
+		ensureNoTempViews(app, t)
 	})
-
-	ensureNoTempViews(app, t)
 }
 
 func TestCreateViewFields(t *testing.T) {
 	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	scenarios := []struct {
-		name         string
-		query        string
-		expectError  bool
-		expectFields map[string]string // name-type pairs
-	}{
-		{
-			"empty query",
-			"",
-			true,
-			nil,
-		},
-		{
-			"invalid query",
-			"test 123456",
-			true,
-			nil,
-		},
-		{
-			"missing table",
-			"select id from missing",
-			true,
-			nil,
-		},
-		{
-			"query with wildcard column",
-			"select a.id, a.* from demo1 a",
-			true,
-			nil,
-		},
-		{
-			"query without id",
-			"select text, url, created, updated from demo1",
-			true,
-			nil,
-		},
-		{
-			"query with comments",
-			`
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		scenarios := []struct {
+			name         string
+			query        string
+			expectError  bool
+			expectFields map[string]string // name-type pairs
+		}{
+			{
+				"empty query",
+				"",
+				true,
+				nil,
+			},
+			{
+				"invalid query",
+				"test 123456",
+				true,
+				nil,
+			},
+			{
+				"missing table",
+				"select id from missing",
+				true,
+				nil,
+			},
+			{
+				"query with wildcard column",
+				"select a.id, a.* from demo1 a",
+				true,
+				nil,
+			},
+			{
+				"query without id",
+				"select text, url, created, updated from demo1",
+				true,
+				nil,
+			},
+			{
+				"query with comments",
+				`
 				select
 				-- test single line
 				demo1.id,
@@ -262,10 +272,10 @@ func TestCreateViewFields(t *testing.T) {
 					demo2.id = demo1.id
 				)
 			`,
-			false,
-			map[string]string{
-				"id":      core.FieldTypeText,
-				"text":    core.FieldTypeText,
+				false,
+				map[string]string{
+					"id":      core.FieldTypeText,
+					"text":    core.FieldTypeText,
 				"url":     core.FieldTypeURL,
 				"created": core.FieldTypeAutodate,
 				"updated": core.FieldTypeAutodate,
@@ -510,113 +520,112 @@ func TestCreateViewFields(t *testing.T) {
 		},
 	}
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			result, err := app.CreateViewFields(s.query)
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				result, err := app.CreateViewFields(s.query)
 
-			hasErr := err != nil
-			if hasErr != s.expectError {
-				t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
-			}
-
-			if hasErr {
-				return
-			}
-
-			if len(s.expectFields) != len(result) {
-				serialized, _ := json.Marshal(result)
-				t.Fatalf("Expected %d fields, got %d: \n%s", len(s.expectFields), len(result), serialized)
-			}
-
-			for name, typ := range s.expectFields {
-				field := result.GetByName(name)
-
-				if field == nil {
-					t.Fatalf("Expected to find field %s, got nil", name)
+				hasErr := err != nil
+				if hasErr != s.expectError {
+					t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
 				}
 
-				if field.Type() != typ {
-					t.Fatalf("Expected field %s to be %q, got %q", name, typ, field.Type())
+				if hasErr {
+					return
 				}
-			}
-		})
-	}
 
-	ensureNoTempViews(app, t)
+				if len(s.expectFields) != len(result) {
+					serialized, _ := json.Marshal(result)
+					t.Fatalf("Expected %d fields, got %d: \n%s", len(s.expectFields), len(result), serialized)
+				}
+
+				for name, typ := range s.expectFields {
+					field := result.GetByName(name)
+
+					if field == nil {
+						t.Fatalf("Expected to find field %s, got nil", name)
+					}
+
+					if field.Type() != typ {
+						t.Fatalf("Expected field %s to be %q, got %q", name, typ, field.Type())
+					}
+				}
+			})
+		}
+
+		ensureNoTempViews(app, t)
+	})
 }
 
 func TestFindRecordByViewFile(t *testing.T) {
 	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	prevCollection, err := app.FindCollectionByNameOrId("demo1")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	totalLevels := 6
-
-	// create collection view mocks
-	fileOneAlias := "file_one one0"
-	fileManyAlias := "file_many many0"
-	mockCollections := make([]*core.Collection, 0, totalLevels)
-	for i := 0; i <= totalLevels; i++ {
-		view := new(core.Collection)
-		view.Type = core.CollectionTypeView
-		view.Name = fmt.Sprintf("_test_view%d", i)
-		view.ViewQuery = fmt.Sprintf(
-			"select id, %s, %s from %s",
-			fileOneAlias,
-			fileManyAlias,
-			prevCollection.Name,
-		)
-
-		// save view
-		if err := app.Save(view); err != nil {
-			t.Fatalf("Failed to save view%d: %v", i, err)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		prevCollection, err := app.FindCollectionByNameOrId("demo1")
+		if err != nil {
+			t.Fatal(err)
 		}
 
-		mockCollections = append(mockCollections, view)
-		prevCollection = view
-		fileOneAlias = fmt.Sprintf("one%d one%d", i, i+1)
-		fileManyAlias = fmt.Sprintf("many%d many%d", i, i+1)
-	}
+		totalLevels := 6
 
-	fileOneName := "test_d61b33QdDU.txt"
-	fileManyName := "test_QZFjKjXchk.txt"
-	expectedRecordId := "84nmscqy84lsi1t"
+		// create collection view mocks
+		fileOneAlias := "file_one one0"
+		fileManyAlias := "file_many many0"
+		mockCollections := make([]*core.Collection, 0, totalLevels)
+		for i := 0; i <= totalLevels; i++ {
+			view := new(core.Collection)
+			view.Type = core.CollectionTypeView
+			view.Name = fmt.Sprintf("_test_view%d", i)
+			view.ViewQuery = fmt.Sprintf(
+				"select id, %s, %s from %s",
+				fileOneAlias,
+				fileManyAlias,
+				prevCollection.Name,
+			)
 
-	scenarios := []struct {
-		name               string
-		collectionNameOrId string
-		fileFieldName      string
-		filename           string
-		expectError        bool
-		expectRecordId     string
-	}{
-		{
-			"missing collection",
-			"missing",
-			"a",
-			fileOneName,
-			true,
-			"",
-		},
-		{
-			"non-view collection",
-			"demo1",
-			"file_one",
-			fileOneName,
-			true,
-			"",
-		},
-		{
-			"view collection after the max recursion limit",
-			mockCollections[totalLevels-1].Name,
-			fmt.Sprintf("one%d", totalLevels-1),
-			fileOneName,
+			// save view
+			if err := app.Save(view); err != nil {
+				t.Fatalf("Failed to save view%d: %v", i, err)
+			}
+
+			mockCollections = append(mockCollections, view)
+			prevCollection = view
+			fileOneAlias = fmt.Sprintf("one%d one%d", i, i+1)
+			fileManyAlias = fmt.Sprintf("many%d many%d", i, i+1)
+		}
+
+		fileOneName := "test_d61b33QdDU.txt"
+		fileManyName := "test_QZFjKjXchk.txt"
+		expectedRecordId := "84nmscqy84lsi1t"
+
+		scenarios := []struct {
+			name               string
+			collectionNameOrId string
+			fileFieldName      string
+			filename           string
+			expectError        bool
+			expectRecordId     string
+		}{
+			{
+				"missing collection",
+				"missing",
+				"a",
+				fileOneName,
+				true,
+				"",
+			},
+			{
+				"non-view collection",
+				"demo1",
+				"file_one",
+				fileOneName,
+				true,
+				"",
+			},
+			{
+				"view collection after the max recursion limit",
+				mockCollections[totalLevels-1].Name,
+				fmt.Sprintf("one%d", totalLevels-1),
+				fileOneName,
 			true,
 			"",
 		},
@@ -654,26 +663,27 @@ func TestFindRecordByViewFile(t *testing.T) {
 		},
 	}
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			record, err := app.FindRecordByViewFile(
-				s.collectionNameOrId,
-				s.fileFieldName,
-				s.filename,
-			)
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				record, err := app.FindRecordByViewFile(
+					s.collectionNameOrId,
+					s.fileFieldName,
+					s.filename,
+				)
 
-			hasErr := err != nil
-			if hasErr != s.expectError {
-				t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
-			}
+				hasErr := err != nil
+				if hasErr != s.expectError {
+					t.Fatalf("Expected hasErr %v, got %v (%v)", s.expectError, hasErr, err)
+				}
 
-			if hasErr {
-				return
-			}
+				if hasErr {
+					return
+				}
 
-			if record.Id != s.expectRecordId {
-				t.Fatalf("Expected recordId %q, got %q", s.expectRecordId, record.Id)
-			}
-		})
-	}
+				if record.Id != s.expectRecordId {
+					t.Fatalf("Expected recordId %q, got %q", s.expectRecordId, record.Id)
+				}
+			})
+		}
+	})
 }

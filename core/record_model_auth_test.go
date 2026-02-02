@@ -123,38 +123,37 @@ func TestRecordPassword(t *testing.T) {
 func TestRecordSetRandomPassword(t *testing.T) {
 	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		oldTokenKey := "old_tokenKey"
+		record := core.NewRecord(core.NewAuthCollection("test"))
+		record.SetTokenKey(oldTokenKey)
 
-	oldTokenKey := "old_tokenKey"
-	record := core.NewRecord(core.NewAuthCollection("test"))
-	record.SetTokenKey(oldTokenKey)
+		pass := record.SetRandomPassword()
 
-	pass := record.SetRandomPassword()
+		if pass == "" {
+			t.Fatal("Expected non-empty generated random password")
+		}
 
-	if pass == "" {
-		t.Fatal("Expected non-empty generated random password")
-	}
+		if !record.ValidatePassword(pass) {
+			t.Fatal("Expected the generated random password to be valid")
+		}
 
-	if !record.ValidatePassword(pass) {
-		t.Fatal("Expected the generated random password to be valid")
-	}
+		if record.TokenKey() == oldTokenKey {
+			t.Fatal("Expected token key to change")
+		}
 
-	if record.TokenKey() == oldTokenKey {
-		t.Fatal("Expected token key to change")
-	}
+		f, ok := record.Collection().Fields.GetByName(core.FieldNamePassword).(*core.PasswordField)
+		if !ok {
+			t.Fatal("Expected *core.PasswordField")
+		}
 
-	f, ok := record.Collection().Fields.GetByName(core.FieldNamePassword).(*core.PasswordField)
-	if !ok {
-		t.Fatal("Expected *core.PasswordField")
-	}
+		// ensure that the field validators will be ignored
+		f.Min = 1
+		f.Max = 2
+		f.Pattern = `\d+`
 
-	// ensure that the field validators will be ignored
-	f.Min = 1
-	f.Max = 2
-	f.Pattern = `\d+`
-
-	if err := f.ValidateValue(context.Background(), app, record); err != nil {
-		t.Fatalf("Expected password field plain value validators to be ignored, got %v", err)
-	}
+		if err := f.ValidateValue(context.Background(), app, record); err != nil {
+			t.Fatalf("Expected password field plain value validators to be ignored, got %v", err)
+		}
+	})
 }

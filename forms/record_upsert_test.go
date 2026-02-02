@@ -19,10 +19,8 @@ import (
 func TestRecordUpsertLoad(t *testing.T) {
 	t.Parallel()
 
-	testApp, _ := tests.NewTestApp()
-	defer testApp.Cleanup()
-
-	demo1Col, err := testApp.FindCollectionByNameOrId("demo1")
+	tests.DualDBTest(t, func(t *testing.T, testApp *tests.TestApp, dbType tests.DBType) {
+		demo1Col, err := testApp.FindCollectionByNameOrId("demo1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,6 +196,7 @@ func TestRecordUpsertLoad(t *testing.T) {
 			}
 		})
 	}
+	})
 }
 
 func TestRecordUpsertDrySubmitFailure(t *testing.T) {
@@ -269,19 +268,17 @@ func TestRecordUpsertDrySubmitFailure(t *testing.T) {
 	}
 
 	t.Run("without parent transaction", func(t *testing.T) {
-		testApp, _ := tests.NewTestApp()
-		defer testApp.Cleanup()
-
-		runTest(t, testApp)
+		tests.DualDBTest(t, func(t *testing.T, testApp *tests.TestApp, dbType tests.DBType) {
+			runTest(t, testApp)
+		})
 	})
 
 	t.Run("with parent transaction", func(t *testing.T) {
-		testApp, _ := tests.NewTestApp()
-		defer testApp.Cleanup()
-
-		testApp.RunInTransaction(func(txApp core.App) error {
-			runTest(t, txApp)
-			return nil
+		tests.DualDBTest(t, func(t *testing.T, testApp *tests.TestApp, dbType tests.DBType) {
+			testApp.RunInTransaction(func(txApp core.App) error {
+				runTest(t, txApp)
+				return nil
+			})
 		})
 	})
 }
@@ -337,19 +334,17 @@ func TestRecordUpsertDrySubmitCreateSuccess(t *testing.T) {
 	}
 
 	t.Run("without parent transaction", func(t *testing.T) {
-		testApp, _ := tests.NewTestApp()
-		defer testApp.Cleanup()
-
-		runTest(t, testApp)
+		tests.DualDBTest(t, func(t *testing.T, testApp *tests.TestApp, dbType tests.DBType) {
+			runTest(t, testApp)
+		})
 	})
 
 	t.Run("with parent transaction", func(t *testing.T) {
-		testApp, _ := tests.NewTestApp()
-		defer testApp.Cleanup()
-
-		testApp.RunInTransaction(func(txApp core.App) error {
-			runTest(t, txApp)
-			return nil
+		tests.DualDBTest(t, func(t *testing.T, testApp *tests.TestApp, dbType tests.DBType) {
+			testApp.RunInTransaction(func(txApp core.App) error {
+				runTest(t, txApp)
+				return nil
+			})
 		})
 	})
 }
@@ -420,19 +415,17 @@ func TestRecordUpsertDrySubmitUpdateSuccess(t *testing.T) {
 	}
 
 	t.Run("without parent transaction", func(t *testing.T) {
-		testApp, _ := tests.NewTestApp()
-		defer testApp.Cleanup()
-
-		runTest(t, testApp)
+		tests.DualDBTest(t, func(t *testing.T, testApp *tests.TestApp, dbType tests.DBType) {
+			runTest(t, testApp)
+		})
 	})
 
 	t.Run("with parent transaction", func(t *testing.T) {
-		testApp, _ := tests.NewTestApp()
-		defer testApp.Cleanup()
-
-		testApp.RunInTransaction(func(txApp core.App) error {
-			runTest(t, txApp)
-			return nil
+		tests.DualDBTest(t, func(t *testing.T, testApp *tests.TestApp, dbType tests.DBType) {
+			testApp.RunInTransaction(func(txApp core.App) error {
+				runTest(t, txApp)
+				return nil
+			})
 		})
 	})
 }
@@ -440,10 +433,8 @@ func TestRecordUpsertDrySubmitUpdateSuccess(t *testing.T) {
 func TestRecordUpsertSubmitValidations(t *testing.T) {
 	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	demo2Col, err := app.FindCollectionByNameOrId("demo2")
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		demo2Col, err := app.FindCollectionByNameOrId("demo2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -745,10 +736,7 @@ func TestRecordUpsertSubmitValidations(t *testing.T) {
 
 	for _, s := range scenarios {
 		t.Run(s.name, func(t *testing.T) {
-			testApp, _ := tests.NewTestApp()
-			defer testApp.Cleanup()
-
-			form := forms.NewRecordUpsert(testApp, s.record.Original())
+			form := forms.NewRecordUpsert(app, s.record.Original())
 			if s.managerAccess {
 				form.GrantManagerAccess()
 			}
@@ -759,13 +747,12 @@ func TestRecordUpsertSubmitValidations(t *testing.T) {
 			tests.TestValidationErrors(t, result, s.expectedErrors)
 		})
 	}
+	})
 }
 
 func TestRecordUpsertSubmitFailure(t *testing.T) {
-	testApp, _ := tests.NewTestApp()
-	defer testApp.Cleanup()
-
-	col, err := testApp.FindCollectionByNameOrId("demo1")
+	tests.DualDBTest(t, func(t *testing.T, testApp *tests.TestApp, dbType tests.DBType) {
+		col, err := testApp.FindCollectionByNameOrId("demo1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -822,13 +809,12 @@ func TestRecordUpsertSubmitFailure(t *testing.T) {
 	}
 
 	testFilesCount(t, testApp, record, 0)
+	})
 }
 
 func TestRecordUpsertSubmitSuccess(t *testing.T) {
-	testApp, _ := tests.NewTestApp()
-	defer testApp.Cleanup()
-
-	col, err := testApp.FindCollectionByNameOrId("demo1")
+	tests.DualDBTest(t, func(t *testing.T, testApp *tests.TestApp, dbType tests.DBType) {
+		col, err := testApp.FindCollectionByNameOrId("demo1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -885,13 +871,12 @@ func TestRecordUpsertSubmitSuccess(t *testing.T) {
 	}
 
 	testFilesCount(t, testApp, record, 2) // the file + attrs
+	})
 }
 
 func TestRecordUpsertPasswordsSync(t *testing.T) {
-	testApp, _ := tests.NewTestApp()
-	defer testApp.Cleanup()
-
-	users, err := testApp.FindCollectionByNameOrId("users")
+	tests.DualDBTest(t, func(t *testing.T, testApp *tests.TestApp, dbType tests.DBType) {
+		users, err := testApp.FindCollectionByNameOrId("users")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -997,6 +982,7 @@ func TestRecordUpsertPasswordsSync(t *testing.T) {
 		if newHash == "" || newHash == oldHash {
 			t.Fatal("Expected password change")
 		}
+	})
 	})
 }
 

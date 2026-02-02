@@ -169,152 +169,145 @@ func TestLatencyBufferConcurrency(t *testing.T) {
 // ============================================================================
 
 func TestNewMetricsCollector(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collector := core.NewMetricsCollector(app)
+		if collector == nil {
+			t.Fatal("Expected non-nil MetricsCollector")
+		}
 
-	collector := core.NewMetricsCollector(app)
-	if collector == nil {
-		t.Fatal("Expected non-nil MetricsCollector")
-	}
-
-	if collector.GetLatencyBuffer() == nil {
-		t.Fatal("Expected non-nil LatencyBuffer")
-	}
+		if collector.GetLatencyBuffer() == nil {
+			t.Fatal("Expected non-nil LatencyBuffer")
+		}
+	})
 }
 
 func TestMetricsCollectorRecordLatency(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collector := core.NewMetricsCollector(app)
 
-	collector := core.NewMetricsCollector(app)
+		// Record some latencies
+		collector.RecordLatency(10.5)
+		collector.RecordLatency(20.3)
+		collector.RecordLatency(15.7)
 
-	// Record some latencies
-	collector.RecordLatency(10.5)
-	collector.RecordLatency(20.3)
-	collector.RecordLatency(15.7)
-
-	// Check via buffer
-	p95 := collector.GetLatencyBuffer().P95()
-	if p95 <= 0 {
-		t.Fatalf("Expected positive P95 after recording latencies, got %v", p95)
-	}
+		// Check via buffer
+		p95 := collector.GetLatencyBuffer().P95()
+		if p95 <= 0 {
+			t.Fatalf("Expected positive P95 after recording latencies, got %v", p95)
+		}
+	})
 }
 
 func TestMetricsCollectorRecordError(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collector := core.NewMetricsCollector(app)
 
-	collector := core.NewMetricsCollector(app)
+		// Record various status codes - only 5xx should be counted
+		collector.RecordError(200) // Should not count
+		collector.RecordError(400) // Should not count
+		collector.RecordError(404) // Should not count
+		collector.RecordError(500) // Should count
+		collector.RecordError(502) // Should count
+		collector.RecordError(503) // Should count
+		collector.RecordError(599) // Should count
+		collector.RecordError(600) // Should not count
 
-	// Record various status codes - only 5xx should be counted
-	collector.RecordError(200) // Should not count
-	collector.RecordError(400) // Should not count
-	collector.RecordError(404) // Should not count
-	collector.RecordError(500) // Should count
-	collector.RecordError(502) // Should count
-	collector.RecordError(503) // Should count
-	collector.RecordError(599) // Should count
-	collector.RecordError(600) // Should not count
-
-	// We can't directly check the count without collecting metrics,
-	// but we verify no panic occurs
+		// We can't directly check the count without collecting metrics,
+		// but we verify no panic occurs
+	})
 }
 
 func TestMetricsCollectorStartStop(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collector := core.NewMetricsCollector(app)
 
-	collector := core.NewMetricsCollector(app)
+		// Start collector
+		collector.Start()
 
-	// Start collector
-	collector.Start()
+		// Double start should be safe (idempotent)
+		collector.Start()
 
-	// Double start should be safe (idempotent)
-	collector.Start()
+		// Give it a moment to run
+		time.Sleep(50 * time.Millisecond)
 
-	// Give it a moment to run
-	time.Sleep(50 * time.Millisecond)
+		// Stop collector
+		collector.Stop()
 
-	// Stop collector
-	collector.Stop()
-
-	// Double stop should be safe (idempotent)
-	collector.Stop()
+		// Double stop should be safe (idempotent)
+		collector.Stop()
+	})
 }
 
 func TestMetricsCollectorStartStopConcurrent(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collector := core.NewMetricsCollector(app)
 
-	collector := core.NewMetricsCollector(app)
-
-	// Test multiple start/stop cycles sequentially
-	for i := 0; i < 5; i++ {
-		collector.Start()
-		time.Sleep(10 * time.Millisecond)
-		collector.Stop()
-	}
-
-	// Test concurrent starts (only one should actually start)
-	var wg sync.WaitGroup
-	for i := 0; i < 5; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		// Test multiple start/stop cycles sequentially
+		for i := 0; i < 5; i++ {
 			collector.Start()
-		}()
-	}
-	wg.Wait()
+			time.Sleep(10 * time.Millisecond)
+			collector.Stop()
+		}
 
-	// Clean up
-	collector.Stop()
+		// Test concurrent starts (only one should actually start)
+		var wg sync.WaitGroup
+		for i := 0; i < 5; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				collector.Start()
+			}()
+		}
+		wg.Wait()
+
+		// Clean up
+		collector.Stop()
+	})
 }
 
 func TestMetricsCollectorRecordLatencyConcurrent(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collector := core.NewMetricsCollector(app)
 
-	collector := core.NewMetricsCollector(app)
+		var wg sync.WaitGroup
 
-	var wg sync.WaitGroup
+		// Concurrent latency recording
+		for i := 0; i < 100; i++ {
+			wg.Add(1)
+			go func(val float64) {
+				defer wg.Done()
+				collector.RecordLatency(val)
+			}(float64(i))
+		}
 
-	// Concurrent latency recording
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func(val float64) {
-			defer wg.Done()
-			collector.RecordLatency(val)
-		}(float64(i))
-	}
+		wg.Wait()
 
-	wg.Wait()
-
-	// Should have recorded values without panic
-	p95 := collector.GetLatencyBuffer().P95()
-	if p95 < 0 {
-		t.Fatalf("P95 should be non-negative, got %v", p95)
-	}
+		// Should have recorded values without panic
+		p95 := collector.GetLatencyBuffer().P95()
+		if p95 < 0 {
+			t.Fatalf("P95 should be non-negative, got %v", p95)
+		}
+	})
 }
 
 func TestMetricsCollectorRecordErrorConcurrent(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collector := core.NewMetricsCollector(app)
 
-	collector := core.NewMetricsCollector(app)
+		var wg sync.WaitGroup
 
-	var wg sync.WaitGroup
+		// Concurrent error recording
+		for i := 0; i < 100; i++ {
+			wg.Add(1)
+			go func(code int) {
+				defer wg.Done()
+				collector.RecordError(code)
+			}(500 + (i % 100))
+		}
 
-	// Concurrent error recording
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func(code int) {
-			defer wg.Done()
-			collector.RecordError(code)
-		}(500 + (i % 100))
-	}
-
-	wg.Wait()
-	// Should complete without panic
+		wg.Wait()
+		// Should complete without panic
+	})
 }
 
 // ============================================================================
@@ -377,66 +370,63 @@ func TestLatencyBufferP95EdgeCases(t *testing.T) {
 // ============================================================================
 
 func TestMetricsCollectorCollectionLoopWithCleanup(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collector := core.NewMetricsCollector(app)
 
-	collector := core.NewMetricsCollector(app)
+		// 启动采集器
+		collector.Start()
 
-	// 启动采集器
-	collector.Start()
+		// 等待初始采集完成
+		time.Sleep(150 * time.Millisecond)
 
-	// 等待初始采集完成
-	time.Sleep(150 * time.Millisecond)
+		// 停止采集器（触发 cleanup 分支）
+		collector.Stop()
 
-	// 停止采集器（触发 cleanup 分支）
-	collector.Stop()
-
-	// 验证数据已被采集（通过 MetricsRepository）
-	repo := core.NewMetricsRepository(app)
-	latest, err := repo.GetLatest()
-	if err != nil {
-		t.Fatalf("Failed to get latest: %v", err)
-	}
-	if latest == nil {
-		t.Fatal("Expected metrics to be collected")
-	}
+		// 验证数据已被采集（通过 MetricsRepository）
+		repo := core.NewMetricsRepository(app)
+		latest, err := repo.GetLatest()
+		if err != nil {
+			t.Fatalf("Failed to get latest: %v", err)
+		}
+		if latest == nil {
+			t.Fatal("Expected metrics to be collected")
+		}
+	})
 }
 
 func TestMetricsCollectorStopBeforeStart(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collector := core.NewMetricsCollector(app)
 
-	collector := core.NewMetricsCollector(app)
+		// Stop without Start should be safe
+		collector.Stop()
 
-	// Stop without Start should be safe
-	collector.Stop()
-
-	// Should be able to start after
-	collector.Start()
-	time.Sleep(50 * time.Millisecond)
-	collector.Stop()
+		// Should be able to start after
+		collector.Start()
+		time.Sleep(50 * time.Millisecond)
+		collector.Stop()
+	})
 }
 
 // TestMetricsCollectorUsesAuxDB 验证 Collector 使用 AuxDB 而非独立 DB
 func TestMetricsCollectorUsesAuxDB(t *testing.T) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		collector := core.NewMetricsCollector(app)
+		collector.Start()
+		time.Sleep(100 * time.Millisecond)
+		collector.Stop()
 
-	collector := core.NewMetricsCollector(app)
-	collector.Start()
-	time.Sleep(100 * time.Millisecond)
-	collector.Stop()
+		// 通过 AuxModelQuery 验证数据存储在 AuxDB 中
+		var metrics []core.SystemMetrics
+		err := app.AuxModelQuery(&core.SystemMetrics{}).All(&metrics)
+		if err != nil {
+			t.Fatalf("Failed to query from AuxDB: %v", err)
+		}
 
-	// 通过 AuxModelQuery 验证数据存储在 AuxDB 中
-	var metrics []core.SystemMetrics
-	err := app.AuxModelQuery(&core.SystemMetrics{}).All(&metrics)
-	if err != nil {
-		t.Fatalf("Failed to query from AuxDB: %v", err)
-	}
-
-	if len(metrics) == 0 {
-		t.Fatal("Expected metrics to be stored in AuxDB")
-	}
+		if len(metrics) == 0 {
+			t.Fatal("Expected metrics to be stored in AuxDB")
+		}
+	})
 }
 
 // ============================================================================

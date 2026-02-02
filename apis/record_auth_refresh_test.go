@@ -211,6 +211,6 @@ func TestRecordAuthRefresh(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }

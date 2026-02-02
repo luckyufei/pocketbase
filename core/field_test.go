@@ -68,12 +68,12 @@ func testFieldBaseMethods(t *testing.T, fieldType string) {
 	})
 }
 
-// testDefaultFieldIdValidation - 旧版本，保持向后兼容
+// testDefaultFieldIdValidation - 旧版本，用于 DualDBTest 外部调用
+// 内部使用 DualDBTest 确保双数据库测试覆盖
 func testDefaultFieldIdValidation(t *testing.T, fieldType string) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	testDefaultFieldIdValidationWithApp(t, app, fieldType)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		testDefaultFieldIdValidationWithApp(t, app, fieldType)
+	})
 }
 
 // testDefaultFieldIdValidationWithApp - 新版本，用于 DualDBTest
@@ -125,12 +125,12 @@ func testDefaultFieldIdValidationWithApp(t *testing.T, app *tests.TestApp, field
 	}
 }
 
-// testDefaultFieldNameValidation - 旧版本，保持向后兼容
+// testDefaultFieldNameValidation - 旧版本，用于 DualDBTest 外部调用
+// 内部使用 DualDBTest 确保双数据库测试覆盖
 func testDefaultFieldNameValidation(t *testing.T, fieldType string) {
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
-
-	testDefaultFieldNameValidationWithApp(t, app, fieldType)
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		testDefaultFieldNameValidationWithApp(t, app, fieldType)
+	})
 }
 
 // testDefaultFieldNameValidationWithApp - 新版本，用于 DualDBTest

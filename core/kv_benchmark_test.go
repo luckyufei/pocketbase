@@ -269,42 +269,38 @@ func TestKVThroughput(t *testing.T) {
 		t.Skip("skipping throughput test in short mode")
 	}
 
-	app, err := tests.NewTestApp()
-	if err != nil {
-		t.Fatalf("failed to create test app: %v", err)
-	}
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		kv := app.KV()
+		if kv == nil {
+			t.Skip("KVStore not available")
+		}
 
-	kv := app.KV()
-	if kv == nil {
-		t.Skip("KVStore not available")
-	}
+		// 测试参数
+		numGoroutines := 10
+		numOpsPerGoroutine := 1000
 
-	// 测试参数
-	numGoroutines := 10
-	numOpsPerGoroutine := 1000
+		var wg sync.WaitGroup
+		start := time.Now()
 
-	var wg sync.WaitGroup
-	start := time.Now()
+		for g := 0; g < numGoroutines; g++ {
+			wg.Add(1)
+			go func(gid int) {
+				defer wg.Done()
+				for i := 0; i < numOpsPerGoroutine; i++ {
+					key := fmt.Sprintf("throughput:%d:%d", gid, i)
+					kv.Set(key, fmt.Sprintf("value_%d_%d", gid, i))
+					kv.Get(key)
+				}
+			}(g)
+		}
 
-	for g := 0; g < numGoroutines; g++ {
-		wg.Add(1)
-		go func(gid int) {
-			defer wg.Done()
-			for i := 0; i < numOpsPerGoroutine; i++ {
-				key := fmt.Sprintf("throughput:%d:%d", gid, i)
-				kv.Set(key, fmt.Sprintf("value_%d_%d", gid, i))
-				kv.Get(key)
-			}
-		}(g)
-	}
+		wg.Wait()
+		elapsed := time.Since(start)
 
-	wg.Wait()
-	elapsed := time.Since(start)
+		totalOps := numGoroutines * numOpsPerGoroutine * 2 // Set + Get
+		opsPerSec := float64(totalOps) / elapsed.Seconds()
 
-	totalOps := numGoroutines * numOpsPerGoroutine * 2 // Set + Get
-	opsPerSec := float64(totalOps) / elapsed.Seconds()
-
-	t.Logf("Throughput: %.0f ops/sec (total %d ops in %v)", opsPerSec, totalOps, elapsed)
-	t.Logf("Goroutines: %d, Ops per goroutine: %d", numGoroutines, numOpsPerGoroutine)
+		t.Logf("[%s] Throughput: %.0f ops/sec (total %d ops in %v)", dbType, opsPerSec, totalOps, elapsed)
+		t.Logf("[%s] Goroutines: %d, Ops per goroutine: %d", dbType, numGoroutines, numOpsPerGoroutine)
+	})
 }

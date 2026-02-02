@@ -241,3 +241,25 @@ func SkipIfNotSQLite(t *testing.T, dbType DBType) {
 		t.Skip("此测试仅适用于 SQLite")
 	}
 }
+
+// NewTestAppByType 根据数据库类型创建测试应用
+// 该函数在需要在子测试中创建独立 app 时使用，以保证测试隔离
+// 使用方式:
+//
+//	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+//	    for _, s := range scenarios {
+//	        t.Run(s.name, func(t *testing.T) {
+//	            testApp, _ := tests.NewTestAppByType(dbType)
+//	            defer testApp.Cleanup()
+//	            // 使用 testApp 进行测试
+//	        })
+//	    }
+//	})
+func NewTestAppByType(dbType DBType, optTestDataDir ...string) (*TestApp, error) {
+	switch dbType {
+	case DBTypePostgres:
+		return NewPostgresTestApp(optTestDataDir...)
+	default:
+		return NewTestApp(optTestDataDir...)
+	}
+}

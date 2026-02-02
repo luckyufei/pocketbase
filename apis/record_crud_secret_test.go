@@ -118,7 +118,7 @@ func TestRecordCrudSecretFieldCreate(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -236,7 +236,7 @@ func TestRecordCrudSecretFieldRead(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -340,6 +340,6 @@ func TestRecordCrudSecretFieldHiddenBehavior(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }

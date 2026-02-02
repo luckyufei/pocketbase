@@ -11,11 +11,12 @@ import (
 func TestCollectionValidate(t *testing.T) {
 	t.Parallel()
 
-	scenarios := []struct {
-		name           string
-		collection     func(app core.App) (*core.Collection, error)
-		expectedErrors []string
-	}{
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		scenarios := []struct {
+			name           string
+			collection     func(app core.App) (*core.Collection, error)
+			expectedErrors []string
+		}{
 		{
 			name: "empty collection",
 			collection: func(app core.App) (*core.Collection, error) {
@@ -891,19 +892,17 @@ func TestCollectionValidate(t *testing.T) {
 		},
 	}
 
-	for _, s := range scenarios {
-		t.Run(s.name, func(t *testing.T) {
-			app, _ := tests.NewTestApp()
-			defer app.Cleanup()
+		for _, s := range scenarios {
+			t.Run(s.name, func(t *testing.T) {
+				collection, err := s.collection(app)
+				if err != nil {
+					t.Fatalf("Failed to retrieve test collection: %v", err)
+				}
 
-			collection, err := s.collection(app)
-			if err != nil {
-				t.Fatalf("Failed to retrieve test collection: %v", err)
-			}
+				result := app.Validate(collection)
 
-			result := app.Validate(collection)
-
-			tests.TestValidationErrors(t, result, s.expectedErrors)
-		})
-	}
+				tests.TestValidationErrors(t, result, s.expectedErrors)
+			})
+		}
+	})
 }

@@ -13,31 +13,30 @@ import (
 func TestUniqueId(t *testing.T) {
 	t.Parallel()
 
-	app, _ := tests.NewTestApp()
-	defer app.Cleanup()
+	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
+		scenarios := []struct {
+			id          string
+			tableName   string
+			expectError bool
+		}{
+			{"", "", false},
+			{"test", "", true},
+			{"wsmn24bux7wo113", "_collections", true},
+			{"test_unique_id", "unknown_table", true},
+			{"test_unique_id", "_collections", false},
+		}
 
-	scenarios := []struct {
-		id          string
-		tableName   string
-		expectError bool
-	}{
-		{"", "", false},
-		{"test", "", true},
-		{"wsmn24bux7wo113", "_collections", true},
-		{"test_unique_id", "unknown_table", true},
-		{"test_unique_id", "_collections", false},
-	}
+		for i, s := range scenarios {
+			t.Run(fmt.Sprintf("%d_%s_%s", i, s.id, s.tableName), func(t *testing.T) {
+				err := validators.UniqueId(app.DB(), s.tableName)(s.id)
 
-	for i, s := range scenarios {
-		t.Run(fmt.Sprintf("%d_%s_%s", i, s.id, s.tableName), func(t *testing.T) {
-			err := validators.UniqueId(app.DB(), s.tableName)(s.id)
-
-			hasErr := err != nil
-			if hasErr != s.expectError {
-				t.Fatalf("Expected hasErr to be %v, got %v (%v)", s.expectError, hasErr, err)
-			}
-		})
-	}
+				hasErr := err != nil
+				if hasErr != s.expectError {
+					t.Fatalf("Expected hasErr to be %v, got %v (%v)", s.expectError, hasErr, err)
+				}
+			})
+		}
+	})
 }
 
 func TestNormalizeUniqueIndexError(t *testing.T) {

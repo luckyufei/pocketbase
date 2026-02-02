@@ -68,7 +68,5 @@ func TestHealthAPI(t *testing.T) {
 		},
 	}
 
-	for _, scenario := range scenarios {
-		scenario.Test(t)
-	}
+	tests.ApiScenariosTestBothDBs(t, scenarios)
 }

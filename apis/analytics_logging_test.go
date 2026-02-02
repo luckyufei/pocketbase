@@ -60,7 +60,7 @@ func TestAnalyticsRequestLogging(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
 
@@ -106,6 +106,6 @@ func TestAnalyticsLoggingNoSensitiveData(t *testing.T) {
 	}
 
 	for _, scenario := range scenarios {
-		scenario.Test(t)
+		scenario.TestBothDBs(t)
 	}
 }
