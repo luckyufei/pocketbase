@@ -28,8 +28,8 @@ func DefaultInstallerFunc(app core.App, systemSuperuser *core.Record, baseURL st
 	}
 
 	// launch url (ignore errors and always print a help text as fallback)
-	// 使用 hash router 格式，因为前端使用 svelte-spa-router (hash-based)
-	url := fmt.Sprintf("%s/_/#/pbinstall/%s", strings.TrimRight(baseURL, "/"), token)
+	// 使用 browser router 格式，因为前端使用 react-router (history-based)
+	url := fmt.Sprintf("%s/_/pbinstall/%s", strings.TrimRight(baseURL, "/"), token)
 	_ = osutils.LaunchURL(url)
 	color.Magenta("\n(!) Launch the URL below in the browser if it hasn't been open already to create your first superuser account:")
 	color.New(color.Bold).Add(color.FgCyan).Println(url)

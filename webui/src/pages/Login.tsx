@@ -34,9 +34,7 @@ export function Login() {
       <div className="w-full max-w-md p-8">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-blue-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200/50">
-            <span className="text-2xl font-bold text-white">PB</span>
-          </div>
+          <img src="/_/images/logo.svg" alt="PocketBase" className="w-16 h-16 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-slate-900">PocketBase</h1>
           <p className="text-slate-500 mt-2">{t('login.subtitle', '管理后台')}</p>
         </div>

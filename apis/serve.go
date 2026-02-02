@@ -17,7 +17,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/hook"
 	"github.com/pocketbase/pocketbase/tools/list"
 	"github.com/pocketbase/pocketbase/tools/routine"
-	"github.com/pocketbase/pocketbase/ui"
+	"github.com/pocketbase/pocketbase/webui"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -84,7 +84,7 @@ func Serve(app core.App, config ServeConfig) error {
 
 	// 设置管理界面路由（使用嵌入的静态文件）
 	// indexFallback=true 支持 SPA history route，所有未匹配的路径返回 index.html
-	pbRouter.GET("/_/{path...}", Static(ui.DistDirFS, true)).
+	pbRouter.GET("/_/{path...}", Static(webui.DistDirFS, true)).
 		BindFunc(func(e *core.RequestEvent) error {
 			// ignore root path
 			if e.Request.PathValue(StaticWildcardParam) != "" {

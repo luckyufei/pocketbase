@@ -1,5 +1,5 @@
-// Package ui handles the PocketBase Superuser frontend embedding (React version).
-package ui
+// Package webui handles the PocketBase Superuser frontend embedding (React version).
+package webui
 
 import (
 	"embed"

@@ -226,9 +226,26 @@ Optional extensions:
 
 The `PocketBase` struct wraps `core.App` and adds CLI support via Cobra. `New()` creates an instance, `Start()` registers default commands (serve, superuser) and executes. The app auto-detects `go run` vs compiled binary for dev mode defaults.
 
-### UI Package (`ui/`)
+### WebUI Package (`webui/`) - 当前使用
 
-Svelte-based Admin dashboard SPA. Built assets in `ui/dist/` are embedded into the Go binary via `embed.go`. During development, run the Vite dev server separately.
+React + TypeScript 版本的 Admin 管理后台 SPA。这是**当前正在使用和维护的版本**。
+
+- **技术栈**: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui
+- **嵌入方式**: 构建产物在 `webui/dist/` 目录，通过 `embed.go` 嵌入到 Go 二进制文件
+- **访问路径**: `/_/` 路由（Browser Router 模式）
+- **开发命令**:
+  ```bash
+  cd webui
+  npm install
+  npm run dev      # 启动开发服务器（端口 5173）
+  npm run build    # 构建生产版本
+  ```
+
+### UI Package (`ui/`) - 已废弃 ⚠️
+
+> **注意**: 此目录已废弃，不再更新维护。请使用 `webui/` 目录。
+
+旧版 Svelte 实现的 Admin dashboard SPA。保留仅供参考，新功能开发请在 `webui/` 中进行。
 
 ### Benchmarks Package (`benchmarks/`)
 

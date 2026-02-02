@@ -18,7 +18,7 @@ export default defineConfig({
     },
   },
   envPrefix: 'PB',
-  base: './',
+  base: '/_/',
   plugins: [react()],
   resolve: {
     alias: {
