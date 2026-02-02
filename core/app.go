@@ -102,11 +102,6 @@ type App interface {
 	// Used internally by SecretField for encryption/decryption operations.
 	SecretsSettings() *SecretsSettings
 
-	// Trace returns the app Trace instance for distributed tracing operations.
-	// Provides OpenTelemetry-compatible tracing with automatic HTTP request tracking,
-	// manual span creation, and configurable data retention.
-	Trace() *Trace
-
 	// Analytics returns the app Analytics instance for native user behavior analytics.
 	// Provides event collection, aggregation, and dashboard capabilities.
 	Analytics() *Analytics

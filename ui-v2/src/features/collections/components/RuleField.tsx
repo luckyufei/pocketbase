@@ -1,5 +1,5 @@
 // T024: 单个规则编辑器组件
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Lock, Unlock } from 'lucide-react'
@@ -43,7 +43,6 @@ export function RuleField({
   afterLabel,
 }: RuleFieldProps) {
   const [tempValue, setTempValue] = useState<string>('')
-  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const isSuperuserOnly = superuserToggle && rule === null
   const isDisabled = disabled || collection.system
@@ -51,10 +50,6 @@ export function RuleField({
   // 解锁规则
   const unlock = () => {
     onChange(tempValue || '')
-    // 延迟聚焦
-    setTimeout(() => {
-      inputRef.current?.focus()
-    }, 100)
   }
 
   // 锁定规则（设为 Superusers only）
@@ -90,7 +85,6 @@ export function RuleField({
 
       <div className="relative">
         <FilterAutocompleteInput
-          ref={inputRef}
           value={rule || ''}
           onChange={(value) => onChange(value)}
           baseCollection={collection}
