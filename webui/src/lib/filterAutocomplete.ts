@@ -271,3 +271,94 @@ export const FILTER_OPERATORS = [
   { label: '&&', info: '逻辑与' },
   { label: '||', info: '逻辑或' },
 ]
+
+/**
+ * 检测搜索词是否已经是 filter 表达式或 PocketBase 语法
+ *
+ * 以下情况被认为是 filter 表达式，不需要转换：
+ * 1. 包含操作符（=, !=, ~, !~, >, >=, <, <=）
+ * 2. 以 @ 开头（宏或字段引用，如 @now, @request.auth.id）
+ * 3. 包含括号（表达式分组）
+ * 4. 包含逻辑运算符（&&, ||）
+ */
+const FILTER_OPERATOR_CHARS = ['=', '!=', '~', '!~', '>', '>=', '<', '<=', '&&', '||']
+
+function isFilterExpression(searchTerm: string): boolean {
+  // 以 @ 开头：宏或字段引用
+  if (searchTerm.startsWith('@')) {
+    return true
+  }
+
+  // 包含括号：表达式分组
+  if (searchTerm.includes('(') || searchTerm.includes(')')) {
+    return true
+  }
+
+  // 包含操作符
+  return FILTER_OPERATOR_CHARS.some(op => searchTerm.includes(op))
+}
+
+/**
+ * 获取 Collection 中可搜索的文本字段
+ * 用于将简单搜索词转换为 filter 表达式
+ */
+export function getSearchableFields(collection: CollectionModel | null): string[] {
+  if (!collection) return []
+
+  const searchableTypes = ['text', 'editor', 'url', 'email']
+  const fields: SchemaField[] = collection.fields || (collection as any).schema || []
+
+  const result: string[] = []
+
+  // 添加 id 字段（总是可搜索）
+  result.push('id')
+
+  // auth 类型的 username 和 email 字段
+  if (collection.type === 'auth') {
+    result.push('username')
+    result.push('email')
+  }
+
+  // 用户定义的文本字段
+  for (const field of fields) {
+    if (searchableTypes.includes(field.type)) {
+      result.push(field.name)
+    }
+  }
+
+  return result
+}
+
+/**
+ * 将搜索词标准化为 PocketBase filter 表达式
+ *
+ * - 如果搜索词已包含操作符（如 `=`, `~`, `>` 等），则认为是 filter 表达式，直接返回
+ * - 否则，将搜索词转换为对可搜索字段的模糊搜索（field~"searchTerm"）
+ *
+ * @param searchTerm 用户输入的搜索词
+ * @param fallbackFields 用于模糊搜索的字段列表
+ * @returns 标准化后的 filter 表达式
+ */
+export function normalizeSearchFilter(searchTerm: string, fallbackFields: string[]): string {
+  searchTerm = (searchTerm || '').trim()
+
+  if (!searchTerm || fallbackFields.length === 0) {
+    return searchTerm
+  }
+
+  // 如果已经是 filter 表达式，直接返回
+  if (isFilterExpression(searchTerm)) {
+    return searchTerm
+  }
+
+  // 处理搜索词：
+  // - 如果是数字或布尔值，不加引号
+  // - 否则用双引号包裹，并移除用户可能输入的引号
+  const isNumberOrBool = !isNaN(Number(searchTerm)) || searchTerm === 'true' || searchTerm === 'false'
+  const normalizedTerm = isNumberOrBool
+    ? searchTerm
+    : `"${searchTerm.replace(/^["'`]|["'`]$/g, '')}"`
+
+  // 构建 OR 连接的模糊搜索表达式
+  return fallbackFields.map(field => `${field}~${normalizedTerm}`).join('||')
+}

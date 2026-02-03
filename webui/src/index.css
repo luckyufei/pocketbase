@@ -122,3 +122,125 @@
       sans-serif;
   }
 }
+
+/**
+ * CodeMirror 样式适配
+ * Task 9: 确保 CodeMirror 样式与现有 UI 风格一致
+ * 对标 ui/src/scss/_searchbar.scss 的设计
+ */
+@layer components {
+  /* Searchbar 容器样式 - 对标 ui 版本的 .searchbar */
+  .searchbar-container {
+    /* 基础样式已在组件的 className 中设置 */
+  }
+
+  /* 内部编辑器样式 - 无边框，透明背景 */
+  .filter-editor-inner {
+    @apply h-full;
+  }
+
+  .filter-editor-inner .cm-editor {
+    @apply h-full bg-transparent;
+    border: none !important;
+    outline: none !important;
+  }
+
+  .filter-editor-inner .cm-editor.cm-focused {
+    outline: none !important;
+  }
+
+  .filter-editor-inner .cm-scroller {
+    @apply overflow-hidden;
+  }
+
+  .filter-editor-inner .cm-content {
+    @apply px-3 py-1.5 text-sm font-mono;
+    min-height: auto !important;
+  }
+
+  .filter-editor-inner .cm-line {
+    @apply leading-6;
+  }
+
+  /* Placeholder 样式 */
+  .filter-editor-inner .cm-placeholder {
+    @apply text-muted-foreground;
+  }
+
+  /* 暗色模式适配 */
+  .dark .filter-editor-inner .cm-editor {
+    @apply bg-transparent;
+  }
+
+  /* 自动补全下拉菜单样式 */
+  .cm-tooltip-autocomplete {
+    @apply rounded-md border bg-popover shadow-md;
+    @apply text-popover-foreground;
+  }
+
+  .cm-tooltip-autocomplete ul {
+    @apply p-1;
+  }
+
+  .cm-tooltip-autocomplete li {
+    @apply px-2 py-1.5 text-sm rounded-sm cursor-pointer;
+  }
+
+  .cm-tooltip-autocomplete li[aria-selected="true"] {
+    @apply bg-accent text-accent-foreground;
+  }
+
+  .cm-tooltip-autocomplete li:hover:not([aria-selected="true"]) {
+    @apply bg-accent/50;
+  }
+
+  /* 语法高亮颜色 */
+  .searchbar-container .cm-string {
+    @apply text-green-600;
+  }
+
+  .searchbar-container .cm-number {
+    @apply text-blue-600;
+  }
+
+  .searchbar-container .cm-keyword {
+    @apply text-purple-600 font-medium;
+  }
+
+  .searchbar-container .cm-operator {
+    @apply text-orange-600;
+  }
+
+  .searchbar-container .cm-atom {
+    @apply text-red-600;
+  }
+
+  .searchbar-container .cm-comment {
+    @apply text-muted-foreground italic;
+  }
+
+  .searchbar-container .cm-variable {
+    @apply text-foreground;
+  }
+
+  /* 暗色模式语法高亮 */
+  .dark .searchbar-container .cm-string {
+    @apply text-green-400;
+  }
+
+  .dark .searchbar-container .cm-number {
+    @apply text-blue-400;
+  }
+
+  .dark .searchbar-container .cm-keyword {
+    @apply text-purple-400;
+  }
+
+  .dark .searchbar-container .cm-operator {
+    @apply text-orange-400;
+  }
+
+  .dark .searchbar-container .cm-atom {
+    @apply text-red-400;
+  }
+}

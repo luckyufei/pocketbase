@@ -1,15 +1,45 @@
 /**
  * Filter Autocomplete Input
  * 支持 PocketBase filter 语法的自动补全输入框
- * 使用原生 input + 自定义下拉菜单实现，避免 CodeMirror 多实例问题
+ * 
+ * Task 7: 使用 CodeMirror 实现语法高亮和自动补全
+ * 对标 ui/src/components/base/FilterAutocompleteInput.svelte
+ * 对标 ui/src/components/base/Searchbar.svelte 的样式
  */
-import { useCallback, useMemo, useState, useRef, useEffect, type KeyboardEvent } from 'react'
+import { useCallback, useMemo, useState, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import type { CollectionModel } from 'pocketbase'
+import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror'
+import { 
+  EditorView, 
+  keymap, 
+  placeholder as placeholderExt,
+  highlightSpecialChars,
+  drawSelection,
+  dropCursor,
+  rectangularSelection,
+  highlightActiveLineGutter,
+} from '@codemirror/view'
+import { EditorState } from '@codemirror/state'
+import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from '@codemirror/language'
+import { 
+  autocompletion, 
+  CompletionContext, 
+  type Completion,
+  closeBrackets,
+  closeBracketsKeymap,
+  completionKeymap,
+} from '@codemirror/autocomplete'
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { highlightSelectionMatches, searchKeymap } from '@codemirror/search'
+import { filterLanguage } from './filterLanguage'
 import {
   getAllAutocompleteKeys,
   FILTER_MACROS,
 } from '@/lib/filterAutocomplete'
+
+// 默认占位符文本（与 Svelte 版本一致）
+const DEFAULT_PLACEHOLDER = 'Search term or filter like created > "2022-01-01"...'
 
 interface FilterAutocompleteInputProps {
   value: string
@@ -20,12 +50,7 @@ interface FilterAutocompleteInputProps {
   placeholder?: string
   disabled?: boolean
   className?: string
-}
-
-interface AutocompleteOption {
-  label: string
-  type?: string
-  info?: string
+  singleLine?: boolean
 }
 
 export function FilterAutocompleteInput({
@@ -34,242 +59,264 @@ export function FilterAutocompleteInput({
   onSubmit,
   collections = [],
   baseCollection,
-  placeholder = 'Filter records, e.g. created > @now',
+  placeholder = DEFAULT_PLACEHOLDER,
   disabled = false,
   className,
+  singleLine = true, // 默认单行模式（搜索框场景）
 }: FilterAutocompleteInputProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const [isOpen, setIsOpen] = useState(false)
-  const [selectedIndex, setSelectedIndex] = useState(0)
-  const [cursorPosition, setCursorPosition] = useState(0)
+  const editorRef = useRef<ReactCodeMirrorRef>(null)
+  // 保存提交回调的 ref，避免 extensions 依赖变化
+  const onSubmitRef = useRef(onSubmit)
+  onSubmitRef.current = onSubmit
+  
+  // Task 1: 已提交的值状态，用于控制搜索按钮显示
+  const [submittedValue, setSubmittedValue] = useState('')
+
+  // Task 1: 计算是否显示搜索按钮
+  // 仅当 value 非空且与已提交值不同时显示
+  const showSearchButton = value.trim() !== '' && value !== submittedValue
+
+  // Task 3: 计算是否显示清空按钮
+  const showClearButton = value.trim() !== ''
 
   // 计算自动补全键
   const autocompleteKeys = useMemo(() => {
     return getAllAutocompleteKeys(collections, baseCollection)
   }, [collections, baseCollection])
 
-  // 获取当前光标位置的词
-  const getCurrentWord = useCallback((text: string, position: number): { word: string; start: number; end: number } => {
-    // 查找词的开始和结束位置
-    let start = position
-    let end = position
+  // Task 1: 处理搜索提交
+  const handleSubmit = useCallback((submitValue: string) => {
+    setSubmittedValue(submitValue)
+    onSubmit?.(submitValue)
+  }, [onSubmit])
 
-    // 向左查找词的开始
-    while (start > 0 && /[\w@.:_]/.test(text[start - 1])) {
-      start--
+  // Task 3: 处理清空
+  const handleClear = useCallback(() => {
+    onChange('')
+    handleSubmit('')
+    editorRef.current?.view?.focus()
+  }, [onChange, handleSubmit])
+
+  // CodeMirror 值变化处理
+  const handleChange = useCallback((val: string) => {
+    onChange(val)
+  }, [onChange])
+
+  // 自动补全函数
+  const completions = useCallback((context: CompletionContext) => {
+    const word = context.matchBefore(/[\'\"\@\w\.\:]*/);
+    if (word && word.from === word.to && !context.explicit) {
+      return null;
     }
 
-    // 向右查找词的结束
-    while (end < text.length && /[\w@.:_]/.test(text[end])) {
-      end++
-    }
+    const options: Completion[] = [];
 
-    return {
-      word: text.slice(start, end),
-      start,
-      end,
-    }
-  }, [])
-
-  // 计算补全选项
-  const options = useMemo((): AutocompleteOption[] => {
-    const { word } = getCurrentWord(value, cursorPosition)
-    if (!word) return []
-
-    const lowerWord = word.toLowerCase()
-    const result: AutocompleteOption[] = []
-
-    // 添加宏
+    // 添加宏（已包含 true/false/null）
     for (const macro of FILTER_MACROS) {
-      if (macro.label.toLowerCase().includes(lowerWord)) {
-        result.push({
-          label: macro.label,
-          type: macro.type,
-          info: macro.info,
-        })
-      }
+      options.push({
+        label: macro.label,
+        type: macro.type,  // 使用原始类型，不强制覆盖
+        info: macro.info,
+      });
     }
 
     // 添加基础字段
     for (const key of autocompleteKeys.baseKeys) {
-      if (key.toLowerCase().includes(lowerWord)) {
-        result.push({
-          label: key,
-          type: 'property',
-        })
-      }
+      options.push({
+        label: key,
+        type: 'property',
+      });
     }
 
     // @request 键
-    if (lowerWord.startsWith('@r')) {
+    if (word?.text.startsWith('@r')) {
       for (const key of autocompleteKeys.requestKeys) {
-        if (key.toLowerCase().includes(lowerWord)) {
-          result.push({
-            label: key,
-            type: 'property',
-          })
-        }
+        options.push({
+          label: key,
+          type: 'property',
+        });
       }
     }
 
     // @collection 键
-    if (lowerWord.startsWith('@c')) {
-      result.push({
+    if (word?.text.startsWith('@c')) {
+      options.push({
         label: '@collection.*',
+        apply: '@collection.',
         type: 'keyword',
         info: '跨集合查询',
-      })
+      });
       for (const key of autocompleteKeys.collectionJoinKeys) {
-        if (key.toLowerCase().includes(lowerWord)) {
-          result.push({
-            label: key,
-            type: 'property',
-          })
+        options.push({
+          label: key,
+          type: 'property',
+          boost: key.indexOf('_via_') > 0 ? -1 : 0, // 降低 _via_ 键的优先级
+        });
+      }
+    }
+
+    return {
+      from: word?.from ?? context.pos,
+      options,
+    };
+  }, [autocompleteKeys]);
+
+  // CodeMirror 扩展配置
+  // 对标 ui 版本: editor = new EditorView({ state: EditorState.create({ extensions: [...] }) })
+  const extensions = useMemo(() => {
+    // Enter 键处理：单行模式下触发提交
+    // 对标 ui 版本: const submitShortcut = { key: "Enter", run: ... }
+    const submitShortcut = {
+      key: 'Enter',
+      run: (view: EditorView) => {
+        if (singleLine) {
+          const text = view.state.doc.toString();
+          if (onSubmitRef.current) {
+            setSubmittedValue(text);
+            onSubmitRef.current(text);
+          }
+          return true; // 阻止默认换行行为
         }
+        return false;
+      },
+    };
+
+    // 构建 keybindings
+    // 对标 ui 版本: let keybindings = [submitShortcut, ...closeBracketsKeymap, ...defaultKeymap, ...]
+    const keybindings = [
+      submitShortcut,
+      ...closeBracketsKeymap,
+      ...defaultKeymap,
+      searchKeymap.find((item) => item.key === 'Mod-d'),
+      ...historyKeymap,
+      ...completionKeymap,
+    ].filter(Boolean) as typeof defaultKeymap;
+
+    // 单行模式的 transaction filter
+    // 对标 ui 版本: EditorState.transactionFilter.of((tr) => { if (singleLine && tr.newDoc.lines > 1) ... })
+    const singleLineFilter = EditorState.transactionFilter.of((tr) => {
+      if (singleLine && tr.newDoc.lines > 1) {
+        // 获取所有行的文本
+        const texts: string[] = [];
+        tr.newDoc.iterLines((line) => {
+          texts.push(line);
+        });
+        
+        // 检查是否只有空行
+        const hasContent = texts.some(t => t.trim() !== '');
+        if (!hasContent) {
+          return []; // 只有空行，拒绝此事务
+        }
+        
+        // 合并为单行（与 ui 版本行为一致）
+        // ui 版本: tr.newDoc.text = [tr.newDoc.text.join(" ")];
+        const mergedText = texts.join(' ').trim();
+        return {
+          ...tr,
+          changes: {
+            from: 0,
+            to: tr.startState.doc.length,
+            insert: mergedText,
+          },
+        };
       }
-    }
+      return tr;
+    });
 
-    return result.slice(0, 20) // 限制最多显示 20 个选项
-  }, [value, cursorPosition, autocompleteKeys, getCurrentWord])
-
-  // 选择补全选项
-  const selectOption = useCallback((option: AutocompleteOption) => {
-    const { start, end } = getCurrentWord(value, cursorPosition)
-    const newValue = value.slice(0, start) + option.label + value.slice(end)
-    onChange(newValue)
-    setIsOpen(false)
-
-    // 设置光标位置到插入内容之后
-    setTimeout(() => {
-      if (inputRef.current) {
-        const newPosition = start + option.label.length
-        inputRef.current.setSelectionRange(newPosition, newPosition)
-        inputRef.current.focus()
-      }
-    }, 0)
-  }, [value, cursorPosition, onChange, getCurrentWord])
-
-  // 键盘事件处理
-  const handleKeyDown = useCallback((e: KeyboardEvent<HTMLInputElement>) => {
-    if (!isOpen || options.length === 0) {
-      if (e.key === 'Enter' && onSubmit) {
-        e.preventDefault()
-        onSubmit(value)
-      }
-      return
-    }
-
-    switch (e.key) {
-      case 'ArrowDown':
-        e.preventDefault()
-        setSelectedIndex((prev) => (prev + 1) % options.length)
-        break
-      case 'ArrowUp':
-        e.preventDefault()
-        setSelectedIndex((prev) => (prev - 1 + options.length) % options.length)
-        break
-      case 'Enter':
-      case 'Tab':
-        e.preventDefault()
-        selectOption(options[selectedIndex])
-        break
-      case 'Escape':
-        setIsOpen(false)
-        break
-    }
-  }, [isOpen, options, selectedIndex, selectOption, onSubmit, value])
-
-  // 输入变化处理
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value
-    onChange(newValue)
-    setCursorPosition(e.target.selectionStart || 0)
-    setIsOpen(true)
-    setSelectedIndex(0)
-  }, [onChange])
-
-  // 光标位置变化
-  const handleSelect = useCallback((e: React.SyntheticEvent<HTMLInputElement>) => {
-    const target = e.target as HTMLInputElement
-    setCursorPosition(target.selectionStart || 0)
-  }, [])
-
-  // 点击外部关闭下拉菜单
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node) &&
-        inputRef.current &&
-        !inputRef.current.contains(e.target as Node)
-      ) {
-        setIsOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  // 滚动选中项到可见区域
-  useEffect(() => {
-    if (isOpen && dropdownRef.current) {
-      const selectedEl = dropdownRef.current.querySelector('[data-selected="true"]')
-      if (selectedEl) {
-        selectedEl.scrollIntoView({ block: 'nearest' })
-      }
-    }
-  }, [selectedIndex, isOpen])
+    return [
+      // 基础视图扩展（对标 ui 版本）
+      highlightActiveLineGutter(),
+      highlightSpecialChars(),
+      history(),
+      drawSelection(),
+      dropCursor(),
+      EditorState.allowMultipleSelections.of(true),
+      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      bracketMatching(),
+      closeBrackets(),
+      rectangularSelection(),
+      highlightSelectionMatches(),
+      // 键盘映射（注意顺序：submitShortcut 在最前面）
+      keymap.of(keybindings),
+      EditorView.lineWrapping,
+      // 自动补全
+      autocompletion({
+        override: [completions],
+        icons: false,
+      }),
+      // 占位符
+      placeholderExt(placeholder),
+      // 可编辑/只读状态
+      EditorView.editable.of(!disabled),
+      EditorState.readOnly.of(disabled),
+      // 语法高亮
+      filterLanguage,
+      // 单行过滤器
+      singleLineFilter,
+    ];
+  }, [completions, placeholder, disabled, singleLine]);
 
   return (
-    <div className={cn('relative', className)}>
-      <input
-        ref={inputRef}
-        type="text"
+    // 外层容器 - 类似 ui 版本的 .searchbar
+    // 样式：圆角、边框、背景色，聚焦时有 ring
+    <div 
+      className={cn(
+        'searchbar-container',
+        'flex items-center',
+        'h-9 px-1',
+        'rounded-full',
+        'border border-input bg-muted/50',
+        'transition-colors',
+        'focus-within:bg-muted focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-0',
+        disabled && 'cursor-not-allowed opacity-50',
+        className
+      )}
+    >
+      {/* CodeMirror 编辑器 - 无边框，flex-1 占满剩余空间 */}
+      <CodeMirror
+        ref={editorRef}
         value={value}
         onChange={handleChange}
-        onKeyDown={handleKeyDown}
-        onSelect={handleSelect}
-        onFocus={() => setIsOpen(true)}
-        placeholder={placeholder}
-        disabled={disabled}
-        className={cn(
-          'w-full h-9 px-3 py-2 text-sm rounded-md border border-input bg-background',
-          'placeholder:text-muted-foreground',
-          'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-0',
-          'disabled:cursor-not-allowed disabled:opacity-50'
-        )}
+        extensions={extensions}
+        basicSetup={false}
+        className="filter-editor-inner flex-1 min-w-0"
+        editable={!disabled}
       />
 
-      {/* 自动补全下拉菜单 */}
-      {isOpen && options.length > 0 && (
-        <div
-          ref={dropdownRef}
-          className={cn(
-            'absolute z-50 top-full left-0 mt-1 w-full min-w-[200px] max-h-[300px]',
-            'overflow-auto rounded-md border bg-popover p-1 shadow-md',
-            'animate-in fade-in-0 zoom-in-95'
-          )}
-        >
-          {options.map((option, index) => (
-            <div
-              key={option.label}
-              data-selected={index === selectedIndex}
-              onClick={() => selectOption(option)}
-              className={cn(
-                'flex items-center justify-between px-2 py-1.5 text-sm rounded-sm cursor-pointer',
-                index === selectedIndex ? 'bg-accent text-accent-foreground' : 'hover:bg-accent/50'
-              )}
-            >
-              <span className="font-mono">{option.label}</span>
-              {option.info && (
-                <span className="text-xs text-muted-foreground ml-2">{option.info}</span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* 按钮区域 - 与 ui 版本对齐 */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {/* Task 1 & 2: 搜索按钮 - 黄色/警告色 */}
+        {showSearchButton && (
+          <button
+            type="button"
+            onClick={() => handleSubmit(value)}
+            aria-label="Search"
+            className={cn(
+              'px-3 py-1 text-xs font-medium rounded-full',
+              'bg-yellow-500 text-white hover:bg-yellow-600',
+              'transition-colors'
+            )}
+          >
+            Search
+          </button>
+        )}
+
+        {/* Task 3: 清空按钮 */}
+        {showClearButton && (
+          <button
+            type="button"
+            onClick={handleClear}
+            aria-label="Clear"
+            className={cn(
+              'px-2 py-1 text-xs font-medium rounded-full',
+              'text-muted-foreground hover:text-foreground hover:bg-muted',
+              'transition-colors'
+            )}
+          >
+            Clear
+          </button>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 /**
  * Records 页面
  */
-import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
+import { useEffect, useState, useCallback, lazy, Suspense, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAtomValue, useSetAtom } from 'jotai'
@@ -19,6 +19,7 @@ import { UpsertPanel as CollectionUpsertPanel } from '@/features/collections/com
 import { CollectionDocsPanel } from '@/features/collections/components/docs/CollectionDocsPanel'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { normalizeSearchFilter, getSearchableFields } from '@/lib/filterAutocomplete'
 import type { RecordModel, CollectionModel } from 'pocketbase'
 
 // 懒加载 FilterAutocompleteInput（因为 CodeMirror 比较重）
@@ -40,6 +41,8 @@ export function RecordsPage() {
   const [collectionPanelOpen, setCollectionPanelOpen] = useState(false)
   const [editingCollection, setEditingCollection] = useState<CollectionModel | null>(null)
   const [docsPanelOpen, setDocsPanelOpen] = useState(false)
+  // 输入框的临时值（用户正在输入）
+  const [filterInput, setFilterInput] = useState('')
 
   const { saveCollection, fetchCollections } = useCollections()
 
@@ -68,13 +71,13 @@ export function RecordsPage() {
     }
   }, [collection, setTitle])
 
-  // 加载 Records
+  // 切换集合时重置状态和加载数据
   useEffect(() => {
     if (collectionId) {
       reset()
-      fetchRecords()
+      setFilterInput('')  // 切换集合时清空输入框
     }
-  }, [collectionId, fetchRecords, reset])
+  }, [collectionId, reset])
 
   // 处理排序
   const handleSort = useCallback(
@@ -89,22 +92,27 @@ export function RecordsPage() {
     [setSortState]
   )
 
-  // 排序变化时重新加载
-  useEffect(() => {
-    if (collectionId && sortState) {
-      fetchRecords()
-    }
-  }, [sortState, collectionId, fetchRecords])
-
-  // 筛选变化时重新加载
+  // 统一的数据加载 Effect
+  // 依赖：collectionId, sortState, filter 变化时重新加载
   useEffect(() => {
     if (collectionId) {
-      const timer = setTimeout(() => {
-        fetchRecords()
-      }, 500)
-      return () => clearTimeout(timer)
+      fetchRecords()
     }
-  }, [filter, collectionId, fetchRecords])
+    // fetchRecords 是 useCallback，其依赖包含 sortState 和 filter
+    // 这里不需要把 sortState 和 filter 加入依赖数组，因为 fetchRecords 的引用会随它们变化
+  }, [collectionId, fetchRecords])
+
+  // 计算可搜索的字段（用于将简单搜索词转换为 filter 表达式）
+  const searchableFields = useMemo(() => {
+    return getSearchableFields(collection)
+  }, [collection])
+
+  // 处理搜索提交
+  // 将简单搜索词标准化为 PocketBase filter 表达式
+  const handleFilterSubmit = useCallback((value: string) => {
+    const normalizedFilter = normalizeSearchFilter(value, searchableFields)
+    setFilter(normalizedFilter)
+  }, [setFilter, searchableFields])
 
   // 处理行点击
   const handleRowClick = useCallback((record: RecordModel) => {
@@ -259,9 +267,9 @@ export function RecordsPage() {
         <div className="flex items-center gap-2">
           <Suspense fallback={<div className="w-80 h-9 border rounded-md bg-muted/30 animate-pulse" />}>
             <FilterAutocompleteInput
-              value={filter}
-              onChange={setFilter}
-              onSubmit={() => fetchRecords()}
+              value={filterInput}
+              onChange={setFilterInput}
+              onSubmit={handleFilterSubmit}
               collections={collections}
               baseCollection={collection}
               placeholder={t('records.filterPlaceholder', 'Filter records, e.g. created > @now')}
