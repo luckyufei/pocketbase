@@ -1,0 +1,1 @@
+"""PocketBase Python SDK Tests."""

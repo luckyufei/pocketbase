@@ -45,3 +45,11 @@ benchmarks/benchmark-config.json
 /jssdk/dist
 **/pb_data/
 /examples/test/
+**/__pycache__
+**/.coverage
+
+# Python SDK (pythonsdk/)
+pythonsdk/.venv/
+pythonsdk/htmlcov/
+pythonsdk/dist/
+pythonsdk/*.egg-info/
