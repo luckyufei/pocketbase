@@ -1,11 +1,5 @@
-import { GlobalRegistrator } from '@happy-dom/global-registrator'
-import '@testing-library/jest-dom/vitest'
-import { afterEach, vi } from 'vitest'
+import { expect } from 'vitest'
+import * as matchers from '@testing-library/jest-dom/matchers'
 
-GlobalRegistrator.register()
-
-// 每个测试后清理 mocks
-afterEach(() => {
-  vi.clearAllMocks()
-  vi.restoreAllMocks()
-})
+// 扩展 vitest 的 expect 以支持 jest-dom matchers
+expect.extend(matchers)

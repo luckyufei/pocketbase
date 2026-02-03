@@ -46,6 +46,8 @@ export function useRecords(collectionIdOrName: string) {
 
   /**
    * 加载 Records
+   * 注意：设置 requestKey: null 禁用自动取消，避免 React useEffect 触发时取消正在进行的请求
+   * @see https://github.com/pocketbase/js-sdk#auto-cancellation
    */
   const fetchRecords = useCallback(
     async (page = 1, perPage = 20, options?: RecordListOptions) => {
@@ -56,14 +58,22 @@ export function useRecords(collectionIdOrName: string) {
           ? `${sortState.direction === 'desc' ? '-' : ''}${sortState.field}`
           : '-created'
 
+        // 设置 requestKey: null 禁用该请求的自动取消
+        // 这样可以避免 React Strict Mode 或快速切换时的取消错误
         const result = await pb.collection(collectionIdOrName).getList(page, perPage, {
           sort,
           filter: filter || undefined,
+          requestKey: null,
           ...options,
         })
         setRecords(result)
         return result
       } catch (err) {
+        // 忽略自动取消的错误（以防 options 中覆盖了 requestKey）
+        if (err instanceof Error && err.message.includes('autocancelled')) {
+          console.debug('Request was autocancelled, ignoring...')
+          return null
+        }
         const message = err instanceof Error ? err.message : '加载记录失败'
         setError(message)
         throw err
