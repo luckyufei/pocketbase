@@ -6,6 +6,7 @@ import (
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tests"
+	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 // TestSystemMetricsMigration 测试 _metrics 表迁移
@@ -130,6 +131,7 @@ func TestSystemMetricsModelWithAuxDB(t *testing.T) {
 
 	// 创建一个 SystemMetrics 实例
 	metrics := &core.SystemMetrics{
+		Timestamp:       types.NowDateTime(),
 		CpuUsagePercent: 25.5,
 		MemoryAllocMB:   128.75,
 		GoroutinesCount: 50,
@@ -170,6 +172,7 @@ func TestSystemMetricsAuxDelete(t *testing.T) {
 
 	// 创建并保存
 	metrics := &core.SystemMetrics{
+		Timestamp:       types.NowDateTime(),
 		CpuUsagePercent: 10.0,
 	}
 	metrics.Id = "test_delete_id"
