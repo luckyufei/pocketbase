@@ -131,7 +131,8 @@ func main() {
 - `jsvm` - Enables JavaScript/TypeScript hooks and migrations
 - `migratecmd` - Adds migration CLI commands (`migrate create`, `migrate up`, etc.)
 - `tofauth` - Tencent Open Framework authentication (enterprise)
-- `migrations` - Creates system tables (`_jobs`, `_secrets`, `_kv`)
+- `migrations` - Creates system tables (`_jobs`, `_secrets`)
+- `kv` - Redis-like key-value storage with L1 cache + L2 database
 
 _For more details please refer to [Extend with Go](https://pocketbase.io/docs/go-overview/)._
 

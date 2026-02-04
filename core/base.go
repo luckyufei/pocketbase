@@ -198,9 +198,6 @@ type BaseApp struct {
 
 	onBatchRequest *hook.Hook[*BatchRequestEvent]
 
-	// kv store for key-value storage
-	kvStore *kvStore
-
 	// job store for job queue
 	jobStore *jobStore
 
@@ -444,10 +441,6 @@ func (app *BaseApp) Bootstrap() error {
 		if err := app.ReloadSettings(); err != nil {
 			return err
 		}
-
-		// initialize KV store and register cleanup job
-		app.initKVStore()
-		app.startKVCleanupJob()
 
 		// initialize Job store
 		app.initJobStore()

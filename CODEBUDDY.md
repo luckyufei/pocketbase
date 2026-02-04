@@ -403,8 +403,9 @@ func main() {
 | **jsvm** | `github.com/pocketbase/pocketbase/plugins/jsvm` | JavaScript/TypeScript runtime for hooks and migrations | JS/TS hooks, JS migrations |
 | **migratecmd** | `github.com/pocketbase/pocketbase/plugins/migratecmd` | CLI migration commands and auto-migration | `migrate` command, auto-migrations |
 | **tofauth** | `github.com/pocketbase/pocketbase/plugins/tofauth` | Tencent Open Framework authentication | TOF SSO integration |
-| **migrations** | `_ "github.com/pocketbase/pocketbase/migrations"` | System table migrations | `_jobs`, `_secrets`, `_kv` tables |
+| **migrations** | `_ "github.com/pocketbase/pocketbase/migrations"` | System table migrations | `_jobs`, `_secrets` tables |
 | **trace** | `github.com/pocketbase/pocketbase/plugins/trace` | 可观测性追踪功能 | 分布式追踪、条件采集、用户染色 |
+| **kv** | `github.com/pocketbase/pocketbase/plugins/kv` | 类 Redis 键值存储 | KV 存储（L1 缓存 + L2 数据库） |
 
 ### Why Plugins Are Not Auto-Imported
 
@@ -449,6 +450,7 @@ If you're missing expected functionality:
 - **JS/TS hooks not working**: Add `"github.com/pocketbase/pocketbase/plugins/jsvm"`
 - **TOF auth routes 404**: Add `"github.com/pocketbase/pocketbase/plugins/tofauth"` and configure environment variables
 - **Migration commands missing**: Add `"github.com/pocketbase/pocketbase/plugins/migratecmd"`
+- **KV 存储不可用**: Add `"github.com/pocketbase/pocketbase/plugins/kv"` and call `kv.MustRegister(app, kv.DefaultConfig())`
 
 ## 开发规范
 

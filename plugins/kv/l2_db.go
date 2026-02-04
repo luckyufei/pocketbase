@@ -1,4 +1,4 @@
-package core
+package kv
 
 import (
 	"database/sql"
@@ -6,31 +6,25 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/pocketbase/pocketbase/core"
 )
 
-// kvL2Postgres L2 数据库存储层
+// l2DB L2 数据库存储层
 // 支持 PostgreSQL 和 SQLite
-type kvL2Postgres struct {
-	app App
+type l2DB struct {
+	app core.App
 }
 
-// newKVL2Postgres 创建 L2 存储实例
-func newKVL2Postgres(app App) *kvL2Postgres {
-	return &kvL2Postgres{app: app}
-}
-
-// nowExpr 返回当前时间的 SQL 表达式
-func (l2 *kvL2Postgres) nowExpr() string {
-	if l2.app.IsPostgres() {
-		return "NOW()"
-	}
-	return "datetime('now')"
+// newL2DB 创建 L2 存储实例
+func newL2DB(app core.App) *l2DB {
+	return &l2DB{app: app}
 }
 
 // ==================== 基础操作 ====================
 
 // Get 从数据库获取值
-func (l2 *kvL2Postgres) Get(key string) (any, error) {
+func (l2 *l2DB) Get(key string) (any, error) {
 	var valueJSON string
 	var query string
 
@@ -52,7 +46,7 @@ func (l2 *kvL2Postgres) Get(key string) (any, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ErrKVNotFound
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -67,7 +61,7 @@ func (l2 *kvL2Postgres) Get(key string) (any, error) {
 }
 
 // Set 写入数据库（永不过期）
-func (l2 *kvL2Postgres) Set(key string, value any) error {
+func (l2 *l2DB) Set(key string, value any) error {
 	valueJSON, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -99,7 +93,7 @@ func (l2 *kvL2Postgres) Set(key string, value any) error {
 }
 
 // SetEx 写入数据库（带过期时间）
-func (l2 *kvL2Postgres) SetEx(key string, value any, ttl time.Duration) error {
+func (l2 *l2DB) SetEx(key string, value any, ttl time.Duration) error {
 	valueJSON, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -138,7 +132,7 @@ func (l2 *kvL2Postgres) SetEx(key string, value any, ttl time.Duration) error {
 }
 
 // Delete 删除 Key
-func (l2 *kvL2Postgres) Delete(key string) error {
+func (l2 *l2DB) Delete(key string) error {
 	_, err := l2.app.DB().NewQuery(`
 		DELETE FROM _kv WHERE key = {:key}
 	`).Bind(map[string]any{"key": key}).Execute()
@@ -147,7 +141,7 @@ func (l2 *kvL2Postgres) Delete(key string) error {
 }
 
 // Exists 检查 Key 是否存在
-func (l2 *kvL2Postgres) Exists(key string) (bool, error) {
+func (l2 *l2DB) Exists(key string) (bool, error) {
 	var exists int
 	var query string
 
@@ -182,7 +176,7 @@ func (l2 *kvL2Postgres) Exists(key string) (bool, error) {
 // ==================== TTL 操作 ====================
 
 // TTL 获取剩余过期时间
-func (l2 *kvL2Postgres) TTL(key string) (time.Duration, error) {
+func (l2 *l2DB) TTL(key string) (time.Duration, error) {
 	var expireAtStr sql.NullString
 	var query string
 
@@ -204,7 +198,7 @@ func (l2 *kvL2Postgres) TTL(key string) (time.Duration, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return 0, ErrKVNotFound
+			return 0, ErrNotFound
 		}
 		return 0, err
 	}
@@ -227,7 +221,7 @@ func (l2 *kvL2Postgres) TTL(key string) (time.Duration, error) {
 }
 
 // Expire 更新过期时间
-func (l2 *kvL2Postgres) Expire(key string, ttl time.Duration) error {
+func (l2 *l2DB) Expire(key string, ttl time.Duration) error {
 	expireAt := time.Now().Add(ttl)
 
 	var query string
@@ -260,7 +254,7 @@ func (l2 *kvL2Postgres) Expire(key string, ttl time.Duration) error {
 
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
-		return ErrKVNotFound
+		return ErrNotFound
 	}
 
 	return nil
@@ -269,7 +263,7 @@ func (l2 *kvL2Postgres) Expire(key string, ttl time.Duration) error {
 // ==================== 计数器操作 ====================
 
 // IncrBy 原子递增
-func (l2 *kvL2Postgres) IncrBy(key string, delta int64) (int64, error) {
+func (l2 *l2DB) IncrBy(key string, delta int64) (int64, error) {
 	var newValue int64
 
 	if l2.app.IsPostgres() {
@@ -291,7 +285,7 @@ func (l2 *kvL2Postgres) IncrBy(key string, delta int64) (int64, error) {
 		}
 	} else {
 		// SQLite: 使用事务实现原子递增
-		err := l2.app.RunInTransaction(func(txApp App) error {
+		err := l2.app.RunInTransaction(func(txApp core.App) error {
 			// 先尝试获取当前值
 			var valueStr sql.NullString
 			err := txApp.DB().NewQuery(`
@@ -345,7 +339,7 @@ func (l2 *kvL2Postgres) IncrBy(key string, delta int64) (int64, error) {
 // ==================== Hash 操作 ====================
 
 // HSet 设置 Hash 字段
-func (l2 *kvL2Postgres) HSet(key, field string, value any) error {
+func (l2 *l2DB) HSet(key, field string, value any) error {
 	valueJSON, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -365,7 +359,7 @@ func (l2 *kvL2Postgres) HSet(key, field string, value any) error {
 		}).Execute()
 	} else {
 		// SQLite: 使用 json_set
-		err = l2.app.RunInTransaction(func(txApp App) error {
+		err = l2.app.RunInTransaction(func(txApp core.App) error {
 			// 先获取当前值
 			var currentJSON sql.NullString
 			txApp.DB().NewQuery(`
@@ -405,7 +399,7 @@ func (l2 *kvL2Postgres) HSet(key, field string, value any) error {
 }
 
 // HGet 获取 Hash 字段
-func (l2 *kvL2Postgres) HGet(key, field string) (any, error) {
+func (l2 *l2DB) HGet(key, field string) (any, error) {
 	var valueJSON string
 	var query string
 
@@ -422,7 +416,7 @@ func (l2 *kvL2Postgres) HGet(key, field string) (any, error) {
 
 		if err != nil {
 			if err == sql.ErrNoRows {
-				return nil, ErrKVNotFound
+				return nil, ErrNotFound
 			}
 			return nil, err
 		}
@@ -437,7 +431,7 @@ func (l2 *kvL2Postgres) HGet(key, field string) (any, error) {
 
 		if err != nil {
 			if err == sql.ErrNoRows {
-				return nil, ErrKVNotFound
+				return nil, ErrNotFound
 			}
 			return nil, err
 		}
@@ -449,13 +443,13 @@ func (l2 *kvL2Postgres) HGet(key, field string) (any, error) {
 
 		v, ok := data[field]
 		if !ok {
-			return nil, ErrKVNotFound
+			return nil, ErrNotFound
 		}
 		return v, nil
 	}
 
 	if valueJSON == "" || valueJSON == "null" {
-		return nil, ErrKVNotFound
+		return nil, ErrNotFound
 	}
 
 	var value any
@@ -467,7 +461,7 @@ func (l2 *kvL2Postgres) HGet(key, field string) (any, error) {
 }
 
 // HGetAll 获取 Hash 所有字段
-func (l2 *kvL2Postgres) HGetAll(key string) (map[string]any, error) {
+func (l2 *l2DB) HGetAll(key string) (map[string]any, error) {
 	var valueJSON string
 	var query string
 
@@ -489,7 +483,7 @@ func (l2 *kvL2Postgres) HGetAll(key string) (map[string]any, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, ErrKVNotFound
+			return nil, ErrNotFound
 		}
 		return nil, err
 	}
@@ -503,7 +497,7 @@ func (l2 *kvL2Postgres) HGetAll(key string) (map[string]any, error) {
 }
 
 // HDel 删除 Hash 字段
-func (l2 *kvL2Postgres) HDel(key string, fields ...string) error {
+func (l2 *l2DB) HDel(key string, fields ...string) error {
 	if len(fields) == 0 {
 		return nil
 	}
@@ -526,7 +520,7 @@ func (l2 *kvL2Postgres) HDel(key string, fields ...string) error {
 	}
 
 	// SQLite: 先获取 JSON，删除字段后写回
-	return l2.app.RunInTransaction(func(txApp App) error {
+	return l2.app.RunInTransaction(func(txApp core.App) error {
 		var valueJSON string
 		err := txApp.DB().NewQuery(`
 			SELECT value FROM _kv WHERE key = {:key}
@@ -560,7 +554,7 @@ func (l2 *kvL2Postgres) HDel(key string, fields ...string) error {
 }
 
 // HIncrBy Hash 字段原子递增
-func (l2 *kvL2Postgres) HIncrBy(key, field string, delta int64) (int64, error) {
+func (l2 *l2DB) HIncrBy(key, field string, delta int64) (int64, error) {
 	var newValue int64
 
 	if l2.app.IsPostgres() {
@@ -583,7 +577,7 @@ func (l2 *kvL2Postgres) HIncrBy(key, field string, delta int64) (int64, error) {
 		}
 	} else {
 		// SQLite: 使用事务
-		err := l2.app.RunInTransaction(func(txApp App) error {
+		err := l2.app.RunInTransaction(func(txApp core.App) error {
 			var valueJSON sql.NullString
 			txApp.DB().NewQuery(`
 				SELECT value FROM _kv WHERE key = {:key}
@@ -637,7 +631,7 @@ func (l2 *kvL2Postgres) HIncrBy(key, field string, delta int64) (int64, error) {
 // ==================== 分布式锁 ====================
 
 // Lock 尝试获取锁
-func (l2 *kvL2Postgres) Lock(key, owner string, ttl time.Duration) (bool, error) {
+func (l2 *l2DB) Lock(key, owner string, ttl time.Duration) (bool, error) {
 	expireAt := time.Now().Add(ttl)
 	ownerJSON, _ := json.Marshal(owner)
 
@@ -687,7 +681,7 @@ func (l2 *kvL2Postgres) Lock(key, owner string, ttl time.Duration) (bool, error)
 }
 
 // Unlock 释放锁
-func (l2 *kvL2Postgres) Unlock(key, owner string) error {
+func (l2 *l2DB) Unlock(key, owner string) error {
 	ownerJSON, _ := json.Marshal(owner)
 
 	result, err := l2.app.DB().NewQuery(`
@@ -705,7 +699,7 @@ func (l2 *kvL2Postgres) Unlock(key, owner string) error {
 	rowsAffected, _ := result.RowsAffected()
 	if rowsAffected == 0 {
 		// 锁不存在或不是持有者
-		return ErrKVNotFound
+		return ErrNotFound
 	}
 
 	return nil
@@ -714,13 +708,13 @@ func (l2 *kvL2Postgres) Unlock(key, owner string) error {
 // ==================== 批量操作 ====================
 
 // MSet 批量设置
-func (l2 *kvL2Postgres) MSet(pairs map[string]any) error {
+func (l2 *l2DB) MSet(pairs map[string]any) error {
 	if len(pairs) == 0 {
 		return nil
 	}
 
 	// 使用事务批量写入
-	return l2.app.RunInTransaction(func(txApp App) error {
+	return l2.app.RunInTransaction(func(txApp core.App) error {
 		for key, value := range pairs {
 			valueJSON, err := json.Marshal(value)
 			if err != nil {
@@ -758,7 +752,7 @@ func (l2 *kvL2Postgres) MSet(pairs map[string]any) error {
 }
 
 // MGet 批量获取
-func (l2 *kvL2Postgres) MGet(keys ...string) (map[string]any, error) {
+func (l2 *l2DB) MGet(keys ...string) (map[string]any, error) {
 	if len(keys) == 0 {
 		return map[string]any{}, nil
 	}
@@ -815,7 +809,7 @@ func (l2 *kvL2Postgres) MGet(keys ...string) (map[string]any, error) {
 // ==================== 其他操作 ====================
 
 // Keys 按模式匹配查询
-func (l2 *kvL2Postgres) Keys(pattern string) ([]string, error) {
+func (l2 *l2DB) Keys(pattern string) ([]string, error) {
 	// 将 * 通配符转换为 SQL LIKE 模式
 	likePattern := strings.ReplaceAll(pattern, "*", "%")
 
@@ -856,7 +850,7 @@ func (l2 *kvL2Postgres) Keys(pattern string) ([]string, error) {
 // ==================== 过期清理 ====================
 
 // CleanupExpired 清理过期数据
-func (l2 *kvL2Postgres) CleanupExpired() error {
+func (l2 *l2DB) CleanupExpired() error {
 	var query string
 	if l2.app.IsPostgres() {
 		query = `DELETE FROM _kv WHERE expire_at < NOW()`

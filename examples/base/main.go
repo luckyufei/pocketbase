@@ -14,6 +14,7 @@ import (
 	"github.com/pocketbase/pocketbase/plugins/gateway"
 	"github.com/pocketbase/pocketbase/plugins/ghupdate"
 	"github.com/pocketbase/pocketbase/plugins/jsvm"
+	"github.com/pocketbase/pocketbase/plugins/kv"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 	"github.com/pocketbase/pocketbase/plugins/processman"
 	"github.com/pocketbase/pocketbase/plugins/tofauth"
@@ -114,6 +115,16 @@ func main() {
 			filters.SlowRequest(500 * time.Millisecond),   // 采集慢请求 (>500ms)
 			filters.PathExclude("/health", "/metrics"),    // 排除健康检查路径
 		},
+	})
+
+	// KV 插件 - 类 Redis 键值存储
+	// 提供两级缓存：L1 进程内缓存 + L2 数据库持久化
+	// 支持 Set/Get/Delete/Incr/Hash/Lock 等操作
+	// 可通过环境变量配置: PB_KV_L1_ENABLED, PB_KV_HTTP_ENABLED 等
+	kv.MustRegister(app, kv.Config{
+		L1Enabled:   true,               // 启用 L1 内存缓存
+		L1TTL:       5 * time.Second,    // L1 缓存 TTL
+		HTTPEnabled: false,              // 默认不启用 HTTP API（需超级用户权限）
 	})
 
 	// TOF 认证插件

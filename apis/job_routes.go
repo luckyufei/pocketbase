@@ -1,6 +1,8 @@
 package apis
 
 import (
+	"encoding/json"
+	"io"
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -240,4 +242,15 @@ func parseIntParam(s string, v *int) (bool, error) {
 	}
 	*v = n
 	return true, nil
+}
+
+// readJSON 从请求体读取 JSON 数据
+func readJSON(e *core.RequestEvent, v any) error {
+	body, err := io.ReadAll(e.Request.Body)
+	if err != nil {
+		return err
+	}
+	defer e.Request.Body.Close()
+
+	return json.Unmarshal(body, v)
 }

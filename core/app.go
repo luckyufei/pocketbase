@@ -85,10 +85,6 @@ type App interface {
 	// SubscriptionsBroker returns the app realtime subscriptions broker instance.
 	SubscriptionsBroker() *subscriptions.Broker
 
-	// KV returns the app KVStore instance for key-value storage operations.
-	// Provides Redis-like API with L1 in-process cache and L2 PostgreSQL storage.
-	KV() KVStore
-
 	// Jobs returns the app JobStore instance for job queue operations.
 	// Provides native job queue with support for delayed jobs, retries, and crash recovery.
 	Jobs() JobStore

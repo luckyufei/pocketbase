@@ -1,4 +1,4 @@
-package apis
+package kv
 
 import (
 	"encoding/json"
@@ -9,12 +9,9 @@ import (
 	"github.com/pocketbase/pocketbase/tools/router"
 )
 
-// bindKVApi 注册 KV API 路由
-func bindKVApi(app core.App, rg *router.RouterGroup[*core.RequestEvent]) {
-	kvGroup := rg.Group("/kv")
-
-	// 默认要求超级用户权限
-	kvGroup.Bind(RequireSuperuserAuth())
+// registerRoutes 注册 HTTP API 路由
+func registerRoutes(r *router.Router[*core.RequestEvent], app core.App, config Config) {
+	kvGroup := r.Group("/api/kv")
 
 	// 基础操作
 	kvGroup.POST("/set", kvSetHandler(app))
@@ -52,9 +49,9 @@ func bindKVApi(app core.App, rg *router.RouterGroup[*core.RequestEvent]) {
 // ==================== 请求/响应结构 ====================
 
 type kvSetRequest struct {
-	Key   string        `json:"key"`
-	Value any           `json:"value"`
-	TTL   time.Duration `json:"ttl,omitempty"` // 可选，单位毫秒
+	Key   string `json:"key"`
+	Value any    `json:"value"`
+	TTL   int64  `json:"ttl,omitempty"` // 可选，单位毫秒
 }
 
 type kvGetRequest struct {
@@ -97,8 +94,8 @@ type kvMGetRequest struct {
 }
 
 type kvLockRequest struct {
-	Key string        `json:"key"`
-	TTL time.Duration `json:"ttl"` // 单位毫秒
+	Key string `json:"key"`
+	TTL int64  `json:"ttl"` // 单位毫秒
 }
 
 type kvKeysRequest struct {
@@ -106,8 +103,8 @@ type kvKeysRequest struct {
 }
 
 type kvExpireRequest struct {
-	Key string        `json:"key"`
-	TTL time.Duration `json:"ttl"` // 单位毫秒
+	Key string `json:"key"`
+	TTL int64  `json:"ttl"` // 单位毫秒
 }
 
 // ==================== 处理器实现 ====================
@@ -123,20 +120,23 @@ func kvSetHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key is required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
 
 		var err error
 		if req.TTL > 0 {
-			err = kv.SetEx(req.Key, req.Value, req.TTL*time.Millisecond)
+			err = kv.SetEx(req.Key, req.Value, time.Duration(req.TTL)*time.Millisecond)
 		} else {
 			err = kv.Set(req.Key, req.Value)
 		}
 
 		if err != nil {
-			if err == core.ErrKVKeyTooLong {
+			if err == ErrKeyTooLong {
+				return e.BadRequestError(err.Error(), nil)
+			}
+			if err == ErrValueTooLarge {
 				return e.BadRequestError(err.Error(), nil)
 			}
 			return e.InternalServerError("Failed to set value", err)
@@ -153,14 +153,14 @@ func kvGetHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key is required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
 
 		value, err := kv.Get(key)
 		if err != nil {
-			if err == core.ErrKVNotFound {
+			if err == ErrNotFound {
 				return e.JSON(200, map[string]any{"found": false, "value": nil})
 			}
 			return e.InternalServerError("Failed to get value", err)
@@ -177,7 +177,7 @@ func kvDeleteHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key is required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
@@ -198,7 +198,7 @@ func kvExistsHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key is required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
@@ -219,14 +219,14 @@ func kvTTLHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key is required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
 
 		ttl, err := kv.TTL(key)
 		if err != nil {
-			if err == core.ErrKVNotFound {
+			if err == ErrNotFound {
 				return e.JSON(200, map[string]any{"found": false, "ttl": -2})
 			}
 			return e.InternalServerError("Failed to get TTL", err)
@@ -248,14 +248,14 @@ func kvExpireHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key is required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
 
-		err := kv.Expire(req.Key, req.TTL*time.Millisecond)
+		err := kv.Expire(req.Key, time.Duration(req.TTL)*time.Millisecond)
 		if err != nil {
-			if err == core.ErrKVNotFound {
+			if err == ErrNotFound {
 				return e.JSON(200, map[string]any{"ok": false, "error": "key not found"})
 			}
 			return e.InternalServerError("Failed to set expiration", err)
@@ -276,7 +276,7 @@ func kvIncrHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key is required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
@@ -306,7 +306,7 @@ func kvDecrHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key is required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
@@ -336,7 +336,7 @@ func kvHSetHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key and field are required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
@@ -359,14 +359,14 @@ func kvHGetHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key and field are required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
 
 		value, err := kv.HGet(key, field)
 		if err != nil {
-			if err == core.ErrKVNotFound {
+			if err == ErrNotFound {
 				return e.JSON(200, map[string]any{"found": false, "value": nil})
 			}
 			return e.InternalServerError("Failed to get hash field", err)
@@ -383,14 +383,14 @@ func kvHGetAllHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key is required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
 
 		value, err := kv.HGetAll(key)
 		if err != nil {
-			if err == core.ErrKVNotFound {
+			if err == ErrNotFound {
 				return e.JSON(200, map[string]any{"found": false, "value": nil})
 			}
 			return e.InternalServerError("Failed to get hash", err)
@@ -411,7 +411,7 @@ func kvHDelHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key and fields are required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
@@ -436,7 +436,7 @@ func kvHIncrByHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key and field are required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
@@ -461,7 +461,7 @@ func kvMSetHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Pairs are required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
@@ -486,7 +486,7 @@ func kvMGetHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Keys are required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
@@ -511,12 +511,12 @@ func kvLockHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key is required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
 
-		ttl := req.TTL * time.Millisecond
+		ttl := time.Duration(req.TTL) * time.Millisecond
 		if ttl <= 0 {
 			ttl = 30 * time.Second // 默认 30 秒
 		}
@@ -541,14 +541,14 @@ func kvUnlockHandler(app core.App) func(e *core.RequestEvent) error {
 			return e.BadRequestError("Key is required", nil)
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
 
 		err := kv.Unlock(req.Key)
 		if err != nil {
-			if err == core.ErrKVNotFound {
+			if err == ErrNotFound {
 				return e.JSON(200, map[string]any{"ok": false, "error": "lock not found or not owned"})
 			}
 			return e.InternalServerError("Failed to release lock", err)
@@ -565,7 +565,7 @@ func kvKeysHandler(app core.App) func(e *core.RequestEvent) error {
 			pattern = "*"
 		}
 
-		kv := app.KV()
+		kv := GetStore(app)
 		if kv == nil {
 			return e.InternalServerError("KV store not available", nil)
 		}
