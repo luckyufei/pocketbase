@@ -5,10 +5,10 @@
  */
 
 import React from "react";
-import { Box, Text } from "ink";
-import { useAtomValue } from "jotai";
+import { Box, Text, useInput } from "ink";
+import { useAtomValue, useAtom } from "jotai";
 import { currentViewAtom, messagesAtom, type ViewType } from "../store/appAtoms.js";
-import { collectionsAtom, isCollectionsLoadingAtom } from "../features/collections/store/collectionsAtoms.js";
+import { collectionsAtom, isCollectionsLoadingAtom, collectionsSelectedIndexAtom } from "../features/collections/store/collectionsAtoms.js";
 import { recordsAtom, isRecordsLoadingAtom } from "../features/records/store/recordsAtoms.js";
 import { logsAtom, isLogsLoadingAtom, logsLevelFilterAtom } from "../features/logs/store/logsAtoms.js";
 import { monitoringAtom, isMonitoringLoadingAtom } from "../features/monitoring/store/monitoringAtoms.js";
@@ -91,6 +91,7 @@ export function ViewRenderer(): React.ReactElement {
   // Collections
   const collections = useAtomValue(collectionsAtom);
   const isCollectionsLoading = useAtomValue(isCollectionsLoadingAtom);
+  const [collectionsSelectedIndex, setCollectionsSelectedIndex] = useAtom(collectionsSelectedIndexAtom);
   
   // Records
   const records = useAtomValue(recordsAtom);
@@ -106,6 +107,17 @@ export function ViewRenderer(): React.ReactElement {
   // Monitoring
   const metrics = useAtomValue(monitoringAtom);
   const isMonitoringLoading = useAtomValue(isMonitoringLoadingAtom);
+
+  // Handle keyboard navigation for collections view
+  useInput((input, key) => {
+    if (currentView === "collections" && !isCollectionsLoading && collections.length > 0) {
+      if (key.upArrow) {
+        setCollectionsSelectedIndex(Math.max(0, collectionsSelectedIndex - 1));
+      } else if (key.downArrow) {
+        setCollectionsSelectedIndex(Math.min(collections.length - 1, collectionsSelectedIndex + 1));
+      }
+    }
+  });
 
   // Show messages
   const latestMessages = messages.slice(-3);
@@ -140,7 +152,7 @@ export function ViewRenderer(): React.ReactElement {
         ) : (
           <CollectionsList 
             collections={collections} 
-            selectedIndex={0} 
+            selectedIndex={collectionsSelectedIndex} 
           />
         )
       )}

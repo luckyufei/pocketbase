@@ -44,7 +44,7 @@ benchmarks/benchmark-config.json
 /site/references/.vitepress/dist
 /jssdk/dist
 **/pb_data/
-/examples/test/
+/examples/test_*/
 **/__pycache__
 **/.coverage
 

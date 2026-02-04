@@ -41,17 +41,34 @@ export interface CollectionSchema {
 }
 
 /**
- * Fetch all collections
+ * Fetch all collections with record counts
  */
 export async function fetchCollections(pb: PocketBase): Promise<CollectionInfo[]> {
   const collections = await pb.collections.getFullList();
   
-  return collections.map(col => ({
-    id: col.id,
-    name: col.name,
-    type: col.type as CollectionType,
-    recordsCount: 0, // Will be populated separately if needed
-  }));
+  // Fetch record counts for each collection in parallel
+  const collectionsWithCounts = await Promise.all(
+    collections.map(async (col) => {
+      let recordsCount = 0;
+      try {
+        // Use getList with perPage=1 to get totalItems without fetching all records
+        const result = await pb.collection(col.name).getList(1, 1);
+        recordsCount = result.totalItems;
+      } catch {
+        // If we can't fetch records (e.g., permission denied), keep count as 0
+        recordsCount = 0;
+      }
+      
+      return {
+        id: col.id,
+        name: col.name,
+        type: col.type as CollectionType,
+        recordsCount,
+      };
+    })
+  );
+  
+  return collectionsWithCounts;
 }
 
 /**

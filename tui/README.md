@@ -38,11 +38,88 @@ pbtui --url http://localhost:8090
 # Use admin token
 pbtui --token "your_admin_token"
 
+# Login with email and password
+pbtui --email admin@example.com --password your_password
+
 # Using environment variables
 export POCKETBASE_URL=http://localhost:8090
 export POCKETBASE_TOKEN=your_token
+# Or use email/password
+export POCKETBASE_EMAIL=admin@example.com
+export POCKETBASE_PASSWORD=your_password
 pbtui
 ```
+
+## AI / Non-Interactive Mode
+
+The TUI supports non-interactive mode for AI agents and scripting. This enables programmatic access to PocketBase through structured commands and JSON output.
+
+### Usage
+
+```bash
+# Execute a command directly and exit
+pbtui --exec "/cols"
+
+# Output results in JSON format (recommended for AI/scripts)
+pbtui --exec "/cols" --json
+
+# Query records with filters
+pbtui --exec "/view @users filter=\"verified=true\"" --json
+
+# Get collection schema (for context understanding)
+pbtui --exec "/schema @posts" --json
+
+# Get single record
+pbtui --exec "/get @users:abc123" --json
+
+# System health check
+pbtui --exec "/health" --json
+```
+
+### JSON Output Structure
+
+All commands return a consistent structure:
+
+```json
+// Success response
+{
+  "success": true,
+  "command": "/cols",
+  "data": {
+    // Command-specific data
+  }
+}
+
+// Error response
+{
+  "success": false,
+  "command": "/cols",
+  "error": "Error message",
+  "code": "ERROR_CODE"
+}
+```
+
+### MCP Tool Definition
+
+The non-interactive mode is designed to work as MCP (Model Context Protocol) tools:
+
+| Tool | Description | Input |
+|------|-------------|-------|
+| `list_collections` | List all collections | - |
+| `view_records` | View records with filters | `collection`, `filter?`, `sort?`, `page?`, `perPage?` |
+| `get_record` | Get single record by ID | `collection`, `id` |
+| `get_schema` | Get collection schema | `collection` |
+| `view_logs` | View system logs | `level?`, `page?`, `perPage?` |
+| `get_metrics` | Get system metrics | - |
+| `health_check` | Check server health | - |
+| `create_record` | Create a new record | `collection`, `data` |
+| `update_record` | Update a record | `collection`, `id`, `data` |
+| `delete_record` | Delete a record | `collection`, `id` |
+
+### Exit Codes
+
+- `0`: Command executed successfully
+- `1`: Command failed (check error message)
 
 ## Commands Reference
 
@@ -150,6 +227,10 @@ tui/
 │   ├── components/          # Shared components
 │   ├── hooks/               # Custom hooks
 │   ├── lib/                 # Utilities
+│   │   ├── commands.ts      # Command definitions
+│   │   ├── parser.ts        # Command parser
+│   │   ├── executor.ts      # Non-interactive command executor (AI mode)
+│   │   └── utils.ts         # Helper functions
 │   └── store/               # Global state (Jotai)
 └── tests/                   # Test files
 ```

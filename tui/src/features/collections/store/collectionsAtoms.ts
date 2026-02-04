@@ -32,6 +32,11 @@ export const collectionsAtom = atom<CollectionInfo[]>([]);
 export const activeCollectionAtom = atom<CollectionInfo | null>(null);
 
 /**
+ * Selected index for keyboard navigation
+ */
+export const collectionsSelectedIndexAtom = atom<number>(0);
+
+/**
  * Loading state for collections
  */
 export const isCollectionsLoadingAtom = atom<boolean>(false);
@@ -72,6 +77,16 @@ export const setLoadingAtom = atom(
 );
 
 /**
+ * Write-only atom to set selected index
+ */
+export const setCollectionsSelectedIndexAtom = atom(
+  null,
+  (_get, set, index: number) => {
+    set(collectionsSelectedIndexAtom, index);
+  }
+);
+
+/**
  * Write-only atom to set error
  */
 export const setErrorAtom = atom(
@@ -91,5 +106,6 @@ export const clearCollectionsAtom = atom(
     set(activeCollectionAtom, null);
     set(isCollectionsLoadingAtom, false);
     set(collectionsErrorAtom, null);
+    set(collectionsSelectedIndexAtom, 0);
   }
 );

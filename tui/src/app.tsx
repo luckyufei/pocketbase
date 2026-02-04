@@ -34,12 +34,14 @@ import {
 export interface AppProps {
   url: string;
   token?: string;
+  email?: string;
+  password?: string;
 }
 
 /**
  * Inner App component (uses Jotai hooks)
  */
-function AppInner({ url, token }: AppProps): React.ReactElement {
+function AppInner({ url, token, email, password }: AppProps): React.ReactElement {
   const { exit } = useApp();
   const [pb, setPb] = useState<PocketBase | null>(null);
   const [appState, setAppState] = useAtom(appStateAtom);
@@ -54,27 +56,52 @@ function AppInner({ url, token }: AppProps): React.ReactElement {
 
   // Initialize PocketBase client
   useEffect(() => {
-    const client = new PocketBase(url);
-    if (token) {
-      client.authStore.save(token, null);
-    }
-    setPb(client);
-    setConnectionUrl(url);
-    setConnectionToken(token || null);
-    
-    // Check connection
-    setConnectionState("connecting");
-    client.health.check()
-      .then(() => {
+    const initClient = async () => {
+      const client = new PocketBase(url);
+      
+      // Check connection first
+      setConnectionState("connecting");
+      
+      try {
+        await client.health.check();
+        
+        // Authenticate based on provided credentials
+        if (email && password) {
+          // Login with email and password
+          try {
+            await client.collection("_superusers").authWithPassword(email, password);
+            setConnectionToken(client.authStore.token);
+          } catch (authErr: unknown) {
+            const err = authErr as Error;
+            setConnectionState("error");
+            setAppState("error");
+            addMessage({ type: "error", text: `Authentication failed: ${err.message}` });
+            setPb(client);
+            setConnectionUrl(url);
+            return;
+          }
+        } else if (token) {
+          // Use provided token
+          client.authStore.save(token, null);
+          setConnectionToken(token);
+        }
+        
+        setPb(client);
+        setConnectionUrl(url);
         setConnectionState("connected");
         setAppState("connected");
-      })
-      .catch((err) => {
+      } catch (err: unknown) {
+        const error = err as Error;
         setConnectionState("error");
         setAppState("error");
-        addMessage({ type: "error", text: `Connection failed: ${err.message}` });
-      });
-  }, [url, token]);
+        addMessage({ type: "error", text: `Connection failed: ${error.message}` });
+        setPb(client);
+        setConnectionUrl(url);
+      }
+    };
+    
+    initClient();
+  }, [url, token, email, password]);
 
   // Handle command execution
   const handleExecute = useCallback(async (input: string) => {
@@ -124,10 +151,10 @@ function AppInner({ url, token }: AppProps): React.ReactElement {
         <Box>
           <Text color="gray">Server: </Text>
           <Text color="cyan">{url}</Text>
-          {token && (
+          {(token || email) && (
             <>
-              <Text color="gray"> | Token: </Text>
-              <Text color="yellow">****</Text>
+              <Text color="gray"> | Auth: </Text>
+              <Text color="yellow">{email ? email : "****"}</Text>
             </>
           )}
           <Text color="gray"> | </Text>
