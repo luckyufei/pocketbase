@@ -1,19 +1,17 @@
-package core
+package metrics
 
 import (
+	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
 // 编译时检查：确保 SystemMetrics 实现 Model 接口
-var _ Model = (*SystemMetrics)(nil)
-
-// SystemMetricsTableName 系统监控指标表名
-const SystemMetricsTableName = "_metrics"
+var _ core.Model = (*SystemMetrics)(nil)
 
 // SystemMetrics 系统监控指标数据模型
 // 存储在 auxiliary.db 数据库中（与 _logs 表同库）
 type SystemMetrics struct {
-	BaseModel
+	core.BaseModel
 
 	Timestamp       types.DateTime `db:"timestamp" json:"timestamp"`
 	CpuUsagePercent float64        `db:"cpu_usage_percent" json:"cpu_usage_percent"`

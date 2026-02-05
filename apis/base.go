@@ -46,7 +46,6 @@ func NewRouter(app core.App) (*router.Router[*core.RequestEvent], error) {
 	bindBatchApi(app, apiGroup)
 	bindRealtimeApi(app, apiGroup)
 	bindHealthApi(app, apiGroup)
-	bindMetricsApi(app, apiGroup)
 	bindJobsApi(app, apiGroup)
 	bindDatabaseStatsRoutes(apiGroup)
 	bindSecretsApi(app, pbRouter)

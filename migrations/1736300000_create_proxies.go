@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/plugins/gateway"
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
@@ -9,7 +10,7 @@ func init() {
 	core.SystemMigrations.Register(func(txApp core.App) error {
 		return createProxiesCollection(txApp)
 	}, func(txApp core.App) error {
-		col, err := txApp.FindCollectionByNameOrId(core.CollectionNameProxies)
+		col, err := txApp.FindCollectionByNameOrId(gateway.CollectionNameProxies)
 		if err != nil {
 			return nil // collection 不存在，无需回滚
 		}
@@ -20,7 +21,7 @@ func init() {
 // createProxiesCollection 创建 _proxies 系统 Collection
 // 用于存储 API 代理配置，实现动态网关功能
 func createProxiesCollection(txApp core.App) error {
-	col := core.NewBaseCollection(core.CollectionNameProxies)
+	col := core.NewBaseCollection(gateway.CollectionNameProxies)
 	col.System = true
 
 	// 访问规则：仅 Superuser 可管理代理配置
@@ -33,16 +34,16 @@ func createProxiesCollection(txApp core.App) error {
 
 	// path - 拦截路径 (唯一, 必填)
 	col.Fields.Add(&core.TextField{
-		Name:     core.ProxyFieldPath,
+		Name:     gateway.ProxyFieldPath,
 		System:   true,
 		Required: true,
-		Min:      2,  // 至少 "/x"
+		Min:      2, // 至少 "/x"
 		Max:      500,
 	})
 
 	// upstream - 目标服务地址 (必填)
 	col.Fields.Add(&core.URLField{
-		Name:          core.ProxyFieldUpstream,
+		Name:          gateway.ProxyFieldUpstream,
 		System:        true,
 		Required:      true,
 		OnlyDomains:   []string{}, // 允许任意域名
@@ -51,27 +52,27 @@ func createProxiesCollection(txApp core.App) error {
 
 	// stripPath - 转发时是否移除匹配的前缀 (默认 true)
 	col.Fields.Add(&core.BoolField{
-		Name:   core.ProxyFieldStripPath,
+		Name:   gateway.ProxyFieldStripPath,
 		System: true,
 	})
 
 	// accessRule - 访问控制规则 (空表示仅 Superuser)
 	col.Fields.Add(&core.TextField{
-		Name:   core.ProxyFieldAccessRule,
+		Name:   gateway.ProxyFieldAccessRule,
 		System: true,
 		Max:    2000,
 	})
 
 	// headers - 注入的请求头配置 (JSON)
 	col.Fields.Add(&core.JSONField{
-		Name:     core.ProxyFieldHeaders,
-		System:   true,
-		MaxSize:  10000, // 10KB
+		Name:    gateway.ProxyFieldHeaders,
+		System:  true,
+		MaxSize: 10000, // 10KB
 	})
 
 	// timeout - 超时时间 (秒, 默认 30)
 	col.Fields.Add(&core.NumberField{
-		Name:   core.ProxyFieldTimeout,
+		Name:   gateway.ProxyFieldTimeout,
 		System: true,
 		Min:    types.Pointer(1.0),
 		Max:    types.Pointer(300.0), // 最大 5 分钟
@@ -79,7 +80,7 @@ func createProxiesCollection(txApp core.App) error {
 
 	// active - 是否启用 (默认 true)
 	col.Fields.Add(&core.BoolField{
-		Name:   core.ProxyFieldActive,
+		Name:   gateway.ProxyFieldActive,
 		System: true,
 	})
 

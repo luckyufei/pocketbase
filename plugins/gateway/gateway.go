@@ -154,11 +154,11 @@ func (p *gatewayPlugin) loadProxies() error {
 
 		// T031: 加载 Gateway Hardening 扩展字段
 		// maxConcurrent
-		config.MaxConcurrent = record.GetInt(core.ProxyFieldMaxConcurrent)
+		config.MaxConcurrent = record.GetInt(ProxyFieldMaxConcurrent)
 
 		// circuitBreaker JSON
 		var cbConfig CircuitBreakerConfig
-		if err := record.UnmarshalJSONField(core.ProxyFieldCircuitBreaker, &cbConfig); err == nil {
+		if err := record.UnmarshalJSONField(ProxyFieldCircuitBreaker, &cbConfig); err == nil {
 			if cbConfig.Enabled {
 				config.CircuitBreaker = &cbConfig
 			}
@@ -166,7 +166,7 @@ func (p *gatewayPlugin) loadProxies() error {
 
 		// timeoutConfig JSON
 		var tcConfig TimeoutConfig
-		if err := record.UnmarshalJSONField(core.ProxyFieldTimeoutConfig, &tcConfig); err == nil {
+		if err := record.UnmarshalJSONField(ProxyFieldTimeoutConfig, &tcConfig); err == nil {
 			config.TimeoutConfig = &tcConfig
 		}
 

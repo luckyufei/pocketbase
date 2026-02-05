@@ -16,6 +16,7 @@ import (
 	"github.com/pocketbase/pocketbase/plugins/ghupdate"
 	"github.com/pocketbase/pocketbase/plugins/jsvm"
 	"github.com/pocketbase/pocketbase/plugins/kv"
+	"github.com/pocketbase/pocketbase/plugins/metrics"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 	"github.com/pocketbase/pocketbase/plugins/processman"
 	"github.com/pocketbase/pocketbase/plugins/tofauth"
@@ -135,6 +136,15 @@ func main() {
 		Mode:      analytics.ModeConditional, // 条件采集模式
 		Enabled:   true,                      // 启用分析功能
 		Retention: 90,                        // 数据保留 90 天
+	})
+
+	// Metrics 插件 - 系统监控
+	// 采集 CPU、内存、Goroutine、数据库连接、HTTP 延迟等系统指标
+	// 可通过环境变量配置: PB_METRICS_INTERVAL, PB_METRICS_RETENTION_DAYS 等
+	metrics.MustRegister(app, metrics.Config{
+		CollectionInterval: 60 * time.Second, // 每 60 秒采集一次
+		RetentionDays:      7,                // 保留 7 天数据
+		EnableMiddleware:   true,             // 自动注册请求追踪中间件
 	})
 
 	// TOF 认证插件

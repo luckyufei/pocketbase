@@ -2,6 +2,7 @@ package migrations
 
 import (
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/plugins/gateway"
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
@@ -21,7 +22,7 @@ func init() {
 // - circuitBreaker: 熔断器配置 JSON (FR-012)
 // - timeoutConfig: 精细超时配置 JSON
 func addGatewayHardeningFields(txApp core.App) error {
-	col, err := txApp.FindCollectionByNameOrId(core.CollectionNameProxies)
+	col, err := txApp.FindCollectionByNameOrId(gateway.CollectionNameProxies)
 	if err != nil {
 		// Collection 不存在，可能是首次启动前的状态
 		return nil
@@ -30,9 +31,9 @@ func addGatewayHardeningFields(txApp core.App) error {
 	// maxConcurrent - 最大并发数
 	// 0 或 null 表示不限制
 	// FR-008
-	if col.Fields.GetByName(core.ProxyFieldMaxConcurrent) == nil {
+	if col.Fields.GetByName(gateway.ProxyFieldMaxConcurrent) == nil {
 		col.Fields.Add(&core.NumberField{
-			Name:    core.ProxyFieldMaxConcurrent,
+			Name:    gateway.ProxyFieldMaxConcurrent,
 			System:  true,
 			Min:     types.Pointer(0.0),
 			Max:     types.Pointer(10000.0), // 最大 10000 并发
@@ -44,9 +45,9 @@ func addGatewayHardeningFields(txApp core.App) error {
 	// JSON 格式: {"enabled": true, "failure_threshold": 5, "recovery_timeout": 30}
 	// null 表示不启用熔断
 	// FR-012
-	if col.Fields.GetByName(core.ProxyFieldCircuitBreaker) == nil {
+	if col.Fields.GetByName(gateway.ProxyFieldCircuitBreaker) == nil {
 		col.Fields.Add(&core.JSONField{
-			Name:    core.ProxyFieldCircuitBreaker,
+			Name:    gateway.ProxyFieldCircuitBreaker,
 			System:  true,
 			MaxSize: 1000, // 1KB 足够
 		})
@@ -55,9 +56,9 @@ func addGatewayHardeningFields(txApp core.App) error {
 	// timeoutConfig - 精细超时配置
 	// JSON 格式: {"dial": 2, "response_header": 30, "idle": 90}
 	// null 表示使用默认值
-	if col.Fields.GetByName(core.ProxyFieldTimeoutConfig) == nil {
+	if col.Fields.GetByName(gateway.ProxyFieldTimeoutConfig) == nil {
 		col.Fields.Add(&core.JSONField{
-			Name:    core.ProxyFieldTimeoutConfig,
+			Name:    gateway.ProxyFieldTimeoutConfig,
 			System:  true,
 			MaxSize: 1000, // 1KB 足够
 		})
@@ -68,15 +69,15 @@ func addGatewayHardeningFields(txApp core.App) error {
 
 // removeGatewayHardeningFields 回滚：移除 Gateway Hardening 扩展字段
 func removeGatewayHardeningFields(txApp core.App) error {
-	col, err := txApp.FindCollectionByNameOrId(core.CollectionNameProxies)
+	col, err := txApp.FindCollectionByNameOrId(gateway.CollectionNameProxies)
 	if err != nil {
 		return nil // Collection 不存在，无需回滚
 	}
 
 	// 移除字段
-	col.Fields.RemoveByName(core.ProxyFieldMaxConcurrent)
-	col.Fields.RemoveByName(core.ProxyFieldCircuitBreaker)
-	col.Fields.RemoveByName(core.ProxyFieldTimeoutConfig)
+	col.Fields.RemoveByName(gateway.ProxyFieldMaxConcurrent)
+	col.Fields.RemoveByName(gateway.ProxyFieldCircuitBreaker)
+	col.Fields.RemoveByName(gateway.ProxyFieldTimeoutConfig)
 
 	return txApp.Save(col)
 }

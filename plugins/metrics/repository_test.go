@@ -1,10 +1,10 @@
-package core_test
+package metrics_test
 
 import (
 	"testing"
 	"time"
 
-	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/plugins/metrics"
 	"github.com/pocketbase/pocketbase/tests"
 	"github.com/pocketbase/pocketbase/tools/types"
 )
@@ -15,22 +15,22 @@ import (
 
 func TestMetricsRepositoryInsert(t *testing.T) {
 	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
-		repo := core.NewMetricsRepository(app)
+		repo := metrics.NewMetricsRepository(app)
 
-		metrics := &core.SystemMetrics{
+		m := &metrics.SystemMetrics{
 			Timestamp:       types.NowDateTime(),
 			CpuUsagePercent: 25.5,
 			MemoryAllocMB:   128.75,
 			GoroutinesCount: 50,
 		}
 
-		err := repo.Insert(metrics)
+		err := repo.Insert(m)
 		if err != nil {
 			t.Fatalf("Failed to insert: %v", err)
 		}
 
 		// 验证 Id 已生成
-		if metrics.Id == "" {
+		if m.Id == "" {
 			t.Fatal("Expected Id to be generated")
 		}
 
@@ -44,22 +44,22 @@ func TestMetricsRepositoryInsert(t *testing.T) {
 			t.Fatal("Expected non-nil latest")
 		}
 
-		if latest.Id != metrics.Id {
-			t.Fatalf("Expected Id %s, got %s", metrics.Id, latest.Id)
+		if latest.Id != m.Id {
+			t.Fatalf("Expected Id %s, got %s", m.Id, latest.Id)
 		}
 	})
 }
 
 func TestMetricsRepositoryInsertBatch(t *testing.T) {
 	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
-		repo := core.NewMetricsRepository(app)
+		repo := metrics.NewMetricsRepository(app)
 
 		// 创建批量记录
-		records := make([]*core.SystemMetrics, 10)
+		records := make([]*metrics.SystemMetrics, 10)
 		now := time.Now().UTC()
 		for i := 0; i < 10; i++ {
 			dt, _ := types.ParseDateTime(now.Add(time.Duration(i) * time.Minute))
-			records[i] = &core.SystemMetrics{
+			records[i] = &metrics.SystemMetrics{
 				Timestamp:       dt,
 				CpuUsagePercent: float64(i * 10),
 				MemoryAllocMB:   float64(100 + i*10),
@@ -100,7 +100,7 @@ func TestMetricsRepositoryInsertBatch(t *testing.T) {
 
 func TestMetricsRepositoryGetLatest(t *testing.T) {
 	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
-		repo := core.NewMetricsRepository(app)
+		repo := metrics.NewMetricsRepository(app)
 
 		// 空数据库应返回 nil
 		latest, err := repo.GetLatest()
@@ -115,7 +115,7 @@ func TestMetricsRepositoryGetLatest(t *testing.T) {
 		now := time.Now().UTC()
 		for i := 0; i < 3; i++ {
 			dt, _ := types.ParseDateTime(now.Add(time.Duration(i) * time.Minute))
-			m := &core.SystemMetrics{
+			m := &metrics.SystemMetrics{
 				Timestamp:       dt,
 				CpuUsagePercent: float64(i * 10),
 			}
@@ -142,14 +142,14 @@ func TestMetricsRepositoryGetLatest(t *testing.T) {
 
 func TestMetricsRepositoryGetByTimeRange(t *testing.T) {
 	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
-		repo := core.NewMetricsRepository(app)
+		repo := metrics.NewMetricsRepository(app)
 
 		now := time.Now().UTC()
 
 		// 插入 5 条记录
 		for i := 0; i < 5; i++ {
 			dt, _ := types.ParseDateTime(now.Add(-time.Duration(i) * time.Minute))
-			m := &core.SystemMetrics{
+			m := &metrics.SystemMetrics{
 				Timestamp:       dt,
 				CpuUsagePercent: float64(i),
 			}
@@ -176,13 +176,13 @@ func TestMetricsRepositoryGetByTimeRange(t *testing.T) {
 
 func TestMetricsRepositoryGetByTimeRangeWithLimit(t *testing.T) {
 	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
-		repo := core.NewMetricsRepository(app)
+		repo := metrics.NewMetricsRepository(app)
 
 		// 插入 10 条记录
 		now := time.Now().UTC()
 		for i := 0; i < 10; i++ {
 			dt, _ := types.ParseDateTime(now.Add(time.Duration(i) * time.Second))
-			m := &core.SystemMetrics{Timestamp: dt}
+			m := &metrics.SystemMetrics{Timestamp: dt}
 			if err := repo.Insert(m); err != nil {
 				t.Fatalf("Failed to insert: %v", err)
 			}
@@ -211,26 +211,26 @@ func TestMetricsRepositoryGetByTimeRangeWithLimit(t *testing.T) {
 
 func TestMetricsRepositoryCleanup(t *testing.T) {
 	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
-		repo := core.NewMetricsRepository(app)
+		repo := metrics.NewMetricsRepository(app)
 
 		now := time.Now().UTC()
 
 		// 插入旧记录（8 天前）
 		oldDt, _ := types.ParseDateTime(now.AddDate(0, 0, -8))
-		oldMetrics := &core.SystemMetrics{Timestamp: oldDt}
+		oldMetrics := &metrics.SystemMetrics{Timestamp: oldDt}
 		if err := repo.Insert(oldMetrics); err != nil {
 			t.Fatalf("Failed to insert old: %v", err)
 		}
 
 		// 插入新记录
 		newDt, _ := types.ParseDateTime(now)
-		newMetrics := &core.SystemMetrics{Timestamp: newDt}
+		newMetrics := &metrics.SystemMetrics{Timestamp: newDt}
 		if err := repo.Insert(newMetrics); err != nil {
 			t.Fatalf("Failed to insert new: %v", err)
 		}
 
-		// 清理
-		deleted, err := repo.CleanupOldMetrics()
+		// 清理（默认 7 天）
+		deleted, err := repo.CleanupOldMetrics(7)
 		if err != nil {
 			t.Fatalf("Failed to cleanup: %v", err)
 		}
@@ -261,13 +261,13 @@ func TestMetricsRepositoryCleanup(t *testing.T) {
 
 func TestMetricsRepositoryConcurrentInsert(t *testing.T) {
 	tests.DualDBTest(t, func(t *testing.T, app *tests.TestApp, dbType tests.DBType) {
-		repo := core.NewMetricsRepository(app)
+		repo := metrics.NewMetricsRepository(app)
 
 		// 并发插入 50 条
 		done := make(chan error, 50)
 		for i := 0; i < 50; i++ {
 			go func(idx int) {
-				m := &core.SystemMetrics{
+				m := &metrics.SystemMetrics{
 					Timestamp:       types.NowDateTime(),
 					CpuUsagePercent: float64(idx),
 				}

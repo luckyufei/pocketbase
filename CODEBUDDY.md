@@ -222,6 +222,8 @@ Optional extensions:
 
 - **`trace/`**: 可观测性追踪插件，提供分布式追踪功能。支持三种运行模式（Off/Conditional/Full）、条件采集过滤器、用户染色追踪等功能。详见下方 [Trace Plugin](#trace-plugin-pluginstrace) 章节。
 
+- **`metrics/`**: 系统监控插件，采集 CPU、内存、Goroutine、数据库连接、HTTP 延迟（P95）、5xx 错误等系统指标。数据存储在 `auxiliary.db` 的 `_metrics` 表中。支持环境变量配置（`PB_METRICS_INTERVAL`、`PB_METRICS_RETENTION_DAYS` 等）。详见 `plugins/metrics/README.md`。
+
 ### Entry Point (`pocketbase.go`)
 
 The `PocketBase` struct wraps `core.App` and adds CLI support via Cobra. `New()` creates an instance, `Start()` registers default commands (serve, superuser) and executes. The app auto-detects `go run` vs compiled binary for dev mode defaults.
@@ -407,6 +409,7 @@ func main() {
 | **trace** | `github.com/pocketbase/pocketbase/plugins/trace` | 可观测性追踪功能 | 分布式追踪、条件采集、用户染色 |
 | **kv** | `github.com/pocketbase/pocketbase/plugins/kv` | 类 Redis 键值存储 | KV 存储（L1 缓存 + L2 数据库） |
 | **analytics** | `github.com/pocketbase/pocketbase/plugins/analytics` | 原生用户行为分析 | 事件采集、聚合、Dashboard |
+| **metrics** | `github.com/pocketbase/pocketbase/plugins/metrics` | 系统监控 | CPU、内存、延迟、5xx 错误采集 |
 
 ### Why Plugins Are Not Auto-Imported
 
@@ -452,6 +455,7 @@ If you're missing expected functionality:
 - **TOF auth routes 404**: Add `"github.com/pocketbase/pocketbase/plugins/tofauth"` and configure environment variables
 - **Migration commands missing**: Add `"github.com/pocketbase/pocketbase/plugins/migratecmd"`
 - **KV 存储不可用**: Add `"github.com/pocketbase/pocketbase/plugins/kv"` and call `kv.MustRegister(app, kv.DefaultConfig())`
+- **系统监控 API 不可用**: Add `"github.com/pocketbase/pocketbase/plugins/metrics"` and call `metrics.MustRegister(app, metrics.Config{})`
 
 ## 开发规范
 

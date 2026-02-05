@@ -1,10 +1,11 @@
-package core_test
+package metrics_test
 
 import (
 	"encoding/json"
 	"testing"
 
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/plugins/metrics"
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
@@ -17,14 +18,14 @@ func TestSystemMetricsImplementsModel(t *testing.T) {
 	t.Parallel()
 
 	// 编译时检查：如果 SystemMetrics 没有实现 Model 接口，这行会编译失败
-	var _ core.Model = (*core.SystemMetrics)(nil)
+	var _ core.Model = (*metrics.SystemMetrics)(nil)
 }
 
 // TestSystemMetricsTableName 验证表名为 _metrics
 func TestSystemMetricsTableName(t *testing.T) {
 	t.Parallel()
 
-	m := &core.SystemMetrics{}
+	m := &metrics.SystemMetrics{}
 	expected := "_metrics"
 	if tableName := m.TableName(); tableName != expected {
 		t.Fatalf("Expected table name '%s', got '%s'", expected, tableName)
@@ -35,7 +36,7 @@ func TestSystemMetricsTableName(t *testing.T) {
 func TestSystemMetricsPrimaryKey(t *testing.T) {
 	t.Parallel()
 
-	m := &core.SystemMetrics{}
+	m := &metrics.SystemMetrics{}
 	m.Id = "test_pk_123"
 
 	pk := m.PK()
@@ -48,7 +49,7 @@ func TestSystemMetricsPrimaryKey(t *testing.T) {
 func TestSystemMetricsIsNew(t *testing.T) {
 	t.Parallel()
 
-	m := &core.SystemMetrics{}
+	m := &metrics.SystemMetrics{}
 	m.Id = "test123"
 
 	// 新创建的模型应该是 IsNew
@@ -73,7 +74,7 @@ func TestSystemMetricsIsNew(t *testing.T) {
 func TestSystemMetricsLastSavedPK(t *testing.T) {
 	t.Parallel()
 
-	m := &core.SystemMetrics{}
+	m := &metrics.SystemMetrics{}
 	m.Id = "test456"
 
 	// 初始状态 LastSavedPK 应为空
@@ -92,7 +93,7 @@ func TestSystemMetricsLastSavedPK(t *testing.T) {
 func TestSystemMetricsPostScan(t *testing.T) {
 	t.Parallel()
 
-	m := &core.SystemMetrics{}
+	m := &metrics.SystemMetrics{}
 	m.Id = "scanned_id"
 
 	// PostScan 前应该是 IsNew
@@ -120,7 +121,7 @@ func TestSystemMetricsJSONSerialization(t *testing.T) {
 
 	now := types.NowDateTime()
 
-	metrics := &core.SystemMetrics{
+	m := &metrics.SystemMetrics{
 		Timestamp:       now,
 		CpuUsagePercent: 25.5,
 		MemoryAllocMB:   128.75,
@@ -130,51 +131,51 @@ func TestSystemMetricsJSONSerialization(t *testing.T) {
 		P95LatencyMs:    10.25,
 		Http5xxCount:    2,
 	}
-	metrics.Id = "test123"
+	m.Id = "test123"
 
 	// Serialize to JSON
-	data, err := json.Marshal(metrics)
+	data, err := json.Marshal(m)
 	if err != nil {
 		t.Fatalf("Failed to marshal: %v", err)
 	}
 
 	// Deserialize from JSON
-	var decoded core.SystemMetrics
+	var decoded metrics.SystemMetrics
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
 
 	// Verify fields
-	if decoded.Id != metrics.Id {
-		t.Errorf("Id mismatch: expected %s, got %s", metrics.Id, decoded.Id)
+	if decoded.Id != m.Id {
+		t.Errorf("Id mismatch: expected %s, got %s", m.Id, decoded.Id)
 	}
-	if decoded.CpuUsagePercent != metrics.CpuUsagePercent {
-		t.Errorf("CpuUsagePercent mismatch: expected %v, got %v", metrics.CpuUsagePercent, decoded.CpuUsagePercent)
+	if decoded.CpuUsagePercent != m.CpuUsagePercent {
+		t.Errorf("CpuUsagePercent mismatch: expected %v, got %v", m.CpuUsagePercent, decoded.CpuUsagePercent)
 	}
-	if decoded.MemoryAllocMB != metrics.MemoryAllocMB {
-		t.Errorf("MemoryAllocMB mismatch: expected %v, got %v", metrics.MemoryAllocMB, decoded.MemoryAllocMB)
+	if decoded.MemoryAllocMB != m.MemoryAllocMB {
+		t.Errorf("MemoryAllocMB mismatch: expected %v, got %v", m.MemoryAllocMB, decoded.MemoryAllocMB)
 	}
-	if decoded.GoroutinesCount != metrics.GoroutinesCount {
-		t.Errorf("GoroutinesCount mismatch: expected %v, got %v", metrics.GoroutinesCount, decoded.GoroutinesCount)
+	if decoded.GoroutinesCount != m.GoroutinesCount {
+		t.Errorf("GoroutinesCount mismatch: expected %v, got %v", m.GoroutinesCount, decoded.GoroutinesCount)
 	}
-	if decoded.SqliteWalSizeMB != metrics.SqliteWalSizeMB {
-		t.Errorf("SqliteWalSizeMB mismatch: expected %v, got %v", metrics.SqliteWalSizeMB, decoded.SqliteWalSizeMB)
+	if decoded.SqliteWalSizeMB != m.SqliteWalSizeMB {
+		t.Errorf("SqliteWalSizeMB mismatch: expected %v, got %v", m.SqliteWalSizeMB, decoded.SqliteWalSizeMB)
 	}
-	if decoded.SqliteOpenConns != metrics.SqliteOpenConns {
-		t.Errorf("SqliteOpenConns mismatch: expected %v, got %v", metrics.SqliteOpenConns, decoded.SqliteOpenConns)
+	if decoded.SqliteOpenConns != m.SqliteOpenConns {
+		t.Errorf("SqliteOpenConns mismatch: expected %v, got %v", m.SqliteOpenConns, decoded.SqliteOpenConns)
 	}
-	if decoded.P95LatencyMs != metrics.P95LatencyMs {
-		t.Errorf("P95LatencyMs mismatch: expected %v, got %v", metrics.P95LatencyMs, decoded.P95LatencyMs)
+	if decoded.P95LatencyMs != m.P95LatencyMs {
+		t.Errorf("P95LatencyMs mismatch: expected %v, got %v", m.P95LatencyMs, decoded.P95LatencyMs)
 	}
-	if decoded.Http5xxCount != metrics.Http5xxCount {
-		t.Errorf("Http5xxCount mismatch: expected %v, got %v", metrics.Http5xxCount, decoded.Http5xxCount)
+	if decoded.Http5xxCount != m.Http5xxCount {
+		t.Errorf("Http5xxCount mismatch: expected %v, got %v", m.Http5xxCount, decoded.Http5xxCount)
 	}
 }
 
 func TestSystemMetricsJSONFieldNames(t *testing.T) {
 	t.Parallel()
 
-	metrics := &core.SystemMetrics{
+	m := &metrics.SystemMetrics{
 		Timestamp:       types.NowDateTime(),
 		CpuUsagePercent: 25.5,
 		MemoryAllocMB:   128.75,
@@ -184,9 +185,9 @@ func TestSystemMetricsJSONFieldNames(t *testing.T) {
 		P95LatencyMs:    10.25,
 		Http5xxCount:    2,
 	}
-	metrics.Id = "test123"
+	m.Id = "test123"
 
-	data, err := json.Marshal(metrics)
+	data, err := json.Marshal(m)
 	if err != nil {
 		t.Fatalf("Failed to marshal: %v", err)
 	}
@@ -220,20 +221,20 @@ func TestSystemMetricsResponseJSONSerialization(t *testing.T) {
 
 	now := types.NowDateTime()
 
-	item1 := &core.SystemMetrics{
+	item1 := &metrics.SystemMetrics{
 		Timestamp:       now,
 		CpuUsagePercent: 10.0,
 	}
 	item1.Id = "item1"
 
-	item2 := &core.SystemMetrics{
+	item2 := &metrics.SystemMetrics{
 		Timestamp:       now,
 		CpuUsagePercent: 20.0,
 	}
 	item2.Id = "item2"
 
-	response := &core.SystemMetricsResponse{
-		Items:      []*core.SystemMetrics{item1, item2},
+	response := &metrics.SystemMetricsResponse{
+		Items:      []*metrics.SystemMetrics{item1, item2},
 		TotalItems: 2,
 	}
 
@@ -242,7 +243,7 @@ func TestSystemMetricsResponseJSONSerialization(t *testing.T) {
 		t.Fatalf("Failed to marshal: %v", err)
 	}
 
-	var decoded core.SystemMetricsResponse
+	var decoded metrics.SystemMetricsResponse
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
@@ -267,8 +268,8 @@ func TestSystemMetricsResponseJSONSerialization(t *testing.T) {
 func TestSystemMetricsResponseEmptyItems(t *testing.T) {
 	t.Parallel()
 
-	response := &core.SystemMetricsResponse{
-		Items:      []*core.SystemMetrics{},
+	response := &metrics.SystemMetricsResponse{
+		Items:      []*metrics.SystemMetrics{},
 		TotalItems: 0,
 	}
 
@@ -277,7 +278,7 @@ func TestSystemMetricsResponseEmptyItems(t *testing.T) {
 		t.Fatalf("Failed to marshal: %v", err)
 	}
 
-	var decoded core.SystemMetricsResponse
+	var decoded metrics.SystemMetricsResponse
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
@@ -298,14 +299,14 @@ func TestSystemMetricsResponseEmptyItems(t *testing.T) {
 func TestSystemMetricsZeroValues(t *testing.T) {
 	t.Parallel()
 
-	metrics := &core.SystemMetrics{}
+	m := &metrics.SystemMetrics{}
 
-	data, err := json.Marshal(metrics)
+	data, err := json.Marshal(m)
 	if err != nil {
 		t.Fatalf("Failed to marshal zero value: %v", err)
 	}
 
-	var decoded core.SystemMetrics
+	var decoded metrics.SystemMetrics
 	if err := json.Unmarshal(data, &decoded); err != nil {
 		t.Fatalf("Failed to unmarshal zero value: %v", err)
 	}

@@ -40,19 +40,24 @@
 
 ---
 
-### User Story 3 - 监控数据独立存储 (Priority: P1)
+### User Story 3 - 监控数据与业务数据隔离 (Priority: P1)
 
-作为系统管理员，我希望监控数据存储在独立的数据库文件中，不影响业务数据库的性能和稳定性。
+作为系统管理员，我希望监控数据与业务数据隔离存储，不影响业务数据库的性能和稳定性。
 
 **Why this priority**: 这是架构设计的核心原则，监控 IO 不能影响业务 IO，是系统高可用的基础保障。
 
-**Independent Test**: 可以通过检查数据目录，验证是否存在独立的 `metrics.db` 文件，且业务数据库 `data.db` 不包含监控表。
+**Independent Test**: 可以通过检查数据库表，验证 `_metrics` 表存储在 `auxiliary.db` 中（SQLite 模式）或共享主数据库（PostgreSQL 模式），且业务数据库 `data.db` 不包含监控表。
+
+**架构决策说明**: 经过评估，监控数据存储在 `auxiliary.db`（与 `_logs` 表共享）而非独立的 `metrics.db` 文件。原因如下：
+- 复用现有的 AuxDB 连接池管理，减少维护成本
+- 监控数据与日志数据具有相似的生命周期和访问模式
+- PostgreSQL 模式下可以统一管理，无需额外的数据库连接
 
 **Acceptance Scenarios**:
 
-1. **Given** 系统启动后, **When** 检查数据目录, **Then** 存在独立的 `metrics.db` 文件用于存储监控数据
+1. **Given** 系统启动后, **When** 检查 `auxiliary.db`, **Then** 存在 `_metrics` 表用于存储监控数据
 2. **Given** 系统正常运行, **When** 监控数据写入频繁, **Then** 业务数据库 `data.db` 的 WAL 文件不受影响
-3. **Given** 监控数据库出现问题, **When** 业务请求到来, **Then** 业务功能正常运行不受影响
+3. **Given** 辅助数据库出现问题, **When** 业务请求到来, **Then** 业务功能正常运行不受影响
 
 ---
 
@@ -82,7 +87,8 @@
 
 ### Functional Requirements
 
-- **FR-001**: 系统 MUST 创建独立的监控数据库文件 `metrics.db`，与业务数据库 `data.db` 物理隔离
+- **FR-001**: 系统 MUST 将监控数据存储在 `auxiliary.db` 的 `_metrics` 表中，与业务数据库 `data.db` 逻辑隔离
+  - *注：原设计为独立 `metrics.db` 文件，经架构评审后决定复用现有 AuxDB 基础设施*
 - **FR-002**: 系统 MUST 每分钟采集一次系统指标，包括 CPU 使用率、内存分配、Goroutine 数量
 - **FR-003**: 系统 MUST 采集 SQLite 相关指标，包括 WAL 文件大小、数据库连接数
 - **FR-004**: 系统 MUST 采集 HTTP 服务指标，包括 P95 延迟、5xx 错误计数
@@ -93,12 +99,13 @@
 - **FR-009**: 前端 MUST 在管理后台新增"监控"菜单入口
 - **FR-010**: 前端 MUST 展示系统指标的实时数值和历史趋势图
 - **FR-011**: 监控数据采集 MUST 使用异步方式，不阻塞业务请求
-- **FR-012**: 监控数据库 MUST 使用 `synchronous=OFF` 配置以最大化写入性能
+- **FR-012**: ~~监控数据库 MUST 使用 `synchronous=OFF` 配置以最大化写入性能~~
+  - *注：经评审后决定使用 `auxiliary.db` 默认的 `synchronous=NORMAL` 配置，牺牲少量写入性能换取更好的数据安全性。对于每分钟一次的采集频率，性能影响可忽略不计。*
 
 ### Key Entities
 
 - **SystemMetrics**: 系统指标记录，包含时间戳、CPU 使用率、内存分配、Goroutine 数量、WAL 大小、连接数、P95 延迟、5xx 错误计数
-- **MetricsDB**: 独立的监控数据库实例，与业务数据库隔离
+- **AuxDB (`auxiliary.db`)**: 辅助数据库，存储监控数据（`_metrics` 表）和日志数据（`_logs` 表），与业务数据库隔离
 
 ## Success Criteria *(mandatory)*
 

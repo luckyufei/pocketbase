@@ -1,96 +1,27 @@
-package core
+package metrics
 
 import (
 	"math"
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
-const (
-	// MetricsCollectionInterval 指标采集间隔
-	MetricsCollectionInterval = 60 * time.Second
-
-	// LatencyBufferSize Ring Buffer 大小，存储最近的请求延迟
-	LatencyBufferSize = 1000
-)
-
-// LatencyBuffer 延迟数据的 Ring Buffer 实现
-type LatencyBuffer struct {
-	data  []float64
-	index int
-	count int
-	mu    sync.Mutex
-}
-
-// NewLatencyBuffer 创建新的延迟 Ring Buffer
-func NewLatencyBuffer(size int) *LatencyBuffer {
-	return &LatencyBuffer{
-		data: make([]float64, size),
-	}
-}
-
-// Add 添加一个延迟样本
-func (b *LatencyBuffer) Add(latencyMs float64) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	b.data[b.index] = latencyMs
-	b.index = (b.index + 1) % len(b.data)
-	if b.count < len(b.data) {
-		b.count++
-	}
-}
-
-// P95 计算 P95 延迟
-// 注意：Ring Buffer 满后数据在数组中的顺序不连续，但排序后取 P95 不受影响
-func (b *LatencyBuffer) P95() float64 {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if b.count == 0 {
-		return 0
-	}
-
-	// 复制数据用于排序（排序后顺序无关紧要）
-	samples := make([]float64, b.count)
-	copy(samples, b.data[:b.count])
-	sort.Float64s(samples)
-
-	// 计算 P95 索引
-	p95Index := int(math.Ceil(float64(len(samples))*0.95)) - 1
-	if p95Index < 0 {
-		p95Index = 0
-	}
-	if p95Index >= len(samples) {
-		p95Index = len(samples) - 1
-	}
-
-	return samples[p95Index]
-}
-
-// Reset 重置 buffer
-func (b *LatencyBuffer) Reset() {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	b.index = 0
-	b.count = 0
-}
-
 // MetricsCollector 系统指标采集器
 type MetricsCollector struct {
-	app           App
+	app           core.App
 	repository    *MetricsRepository
+	config        Config
 	latencyBuffer *LatencyBuffer
+	cpuSampler    *CPUSampler
 	http5xxCount  atomic.Int64
 	stopCh        chan struct{}
 	wg            sync.WaitGroup
@@ -99,11 +30,13 @@ type MetricsCollector struct {
 }
 
 // NewMetricsCollector 创建指标采集器实例
-func NewMetricsCollector(app App) *MetricsCollector {
+func NewMetricsCollector(app core.App, repository *MetricsRepository, config Config) *MetricsCollector {
 	return &MetricsCollector{
 		app:           app,
-		repository:    NewMetricsRepository(app),
-		latencyBuffer: NewLatencyBuffer(LatencyBufferSize),
+		repository:    repository,
+		config:        config,
+		latencyBuffer: NewLatencyBuffer(config.LatencyBufferSize),
+		cpuSampler:    NewCPUSampler(),
 	}
 }
 
@@ -136,6 +69,13 @@ func (c *MetricsCollector) Stop() {
 	c.wg.Wait()
 }
 
+// IsRunning 返回采集器是否正在运行
+func (c *MetricsCollector) IsRunning() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.running
+}
+
 // RecordLatency 记录请求延迟（由 HTTP 中间件调用）
 func (c *MetricsCollector) RecordLatency(latencyMs float64) {
 	c.latencyBuffer.Add(latencyMs)
@@ -148,11 +88,16 @@ func (c *MetricsCollector) RecordError(statusCode int) {
 	}
 }
 
+// GetLatencyBuffer 返回延迟 buffer（用于外部访问）
+func (c *MetricsCollector) GetLatencyBuffer() *LatencyBuffer {
+	return c.latencyBuffer
+}
+
 // collectionLoop 采集主循环
 func (c *MetricsCollector) collectionLoop() {
 	defer c.wg.Done()
 
-	ticker := time.NewTicker(MetricsCollectionInterval)
+	ticker := time.NewTicker(c.config.CollectionInterval)
 	defer ticker.Stop()
 
 	// 立即采集一次
@@ -186,23 +131,29 @@ func (c *MetricsCollector) collectMetrics() *SystemMetrics {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	// GCCPUFraction 是自程序启动以来 GC 使用的 CPU 时间占比 (0-1)
-	gcCPUPercent := math.Round(m.GCCPUFraction*100*100) / 100
 	// 内存分配转换为 MB
 	allocMB := math.Round(float64(m.Alloc)/1024/1024*100) / 100
 
+	// 采集 P95 延迟并根据配置决定是否重置 buffer
+	p95Latency, resetBuffer := c.collectP95Latency()
+
 	metrics := &SystemMetrics{
 		Timestamp:       types.NowDateTime(),
-		CpuUsagePercent: gcCPUPercent,
+		CpuUsagePercent: c.cpuSampler.CPUPercent(), // 使用新的 CPU 采样器
 		MemoryAllocMB:   allocMB,
 		GoroutinesCount: runtime.NumGoroutine(),
 		SqliteWalSizeMB: c.collectWALSize(),
 		SqliteOpenConns: c.collectOpenConns(),
-		P95LatencyMs:    c.collectP95Latency(),
+		P95LatencyMs:    p95Latency,
 		Http5xxCount:    c.collectAndReset5xxCount(),
 	}
 	// 使用 BaseModel 的 Id 字段
 	metrics.Id = security.RandomString(15)
+
+	// 根据配置在采集后重置延迟 buffer
+	if resetBuffer && c.config.ResetLatencyBufferOnCollect {
+		c.latencyBuffer.Reset()
+	}
 
 	return metrics
 }
@@ -247,17 +198,14 @@ func (c *MetricsCollector) collectOpenConns() int {
 }
 
 // collectP95Latency 采集 P95 延迟
-func (c *MetricsCollector) collectP95Latency() float64 {
+// 返回 (P95值, 是否应该重置buffer)
+func (c *MetricsCollector) collectP95Latency() (float64, bool) {
 	p95 := c.latencyBuffer.P95()
-	return math.Round(p95*100) / 100
+	hasData := c.latencyBuffer.Count() > 0
+	return math.Round(p95*100) / 100, hasData
 }
 
 // collectAndReset5xxCount 采集并重置 5xx 错误计数
 func (c *MetricsCollector) collectAndReset5xxCount() int {
 	return int(c.http5xxCount.Swap(0))
-}
-
-// GetLatencyBuffer 返回延迟 buffer（用于中间件注入数据）
-func (c *MetricsCollector) GetLatencyBuffer() *LatencyBuffer {
-	return c.latencyBuffer
 }

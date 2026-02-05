@@ -1,37 +1,33 @@
-package core
+package metrics
 
 import (
 	"database/sql"
 	"time"
 
 	"github.com/pocketbase/dbx"
+	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/security"
-)
-
-const (
-	// MetricsRetentionDays 监控数据保留天数
-	MetricsRetentionDays = 7
 )
 
 // MetricsRepository 监控数据仓库
 // 使用 AuxDB 存储监控数据，与 Logs 共享数据库
 type MetricsRepository struct {
-	app App
+	app core.App
 }
 
 // NewMetricsRepository 创建监控数据仓库实例
-func NewMetricsRepository(app App) *MetricsRepository {
+func NewMetricsRepository(app core.App) *MetricsRepository {
 	return &MetricsRepository{app: app}
 }
 
 // Insert 插入单条监控记录
 // 自动生成 Id
-func (r *MetricsRepository) Insert(metrics *SystemMetrics) error {
-	if metrics.Id == "" {
-		metrics.Id = security.RandomString(15)
+func (r *MetricsRepository) Insert(m *SystemMetrics) error {
+	if m.Id == "" {
+		m.Id = security.RandomString(15)
 	}
 
-	return r.app.AuxSave(metrics)
+	return r.app.AuxSave(m)
 }
 
 // InsertBatch 批量插入监控记录
@@ -48,7 +44,7 @@ func (r *MetricsRepository) InsertBatch(records []*SystemMetrics) error {
 		}
 	}
 
-	return r.app.AuxRunInTransaction(func(txApp App) error {
+	return r.app.AuxRunInTransaction(func(txApp core.App) error {
 		for _, m := range records {
 			if err := txApp.AuxSave(m); err != nil {
 				return err
@@ -60,11 +56,11 @@ func (r *MetricsRepository) InsertBatch(records []*SystemMetrics) error {
 
 // GetLatest 获取最新一条监控记录
 func (r *MetricsRepository) GetLatest() (*SystemMetrics, error) {
-	var metrics SystemMetrics
-	err := r.app.AuxModelQuery(&metrics).
+	var m SystemMetrics
+	err := r.app.AuxModelQuery(&m).
 		OrderBy("timestamp DESC").
 		Limit(1).
-		One(&metrics)
+		One(&m)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -73,7 +69,7 @@ func (r *MetricsRepository) GetLatest() (*SystemMetrics, error) {
 		return nil, err
 	}
 
-	return &metrics, nil
+	return &m, nil
 }
 
 // GetByTimeRange 按时间范围查询监控记录
@@ -82,34 +78,38 @@ func (r *MetricsRepository) GetByTimeRange(hours int, limit int) ([]*SystemMetri
 	since := time.Now().Add(-time.Duration(hours) * time.Hour)
 
 	// 查询 limit+1 条来判断是否有更多数据
-	var metrics []*SystemMetrics
+	var results []*SystemMetrics
 	err := r.app.AuxModelQuery(&SystemMetrics{}).
 		AndWhere(dbx.NewExp("timestamp >= {:since}", dbx.Params{"since": since})).
 		OrderBy("timestamp ASC").
 		Limit(int64(limit + 1)).
-		All(&metrics)
+		All(&results)
 
 	if err != nil {
 		return nil, 0, err
 	}
 
 	// 判断是否有更多数据
-	hasMore := len(metrics) > limit
+	hasMore := len(results) > limit
 	if hasMore {
-		metrics = metrics[:limit]
+		results = results[:limit]
 	}
 
-	totalItems := len(metrics)
+	totalItems := len(results)
 	if hasMore {
 		totalItems = limit + 1
 	}
 
-	return metrics, totalItems, nil
+	return results, totalItems, nil
 }
 
 // CleanupOldMetrics 清理过期的监控数据
-func (r *MetricsRepository) CleanupOldMetrics() (int64, error) {
-	cutoff := time.Now().AddDate(0, 0, -MetricsRetentionDays)
+func (r *MetricsRepository) CleanupOldMetrics(retentionDays int) (int64, error) {
+	if retentionDays <= 0 {
+		retentionDays = DefaultRetentionDays
+	}
+
+	cutoff := time.Now().AddDate(0, 0, -retentionDays)
 
 	result, err := r.app.AuxNonconcurrentDB().Delete(
 		SystemMetricsTableName,
