@@ -94,25 +94,25 @@ export function CollectionsDiffTable({
 
   return (
     <div className="space-y-4">
-      {/* 标题 */}
+      {/* Title */}
       <div className="flex items-center gap-2">
         {!collectionA?.id ? (
           <>
             <Badge variant="default" className="bg-green-500">
-              新增
+              New
             </Badge>
             <strong>{collectionB?.name}</strong>
           </>
         ) : !collectionB?.id ? (
           <>
-            <Badge variant="destructive">删除</Badge>
+            <Badge variant="destructive">Delete</Badge>
             <strong>{collectionA?.name}</strong>
           </>
         ) : (
           <>
             {hasAnyChange && (
               <Badge variant="secondary" className="bg-yellow-500 text-white">
-                变更
+                Change
               </Badge>
             )}
             {collectionA.name !== collectionB.name && (
@@ -126,14 +126,14 @@ export function CollectionsDiffTable({
         )}
       </div>
 
-      {/* 差异表格 */}
+      {/* Diff table */}
       <div className="border-2 border-primary rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-primary">
-              <TableHead className="text-primary-foreground">属性</TableHead>
-              <TableHead className="text-primary-foreground w-[40%]">旧值</TableHead>
-              <TableHead className="text-primary-foreground w-[40%]">新值</TableHead>
+              <TableHead className="text-primary-foreground">Property</TableHead>
+              <TableHead className="text-primary-foreground w-[40%]">Old value</TableHead>
+              <TableHead className="text-primary-foreground w-[40%]">New value</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -166,15 +166,15 @@ export function CollectionsDiffTable({
               )
             })}
 
-            {/* 删除的字段 */}
+            {/* Removed fields */}
             {(deleteMissing || isDeleteDiff) &&
               removedFields.map((field) => (
                 <>
                   <TableRow key={`header-${field.id}`}>
                     <TableCell colSpan={3} className="bg-muted font-medium">
-                      字段: {field.name}
+                      Field: {field.name}
                       <Badge variant="destructive" className="ml-2">
-                        删除 - 所有与 {field.name} 相关的数据将被删除！
+                        Delete - All data related to {field.name} will be deleted!
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -190,7 +190,7 @@ export function CollectionsDiffTable({
                 </>
               ))}
 
-            {/* 共享字段 */}
+            {/* Shared fields */}
             {sharedFields.map((field) => {
               const oldField = getFieldById(fieldsListA, field.id)
               const fieldChanged = hasChanges(oldField, field)
@@ -199,10 +199,10 @@ export function CollectionsDiffTable({
                 <>
                   <TableRow key={`header-${field.id}`}>
                     <TableCell colSpan={3} className="bg-muted font-medium">
-                      字段: {field.name}
+                      Field: {field.name}
                       {fieldChanged && (
                         <Badge variant="secondary" className="ml-2 bg-yellow-500 text-white">
-                          变更
+                          Change
                         </Badge>
                       )}
                     </TableCell>
@@ -234,14 +234,14 @@ export function CollectionsDiffTable({
               )
             })}
 
-            {/* 新增字段 */}
+            {/* Added fields */}
             {addedFields.map((field) => (
               <>
                 <TableRow key={`header-${field.id}`}>
                   <TableCell colSpan={3} className="bg-muted font-medium">
-                    字段: {field.name}
+                    Field: {field.name}
                     <Badge variant="default" className="ml-2 bg-green-500">
-                      新增
+                      New
                     </Badge>
                   </TableCell>
                 </TableRow>

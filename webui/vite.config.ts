@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   server: {
     port: 9000,
     proxy: {
@@ -11,18 +11,23 @@ export default defineConfig({
         target: 'http://127.0.0.1:8090',
         changeOrigin: true,
       },
-      '/_': {
-        target: 'http://127.0.0.1:8090',
-        changeOrigin: true,
-      },
     },
   },
   envPrefix: 'PB',
-  base: '/_/',
+  // 开发模式用 '/'，生产模式用 '/_/'（嵌入 PocketBase）
+  base: command === 'serve' ? '/' : '/_/',
   plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // 强制使用项目的 node_modules，避免多实例冲突
+      // 注意：bun 使用根目录 node_modules
+      'react': path.resolve(__dirname, '../node_modules/react'),
+      'react-dom': path.resolve(__dirname, '../node_modules/react-dom'),
+      // 强制使用同一个 @codemirror/state 实例，避免多实例冲突
+      '@codemirror/state': path.resolve(__dirname, '../node_modules/@codemirror/state'),
+      '@codemirror/view': path.resolve(__dirname, '../node_modules/@codemirror/view'),
+      '@codemirror/language': path.resolve(__dirname, '../node_modules/@codemirror/language'),
     },
   },
   build: {
@@ -41,4 +46,4 @@ export default defineConfig({
     // 提高警告阈值
     chunkSizeWarningLimit: 600,
   },
-})
+}))

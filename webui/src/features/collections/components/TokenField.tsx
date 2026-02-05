@@ -40,11 +40,11 @@ export function TokenField({
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
       toast({
-        title: '已复制到剪贴板',
+        title: 'Copied to clipboard',
       })
     } catch {
       toast({
-        title: '复制失败',
+        title: 'Copy failed',
         variant: 'destructive',
       })
     }
@@ -63,7 +63,7 @@ export function TokenField({
             onChange={onChange ? (e) => onChange(e.target.value) : undefined}
             readOnly={readOnly}
             className="pr-20 font-mono text-sm"
-            placeholder={readOnly ? '未设置' : '输入 Token'}
+            placeholder={readOnly ? 'Not set' : 'Enter token'}
           />
           <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-1">
             <Button
@@ -93,7 +93,7 @@ export function TokenField({
             variant="outline"
             size="icon"
             onClick={onRegenerate}
-            title="重新生成"
+            title="Regenerate"
           >
             <RefreshCw className="h-4 w-4" />
           </Button>

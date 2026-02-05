@@ -1,3 +1,8 @@
+# 强制使用本地 node_modules，避免与根目录冲突
+[install]
+# 禁用工作区提升
+hoist = false
+
 [test]
 preload = ["./src/test/setup.ts"]
 

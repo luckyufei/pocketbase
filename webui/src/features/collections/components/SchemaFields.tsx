@@ -5,7 +5,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import {
   Select,
   SelectContent,
@@ -127,23 +126,27 @@ export function SchemaFields({ fields, onChange, collectionType = 'base' }: Sche
               <div className="flex items-center gap-2 p-3">
                 <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
 
-                <Badge variant="outline" className="text-xs">
-                  {field.type}
-                </Badge>
-
-                <Input
-                  value={field.name}
-                  onChange={(e) => updateField(index, { name: normalizeFieldName(e.target.value) })}
-                  disabled={field.system || field._toDelete}
-                  className="flex-1 h-8"
-                  placeholder="Field name"
-                />
-
-                {field.required && (
-                  <Badge variant="secondary" className="text-xs">
-                    Required
-                  </Badge>
-                )}
+                {/* 字段名输入 - 带浮动标签 */}
+                <div className="relative flex-1 group">
+                  {/* 浮动标签 - 绝对定位在输入框右上角，tag 样式 */}
+                  <div className="absolute right-1 -top-2 z-10 flex items-center gap-0.5 transition-opacity group-focus-within:opacity-30">
+                    {field.required && (
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-green-50 text-green-600">
+                        Required
+                      </span>
+                    )}
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
+                      {field.type}
+                    </span>
+                  </div>
+                  <Input
+                    value={field.name}
+                    onChange={(e) => updateField(index, { name: normalizeFieldName(e.target.value) })}
+                    disabled={field.system || field._toDelete}
+                    className="h-8"
+                    placeholder="Field name"
+                  />
+                </div>
 
                 {field._toDelete ? (
                   <Button

@@ -55,10 +55,10 @@ export function CollectionRulesTab({ collection, onChange }: CollectionRulesTabP
   const isAuthCollection = collection.type === 'auth'
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* 帮助信息 */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-sm text-slate-500">
+        <div className="flex items-center justify-between text-[13px] text-slate-500">
           <p>
             All rules follow the{' '}
             <a
@@ -75,7 +75,7 @@ export function CollectionRulesTab({ collection, onChange }: CollectionRulesTabP
             type="button"
             variant="link"
             size="sm"
-            className="text-slate-500"
+            className="text-slate-500 text-[13px] h-auto p-0"
             onClick={() => setShowFiltersInfo(!showFiltersInfo)}
           >
             {showFiltersInfo ? 'Hide available fields' : 'Show available fields'}
@@ -84,62 +84,62 @@ export function CollectionRulesTab({ collection, onChange }: CollectionRulesTabP
 
         <Collapsible open={showFiltersInfo}>
           <CollapsibleContent>
-            <Alert className="bg-slate-50 border-slate-200">
-              <Info className="h-4 w-4 text-slate-500" />
-              <AlertDescription className="text-sm space-y-3">
+            <Alert className="bg-orange-50 border-orange-200">
+              <Info className="h-3.5 w-3.5 text-orange-500" />
+              <AlertDescription className="text-[12px] space-y-2">
                 <div>
-                  <p className="font-medium mb-1 text-slate-900">
+                  <p className="font-medium mb-1 text-slate-800">
                     The following record fields are available:
                   </p>
                   <div className="flex flex-wrap gap-1">
                     {visibleFieldNames.map((name) => (
-                      <Badge key={name} variant="outline" className="font-mono text-xs">
+                      <Badge key={name} variant="outline" className="font-mono text-[11px] px-1.5 py-0 bg-white/70 border-orange-200 text-slate-700">
                         {name}
                       </Badge>
                     ))}
                   </div>
                 </div>
 
-                <hr className="border-slate-200" />
+                <hr className="border-orange-200" />
 
                 <div>
-                  <p className="font-medium mb-1 text-slate-900">
+                  <p className="font-medium mb-1 text-slate-800">
                     The request fields could be accessed with the special{' '}
-                    <code className="bg-slate-100 px-1 rounded">@request</code> filter:
+                    <code className="bg-orange-100 px-1 rounded text-[11px] text-slate-700 italic">@request</code> filter:
                   </p>
                   <div className="flex flex-wrap gap-1">
-                    <Badge variant="outline" className="font-mono text-xs">
+                    <Badge variant="outline" className="font-mono text-[11px] px-1.5 py-0 bg-white/70 border-orange-200 text-slate-700">
                       @request.headers.*
                     </Badge>
-                    <Badge variant="outline" className="font-mono text-xs">
+                    <Badge variant="outline" className="font-mono text-[11px] px-1.5 py-0 bg-white/70 border-orange-200 text-slate-700">
                       @request.query.*
                     </Badge>
-                    <Badge variant="outline" className="font-mono text-xs">
+                    <Badge variant="outline" className="font-mono text-[11px] px-1.5 py-0 bg-white/70 border-orange-200 text-slate-700">
                       @request.body.*
                     </Badge>
-                    <Badge variant="outline" className="font-mono text-xs">
+                    <Badge variant="outline" className="font-mono text-[11px] px-1.5 py-0 bg-white/70 border-orange-200 text-slate-700">
                       @request.auth.*
                     </Badge>
                   </div>
                 </div>
 
-                <hr className="border-slate-200" />
+                <hr className="border-orange-200" />
 
                 <div>
-                  <p className="font-medium mb-1 text-slate-900">
+                  <p className="font-medium mb-1 text-slate-800">
                     You could also add constraints and query other collections using the{' '}
-                    <code className="bg-slate-100 px-1 rounded">@collection</code> filter:
+                    <code className="bg-orange-100 px-1 rounded text-[11px] text-slate-700 italic">@collection</code> filter:
                   </p>
-                  <Badge variant="outline" className="font-mono text-xs">
+                  <Badge variant="outline" className="font-mono text-[11px] px-1.5 py-0 bg-white/70 border-orange-200 text-slate-700">
                     @collection.ANY_COLLECTION_NAME.*
                   </Badge>
                 </div>
 
-                <hr className="border-slate-200" />
+                <hr className="border-orange-200" />
 
                 <div>
-                  <p className="font-medium text-slate-900">Example rule:</p>
-                  <code className="text-xs bg-slate-100 px-2 py-1 rounded">
+                  <p className="font-medium text-slate-800">Example rule:</p>
+                  <code className="text-[11px] bg-white/70 px-2 py-0.5 rounded text-slate-700 border border-orange-200">
                     @request.auth.id != "" && created &gt; "2022-01-01 00:00:00"
                   </code>
                 </div>
@@ -150,11 +150,11 @@ export function CollectionRulesTab({ collection, onChange }: CollectionRulesTabP
       </div>
 
       {/* 基础规则 */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <RuleField
           label="List/Search rule"
           formKey="listRule"
-          rule={collection.listRule ?? ''}
+          rule={collection.listRule}
           onChange={(rule) => onChange({ listRule: rule })}
           collection={collection}
         />
@@ -162,7 +162,7 @@ export function CollectionRulesTab({ collection, onChange }: CollectionRulesTabP
         <RuleField
           label="View rule"
           formKey="viewRule"
-          rule={collection.viewRule ?? ''}
+          rule={collection.viewRule}
           onChange={(rule) => onChange({ viewRule: rule })}
           collection={collection}
         />
@@ -173,25 +173,23 @@ export function CollectionRulesTab({ collection, onChange }: CollectionRulesTabP
             <RuleField
               label="Create rule"
               formKey="createRule"
-              rule={collection.createRule ?? ''}
+              rule={collection.createRule}
               onChange={(rule) => onChange({ createRule: rule })}
               collection={collection}
-              helpText="The main record fields hold the values that are going to be inserted in the database."
             />
 
             <RuleField
               label="Update rule"
               formKey="updateRule"
-              rule={collection.updateRule ?? ''}
+              rule={collection.updateRule}
               onChange={(rule) => onChange({ updateRule: rule })}
               collection={collection}
-              helpText="The main record fields represent the old/existing record field values. To target the newly submitted ones you can use @request.body.*"
             />
 
             <RuleField
               label="Delete rule"
               formKey="deleteRule"
-              rule={collection.deleteRule ?? ''}
+              rule={collection.deleteRule}
               onChange={(rule) => onChange({ deleteRule: rule })}
               collection={collection}
             />
@@ -208,36 +206,38 @@ export function CollectionRulesTab({ collection, onChange }: CollectionRulesTabP
             type="button"
             variant={showExtraRules ? 'secondary' : 'ghost'}
             size="sm"
+            className="text-[13px] h-8"
             onClick={() => setShowExtraRules(!showExtraRules)}
           >
             <strong>Additional auth collection rules</strong>
             {showExtraRules ? (
-              <ChevronUp className="h-4 w-4 ml-1" />
+              <ChevronUp className="h-3.5 w-3.5 ml-1" />
             ) : (
-              <ChevronDown className="h-4 w-4 ml-1" />
+              <ChevronDown className="h-3.5 w-3.5 ml-1" />
             )}
           </Button>
 
           <Collapsible open={showExtraRules}>
-            <CollapsibleContent className="space-y-4">
+            <CollapsibleContent className="space-y-3">
               <RuleField
                 label="Authentication rule"
                 formKey="authRule"
-                rule={collection.authRule ?? ''}
-                onChange={(rule) => onChange({ authRule: rule ?? '' })}
+                rule={collection.authRule}
+                onChange={(rule) => onChange({ authRule: rule })}
                 collection={collection}
                 placeholder=""
                 helpText={
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     <p>
                       This rule is executed every time before authentication allowing you to
                       restrict who can authenticate.
                     </p>
                     <p>
                       For example, to allow only verified users you can set it to{' '}
-                      <code>verified = true</code>.
+                      <code className="bg-slate-200 px-1 rounded text-[10px]">verified = true</code>.
                     </p>
                     <p>Leave it empty to allow anyone with an account to authenticate.</p>
+                    <p>To disable authentication entirely you can change it to "Set superusers only".</p>
                   </div>
                 }
               />
@@ -245,16 +245,17 @@ export function CollectionRulesTab({ collection, onChange }: CollectionRulesTabP
               <RuleField
                 label="Manage rule"
                 formKey="manageRule"
-                rule={collection.manageRule ?? null}
+                rule={collection.manageRule}
                 onChange={(rule) => onChange({ manageRule: rule })}
                 collection={collection}
                 placeholder=""
                 required={collection.manageRule !== null}
                 helpText={
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     <p>
-                      This rule is executed in addition to the <code>create</code> and{' '}
-                      <code>update</code> API rules.
+                      This rule is executed in addition to the{' '}
+                      <code className="bg-slate-200 px-1 rounded text-[10px]">create</code> and{' '}
+                      <code className="bg-slate-200 px-1 rounded text-[10px]">update</code> API rules.
                     </p>
                     <p>
                       It enables superuser-like permissions to allow fully managing the auth

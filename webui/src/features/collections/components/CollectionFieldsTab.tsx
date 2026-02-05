@@ -25,27 +25,34 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus } from 'lucide-react'
+import { 
+  Plus, 
+  // 字段类型图标
+  Type, FileText, Hash, ToggleLeft, Mail, Link, Calendar, CalendarCheck, ListChecks, 
+  File, Link2, Code, MapPin, Key,
+  type LucideIcon
+} from 'lucide-react'
 import { SchemaFieldEditor } from './SchemaFieldEditor'
 import { IndexesList } from './IndexesList'
+import { updateIndexFieldName } from '../utils/indexRename'  // Phase 5: 索引重命名工具
 
-// 字段类型定义
-export const FIELD_TYPES = [
-  { value: 'text', label: 'Plain text', icon: 'ri-text' },
-  { value: 'editor', label: 'Rich editor', icon: 'ri-file-text-line' },
-  { value: 'number', label: 'Number', icon: 'ri-hashtag' },
-  { value: 'bool', label: 'Bool', icon: 'ri-toggle-line' },
-  { value: 'email', label: 'Email', icon: 'ri-mail-line' },
-  { value: 'url', label: 'URL', icon: 'ri-link' },
-  { value: 'date', label: 'Datetime', icon: 'ri-calendar-line' },
-  { value: 'autodate', label: 'Autodate', icon: 'ri-calendar-check-line' },
-  { value: 'select', label: 'Select', icon: 'ri-list-check' },
-  { value: 'file', label: 'File', icon: 'ri-file-line' },
-  { value: 'relation', label: 'Relation', icon: 'ri-link-m' },
-  { value: 'json', label: 'JSON', icon: 'ri-code-s-slash-line' },
-  { value: 'geoPoint', label: 'Geo Point', icon: 'ri-map-pin-line' },
-  { value: 'password', label: 'Password', icon: 'ri-lock-line' },
-] as const
+// 字段类型定义（与 UI 版本保持一致，不包含 Password）
+export const FIELD_TYPES: { value: string; label: string; icon: LucideIcon }[] = [
+  { value: 'text', label: 'Plain text', icon: Type },
+  { value: 'editor', label: 'Rich editor', icon: FileText },
+  { value: 'number', label: 'Number', icon: Hash },
+  { value: 'bool', label: 'Bool', icon: ToggleLeft },
+  { value: 'email', label: 'Email', icon: Mail },
+  { value: 'url', label: 'URL', icon: Link },
+  { value: 'date', label: 'Datetime', icon: Calendar },
+  { value: 'autodate', label: 'Autodate', icon: CalendarCheck },
+  { value: 'select', label: 'Select', icon: ListChecks },
+  { value: 'file', label: 'File', icon: File },
+  { value: 'relation', label: 'Relation', icon: Link2 },
+  { value: 'json', label: 'JSON', icon: Code },
+  { value: 'geoPoint', label: 'Geo Point', icon: MapPin },
+  { value: 'secret', label: 'Secret', icon: Key },
+]
 
 export interface SchemaField {
   id?: string
@@ -58,6 +65,7 @@ export interface SchemaField {
   options?: Record<string, unknown>
   _toDelete?: boolean
   _originalName?: string
+  _focusNameOnMount?: boolean  // 新增：挂载时聚焦名称输入框
   // 类型特定选项
   min?: number
   max?: number
@@ -121,6 +129,7 @@ export function CollectionFieldsTab({ collection, onChange }: CollectionFieldsTa
         type,
         required: false,
         options: {},
+        _focusNameOnMount: true, // 标记需要聚焦名称输入框
       }
 
       // 如果有 autodate 字段，在其前面插入
@@ -134,8 +143,8 @@ export function CollectionFieldsTab({ collection, onChange }: CollectionFieldsTa
       }
 
       onChange({ ...collection, fields: newFields })
-      // 自动展开新字段
-      setExpandedField(newField.name)
+      // 不自动展开选项面板，让用户先输入名称
+      // setExpandedField(newField.name) // 移除自动展开
     },
     [collection, onChange, getUniqueName]
   )
@@ -211,11 +220,9 @@ export function CollectionFieldsTab({ collection, onChange }: CollectionFieldsTa
   // 处理字段名重命名
   const handleFieldRename = useCallback(
     (index: number, oldName: string, newName: string) => {
-      // 更新索引中的列名
+      // 更新索引中的字段名（使用 Phase 5 工具函数）
       if (oldName !== newName && newName) {
-        const newIndexes = collection.indexes.map((idx) =>
-          idx.replace(new RegExp(`\\b${oldName}\\b`, 'g'), newName)
-        )
+        const newIndexes = updateIndexFieldName(collection.indexes, oldName, newName)
         onChange({
           ...collection,
           fields: collection.fields.map((f, i) => (i === index ? { ...f, name: newName } : f)),
@@ -279,16 +286,19 @@ export function CollectionFieldsTab({ collection, onChange }: CollectionFieldsTa
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-full grid grid-cols-4 gap-1 p-2">
-          {FIELD_TYPES.map((type) => (
-            <DropdownMenuItem
-              key={type.value}
-              onClick={() => addField(type.value)}
-              className="flex items-center gap-2"
-            >
-              <i className={type.icon} aria-hidden="true" />
-              <span>{type.label}</span>
-            </DropdownMenuItem>
-          ))}
+          {FIELD_TYPES.map((type) => {
+            const Icon = type.icon
+            return (
+              <DropdownMenuItem
+                key={type.value}
+                onClick={() => addField(type.value)}
+                className="flex items-center gap-2"
+              >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                <span>{type.label}</span>
+              </DropdownMenuItem>
+            )
+          })}
         </DropdownMenuContent>
       </DropdownMenu>
 

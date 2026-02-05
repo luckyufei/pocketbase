@@ -1,7 +1,7 @@
 /**
  * Collections 侧边栏组件
  */
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAtom, useSetAtom } from 'jotai'
@@ -17,6 +17,26 @@ import { showConfirmation } from '@/store/confirmation'
 import type { CollectionModel } from 'pocketbase'
 import { cn } from '@/lib/utils'
 
+const PINNED_STORAGE_KEY = '@pinnedCollections'
+
+// 加载 pinned IDs
+function loadPinnedIds(): string[] {
+  try {
+    const encoded = localStorage.getItem(PINNED_STORAGE_KEY)
+    if (encoded) {
+      return JSON.parse(encoded) || []
+    }
+  } catch {
+    // 忽略解析错误
+  }
+  return []
+}
+
+// 保存 pinned IDs
+function savePinnedIds(ids: string[]) {
+  localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify(ids))
+}
+
 export function CollectionsSidebar() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -30,6 +50,8 @@ export function CollectionsSidebar() {
   const [editingCollection, setEditingCollection] = useState<CollectionModel | null>(null)
   // System 分组默认收起
   const [systemExpanded, setSystemExpanded] = useState(false)
+  // Pinned collections
+  const [pinnedIds, setPinnedIds] = useState<string[]>(loadPinnedIds)
 
   const {
     collections,
@@ -76,17 +98,17 @@ export function CollectionsSidebar() {
   const handleDelete = useCallback(
     (collection: CollectionModel) => {
       confirm({
-        title: t('collections.deleteConfirmTitle', '确认删除'),
+        title: t('collections.deleteConfirmTitle', 'Confirm Delete'),
         message: t(
           'collections.deleteConfirmMessage',
-          `确定要删除 Collection "${collection.name}" 吗？此操作不可恢复。`
+          `Are you sure you want to delete Collection "${collection.name}"? This action cannot be undone.`
         ),
-        yesText: t('common.delete', '删除'),
-        noText: t('common.cancel', '取消'),
+        yesText: t('common.delete', 'Delete'),
+        noText: t('common.cancel', 'Cancel'),
         onConfirm: async () => {
           try {
             await destroyCollection(collection.id)
-            toast({ type: 'success', message: t('collections.deleteSuccess', '删除成功') })
+            toast({ type: 'success', message: t('collections.deleteSuccess', 'Deleted successfully') })
             if (activeCollection?.id === collection.id) {
               navigate('/collections')
             }
@@ -94,7 +116,7 @@ export function CollectionsSidebar() {
             toast({
               type: 'error',
               message:
-                err instanceof Error ? err.message : t('collections.deleteError', '删除失败'),
+                err instanceof Error ? err.message : t('collections.deleteError', 'Delete failed'),
             })
           }
         },
@@ -102,6 +124,28 @@ export function CollectionsSidebar() {
     },
     [confirm, destroyCollection, toast, t, activeCollection, navigate]
   )
+
+  // 处理 Pin/Unpin
+  const handleTogglePin = useCallback((collection: CollectionModel) => {
+    setPinnedIds((prev) => {
+      const newIds = prev.includes(collection.id)
+        ? prev.filter((id) => id !== collection.id)
+        : [...prev, collection.id]
+      savePinnedIds(newIds)
+      return newIds
+    })
+  }, [])
+
+  // 同步 pinned IDs（移除不存在的 collection）
+  useEffect(() => {
+    if (collections.length > 0) {
+      const validIds = pinnedIds.filter((id) => collections.some((c) => c.id === id))
+      if (validIds.length !== pinnedIds.length) {
+        setPinnedIds(validIds)
+        savePinnedIds(validIds)
+      }
+    }
+  }, [collections, pinnedIds])
 
   // 处理新建
   const handleNew = useCallback(() => {
@@ -115,16 +159,16 @@ export function CollectionsSidebar() {
       try {
         if (editingCollection) {
           await saveCollection(editingCollection.id, data)
-          toast({ type: 'success', message: t('collections.updateSuccess', '更新成功') })
+          toast({ type: 'success', message: t('collections.updateSuccess', 'Updated successfully') })
         } else {
           const created = await createCollection(data)
-          toast({ type: 'success', message: t('collections.createSuccess', '创建成功') })
+          toast({ type: 'success', message: t('collections.createSuccess', 'Created successfully') })
           navigate(`/collections/${created.name}`)
         }
       } catch (err) {
         toast({
           type: 'error',
-          message: err instanceof Error ? err.message : t('collections.saveError', '保存失败'),
+          message: err instanceof Error ? err.message : t('collections.saveError', 'Save failed'),
         })
         throw err
       }
@@ -132,35 +176,35 @@ export function CollectionsSidebar() {
     [editingCollection, saveCollection, createCollection, toast, t, navigate]
   )
 
-  // 按系统/用户分组：系统 collection（以 _ 开头）放在 System 组
-  const groupedCollections = {
-    system: filteredCollections.filter((c) => c.name.startsWith('_')),
-    user: filteredCollections.filter((c) => !c.name.startsWith('_')),
-  }
+  // 按 Pinned/Others/System 分组
+  const groupedCollections = useMemo(() => ({
+    pinned: filteredCollections.filter((c) => pinnedIds.includes(c.id)),
+    others: filteredCollections.filter((c) => !c.name.startsWith('_') && !pinnedIds.includes(c.id)),
+    system: filteredCollections.filter((c) => c.name.startsWith('_') && !pinnedIds.includes(c.id)),
+  }), [filteredCollections, pinnedIds])
 
   return (
     <div className="w-64 border-r border-slate-200 bg-slate-50/50 flex flex-col h-full">
       {/* 头部：搜索框 + 新建按钮 */}
-      <div className="h-14 px-3 border-b border-slate-200 flex items-center">
-        <div className="flex items-center gap-2 w-full">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('collections.search', '搜索...')}
-              className="h-8 pl-8 text-sm rounded-lg border-slate-200"
-            />
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-            onClick={handleNew}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
+      <div className="h-14 px-3 border-b border-slate-200 flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search collections..."
+            className="h-8 pl-8 text-sm rounded-lg border-slate-200"
+          />
         </div>
+        <Button
+          variant="default"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          onClick={handleNew}
+          title="New collection"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* 列表 */}
@@ -172,22 +216,46 @@ export function CollectionsSidebar() {
         ) : filteredCollections.length === 0 ? (
           <div className="text-center text-slate-500 text-sm py-4">
             {searchQuery
-              ? t('collections.noResults', '没有找到匹配的 Collection')
-              : t('collections.empty', '暂无 Collection')}
+              ? 'No collections found.'
+              : 'No collections yet.'}
           </div>
         ) : (
           <>
-            {/* 用户 Collections（不分组，直接列出） */}
-            {groupedCollections.user.length > 0 && (
+            {/* Pinned Collections */}
+            {groupedCollections.pinned.length > 0 && (
               <div>
-                {groupedCollections.user.map((collection) => (
+                <div className="text-xs font-medium text-slate-400 px-3 py-1">Pinned</div>
+                {groupedCollections.pinned.map((collection) => (
                   <CollectionItem
                     key={collection.id}
                     collection={collection}
                     isActive={activeCollection?.id === collection.id}
+                    isPinned={true}
                     onClick={() => handleClick(collection)}
                     onEdit={() => handleEdit(collection)}
                     onDelete={() => handleDelete(collection)}
+                    onTogglePin={() => handleTogglePin(collection)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Others Collections（非系统、非 Pinned） */}
+            {groupedCollections.others.length > 0 && (
+              <div>
+                {groupedCollections.pinned.length > 0 && (
+                  <div className="text-xs font-medium text-slate-400 px-3 py-1">Others</div>
+                )}
+                {groupedCollections.others.map((collection) => (
+                  <CollectionItem
+                    key={collection.id}
+                    collection={collection}
+                    isActive={activeCollection?.id === collection.id}
+                    isPinned={false}
+                    onClick={() => handleClick(collection)}
+                    onEdit={() => handleEdit(collection)}
+                    onDelete={() => handleDelete(collection)}
+                    onTogglePin={() => handleTogglePin(collection)}
                   />
                 ))}
               </div>
@@ -213,9 +281,11 @@ export function CollectionsSidebar() {
                     key={collection.id}
                     collection={collection}
                     isActive={activeCollection?.id === collection.id}
+                    isPinned={false}
                     onClick={() => handleClick(collection)}
                     onEdit={() => handleEdit(collection)}
                     onDelete={() => handleDelete(collection)}
+                    onTogglePin={() => handleTogglePin(collection)}
                   />
                 ))}
               </div>

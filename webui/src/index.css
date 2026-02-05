@@ -120,6 +120,9 @@
       'Open Sans',
       'Helvetica Neue',
       sans-serif;
+    /* 与 UI 版本保持一致的基础字体大小 (14.5px) */
+    font-size: 14px;
+    line-height: 1.5;
   }
 }
 

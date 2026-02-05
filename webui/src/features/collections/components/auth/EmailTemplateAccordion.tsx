@@ -1,6 +1,6 @@
 /**
- * 邮件模板配置组件
- * 用于配置认证集合的邮件模板（验证、密码重置、邮箱变更等）
+ * Email template configuration component
+ * For configuring auth collection email templates (verification, password reset, email change, etc.)
  */
 import { useState } from 'react'
 import {
@@ -39,62 +39,62 @@ interface EmailTemplateAccordionProps {
 }
 
 const TEMPLATE_TYPES = [
-  { key: 'verification', label: '邮箱验证' },
-  { key: 'passwordReset', label: '密码重置' },
-  { key: 'emailChange', label: '邮箱变更' },
-  { key: 'otp', label: 'OTP 验证码' },
-  { key: 'loginAlert', label: '登录提醒' },
+  { key: 'verification', label: 'Verification' },
+  { key: 'passwordReset', label: 'Password reset' },
+  { key: 'emailChange', label: 'Email change' },
+  { key: 'otp', label: 'OTP' },
+  { key: 'loginAlert', label: 'Login alert' },
 ] as const
 
 const TEMPLATE_PLACEHOLDERS = [
-  { placeholder: '{APP_NAME}', description: '应用名称' },
-  { placeholder: '{APP_URL}', description: '应用 URL' },
-  { placeholder: '{TOKEN}', description: '验证令牌' },
-  { placeholder: '{ACTION_URL}', description: '操作链接' },
-  { placeholder: '{RECORD:*}', description: '记录字段，如 {RECORD:email}' },
+  { placeholder: '{APP_NAME}', description: 'Application name' },
+  { placeholder: '{APP_URL}', description: 'Application URL' },
+  { placeholder: '{TOKEN}', description: 'Verification token' },
+  { placeholder: '{ACTION_URL}', description: 'Action URL' },
+  { placeholder: '{RECORD:*}', description: 'Record field, e.g. {RECORD:email}' },
 ]
 
 const DEFAULT_TEMPLATES: EmailTemplatesSettings = {
   verification: {
-    subject: '验证您的邮箱',
-    body: `<p>您好，</p>
-<p>感谢您注册 {APP_NAME}。</p>
-<p>请点击下方链接验证您的邮箱地址：</p>
+    subject: 'Verify your email',
+    body: `<p>Hello,</p>
+<p>Thank you for registering with {APP_NAME}.</p>
+<p>Please click the link below to verify your email address:</p>
 <p><a href="{ACTION_URL}">{ACTION_URL}</a></p>
-<p>如果您没有注册账号，请忽略此邮件。</p>`,
+<p>If you did not register an account, please ignore this email.</p>`,
     actionUrl: '{APP_URL}/auth/confirm-verification/{TOKEN}',
   },
   passwordReset: {
-    subject: '重置您的密码',
-    body: `<p>您好，</p>
-<p>您请求重置 {APP_NAME} 账号的密码。</p>
-<p>请点击下方链接重置密码：</p>
+    subject: 'Reset your password',
+    body: `<p>Hello,</p>
+<p>You requested to reset your {APP_NAME} account password.</p>
+<p>Please click the link below to reset your password:</p>
 <p><a href="{ACTION_URL}">{ACTION_URL}</a></p>
-<p>如果您没有请求重置密码，请忽略此邮件。</p>`,
+<p>If you did not request a password reset, please ignore this email.</p>`,
     actionUrl: '{APP_URL}/auth/confirm-password-reset/{TOKEN}',
   },
   emailChange: {
-    subject: '确认邮箱变更',
-    body: `<p>您好，</p>
-<p>您请求变更 {APP_NAME} 账号的邮箱地址。</p>
-<p>请点击下方链接确认变更：</p>
+    subject: 'Confirm email change',
+    body: `<p>Hello,</p>
+<p>You requested to change your {APP_NAME} account email address.</p>
+<p>Please click the link below to confirm the change:</p>
 <p><a href="{ACTION_URL}">{ACTION_URL}</a></p>
-<p>如果您没有请求变更邮箱，请忽略此邮件。</p>`,
+<p>If you did not request an email change, please ignore this email.</p>`,
     actionUrl: '{APP_URL}/auth/confirm-email-change/{TOKEN}',
   },
   otp: {
-    subject: '您的验证码',
-    body: `<p>您好，</p>
-<p>您的 {APP_NAME} 验证码是：</p>
+    subject: 'Your verification code',
+    body: `<p>Hello,</p>
+<p>Your {APP_NAME} verification code is:</p>
 <p style="font-size: 24px; font-weight: bold;">{TOKEN}</p>
-<p>验证码有效期为 10 分钟。</p>`,
+<p>This code is valid for 10 minutes.</p>`,
     actionUrl: '',
   },
   loginAlert: {
-    subject: '新设备登录提醒',
-    body: `<p>您好，</p>
-<p>您的 {APP_NAME} 账号刚刚在新设备上登录。</p>
-<p>如果这不是您本人操作，请立即修改密码。</p>`,
+    subject: 'New device login alert',
+    body: `<p>Hello,</p>
+<p>Your {APP_NAME} account was just logged in from a new device.</p>
+<p>If this was not you, please change your password immediately.</p>`,
     actionUrl: '',
   },
 }
@@ -135,9 +135,9 @@ export function EmailTemplateAccordion({
         <AccordionTrigger className="hover:no-underline">
           <div className="flex items-center gap-2 flex-1">
             <Mail className="h-4 w-4" />
-            <span>邮件模板</span>
+            <span>Email templates</span>
             <div className="flex-1" />
-            {hasErrors && <Badge variant="destructive">有错误</Badge>}
+            {hasErrors && <Badge variant="destructive">Has errors</Badge>}
           </div>
         </AccordionTrigger>
         <AccordionContent className="space-y-4">
@@ -163,22 +163,22 @@ export function EmailTemplateAccordion({
                     onClick={() => handleReset(type.key)}
                   >
                     <RotateCcw className="h-4 w-4 mr-1" />
-                    重置为默认
+                    Reset to default
                   </Button>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor={`${type.key}-subject`}>邮件主题</Label>
+                  <Label htmlFor={`${type.key}-subject`}>Subject</Label>
                   <Input
                     id={`${type.key}-subject`}
                     value={value[type.key]?.subject || ''}
                     onChange={(e) => handleTemplateChange(type.key, 'subject', e.target.value)}
-                    placeholder="输入邮件主题"
+                    placeholder="Enter email subject"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor={`${type.key}-body`}>邮件内容 (HTML)</Label>
+                  <Label htmlFor={`${type.key}-body`}>Body (HTML)</Label>
                   <CodeEditor
                     id={`${type.key}-body`}
                     language="html"
@@ -190,18 +190,18 @@ export function EmailTemplateAccordion({
 
                 {type.key !== 'otp' && type.key !== 'loginAlert' && (
                   <div className="space-y-2">
-                    <Label htmlFor={`${type.key}-actionUrl`}>操作链接</Label>
+                    <Label htmlFor={`${type.key}-actionUrl`}>Action URL</Label>
                     <Input
                       id={`${type.key}-actionUrl`}
                       value={value[type.key]?.actionUrl || ''}
                       onChange={(e) => handleTemplateChange(type.key, 'actionUrl', e.target.value)}
-                      placeholder="输入操作链接模板"
+                      placeholder="Enter action URL template"
                     />
                   </div>
                 )}
 
                 <div className="text-sm text-muted-foreground">
-                  <p className="font-medium mb-2">可用占位符：</p>
+                  <p className="font-medium mb-2">Available placeholders:</p>
                   <ul className="grid grid-cols-2 gap-1">
                     {TEMPLATE_PLACEHOLDERS.map((p) => (
                       <li key={p.placeholder}>

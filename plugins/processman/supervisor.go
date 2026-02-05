@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"syscall"
 	"time"
 )
 
@@ -56,8 +55,8 @@ func (pm *ProcessManager) supervise(cfg *ProcessConfig) {
 		cmd.Env = pm.buildEnv(cfg)
 
 		// 4. 进程组管理 - 映射 FR-003
-		// 设置 Setpgid，确保 Kill 时能清理整个进程树
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		// 设置进程属性，确保 Kill 时能清理整个进程树（跨平台实现）
+		setSysProcAttr(cmd)
 
 		// 5. 日志桥接 - 映射 FR-006
 		stdout, _ := cmd.StdoutPipe()
@@ -156,13 +155,12 @@ func (pm *ProcessManager) killProcess(id string) error {
 		return nil
 	}
 
-	// 先尝试 SIGTERM (优雅终止)
-	if err := syscall.Kill(-pid, syscall.SIGTERM); err != nil {
+	// 终止进程（跨平台实现：Unix 使用 SIGTERM/SIGKILL，Windows 使用 Process.Kill）
+	if err := killProcessGroup(pid); err != nil {
 		if pm.app != nil {
-			pm.app.Logger().Warn("SIGTERM failed, trying SIGKILL", "id", id, "error", err)
+			pm.app.Logger().Warn("Failed to kill process", "id", id, "error", err)
 		}
-		// 降级到 SIGKILL
-		return syscall.Kill(-pid, syscall.SIGKILL)
+		return err
 	}
 
 	return nil

@@ -19,6 +19,7 @@ import {
   dropCursor,
   rectangularSelection,
   highlightActiveLineGutter,
+  type KeyBinding,
 } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { syntaxHighlighting, defaultHighlightStyle, bracketMatching } from '@codemirror/language'
@@ -183,14 +184,14 @@ export function FilterAutocompleteInput({
 
     // 构建 keybindings
     // 对标 ui 版本: let keybindings = [submitShortcut, ...closeBracketsKeymap, ...defaultKeymap, ...]
-    const keybindings = [
+    const keybindings: readonly KeyBinding[] = [
       submitShortcut,
       ...closeBracketsKeymap,
       ...defaultKeymap,
       searchKeymap.find((item) => item.key === 'Mod-d'),
       ...historyKeymap,
       ...completionKeymap,
-    ].filter(Boolean) as typeof defaultKeymap;
+    ].filter(Boolean) as KeyBinding[];
 
     // 单行模式的 transaction filter
     // 对标 ui 版本: EditorState.transactionFilter.of((tr) => { if (singleLine && tr.newDoc.lines > 1) ... })
@@ -198,9 +199,9 @@ export function FilterAutocompleteInput({
       if (singleLine && tr.newDoc.lines > 1) {
         // 获取所有行的文本
         const texts: string[] = [];
-        tr.newDoc.iterLines((line) => {
-          texts.push(line);
-        });
+        for (let i = 1; i <= tr.newDoc.lines; i++) {
+          texts.push(tr.newDoc.line(i).text);
+        }
         
         // 检查是否只有空行
         const hasContent = texts.some(t => t.trim() !== '');

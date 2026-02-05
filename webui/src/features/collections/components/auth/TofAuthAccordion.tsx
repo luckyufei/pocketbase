@@ -59,36 +59,36 @@ export function TofAuthAccordion({ collection }: TofAuthAccordionProps) {
         <AccordionTrigger className="hover:no-underline">
           <div className="flex items-center gap-2 flex-1">
             <ShieldCheck className="w-4 h-4" />
-            <span>TOF 认证</span>
+            <span>TOF Auth</span>
             <div className="flex-1" />
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : isEnabled ? (
               <Badge variant="secondary" className="bg-green-100 text-green-800">
-                已启用
+                Enabled
               </Badge>
             ) : (
-              <Badge variant="outline">未启用</Badge>
+              <Badge variant="outline">Disabled</Badge>
             )}
           </div>
         </AccordionTrigger>
         <AccordionContent>
           {isLoading ? (
-            <div className="text-muted-foreground">正在加载 TOF 配置...</div>
+            <div className="text-muted-foreground">Loading TOF configuration...</div>
           ) : isEnabled ? (
             <div className="space-y-4">
               <p className="text-muted-foreground text-sm">
-                TOF (腾讯统一身份认证) 已启用。用户可通过 TOF 网关进行身份验证。
+                TOF (Tencent Open Framework) authentication is enabled. Users can authenticate through the TOF gateway.
               </p>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="font-medium">TOF_APP_KEY</Label>
-                  <Input value={tofStatus?.appKey || '未配置'} disabled className="font-mono" />
+                  <Input value={tofStatus?.appKey || 'Not configured'} disabled className="font-mono" />
                 </div>
                 <div className="space-y-2">
                   <Label className="font-medium">TOF_APP_TOKEN</Label>
-                  <Input value={tofStatus?.appToken || '未配置'} disabled className="font-mono" />
+                  <Input value={tofStatus?.appToken || 'Not configured'} disabled className="font-mono" />
                 </div>
               </div>
 
@@ -97,18 +97,18 @@ export function TofAuthAccordion({ collection }: TofAuthAccordionProps) {
                   <AlertTriangle className="h-4 w-4 text-yellow-600" />
                   <AlertDescription>
                     <p>
-                      <strong>开发模式已启用</strong>：模拟用户为{' '}
+                      <strong>Development mode enabled</strong>: Mock user is{' '}
                       <code className="bg-yellow-100 px-1 rounded">{tofStatus.devMockUser}</code>
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      生产环境请移除 TOF_DEV_MOCK_USER 环境变量
+                      Remove TOF_DEV_MOCK_USER environment variable for production
                     </p>
                   </AlertDescription>
                 </Alert>
               )}
 
               <div className="text-sm text-muted-foreground">
-                <p>认证端点：</p>
+                <p>Auth endpoint:</p>
                 <code className="font-mono bg-muted px-2 py-1 rounded">
                   GET /api/collections/{collection.name}/auth-with-tof
                 </code>
@@ -117,14 +117,14 @@ export function TofAuthAccordion({ collection }: TofAuthAccordionProps) {
           ) : (
             <div className="space-y-2">
               <p className="text-muted-foreground">
-                TOF 认证未启用。要启用 TOF 认证，请设置以下环境变量后重启服务：
+                TOF authentication is not enabled. To enable TOF auth, set the following environment variables and restart the service:
               </p>
               <ul className="text-muted-foreground text-sm list-disc list-inside space-y-1">
                 <li>
-                  <code className="bg-muted px-1 rounded">TOF_APP_KEY</code> - 太湖应用 Key
+                  <code className="bg-muted px-1 rounded">TOF_APP_KEY</code> - TOF application key
                 </li>
                 <li>
-                  <code className="bg-muted px-1 rounded">TOF_APP_TOKEN</code> - 太湖应用 Token
+                  <code className="bg-muted px-1 rounded">TOF_APP_TOKEN</code> - TOF application token
                 </li>
               </ul>
             </div>

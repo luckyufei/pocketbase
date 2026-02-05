@@ -1,9 +1,8 @@
 // T020: 索引编辑面板
 import { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import {
   Dialog,
   DialogContent,
@@ -13,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { Trash2 } from 'lucide-react'
 import { CodeEditor } from '@/components/CodeEditor'
+import { cn } from '@/lib/utils'
 import type { CollectionData, SchemaField } from './CollectionFieldsTab'
 
 interface IndexParts {
@@ -87,29 +87,74 @@ function parseIndex(indexStr: string): IndexParts {
 }
 
 /**
- * 构建索引字符串
+ * 构建索引字符串（与 UI 版本保持一致）
+ * - 索引名和表名用反引号包裹
+ * - 每个列名用反引号包裹
+ * - 多个列时，每个列单独占一行
  */
 function buildIndex(parts: IndexParts): string {
   if (!parts.columns.length) return ''
 
   const uniqueStr = parts.unique ? 'UNIQUE ' : ''
-  const indexName =
-    parts.indexName || `idx_${parts.tableName}_${parts.columns.map((c) => c.name).join('_')}`
-  const columnsStr = parts.columns
-    .map((col) => {
-      let s = col.name
-      if (col.collate) s += ` COLLATE ${col.collate}`
-      if (col.sort) s += ` ${col.sort}`
-      return s
-    })
-    .join(', ')
+  // 索引名使用反引号包裹，如果没有指定则生成随机名称
+  const indexName = parts.indexName || `idx_${randomString(10)}`
 
-  let sql = `CREATE ${uniqueStr}INDEX ${indexName} ON ${parts.tableName} (${columnsStr})`
-  if (parts.where) {
-    sql += ` WHERE ${parts.where}`
+  let result = `CREATE ${uniqueStr}INDEX \`${indexName}\` ON \`${parts.tableName}\` (`
+
+  const nonEmptyCols = parts.columns.filter((col) => !!col?.name)
+
+  // 多个列时，每个列单独占一行
+  if (nonEmptyCols.length > 1) {
+    result += '\n  '
   }
 
-  return sql
+  result += nonEmptyCols
+    .map((col) => {
+      let item = ''
+
+      // 检查是否是表达式（包含括号或空格）
+      if (col.name.includes('(') || col.name.includes(' ')) {
+        item += col.name
+      } else {
+        // 普通标识符用反引号包裹
+        item += '`' + col.name + '`'
+      }
+
+      if (col.collate) {
+        item += ' COLLATE ' + col.collate
+      }
+
+      if (col.sort) {
+        item += ' ' + col.sort.toUpperCase()
+      }
+
+      return item
+    })
+    .join(',\n  ')
+
+  if (nonEmptyCols.length > 1) {
+    result += '\n'
+  }
+
+  result += ')'
+
+  if (parts.where) {
+    result += ` WHERE ${parts.where}`
+  }
+
+  return result
+}
+
+/**
+ * 生成随机字符串
+ */
+function randomString(length: number): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return result
 }
 
 /**
@@ -207,15 +252,15 @@ export function IndexUpsertPanel({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg overflow-hidden">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Update' : 'Create'} Index</DialogTitle>
+          <DialogTitle>{isEdit ? 'Update' : 'Create'} index</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Unique 选项 */}
+        <div className="space-y-4 overflow-hidden">
+          {/* Unique 选项 - 使用 Switch 替代 Checkbox */}
           <div className="flex items-center space-x-2">
-            <Checkbox
+            <Switch
               id="index-unique"
               checked={indexParts.unique}
               onCheckedChange={toggleUnique}
@@ -225,9 +270,8 @@ export function IndexUpsertPanel({
             </Label>
           </div>
 
-          {/* SQL 编辑器 */}
+          {/* SQL 编辑器 - 移除 "Index Definition" 标签 */}
           <div className="space-y-2">
-            <Label>Index Definition</Label>
             <CodeEditor
               value={indexValue}
               onChange={setIndexValue}
@@ -237,29 +281,36 @@ export function IndexUpsertPanel({
             />
           </div>
 
-          {/* 预设列 */}
+          {/* 预设列 - 与 UI 版本一致的标签样式 */}
           {presetColumns.length > 0 && (
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">Presets</Label>
-              <div className="flex flex-wrap gap-2">
-                {presetColumns.map((column) => (
-                  <Badge
+            <div className="flex items-start gap-x-2.5 gap-y-2 flex-wrap w-full">
+              <span className="text-muted-foreground text-sm py-1 shrink-0">Presets</span>
+              {presetColumns.map((column) => {
+                const isSelected = selectedColumns.includes(column.toLowerCase())
+                return (
+                  <button
                     key={column}
-                    variant={selectedColumns.includes(column.toLowerCase()) ? 'default' : 'outline'}
-                    className="cursor-pointer"
+                    type="button"
+                    className={cn(
+                      "text-sm px-3 py-1 rounded-full transition-all shrink-0",
+                      isSelected
+                        ? "bg-blue-100 text-slate-700"
+                        : "bg-slate-100 text-blue-600 hover:bg-slate-200"
+                    )}
                     onClick={() => toggleColumn(column)}
                   >
                     {column}
-                  </Badge>
-                ))}
-              </div>
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
 
         <DialogFooter className="flex justify-between">
           <div>
-            {isEdit && onRemove && (
+            {/* 始终显示删除按钮 */}
+            {onRemove && (
               <Button type="button" variant="ghost" size="icon" onClick={handleRemove}>
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
@@ -270,7 +321,7 @@ export function IndexUpsertPanel({
               Cancel
             </Button>
             <Button type="button" onClick={handleSubmit} disabled={selectedColumns.length === 0}>
-              Set Index
+              Set index
             </Button>
           </div>
         </DialogFooter>
