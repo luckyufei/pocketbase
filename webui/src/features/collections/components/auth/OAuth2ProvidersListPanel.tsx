@@ -1,6 +1,6 @@
 /**
  * OAuth2ProvidersListPanel 组件
- * OAuth2 提供商列表面板
+ * OAuth2 providers list panel
  */
 import { useState, useMemo } from 'react'
 import { Settings, Check, X, ChevronRight, Search, Plus } from 'lucide-react'
@@ -50,10 +50,10 @@ export function OAuth2ProvidersListPanel({
         <SheetHeader>
           <SheetTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
-            OAuth2 提供商
+            Add OAuth2 provider
             {configuredCount > 0 && (
               <Badge variant="secondary" className="ml-2">
-                {configuredCount} 已配置
+                {configuredCount} configured
               </Badge>
             )}
           </SheetTitle>
@@ -64,7 +64,7 @@ export function OAuth2ProvidersListPanel({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="搜索提供商..."
+              placeholder="Search providers..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
@@ -89,16 +89,26 @@ export function OAuth2ProvidersListPanel({
                     )}
                     onClick={() => onProviderSelect(provider.name)}
                   >
-                    {/* 图标 */}
+                    {/* Logo */}
                     <div
                       className={cn(
-                        'w-10 h-10 rounded-lg flex items-center justify-center text-lg font-bold',
+                        'w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden',
                         configured
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-muted-foreground'
+                          ? 'bg-primary/10'
+                          : 'bg-muted'
                       )}
                     >
-                      {provider.displayName.charAt(0)}
+                      {provider.logo ? (
+                        <img
+                          src={`/images/oauth2/${provider.logo}`}
+                          alt={provider.displayName}
+                          className="w-6 h-6 object-contain"
+                        />
+                      ) : (
+                        <span className="text-lg font-bold text-muted-foreground">
+                          {provider.displayName.charAt(0)}
+                        </span>
+                      )}
                     </div>
 
                     {/* 信息 */}
@@ -107,7 +117,7 @@ export function OAuth2ProvidersListPanel({
                         <span className="font-medium truncate">{provider.displayName}</span>
                         {configured && (
                           <Badge variant={enabled ? 'default' : 'secondary'} className="text-xs">
-                            {enabled ? '已启用' : '已禁用'}
+                            {enabled ? 'Enabled' : 'Disabled'}
                           </Badge>
                         )}
                       </div>
@@ -128,7 +138,7 @@ export function OAuth2ProvidersListPanel({
               })}
 
               {filteredProviders.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">没有找到匹配的提供商</div>
+                <div className="text-center py-8 text-muted-foreground">No providers to select.</div>
               )}
             </div>
           </ScrollArea>

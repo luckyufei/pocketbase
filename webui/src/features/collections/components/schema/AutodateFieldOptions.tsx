@@ -1,8 +1,6 @@
 // T017: Autodate 字段选项组件
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Info } from 'lucide-react'
+// 注意：Autodate 字段的 onCreate/onUpdate 选项在字段行中显示（通过下拉选择器）
+// 展开面板中只显示 Hidden 和 Presentable 选项，这里不需要额外内容
 
 export interface AutodateField {
   name: string
@@ -17,54 +15,9 @@ interface AutodateFieldOptionsProps {
   onChange: (field: AutodateField) => void
 }
 
+// Autodate 字段在展开面板中没有额外选项
+// onCreate/onUpdate 选项通过字段行中的下拉选择器设置
 export function AutodateFieldOptions({ field, onChange }: AutodateFieldOptionsProps) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="autodate-oncreate"
-          checked={field.onCreate ?? true}
-          onCheckedChange={(checked) => onChange({ ...field, onCreate: !!checked })}
-        />
-        <div className="flex items-center gap-1">
-          <Label htmlFor="autodate-oncreate" className="cursor-pointer">
-            On create
-          </Label>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Automatically set the current datetime when a record is created.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="autodate-onupdate"
-          checked={field.onUpdate ?? false}
-          onCheckedChange={(checked) => onChange({ ...field, onUpdate: !!checked })}
-        />
-        <div className="flex items-center gap-1">
-          <Label htmlFor="autodate-onupdate" className="cursor-pointer">
-            On update
-          </Label>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Automatically set the current datetime when a record is updated.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-    </div>
-  )
+  // 返回 null，因为 autodate 特有的选项显示在字段行中
+  return null
 }

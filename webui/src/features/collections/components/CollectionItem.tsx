@@ -1,9 +1,10 @@
 // T046: Collection 列表项组件
 import { memo } from 'react'
-import { Database, Users, Eye, MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import { Database, Users, Eye, MoreVertical, Pencil, Trash2, Pin, PinOff } from 'lucide-react'
 import type { CollectionModel } from 'pocketbase'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { TextTooltip, IconTooltip } from '@/components/ui/text-tooltip'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,9 +15,11 @@ import {
 interface CollectionItemProps {
   collection: CollectionModel
   isActive?: boolean
+  isPinned?: boolean
   onClick?: () => void
   onEdit?: () => void
   onDelete?: () => void
+  onTogglePin?: () => void
 }
 
 const typeIcons = {
@@ -39,9 +42,11 @@ const typeColors = {
 export const CollectionItem = memo(function CollectionItem({
   collection,
   isActive = false,
+  isPinned = false,
   onClick,
   onEdit,
   onDelete,
+  onTogglePin,
 }: CollectionItemProps) {
   const Icon = typeIcons[collection.type as keyof typeof typeIcons] || Database
   const colorClass = typeColors[collection.type as keyof typeof typeColors] || 'text-slate-500'
@@ -57,7 +62,25 @@ export const CollectionItem = memo(function CollectionItem({
       onClick={onClick}
     >
       <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-blue-500' : colorClass)} />
-      <span className="flex-1 truncate text-sm">{collection.name}</span>
+      <TextTooltip text={collection.name} className="flex-1 text-sm" side="right" />
+
+      {/* Pin 按钮 */}
+      <IconTooltip content={isPinned ? 'Unpin collection' : 'Pin collection'} side="right">
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            'h-6 w-6 opacity-0 group-hover:opacity-40 hover:!opacity-100',
+            isActive && 'text-blue-600 hover:bg-blue-100'
+          )}
+          onClick={(e) => {
+            e.stopPropagation()
+            onTogglePin?.()
+          }}
+        >
+          {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+        </Button>
+      </IconTooltip>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -76,11 +99,11 @@ export const CollectionItem = memo(function CollectionItem({
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={onEdit}>
             <Pencil className="mr-2 h-4 w-4" />
-            编辑
+            Edit
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
             <Trash2 className="mr-2 h-4 w-4" />
-            删除
+            Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

@@ -1,6 +1,6 @@
 /**
  * OAuth2ProviderPanel 组件
- * OAuth2 提供商配置面板
+ * OAuth2 provider configuration panel
  */
 import { useState, useEffect, useCallback } from 'react'
 import { ArrowLeft, Save, Trash2, Eye, EyeOff, Copy, Check } from 'lucide-react'
@@ -99,21 +99,28 @@ export function OAuth2ProviderPanel({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-[500px] sm:w-[600px]">
         <SheetHeader>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onBack}>
               <ArrowLeft className="h-4 w-4" />
             </Button>
+            {provider?.logo && (
+              <img
+                src={`/images/oauth2/${provider.logo}`}
+                alt={provider.displayName}
+                className="w-6 h-6 object-contain"
+              />
+            )}
             <SheetTitle>{getProviderDisplayName(providerName)}</SheetTitle>
           </div>
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-150px)] mt-4">
           <div className="space-y-6 pr-4">
-            {/* 启用开关 */}
+            {/* Enable toggle */}
             <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
               <div>
-                <Label className="text-base">启用</Label>
-                <p className="text-sm text-muted-foreground">启用此 OAuth2 提供商</p>
+                <Label className="text-base">Enable</Label>
+                <p className="text-sm text-muted-foreground">Enable this OAuth2 provider</p>
               </div>
               <Switch
                 checked={formData.enabled}
@@ -121,9 +128,9 @@ export function OAuth2ProviderPanel({
               />
             </div>
 
-            {/* 重定向 URI */}
+            {/* Redirect URI */}
             <div className="space-y-2">
-              <Label>重定向 URI</Label>
+              <Label>Redirect URI</Label>
               <div className="flex gap-2">
                 <Input value={redirectUri} readOnly className="font-mono text-xs" />
                 <Button variant="outline" size="icon" onClick={handleCopyRedirectUri}>
@@ -135,7 +142,7 @@ export function OAuth2ProviderPanel({
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                在 OAuth2 提供商的应用设置中添加此 URI
+                Add this URI to your OAuth2 provider's app settings
               </p>
             </div>
 
@@ -148,7 +155,7 @@ export function OAuth2ProviderPanel({
                 id="clientId"
                 value={formData.clientId || ''}
                 onChange={(e) => handleChange('clientId', e.target.value)}
-                placeholder="输入 Client ID"
+                placeholder="Enter Client ID"
               />
             </div>
 
@@ -164,7 +171,7 @@ export function OAuth2ProviderPanel({
                     type={showSecret ? 'text' : 'password'}
                     value={formData.clientSecret || ''}
                     onChange={(e) => handleChange('clientSecret', e.target.value)}
-                    placeholder="输入 Client Secret"
+                    placeholder="Enter Client Secret"
                   />
                   <Button variant="outline" size="icon" onClick={() => setShowSecret(!showSecret)}>
                     {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -173,7 +180,7 @@ export function OAuth2ProviderPanel({
               </div>
             )}
 
-            {/* OIDC 特有字段 */}
+            {/* OIDC specific fields */}
             {isOIDC && (
               <>
                 <div className="space-y-2">
@@ -212,19 +219,19 @@ export function OAuth2ProviderPanel({
               </>
             )}
 
-            {/* 显示名称 */}
+            {/* Display name */}
             <div className="space-y-2">
-              <Label htmlFor="displayName">显示名称</Label>
+              <Label htmlFor="displayName">Display name</Label>
               <Input
                 id="displayName"
                 value={formData.displayName || ''}
                 onChange={(e) => handleChange('displayName', e.target.value)}
                 placeholder={getProviderDisplayName(providerName)}
               />
-              <p className="text-xs text-muted-foreground">自定义显示在登录按钮上的名称</p>
+              <p className="text-xs text-muted-foreground">Custom name to display on the login button</p>
             </div>
 
-            {/* 错误信息 */}
+            {/* Error messages */}
             {errors.length > 0 && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <ul className="text-sm text-red-700 list-disc list-inside">
@@ -235,11 +242,11 @@ export function OAuth2ProviderPanel({
               </div>
             )}
 
-            {/* 操作按钮 */}
+            {/* Action buttons */}
             <div className="flex gap-2 pt-4">
               <Button onClick={handleSave} className="flex-1">
                 <Save className="h-4 w-4 mr-2" />
-                保存
+                Save
               </Button>
 
               {config.clientId && (
@@ -251,14 +258,14 @@ export function OAuth2ProviderPanel({
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>确认删除</AlertDialogTitle>
+                      <AlertDialogTitle>Confirm delete</AlertDialogTitle>
                       <AlertDialogDescription>
-                        确定要删除 {getProviderDisplayName(providerName)} 的配置吗？此操作不可撤销。
+                        Are you sure you want to delete the {getProviderDisplayName(providerName)} configuration? This action cannot be undone.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>取消</AlertDialogCancel>
-                      <AlertDialogAction onClick={onDelete}>删除</AlertDialogAction>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>

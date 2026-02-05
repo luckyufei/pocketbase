@@ -290,7 +290,8 @@ export const router = createBrowserRouter(
     },
   ],
   {
-    basename: '/_',
+    // 开发模式用 '/'，生产模式用 '/_'
+    basename: import.meta.env.DEV ? '/' : '/_',
   }
 )
 

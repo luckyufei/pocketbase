@@ -9,12 +9,11 @@
       "DOM.Iterable"
     ],
     "module": "ESNext",
-    "types": [
-      "bun-types"
-    ],
     "skipLibCheck": true,
     /* Bundler mode */
     "moduleResolution": "bundler",
+    "resolvePackageJsonExports": true,
+    "resolvePackageJsonImports": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",

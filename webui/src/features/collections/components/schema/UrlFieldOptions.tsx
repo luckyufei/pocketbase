@@ -2,8 +2,9 @@
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { X } from 'lucide-react'
+import { Info, X } from 'lucide-react'
 import { useState } from 'react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 export interface UrlField {
   name: string
@@ -54,39 +55,26 @@ export function UrlFieldOptions({ field, onChange }: UrlFieldOptionsProps) {
     }
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Label>Only domains</Label>
-        <p className="text-xs text-muted-foreground">
-          Allow URLs ONLY from the listed domains. Leave empty for no restriction.
-        </p>
-        <div className="flex flex-wrap gap-1 mb-2">
-          {(field.onlyDomains || []).map((domain) => (
-            <Badge key={domain} variant="secondary" className="gap-1">
-              {domain}
-              <button
-                type="button"
-                onClick={() => handleRemoveDomain('onlyDomains', domain)}
-                className="ml-1 hover:text-destructive"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-        <Input
-          placeholder="e.g. example.com"
-          value={onlyInput}
-          onChange={(e) => setOnlyInput(e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, 'onlyDomains', onlyInput)}
-          onBlur={() => handleAddDomain('onlyDomains', onlyInput)}
-        />
-      </div>
+  const isOnlyDomainsDisabled = (field.exceptDomains?.length || 0) > 0
+  const isExceptDomainsDisabled = (field.onlyDomains?.length || 0) > 0
 
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      {/* Except domains - 左侧 */}
       <div className="space-y-2">
-        <Label>Except domains</Label>
-        <p className="text-xs text-muted-foreground">Block URLs from the listed domains.</p>
+        <div className="flex items-center gap-1">
+          <Label>Except domains</Label>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>List of domains that are NOT allowed.<br/>This field is disabled if "Only domains" is set.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         <div className="flex flex-wrap gap-1 mb-2">
           {(field.exceptDomains || []).map((domain) => (
             <Badge key={domain} variant="secondary" className="gap-1">
@@ -103,11 +91,53 @@ export function UrlFieldOptions({ field, onChange }: UrlFieldOptionsProps) {
         </div>
         <Input
           placeholder="e.g. spam.com"
+          disabled={isExceptDomainsDisabled}
           value={exceptInput}
           onChange={(e) => setExceptInput(e.target.value)}
           onKeyDown={(e) => handleKeyDown(e, 'exceptDomains', exceptInput)}
           onBlur={() => handleAddDomain('exceptDomains', exceptInput)}
         />
+        <p className="text-xs text-muted-foreground">Use comma as separator.</p>
+      </div>
+
+      {/* Only domains - 右侧 */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-1">
+          <Label>Only domains</Label>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>List of domains that are ONLY allowed.<br/>This field is disabled if "Except domains" is set.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+        <div className="flex flex-wrap gap-1 mb-2">
+          {(field.onlyDomains || []).map((domain) => (
+            <Badge key={domain} variant="secondary" className="gap-1">
+              {domain}
+              <button
+                type="button"
+                onClick={() => handleRemoveDomain('onlyDomains', domain)}
+                className="ml-1 hover:text-destructive"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+        <Input
+          placeholder="e.g. example.com"
+          disabled={isOnlyDomainsDisabled}
+          value={onlyInput}
+          onChange={(e) => setOnlyInput(e.target.value)}
+          onKeyDown={(e) => handleKeyDown(e, 'onlyDomains', onlyInput)}
+          onBlur={() => handleAddDomain('onlyDomains', onlyInput)}
+        />
+        <p className="text-xs text-muted-foreground">Use comma as separator.</p>
       </div>
     </div>
   )

@@ -1,13 +1,19 @@
 /**
  * 集合查询标签页
  * 用于 View 类型集合的 SQL 查询编辑
+ * 
+ * Phase 0.8: SQL 编辑器增强
+ * - SQL 语法高亮
+ * - 表名/列名自动补全
  */
 import { useMemo } from 'react'
+import { useAtomValue } from 'jotai'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CodeEditor } from '@/components/CodeEditor'
 import { extractColumnsFromQuery, sentenize } from '@/lib/utils'
-import type { CollectionModel } from 'pocketbase'
+import { collectionsAtom } from '../store'
+import type { CollectionModel, SchemaField } from 'pocketbase'
 
 interface CollectionQueryTabProps {
   collection: CollectionModel & { viewQuery?: string }
@@ -16,6 +22,18 @@ interface CollectionQueryTabProps {
 }
 
 export function CollectionQueryTab({ collection, onChange, errors = {} }: CollectionQueryTabProps) {
+  // 获取所有 collections 用于 SQL 自动补全
+  const collections = useAtomValue(collectionsAtom)
+  
+  // 构建 SQL schema 用于自动补全
+  const sqlSchema = useMemo(() => {
+    const tables = collections.map((c: CollectionModel) => ({
+      name: c.name,
+      columns: (c as any).fields?.map((f: SchemaField) => f.name) || [],
+    }))
+    return { tables }
+  }, [collections])
+  
   // 解析字段错误
   const fieldsErrors = useMemo(() => {
     const result: string[] = []
@@ -23,6 +41,16 @@ export function CollectionQueryTab({ collection, onChange, errors = {} }: Collec
       | Record<string, Record<string, { message: string }>>
       | { message?: string }
       | undefined
+    
+    // viewQuery 错误
+    const viewQueryError = errors?.viewQuery as { message?: string } | string | undefined
+    if (viewQueryError) {
+      if (typeof viewQueryError === 'string') {
+        result.push(viewQueryError)
+      } else if (viewQueryError.message) {
+        result.push(viewQueryError.message)
+      }
+    }
 
     if (!raw) return result
 
@@ -56,34 +84,35 @@ export function CollectionQueryTab({ collection, onChange, errors = {} }: Collec
     <div className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="viewQuery">
-          Select 查询 <span className="text-destructive">*</span>
+          SELECT query <span className="text-destructive">*</span>
         </Label>
 
         <CodeEditor
           id="viewQuery"
           language="sql"
-          placeholder="例如: SELECT id, name from posts"
+          placeholder="eg. SELECT id, name from posts"
           value={collection.viewQuery || ''}
           onChange={onChange}
           minHeight={150}
+          sqlSchema={sqlSchema}
           className={fieldsErrors.length > 0 ? 'border-destructive' : ''}
         />
 
         <div className="text-sm text-muted-foreground space-y-1">
           <ul className="list-disc list-inside space-y-1">
             <li>
-              不支持通配符列 (<code>*</code>)
+              Wildcard columns (<code>*</code>) are not supported.
             </li>
             <li>
-              查询必须包含唯一的 <code>id</code> 列。
+              The query must have a unique <code>id</code> column.
               <br />
-              如果查询没有合适的列，可以使用 <code>(ROW_NUMBER() OVER()) as id</code>
+              If the query doesn't have a suitable one, you can create such using <code>(ROW_NUMBER() OVER()) as id</code>
             </li>
             <li>
-              表达式必须使用有效格式的字段名作为别名，例如 <code>MAX(balance) as maxBalance</code>
+              Expressions must use a valid format for a field name alias, eg. <code>MAX(balance) as maxBalance</code>
             </li>
             <li>
-              组合/多空格表达式必须用括号包裹，例如 <code>(MAX(balance) + 1) as maxBalance</code>
+              Composite/multi-space expressions must be wrapped in parenthesis, eg. <code>(MAX(balance) + 1) as maxBalance</code>
             </li>
           </ul>
         </div>
