@@ -42,7 +42,13 @@ func Register(app core.App, config Config) error {
 		startCleanupTask(app, store, config.CleanupInterval)
 	} else {
 		// 否则通过 OnBootstrap 钩子注册
+		// 必须在 e.Next() 之后执行，因为数据库连接在 Bootstrap() 核心逻辑中初始化
 		app.OnBootstrap().BindFunc(func(e *core.BootstrapEvent) error {
+			if err := e.Next(); err != nil {
+				return err
+			}
+
+			// 数据库已初始化，创建 KV 表
 			if err := createKVTable(app); err != nil {
 				return err
 			}
@@ -50,7 +56,7 @@ func Register(app core.App, config Config) error {
 			// 启动过期清理任务
 			startCleanupTask(app, store, config.CleanupInterval)
 
-			return e.Next()
+			return nil
 		})
 	}
 

@@ -42,8 +42,8 @@ export function PasswordFieldOptions({ field, onChange }: PasswordFieldOptionsPr
           id="password-max"
           type="number"
           min={field.min || 0}
-          max={71}
-          placeholder="Up to 71 chars"
+          max={72}
+          placeholder="Up to 72 chars"
           value={field.max || ''}
           onChange={(e) => handleChange('max', e.target.value ? parseInt(e.target.value, 10) : undefined)}
         />
