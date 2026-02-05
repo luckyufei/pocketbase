@@ -11,6 +11,7 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/plugins/analytics"
 	"github.com/pocketbase/pocketbase/plugins/gateway"
 	"github.com/pocketbase/pocketbase/plugins/ghupdate"
 	"github.com/pocketbase/pocketbase/plugins/jsvm"
@@ -125,6 +126,15 @@ func main() {
 		L1Enabled:   true,               // 启用 L1 内存缓存
 		L1TTL:       5 * time.Second,    // L1 缓存 TTL
 		HTTPEnabled: false,              // 默认不启用 HTTP API（需超级用户权限）
+	})
+
+	// Analytics 插件 - 原生用户行为分析
+	// 提供事件采集、聚合和 Dashboard 功能
+	// 可通过环境变量配置: PB_ANALYTICS_MODE, PB_ANALYTICS_RETENTION 等
+	analytics.MustRegister(app, analytics.Config{
+		Mode:      analytics.ModeConditional, // 条件采集模式
+		Enabled:   true,                      // 启用分析功能
+		Retention: 90,                        // 数据保留 90 天
 	})
 
 	// TOF 认证插件

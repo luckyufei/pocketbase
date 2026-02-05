@@ -179,16 +179,42 @@ class TestAnalyticsService:
         assert "2024-01-01" in url
         assert "/api/analytics/raw-logs/" in url
 
-    def test_track_event_with_visitor_id(self, client: PocketBase, mock_send: MagicMock) -> None:
-        """Test tracking event with visitor ID."""
+    def test_track_event_with_session_id(self, client: PocketBase, mock_send: MagicMock) -> None:
+        """Test tracking event with session ID."""
         mock_send.return_value = {"accepted": 1, "total": 1}
 
         result = client.analytics.track_event(
             event="pageview",
             path="/home",
-            visitor_id="visitor-123",
+            session_id="session-123",
         )
 
         assert result["accepted"] == 1
         body = mock_send.call_args[1]["body"]
-        assert body["events"][0]["visitorId"] == "visitor-123"
+        assert body["events"][0]["sessionId"] == "session-123"
+
+    def test_track_event_with_extra_fields(self, client: PocketBase, mock_send: MagicMock) -> None:
+        """Test tracking event with extra custom fields."""
+        mock_send.return_value = {"accepted": 1, "total": 1}
+
+        result = client.analytics.track_event(
+            event="purchase",
+            path="/checkout",
+            session_id="session-123",
+            order_id="ORD-456",
+            amount=99.99,
+        )
+
+        assert result["accepted"] == 1
+        body = mock_send.call_args[1]["body"]
+        event = body["events"][0]
+        assert event["order_id"] == "ORD-456"
+        assert event["amount"] == 99.99
+
+    def test_is_enabled_returns_true(self, client: PocketBase, mock_send: MagicMock) -> None:
+        """Test is_enabled returns True when analytics is enabled."""
+        mock_send.return_value = {"accepted": 0, "total": 0}
+
+        result = client.analytics.is_enabled()
+
+        assert result is True

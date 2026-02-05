@@ -4,6 +4,24 @@ import (
 	"sync"
 )
 
+// Aggregation 内存中的聚合数据（带 HLL 实例）
+type aggregationWithHLL struct {
+	*Aggregation
+	hll *HLL // 内存中的 HLL 实例
+}
+
+// SourceAggregation 内存中的来源聚合数据（带 HLL 实例）
+type sourceAggregationWithHLL struct {
+	*SourceAggregation
+	hll *HLL
+}
+
+// DeviceAggregation 内存中的设备聚合数据（带 HLL 实例）
+type deviceAggregationWithHLL struct {
+	*DeviceAggregation
+	hll *HLL
+}
+
 // Buffer 是分析事件的内存缓冲区。
 // 它实现了 Fork & Flush 架构中的 Fork 部分：
 // - Raw Buffer: 存储原始事件，用于写入 Parquet
@@ -19,13 +37,13 @@ type Buffer struct {
 
 	// aggregations 存储按 date+path 聚合的数据
 	// key: "2026-01-09|/pricing"
-	aggregations map[string]*Aggregation
+	aggregations map[string]*aggregationWithHLL
 
 	// sourceAggregations 存储按 date+source 聚合的数据
-	sourceAggregations map[string]*SourceAggregation
+	sourceAggregations map[string]*sourceAggregationWithHLL
 
 	// deviceAggregations 存储按 date+browser+os 聚合的数据
-	deviceAggregations map[string]*DeviceAggregation
+	deviceAggregations map[string]*deviceAggregationWithHLL
 }
 
 // NewBuffer 创建一个新的缓冲区。
@@ -37,9 +55,9 @@ func NewBuffer(maxRawSize int) *Buffer {
 	return &Buffer{
 		maxRawSize:         maxRawSize,
 		rawBuffer:          make([]*Event, 0, 1024),
-		aggregations:       make(map[string]*Aggregation),
-		sourceAggregations: make(map[string]*SourceAggregation),
-		deviceAggregations: make(map[string]*DeviceAggregation),
+		aggregations:       make(map[string]*aggregationWithHLL),
+		sourceAggregations: make(map[string]*sourceAggregationWithHLL),
+		deviceAggregations: make(map[string]*deviceAggregationWithHLL),
 	}
 }
 
@@ -99,14 +117,26 @@ func (b *Buffer) DrainRaw() []*Event {
 }
 
 // DrainAggregations 取出并清空 Aggregation Map。
+// 在返回前，将内存中的 HLL 序列化到 Aggregation.HLL 字段。
 func (b *Buffer) DrainAggregations() map[string]*Aggregation {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	aggs := b.aggregations
-	b.aggregations = make(map[string]*Aggregation)
+	result := make(map[string]*Aggregation, len(b.aggregations))
+	for key, aggWithHLL := range b.aggregations {
+		// 序列化 HLL 到字节数组
+		if aggWithHLL.hll != nil {
+			hllBytes, err := aggWithHLL.hll.Bytes()
+			if err == nil {
+				aggWithHLL.Aggregation.HLL = hllBytes
+			}
+		}
+		result[key] = aggWithHLL.Aggregation
+	}
 
-	return aggs
+	b.aggregations = make(map[string]*aggregationWithHLL)
+
+	return result
 }
 
 // DrainSourceAggregations 取出并清空 Source Aggregation Map。
@@ -114,10 +144,21 @@ func (b *Buffer) DrainSourceAggregations() map[string]*SourceAggregation {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	aggs := b.sourceAggregations
-	b.sourceAggregations = make(map[string]*SourceAggregation)
+	result := make(map[string]*SourceAggregation, len(b.sourceAggregations))
+	for key, aggWithHLL := range b.sourceAggregations {
+		// 序列化 HLL 到字节数组
+		if aggWithHLL.hll != nil {
+			hllBytes, err := aggWithHLL.hll.Bytes()
+			if err == nil {
+				aggWithHLL.SourceAggregation.HLL = hllBytes
+			}
+		}
+		result[key] = aggWithHLL.SourceAggregation
+	}
 
-	return aggs
+	b.sourceAggregations = make(map[string]*sourceAggregationWithHLL)
+
+	return result
 }
 
 // DrainDeviceAggregations 取出并清空 Device Aggregation Map。
@@ -125,10 +166,21 @@ func (b *Buffer) DrainDeviceAggregations() map[string]*DeviceAggregation {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	aggs := b.deviceAggregations
-	b.deviceAggregations = make(map[string]*DeviceAggregation)
+	result := make(map[string]*DeviceAggregation, len(b.deviceAggregations))
+	for key, aggWithHLL := range b.deviceAggregations {
+		// 序列化 HLL 到字节数组
+		if aggWithHLL.hll != nil {
+			hllBytes, err := aggWithHLL.hll.Bytes()
+			if err == nil {
+				aggWithHLL.DeviceAggregation.HLL = hllBytes
+			}
+		}
+		result[key] = aggWithHLL.DeviceAggregation
+	}
 
-	return aggs
+	b.deviceAggregations = make(map[string]*deviceAggregationWithHLL)
+
+	return result
 }
 
 // AggregationCount 返回聚合条目数量。
@@ -145,15 +197,26 @@ func (b *Buffer) updateAggregation(event *Event) {
 
 	agg, exists := b.aggregations[key]
 	if !exists {
-		agg = &Aggregation{
-			Date: date,
-			Path: event.Path,
+		agg = &aggregationWithHLL{
+			Aggregation: &Aggregation{
+				Date: date,
+				Path: event.Path,
+			},
+			hll: NewHLL(),
 		}
 		b.aggregations[key] = agg
 	}
 
 	agg.PV++
 	agg.Count++
+
+	// 添加 SessionID 到 HLL 用于 UV 去重
+	if event.SessionID != "" {
+		if agg.hll == nil {
+			agg.hll = NewHLL()
+		}
+		agg.hll.Add(event.SessionID)
+	}
 }
 
 // updateSourceAggregation 更新来源聚合数据。
@@ -171,14 +234,25 @@ func (b *Buffer) updateSourceAggregation(event *Event) {
 
 	agg, exists := b.sourceAggregations[key]
 	if !exists {
-		agg = &SourceAggregation{
-			Date:   date,
-			Source: source,
+		agg = &sourceAggregationWithHLL{
+			SourceAggregation: &SourceAggregation{
+				Date:   date,
+				Source: source,
+			},
+			hll: NewHLL(),
 		}
 		b.sourceAggregations[key] = agg
 	}
 
 	agg.Count++
+
+	// 添加 SessionID 到 HLL 用于 UV 去重
+	if event.SessionID != "" {
+		if agg.hll == nil {
+			agg.hll = NewHLL()
+		}
+		agg.hll.Add(event.SessionID)
+	}
 }
 
 // updateDeviceAggregation 更新设备聚合数据。
@@ -196,15 +270,26 @@ func (b *Buffer) updateDeviceAggregation(event *Event) {
 
 	agg, exists := b.deviceAggregations[key]
 	if !exists {
-		agg = &DeviceAggregation{
-			Date:    date,
-			Browser: browser,
-			OS:      os,
+		agg = &deviceAggregationWithHLL{
+			DeviceAggregation: &DeviceAggregation{
+				Date:    date,
+				Browser: browser,
+				OS:      os,
+			},
+			hll: NewHLL(),
 		}
 		b.deviceAggregations[key] = agg
 	}
 
 	agg.Count++
+
+	// 添加 SessionID 到 HLL 用于 UV 去重
+	if event.SessionID != "" {
+		if agg.hll == nil {
+			agg.hll = NewHLL()
+		}
+		agg.hll.Add(event.SessionID)
+	}
 }
 
 // estimateEventSize 估算事件的内存占用（字节）。
@@ -280,12 +365,31 @@ func (b *Buffer) RestoreAggregations(aggs map[string]*Aggregation) {
 			existing.PV += agg.PV
 			existing.Count += agg.Count
 			existing.Duration += agg.Duration
-			// HLL 合并较复杂，这里简单覆盖
+
+			// 合并 HLL
 			if len(agg.HLL) > 0 {
-				existing.HLL = agg.HLL
+				if existing.hll == nil {
+					existing.hll = NewHLL()
+				}
+				_ = existing.hll.MergeBytes(agg.HLL)
 			}
 		} else {
-			b.aggregations[key] = agg
+			// 从字节数组恢复 HLL
+			var hll *HLL
+			if len(agg.HLL) > 0 {
+				var err error
+				hll, err = NewHLLFromBytes(agg.HLL)
+				if err != nil {
+					hll = NewHLL()
+				}
+			} else {
+				hll = NewHLL()
+			}
+
+			b.aggregations[key] = &aggregationWithHLL{
+				Aggregation: agg,
+				hll:         hll,
+			}
 		}
 	}
 }
@@ -302,8 +406,31 @@ func (b *Buffer) RestoreSourceAggregations(aggs map[string]*SourceAggregation) {
 	for key, agg := range aggs {
 		if existing, ok := b.sourceAggregations[key]; ok {
 			existing.Count += agg.Count
+
+			// 合并 HLL
+			if len(agg.HLL) > 0 {
+				if existing.hll == nil {
+					existing.hll = NewHLL()
+				}
+				_ = existing.hll.MergeBytes(agg.HLL)
+			}
 		} else {
-			b.sourceAggregations[key] = agg
+			// 从字节数组恢复 HLL
+			var hll *HLL
+			if len(agg.HLL) > 0 {
+				var err error
+				hll, err = NewHLLFromBytes(agg.HLL)
+				if err != nil {
+					hll = NewHLL()
+				}
+			} else {
+				hll = NewHLL()
+			}
+
+			b.sourceAggregations[key] = &sourceAggregationWithHLL{
+				SourceAggregation: agg,
+				hll:               hll,
+			}
 		}
 	}
 }
@@ -320,8 +447,31 @@ func (b *Buffer) RestoreDeviceAggregations(aggs map[string]*DeviceAggregation) {
 	for key, agg := range aggs {
 		if existing, ok := b.deviceAggregations[key]; ok {
 			existing.Count += agg.Count
+
+			// 合并 HLL
+			if len(agg.HLL) > 0 {
+				if existing.hll == nil {
+					existing.hll = NewHLL()
+				}
+				_ = existing.hll.MergeBytes(agg.HLL)
+			}
 		} else {
-			b.deviceAggregations[key] = agg
+			// 从字节数组恢复 HLL
+			var hll *HLL
+			if len(agg.HLL) > 0 {
+				var err error
+				hll, err = NewHLLFromBytes(agg.HLL)
+				if err != nil {
+					hll = NewHLL()
+				}
+			} else {
+				hll = NewHLL()
+			}
+
+			b.deviceAggregations[key] = &deviceAggregationWithHLL{
+				DeviceAggregation: agg,
+				hll:               hll,
+			}
 		}
 	}
 }

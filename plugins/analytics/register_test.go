@@ -330,3 +330,68 @@ func TestAnalyticsImpl_TrackWhenDisabled(t *testing.T) {
 		}
 	}
 }
+
+// TestRegister_CronJob 测试 Cron 清理任务是否被注册
+func TestRegister_CronJob(t *testing.T) {
+	app, err := tests.NewTestApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Cleanup()
+
+	// 注册 analytics（启用模式）
+	err = Register(app, Config{
+		Mode:      ModeConditional,
+		Enabled:   true,
+		Retention: 30, // 30 天保留期
+	})
+	if err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	// 检查 Cron 任务是否已注册
+	// __pbAnalyticsPrune__ 是我们的 Cron 任务 ID
+	cron := app.Cron()
+	jobs := cron.Jobs()
+
+	found := false
+	for _, job := range jobs {
+		if job.Id() == "__pbAnalyticsPrune__" {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		t.Error("Cron job __pbAnalyticsPrune__ should be registered")
+	}
+}
+
+// TestRegister_CronJob_Disabled 测试禁用模式下不注册 Cron 任务
+func TestRegister_CronJob_Disabled(t *testing.T) {
+	app, err := tests.NewTestApp()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer app.Cleanup()
+
+	// 注册 analytics（禁用模式）
+	err = Register(app, Config{
+		Mode:    ModeOff,
+		Enabled: false,
+	})
+	if err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	// 检查 Cron 任务是否未注册
+	cron := app.Cron()
+	jobs := cron.Jobs()
+
+	for _, job := range jobs {
+		if job.Id() == "__pbAnalyticsPrune__" {
+			t.Error("Cron job should NOT be registered when analytics is disabled")
+			break
+		}
+	}
+}

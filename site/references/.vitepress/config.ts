@@ -51,6 +51,7 @@ const sidebarEn = [
       { text: 'Testing', link: '/en/go/testing' },
       { text: 'Miscellaneous', link: '/en/go/miscellaneous' },
       { text: 'Record proxy', link: '/en/go/record-proxy' },
+      { text: 'Analytics', link: '/en/go/analytics' },
     ]
   },
   {
@@ -146,6 +147,7 @@ const sidebarZh = [
       { text: '测试', link: '/zh/go/testing' },
       { text: '其他', link: '/zh/go/miscellaneous' },
       { text: 'Record 代理', link: '/zh/go/record-proxy' },
+      { text: '用户行为分析', link: '/zh/go/analytics' },
     ]
   },
   {

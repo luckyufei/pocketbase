@@ -11,9 +11,31 @@ import (
 	"github.com/pocketbase/pocketbase/tests"
 )
 
-// 注意：由于 apis.NewRouter 已经包含了 analytics 路由（通过 apis/analytics.go），
-// 我们这里测试的是插件版本的 handlers。
-// Phase 6 清理后，apis/analytics*.go 将被删除，此时才能完整测试插件版本。
+// setupTestRouter 创建一个带有 analytics 路由的测试路由器
+func setupTestRouter(t *testing.T, app *tests.TestApp) http.Handler {
+	t.Helper()
+
+	// 注册 analytics 插件
+	if err := Register(app, Config{Enabled: true, Mode: ModeConditional}); err != nil {
+		t.Fatal(err)
+	}
+
+	// 创建路由器
+	pbRouter, err := apis.NewRouter(app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 手动绑定 analytics 路由（因为 OnServe 钩子在测试中不会自动触发）
+	BindRoutes(app, pbRouter.Group("/api"))
+
+	mux, err := pbRouter.BuildMux()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return mux
+}
 
 func TestEventsHandler_BotTraffic(t *testing.T) {
 	app, err := tests.NewTestApp()
@@ -22,16 +44,7 @@ func TestEventsHandler_BotTraffic(t *testing.T) {
 	}
 	defer app.Cleanup()
 
-	// 使用原有的 apis.NewRouter（包含已绑定的 analytics 路由）
-	pbRouter, err := apis.NewRouter(app)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mux, err := pbRouter.BuildMux()
-	if err != nil {
-		t.Fatal(err)
-	}
+	mux := setupTestRouter(t, app)
 
 	body := []byte(`{"events":[{"event":"page_view","path":"/home","sessionId":"test-session"}]}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/analytics/events", bytes.NewReader(body))
@@ -63,15 +76,7 @@ func TestEventsHandler_ValidEvents(t *testing.T) {
 	}
 	defer app.Cleanup()
 
-	pbRouter, err := apis.NewRouter(app)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mux, err := pbRouter.BuildMux()
-	if err != nil {
-		t.Fatal(err)
-	}
+	mux := setupTestRouter(t, app)
 
 	body := []byte(`{"events":[{"event":"page_view","path":"/home","sessionId":"test-session-123"}]}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/analytics/events", bytes.NewReader(body))
@@ -81,11 +86,9 @@ func TestEventsHandler_ValidEvents(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	// 注意：这里使用的是 apis/analytics.go 中的 handler，可能返回 404（如果 app.Analytics() 未初始化）
-	// 或 202（如果已初始化）
-	// 主要验证请求能正常处理
-	if rec.Code != http.StatusAccepted && rec.Code != http.StatusNotFound {
-		t.Errorf("Unexpected status %d", rec.Code)
+	// 应该返回 202 Accepted
+	if rec.Code != http.StatusAccepted {
+		t.Errorf("Expected status %d, got %d", http.StatusAccepted, rec.Code)
 	}
 }
 
@@ -96,15 +99,7 @@ func TestEventsHandler_InvalidBody(t *testing.T) {
 	}
 	defer app.Cleanup()
 
-	pbRouter, err := apis.NewRouter(app)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mux, err := pbRouter.BuildMux()
-	if err != nil {
-		t.Fatal(err)
-	}
+	mux := setupTestRouter(t, app)
 
 	// 无效的 JSON
 	body := []byte(`{invalid json}`)
@@ -114,9 +109,8 @@ func TestEventsHandler_InvalidBody(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	// 可能返回 400 或 404（取决于 analytics 是否启用）
-	if rec.Code != http.StatusBadRequest && rec.Code != http.StatusNotFound {
-		t.Errorf("Expected status 400 or 404 for invalid JSON, got %d", rec.Code)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for invalid JSON, got %d", http.StatusBadRequest, rec.Code)
 	}
 }
 
@@ -127,15 +121,7 @@ func TestEventsHandler_EmptyEvents(t *testing.T) {
 	}
 	defer app.Cleanup()
 
-	pbRouter, err := apis.NewRouter(app)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mux, err := pbRouter.BuildMux()
-	if err != nil {
-		t.Fatal(err)
-	}
+	mux := setupTestRouter(t, app)
 
 	body := []byte(`{"events":[]}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/analytics/events", bytes.NewReader(body))
@@ -144,8 +130,7 @@ func TestEventsHandler_EmptyEvents(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	// 可能返回 400 或 404
-	if rec.Code != http.StatusBadRequest && rec.Code != http.StatusNotFound {
-		t.Errorf("Expected status 400 or 404 for empty events, got %d", rec.Code)
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d for empty events, got %d", http.StatusBadRequest, rec.Code)
 	}
 }

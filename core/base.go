@@ -200,9 +200,6 @@ type BaseApp struct {
 
 	// job store for job queue
 	jobStore *jobStore
-
-	// analytics for native user behavior analytics
-	analytics *Analytics
 }
 
 // NewBaseApp creates and returns a new BaseApp instance
@@ -447,12 +444,6 @@ func (app *BaseApp) Bootstrap() error {
 
 		// initialize Secrets store
 		app.initSecretsStore()
-
-		// initialize Analytics system
-		if err := app.initAnalytics(); err != nil {
-			app.Logger().Warn("Failed to initialize analytics system", "error", err)
-			// 不返回错误，Analytics 初始化失败不应阻止应用启动
-		}
 
 		// try to cleanup the pb_data temp directory (if any)
 		_ = os.RemoveAll(filepath.Join(app.DataDir(), LocalTempDirName))

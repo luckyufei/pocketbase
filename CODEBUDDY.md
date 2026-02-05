@@ -406,6 +406,7 @@ func main() {
 | **migrations** | `_ "github.com/pocketbase/pocketbase/migrations"` | System table migrations | `_jobs`, `_secrets` tables |
 | **trace** | `github.com/pocketbase/pocketbase/plugins/trace` | 可观测性追踪功能 | 分布式追踪、条件采集、用户染色 |
 | **kv** | `github.com/pocketbase/pocketbase/plugins/kv` | 类 Redis 键值存储 | KV 存储（L1 缓存 + L2 数据库） |
+| **analytics** | `github.com/pocketbase/pocketbase/plugins/analytics` | 原生用户行为分析 | 事件采集、聚合、Dashboard |
 
 ### Why Plugins Are Not Auto-Imported
 

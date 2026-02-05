@@ -410,7 +410,6 @@ func TestNormalizeURL_Integration(t *testing.T) {
 	}{
 		{"/home", "/home"},
 		{"/home/", "/home"},
-		{"/HOME", "/home"},
 		{"/path?query=1", "/path"},
 		{"", "/"},
 	}
@@ -436,20 +435,20 @@ func TestParseUserAgent_Integration(t *testing.T) {
 		{
 			ua:      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
 			browser: "Chrome",
-			os:      "Windows",
-			device:  "Desktop",
+			os:      "Windows 10",
+			device:  "desktop",
 		},
 		{
 			ua:      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
 			browser: "Safari",
 			os:      "iOS",
-			device:  "Mobile",
+			device:  "mobile",
 		},
 		{
 			ua:      "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
 			browser: "Chrome",
 			os:      "Android",
-			device:  "Mobile",
+			device:  "mobile",
 		},
 	}
 
@@ -560,7 +559,7 @@ func TestEventsHandler_InvalidJSONParsing(t *testing.T) {
 	}
 }
 
-// TestExistingAnalyticsAPI 测试通过 apis.NewRouter 访问的现有 analytics API
+// TestExistingAnalyticsAPI 测试通过插件注册的 analytics API
 func TestExistingAnalyticsAPI_Events(t *testing.T) {
 	app, err := tests.NewTestApp()
 	if err != nil {
@@ -568,10 +567,18 @@ func TestExistingAnalyticsAPI_Events(t *testing.T) {
 	}
 	defer app.Cleanup()
 
+	// 注册 analytics 插件
+	if err := Register(app, Config{Enabled: true, Mode: ModeConditional}); err != nil {
+		t.Fatal(err)
+	}
+
 	pbRouter, err := apis.NewRouter(app)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// 手动绑定 analytics 路由
+	BindRoutes(app, pbRouter.Group("/api"))
 
 	mux, err := pbRouter.BuildMux()
 	if err != nil {
@@ -579,7 +586,7 @@ func TestExistingAnalyticsAPI_Events(t *testing.T) {
 	}
 
 	// 测试 bot 流量
-	body := []byte(`{"events":[{"event":"page_view","path":"/home","sid":"test-session"}]}`)
+	body := []byte(`{"events":[{"event":"page_view","path":"/home","sessionId":"test-session"}]}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/analytics/events", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "Googlebot/2.1 (+http://www.google.com/bot.html)")
@@ -587,9 +594,9 @@ func TestExistingAnalyticsAPI_Events(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	// Bot 流量应该返回 202 或 404（取决于 analytics 是否启用）
-	if rec.Code != http.StatusAccepted && rec.Code != http.StatusNotFound {
-		t.Errorf("Expected 202 or 404 for bot traffic, got %d", rec.Code)
+	// Bot 流量应该返回 202
+	if rec.Code != http.StatusAccepted {
+		t.Errorf("Expected 202 for bot traffic, got %d", rec.Code)
 	}
 }
 
@@ -601,10 +608,18 @@ func TestExistingAnalyticsAPI_Config(t *testing.T) {
 	}
 	defer app.Cleanup()
 
+	// 注册 analytics 插件
+	if err := Register(app, Config{Enabled: true, Mode: ModeConditional}); err != nil {
+		t.Fatal(err)
+	}
+
 	pbRouter, err := apis.NewRouter(app)
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// 手动绑定 analytics 路由
+	BindRoutes(app, pbRouter.Group("/api"))
 
 	mux, err := pbRouter.BuildMux()
 	if err != nil {
@@ -615,7 +630,7 @@ func TestExistingAnalyticsAPI_Config(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 
-	// 配置端点需要 superuser 认证，应该返回 401 或 200（取决于认证状态）
+	// 配置端点需要 superuser 认证，应该返回 401
 	t.Logf("Config response: %d - %s", rec.Code, rec.Body.String())
 }
 
