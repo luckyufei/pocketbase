@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/plugins/secrets"
 )
 
 // IsHopByHopHeader 检查是否为 hop-by-hop 头（不应转发）
@@ -180,10 +181,11 @@ func (p *gatewayPlugin) serveProxy(e *core.RequestEvent, proxy *ProxyConfig, aut
 // createSecretGetter 创建 Secret 获取函数
 func (p *gatewayPlugin) createSecretGetter() SecretGetter {
 	return func(name string) (string, error) {
-		secrets := p.app.Secrets()
-		if secrets == nil || !secrets.IsEnabled() {
+		// 使用 secrets 插件获取 Secret
+		store := secrets.GetStore(p.app)
+		if store == nil || !store.IsEnabled() {
 			return "", nil
 		}
-		return secrets.Get(name)
+		return store.Get(name)
 	}
 }

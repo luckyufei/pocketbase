@@ -19,6 +19,7 @@ import (
 	"github.com/pocketbase/pocketbase/plugins/metrics"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
 	"github.com/pocketbase/pocketbase/plugins/processman"
+	"github.com/pocketbase/pocketbase/plugins/secrets"
 	"github.com/pocketbase/pocketbase/plugins/tofauth"
 	"github.com/pocketbase/pocketbase/plugins/trace"
 	"github.com/pocketbase/pocketbase/plugins/trace/filters"
@@ -160,6 +161,12 @@ func main() {
 	// 支持代理 LLM API（OpenAI、Claude 等）和本地 Sidecar
 	// 使用 ReverseProxy + "暴力归一化" 策略解决协议兼容问题
 	gateway.MustRegister(app, gateway.Config{})
+
+	// Secrets 插件 - 系统级密钥管理
+	// 提供 _secrets 系统表，通过 AES-256-GCM 加密存储敏感信息
+	// 需要设置 PB_MASTER_KEY 环境变量（64 位十六进制字符）
+	// 可通过环境变量配置: PB_SECRETS_DEFAULT_ENV, PB_SECRETS_MAX_VALUE_SIZE 等
+	secrets.MustRegister(app, secrets.DefaultConfig())
 
 	// load jsvm (pb_hooks and pb_migrations)
 	jsvm.MustRegister(app, jsvm.Config{

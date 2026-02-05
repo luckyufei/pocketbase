@@ -12,6 +12,7 @@ import (
 
 // secretTestAppFactory 创建启用了 Secrets 功能的测试 App
 func secretTestAppFactory(t testing.TB) *tests.TestApp {
+	// 设置 Master Key 环境变量以启用 CryptoEngine
 	os.Setenv(core.MasterKeyEnvVar, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 
 	app, err := tests.NewTestApp()
@@ -23,7 +24,8 @@ func secretTestAppFactory(t testing.TB) *tests.TestApp {
 }
 
 func TestRecordCrudSecretFieldCreate(t *testing.T) {
-	t.Parallel()
+	// 不能使用 t.Parallel()，因为 secretTestAppFactory 会设置全局环境变量
+	// t.Parallel()
 
 	scenarios := []tests.ApiScenario{
 		{
@@ -123,7 +125,8 @@ func TestRecordCrudSecretFieldCreate(t *testing.T) {
 }
 
 func TestRecordCrudSecretFieldRead(t *testing.T) {
-	t.Parallel()
+	// 不能使用 t.Parallel()，因为 secretTestAppFactory 会设置全局环境变量
+	// t.Parallel()
 
 	scenarios := []tests.ApiScenario{
 		{

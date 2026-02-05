@@ -89,14 +89,10 @@ type App interface {
 	// Provides native job queue with support for delayed jobs, retries, and crash recovery.
 	Jobs() JobStore
 
-	// Secrets returns the app SecretsStore instance for encrypted secret management.
-	// Provides AES-256-GCM encrypted storage for API keys, tokens, and other sensitive data.
-	// Returns nil if the Secrets feature is not enabled (PB_MASTER_KEY not set).
-	Secrets() SecretsStore
-
-	// SecretsSettings returns the app SecretsSettings instance for accessing the CryptoEngine.
-	// Used internally by SecretField for encryption/decryption operations.
-	SecretsSettings() *SecretsSettings
+	// Crypto returns the app CryptoProvider instance for encryption/decryption operations.
+	// Layer 1 of the crypto architecture - shared by SecretField (Layer 2) and Secrets Plugin (Layer 3).
+	// If PB_MASTER_KEY is not set, returns a NoopCryptoProvider that always returns ErrCryptoNotEnabled.
+	Crypto() CryptoProvider
 
 	// NewMailClient creates and returns a new SMTP or Sendmail client
 	// based on the current app settings.

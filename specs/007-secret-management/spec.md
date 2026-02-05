@@ -3,7 +3,10 @@
 **Feature Branch**: `007-secret-management`  
 **Created**: 2026-01-08  
 **Status**: Ready for Dev  
-**Input**: Research document: `specs/_research/secret-management.md`
+**Input**: Research document: `specs/_research/secret-management.md`  
+**Architecture**: See `specs/029-crypto-architecture/spec.md` for overall architecture design
+
+> **Note**: This feature will be implemented as a **plugin** (`plugins/secrets/`), sharing the `CryptoEngine` from `core/crypto.go` with SecretField (015).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -81,25 +84,7 @@
 
 ---
 
-### User Story 5 - WASM/Serverless 集成 (Priority: P1)
-
-作为 Serverless 函数开发者，我希望通过 Host Function 获取 Secrets，以便在 WASM 环境中安全使用 API Keys。
-
-**Why this priority**: WASM 是 PocketBase Serverless 的核心运行时，必须提供安全的 Secret 访问能力。
-
-**Independent Test**: 可以在 WASM 函数中调用 `pb.secrets.get()` 验证。
-
-**Acceptance Scenarios**:
-
-1. **Given** Secret 已存储, **When** WASM 调用 `pb_secret_get("OPENAI_API_KEY")`, **Then** Host Function 返回解密后的明文
-2. **Given** 解密完成, **When** 明文写入 WASM 线性内存, **Then** Go 侧立即擦除临时 buffer
-3. **Given** Key 不存在, **When** WASM 调用 `pb_secret_get()`, **Then** Host Function 返回错误
-4. **Given** 多个 WASM 实例, **When** 并发调用 `pb_secret_get()`, **Then** 各实例独立获取，互不干扰
-5. **Given** 解密后的明文, **When** WASM 函数结束, **Then** 明文仅存在于 WASM 内存中
-
----
-
-### User Story 6 - HTTP API (Priority: P1)
+### User Story 5 - HTTP API (Priority: P1)
 
 作为前端/客户端开发者，我希望能够通过 HTTP API 操作 Secrets，以便在 JS SDK、移动端或第三方服务中使用。
 
@@ -126,9 +111,6 @@ GET    /api/secrets           - 列出所有 Secrets（值显示掩码）
 GET    /api/secrets/:key      - 获取 Secret 值（解密）
 PUT    /api/secrets/:key      - 更新 Secret 值
 DELETE /api/secrets/:key      - 删除 Secret
-
-# Serverless 内部调用（Host Function）
-pb_secret_get(key)            - WASM Host Function
 ```
 
 ---
@@ -151,8 +133,7 @@ pb_secret_get(key)            - WASM Host Function
 3. Admin UI 不提供查看完整 Secret 值的功能
 4. Secret Value 限制最大 4KB
 5. 仅 Superuser 可以管理 Secrets
-6. WASM 函数可以读取 Secrets，但不能写入
-7. 日志系统会过滤 Secret 值，防止泄露
+6. 日志系统会过滤 Secret 值，防止泄露
 
 ---
 
@@ -168,12 +149,10 @@ pb_secret_get(key)            - WASM Host Function
 | FR-006 | Admin UI 密码输入框 | P1 | US4 |
 | FR-007 | Admin UI 值掩码显示 | P1 | US4 |
 | FR-008 | Admin UI 禁止查看完整值 | P1 | US4 |
-| FR-009 | WASM Host Function `pb_secret_get` | P1 | US5 |
-| FR-010 | Go 侧解密后擦除临时 buffer | P1 | US5 |
-| FR-011 | HTTP API CRUD 端点 | P1 | US6 |
-| FR-012 | HTTP API 仅 Superuser 访问 | P1 | US6 |
-| FR-013 | Secret Value 大小限制 4KB | P2 | - |
-| FR-014 | 日志过滤 Secret 值 | P2 | - |
+| FR-009 | HTTP API CRUD 端点 | P1 | US5 |
+| FR-010 | HTTP API 仅 Superuser 访问 | P1 | US5 |
+| FR-011 | Secret Value 大小限制 4KB | P2 | - |
+| FR-012 | 日志过滤 Secret 值 | P2 | - |
 
 ---
 
@@ -185,9 +164,8 @@ pb_secret_get(key)            - WASM Host Function
 | SC-002 | Master Key 不落盘 | 100% | 代码审查 + 安全测试 |
 | SC-003 | 解密延迟 | < 1ms | Benchmark 测试 |
 | SC-004 | Admin UI 无明文泄露 | 100% | 安全测试 |
-| SC-005 | WASM 调用成功率 | 100% | 集成测试 |
-| SC-006 | 测试覆盖率 | > 80% | go test -cover |
-| SC-007 | HTTP API 响应延迟 | < 10ms (P99) | Benchmark 测试 |
+| SC-005 | 测试覆盖率 | > 80% | go test -cover |
+| SC-006 | HTTP API 响应延迟 | < 10ms (P99) | Benchmark 测试 |
 
 ---
 

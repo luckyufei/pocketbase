@@ -197,13 +197,21 @@ It's recommended to store sensitive API Keys in `_secrets` table and reference v
 ```json
 {
   "headers": {
-    "Authorization": "Bearer {secrets.OPENAI_API_KEY}"
+    "Authorization": "Bearer {secret.OPENAI_API_KEY}"
   }
 }
 ```
 
 ::: tip Tip
-Use `{secrets.KEY_NAME}` syntax to retrieve encrypted key values from Secrets storage.
+Use `{secret.KEY_NAME}` syntax to retrieve encrypted key values from Secrets storage.
+:::
+
+::: warning Prerequisites
+Using Secrets integration requires:
+1. Setting `PB_MASTER_KEY` environment variable (64 hex characters)
+2. Registering secrets plugin: `secrets.MustRegister(app, secrets.DefaultConfig())`
+
+See [Secrets Management](./secrets.md) for details.
 :::
 
 ### Auto-added Request Headers

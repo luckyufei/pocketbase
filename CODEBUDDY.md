@@ -405,11 +405,12 @@ func main() {
 | **jsvm** | `github.com/pocketbase/pocketbase/plugins/jsvm` | JavaScript/TypeScript runtime for hooks and migrations | JS/TS hooks, JS migrations |
 | **migratecmd** | `github.com/pocketbase/pocketbase/plugins/migratecmd` | CLI migration commands and auto-migration | `migrate` command, auto-migrations |
 | **tofauth** | `github.com/pocketbase/pocketbase/plugins/tofauth` | Tencent Open Framework authentication | TOF SSO integration |
-| **migrations** | `_ "github.com/pocketbase/pocketbase/migrations"` | System table migrations | `_jobs`, `_secrets` tables |
+| **migrations** | `_ "github.com/pocketbase/pocketbase/migrations"` | System table migrations | `_jobs` tables |
 | **trace** | `github.com/pocketbase/pocketbase/plugins/trace` | 可观测性追踪功能 | 分布式追踪、条件采集、用户染色 |
 | **kv** | `github.com/pocketbase/pocketbase/plugins/kv` | 类 Redis 键值存储 | KV 存储（L1 缓存 + L2 数据库） |
 | **analytics** | `github.com/pocketbase/pocketbase/plugins/analytics` | 原生用户行为分析 | 事件采集、聚合、Dashboard |
 | **metrics** | `github.com/pocketbase/pocketbase/plugins/metrics` | 系统监控 | CPU、内存、延迟、5xx 错误采集 |
+| **secrets** | `github.com/pocketbase/pocketbase/plugins/secrets` | 系统级密钥管理 | `_secrets` 表、API `/api/secrets`、Gateway secret 注入 |
 
 ### Why Plugins Are Not Auto-Imported
 
@@ -450,12 +451,13 @@ import (
 
 If you're missing expected functionality:
 
-- **Missing system tables** (`_jobs`, `_secrets`): Add `_ "github.com/pocketbase/pocketbase/migrations"`
+- **Missing system tables** (`_jobs`): Add `_ "github.com/pocketbase/pocketbase/migrations"`
 - **JS/TS hooks not working**: Add `"github.com/pocketbase/pocketbase/plugins/jsvm"`
 - **TOF auth routes 404**: Add `"github.com/pocketbase/pocketbase/plugins/tofauth"` and configure environment variables
 - **Migration commands missing**: Add `"github.com/pocketbase/pocketbase/plugins/migratecmd"`
 - **KV 存储不可用**: Add `"github.com/pocketbase/pocketbase/plugins/kv"` and call `kv.MustRegister(app, kv.DefaultConfig())`
 - **系统监控 API 不可用**: Add `"github.com/pocketbase/pocketbase/plugins/metrics"` and call `metrics.MustRegister(app, metrics.Config{})`
+- **Secrets API 不可用 (503)**: Add `"github.com/pocketbase/pocketbase/plugins/secrets"` and call `secrets.MustRegister(app, secrets.DefaultConfig())`，同时需设置 `PB_MASTER_KEY` 环境变量
 
 ## 开发规范
 

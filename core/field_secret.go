@@ -191,9 +191,9 @@ func (f *SecretField) ValidateSettings(ctx context.Context, app App, collection 
 		return err
 	}
 
-	// 检查 Secrets 功能是否可用（需要 PB_MASTER_KEY）
-	if app.Secrets() == nil || !app.Secrets().IsEnabled() {
-		return validation.NewError("validation_secrets_disabled",
+	// 检查 CryptoProvider 是否启用（需要 PB_MASTER_KEY）
+	if !app.Crypto().IsEnabled() {
+		return validation.NewError("validation_crypto_disabled",
 			"Secret field requires PB_MASTER_KEY to be configured")
 	}
 
@@ -214,24 +214,18 @@ func (f *SecretField) Intercept(
 		// 在执行数据库操作之前加密
 		sv := f.getSecretValue(record)
 		if sv.Plain != "" && sv.Encrypted == "" {
-			// 需要加密
-			if app.Secrets() != nil && app.Secrets().IsEnabled() {
-				engine := app.SecretsSettings().CryptoEngine()
-				if engine != nil {
-					encrypted, err := engine.EncryptToBase64(sv.Plain)
-					if err != nil {
-						sv.LastError = err
-						return err
-					}
-					sv.Encrypted = encrypted
-				} else {
-					sv.LastError = ErrSecretsDisabled
-					return ErrSecretsDisabled
-				}
-			} else {
-				sv.LastError = ErrSecretsDisabled
-				return ErrSecretsDisabled
+			// 需要加密 - 使用 CryptoProvider (Layer 1)
+			crypto := app.Crypto()
+			if !crypto.IsEnabled() {
+				sv.LastError = ErrCryptoNotEnabled
+				return ErrCryptoNotEnabled
 			}
+			encrypted, err := crypto.Encrypt(sv.Plain)
+			if err != nil {
+				sv.LastError = err
+				return err
+			}
+			sv.Encrypted = encrypted
 		}
 	case InterceptorActionAfterCreate, InterceptorActionAfterUpdate:
 		// 成功后清除明文
@@ -257,11 +251,11 @@ func (f *SecretField) FindGetter(key string) GetterFunc {
 			return sv.Plain
 		}
 
-		// 如果有密文，尝试解密
+		// 如果有密文，尝试解密 - 使用全局 CryptoProvider (Layer 1)
 		if sv.Encrypted != "" {
-			engine := GetGlobalCryptoEngine()
-			if engine != nil {
-				plain, err := engine.DecryptFromBase64(sv.Encrypted)
+			crypto := GetGlobalCrypto()
+			if crypto.IsEnabled() {
+				plain, err := crypto.Decrypt(sv.Encrypted)
 				if err == nil {
 					return plain
 				}

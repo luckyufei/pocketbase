@@ -48,7 +48,7 @@ func NewRouter(app core.App) (*router.Router[*core.RequestEvent], error) {
 	bindHealthApi(app, apiGroup)
 	bindJobsApi(app, apiGroup)
 	bindDatabaseStatsRoutes(apiGroup)
-	bindSecretsApi(app, pbRouter)
+	// secrets 路由已迁移到 plugins/secrets
 
 	return pbRouter, nil
 }

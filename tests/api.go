@@ -150,13 +150,9 @@ func (scenario *ApiScenario) TestBothDBs(t *testing.T) {
 	t.Run(scenario.normalizedName(), func(t *testing.T) {
 		// 始终测试 SQLite
 		t.Run("SQLite", func(t *testing.T) {
-			// 保存原始的 TestAppFactory
-			originalFactory := scenario.TestAppFactory
-
-			// 确保使用 SQLite (默认行为)
-			scenario.TestAppFactory = nil
-			defer func() { scenario.TestAppFactory = originalFactory }()
-
+			// 如果有自定义 TestAppFactory，则使用它
+			// 否则使用默认的 SQLite TestApp
+			// 注意：不再强制将 TestAppFactory 设为 nil
 			scenario.test(t)
 		})
 

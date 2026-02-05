@@ -3,7 +3,10 @@
 **Feature Branch**: `011-secret-field`  
 **Created**: 2026-01-15  
 **Status**: Ready for Dev  
-**Input**: 用户需求讨论 - 普通用户需要安全存储自己的 API Keys
+**Input**: 用户需求讨论 - 普通用户需要安全存储自己的 API Keys  
+**Architecture**: See `specs/029-crypto-architecture/spec.md` for overall architecture design
+
+> **Note**: SecretField is a **core** field type (`core/field_secret.go`), using `app.Crypto()` from `core/crypto.go`.
 
 ## 背景
 

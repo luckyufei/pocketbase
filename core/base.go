@@ -88,9 +88,8 @@ type BaseApp struct {
 	// 数据库适配器，用于抽象 SQLite 和 PostgreSQL 的差异
 	dbAdapter DBAdapter
 
-	// Secrets 管理
-	secretsSettings *SecretsSettings
-	secretsStore    *secretsStore
+	// CryptoProvider 实例（Layer 1）
+	crypto CryptoProvider
 
 	// app event hooks
 	onBootstrap     *hook.Hook[*BootstrapEvent]
@@ -442,8 +441,8 @@ func (app *BaseApp) Bootstrap() error {
 		// initialize Job store
 		app.initJobStore()
 
-		// initialize Secrets store
-		app.initSecretsStore()
+		// initialize CryptoEngine (Layer 1 - 用于 SecretField 和 Secrets Plugin)
+		app.initCryptoEngine()
 
 		// try to cleanup the pb_data temp directory (if any)
 		_ = os.RemoveAll(filepath.Join(app.DataDir(), LocalTempDirName))

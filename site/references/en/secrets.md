@@ -10,23 +10,48 @@ PocketBase provides secure secrets management for storing sensitive information 
 - **Masked Display** - List API doesn't expose plaintext values
 - **RESTful API** - Complete CRUD interface
 - **Dual Database Compatibility** - Supports both SQLite and PostgreSQL
+- **Plugin Architecture** - Optional registration, enable as needed
 
 ## Enabling Secrets
 
-Secrets functionality requires setting a Master Key to enable:
+Secrets functionality is provided as a plugin and requires two steps:
+
+### 1. Set Master Key
 
 ```bash
-# Method 1: Environment variable
-export PB_MASTER_KEY="your-32-byte-master-key-here!!"
-./pocketbase serve
+# Generate a secure Master Key (64 hex characters = 32 bytes)
+openssl rand -hex 32
 
-# Method 2: Command line argument
-./pocketbase serve --masterKey="your-32-byte-master-key-here!!"
+# Set environment variable
+export PB_MASTER_KEY="your-64-character-hex-string-here"
 ```
 
 ::: danger Important
-Master Key must be 32 bytes (256 bits), used to derive encryption keys. Keep it safe - losing it will make stored secrets unrecoverable.
+Master Key must be 64 hexadecimal characters (32 bytes / 256 bits). Keep it safe - losing it will make stored secrets unrecoverable.
 :::
+
+### 2. Register Plugin
+
+```go
+package main
+
+import (
+    "log"
+    "github.com/pocketbase/pocketbase"
+    "github.com/pocketbase/pocketbase/plugins/secrets"
+)
+
+func main() {
+    app := pocketbase.New()
+    
+    // Register secrets plugin
+    secrets.MustRegister(app, secrets.DefaultConfig())
+    
+    if err := app.Start(); err != nil {
+        log.Fatal(err)
+    }
+}
+```
 
 ## Quick Start
 
@@ -39,29 +64,34 @@ import (
     "log"
     "github.com/pocketbase/pocketbase"
     "github.com/pocketbase/pocketbase/core"
+    "github.com/pocketbase/pocketbase/plugins/secrets"
 )
 
 func main() {
     app := pocketbase.New()
+    
+    // Register secrets plugin
+    secrets.MustRegister(app, secrets.DefaultConfig())
 
     app.OnServe().BindFunc(func(se *core.ServeEvent) error {
-        secrets := app.Secrets()
+        // Get secrets store
+        store := secrets.GetStore(app)
 
         // Check if feature is enabled
-        if !secrets.IsEnabled() {
+        if !store.IsEnabled() {
             log.Println("Secrets feature not enabled, please set PB_MASTER_KEY")
             return se.Next()
         }
 
         // Store secret
-        err := secrets.Set("STRIPE_API_KEY", "sk_live_xxx", 
-            core.WithDescription("Stripe production API key"))
+        err := store.Set("STRIPE_API_KEY", "sk_live_xxx", 
+            secrets.WithDescription("Stripe production API key"))
         if err != nil {
             log.Printf("Storage failed: %v", err)
         }
 
         // Read secret
-        apiKey, err := secrets.Get("STRIPE_API_KEY")
+        apiKey, err := store.Get("STRIPE_API_KEY")
         if err != nil {
             log.Printf("Read failed: %v", err)
         } else {
@@ -69,7 +99,8 @@ func main() {
         }
 
         // Read with default value
-        dbPassword := secrets.GetWithDefault("DB_PASSWORD", "default_password")
+        dbPassword := store.GetWithDefault("DB_PASSWORD", "default_password")
+        log.Printf("DB Password: %s", dbPassword)
 
         return se.Next()
     })
@@ -83,14 +114,16 @@ func main() {
 ### Environment Isolation
 
 ```go
+store := secrets.GetStore(app)
+
 // Store to specific environment
-secrets.Set("API_KEY", "dev_key", core.WithEnv("dev"))
-secrets.Set("API_KEY", "prod_key", core.WithEnv("prod"))
-secrets.Set("API_KEY", "global_key")  // Default stores to "global"
+store.Set("API_KEY", "dev_key", secrets.WithEnv("dev"))
+store.Set("API_KEY", "prod_key", secrets.WithEnv("prod"))
+store.Set("API_KEY", "global_key")  // Default stores to "global"
 
 // Read from specific environment (with fallback)
-key, _ := secrets.GetForEnv("API_KEY", "prod")  // Returns "prod_key"
-key, _ := secrets.GetForEnv("API_KEY", "test")  // Returns "global_key" (fallback)
+key, _ := store.GetForEnv("API_KEY", "prod")  // Returns "prod_key"
+key, _ := store.GetForEnv("API_KEY", "test")  // Returns "global_key" (fallback)
 ```
 
 ## API Endpoints
@@ -182,33 +215,114 @@ Content-Type: application/json
 DELETE /api/secrets/{key}
 ```
 
-## Configuration Parameters
+**Response:** `204 No Content`
 
-| Constant | Default | Description |
-|----------|---------|-------------|
-| `SecretMaxKeyLength` | 256 | Maximum key length |
-| `SecretMaxValueSize` | 4 KB | Maximum value size |
-| `SecretDefaultEnv` | "global" | Default environment |
+## Configuration Options
+
+### Code Configuration
+
+```go
+secrets.Config{
+    // Enable environment isolation (default true)
+    EnableEnvIsolation: true,
+    
+    // Default environment (default "global")
+    DefaultEnv: "global",
+    
+    // Maximum key length (default 256)
+    MaxKeyLength: 256,
+    
+    // Maximum value size (default 4KB)
+    MaxValueSize: 4 * 1024,
+    
+    // Enable HTTP API (default true)
+    HTTPEnabled: true,
+}
+```
+
+### Environment Variable Overrides
+
+| Environment Variable | Description | Example |
+|---------------------|-------------|---------|
+| `PB_MASTER_KEY` | Encryption key (required, 64 hex chars) | `0123456789abcdef...` |
+| `PB_SECRETS_DEFAULT_ENV` | Default environment | `prod` |
+| `PB_SECRETS_MAX_KEY_LENGTH` | Maximum key length | `512` |
+| `PB_SECRETS_MAX_VALUE_SIZE` | Maximum value size (bytes) | `8192` |
+| `PB_SECRETS_HTTP_ENABLED` | Enable HTTP API | `true` |
+| `PB_SECRETS_ENV_ISOLATION` | Enable environment isolation | `true` |
 
 ## Error Handling
 
 | Error | Description |
 |-------|-------------|
-| `ErrSecretsDisabled` | Secrets feature not enabled (Master Key not set) |
+| `ErrSecretsNotRegistered` | Secrets plugin not registered |
+| `ErrCryptoNotEnabled` | Crypto feature not enabled (Master Key not set) |
 | `ErrSecretNotFound` | Secret not found |
 | `ErrSecretKeyEmpty` | Key is empty |
-| `ErrSecretKeyTooLong` | Key exceeds 256 characters |
-| `ErrSecretValueTooLarge` | Value exceeds 4KB |
+| `ErrSecretKeyTooLong` | Key exceeds maximum length |
+| `ErrSecretValueTooLarge` | Value exceeds maximum size |
 
-## UI Management
+## 3-Layer Crypto Architecture
 
-In PocketBase Admin UI, navigate to **Settings → Secrets** to:
+Secrets Plugin is **Layer 3** in PocketBase's 3-layer crypto architecture:
 
-- View all secrets (masked display)
-- Create new secrets
-- Update secret values and descriptions
-- Delete secrets
-- Filter by environment
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 3: plugins/secrets/                                   │
+│    System-level secret management (_secrets table, API)      │
+│    Uses app.Crypto() from Layer 1 for encryption            │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 2: core/field_secret.go                               │
+│    User-level SecretField (Collection field)                 │
+│    Uses app.Crypto() from Layer 1 for encryption            │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│  Layer 1: core/crypto.go                                     │
+│    CryptoProvider - Shared encryption engine (AES-256-GCM)  │
+│    app.Crypto() - Provided by App interface                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Layer Description
+
+| Layer | Location | Purpose | Access Method |
+|-------|----------|---------|---------------|
+| Layer 1 | `core/crypto.go` | Low-level encryption engine | `app.Crypto()` |
+| Layer 2 | `core/field_secret.go` | Collection encrypted field | Schema definition |
+| Layer 3 | `plugins/secrets/` | System-level secret storage | `secrets.GetStore(app)` |
+
+## Gateway Integration
+
+Secrets can be used with the Gateway plugin for automatic API key injection:
+
+```go
+// Reference Secret in Gateway config
+{
+    "headers": {
+        "Authorization": "Bearer {secret.OPENAI_API_KEY}"
+    }
+}
+```
+
+Gateway automatically reads encrypted API Keys from `_secrets` table and injects them into request headers.
+
+## Database Schema
+
+```sql
+CREATE TABLE _secrets (
+    id TEXT PRIMARY KEY,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,          -- AES-256-GCM encrypted value
+    env TEXT NOT NULL DEFAULT 'global',
+    description TEXT,
+    created TIMESTAMP NOT NULL,
+    updated TIMESTAMP NOT NULL,
+    UNIQUE(key, env)
+);
+```
 
 ## Security Best Practices
 
@@ -216,10 +330,10 @@ In PocketBase Admin UI, navigate to **Settings → Secrets** to:
 
 ```bash
 # Generate a secure Master Key
-openssl rand -base64 32 | tr -d '\n' | head -c 32
+openssl rand -hex 32
 
 # Do not commit Master Key to code repository
-# Use environment variables or secret management services
+# Use environment variables or secret management services (e.g., HashiCorp Vault, AWS KMS)
 ```
 
 ### 2. Access Control
@@ -232,8 +346,10 @@ Secrets API is restricted to superusers only. Ensure:
 ### 3. Secret Rotation
 
 ```go
+store := secrets.GetStore(app)
+
 // Regularly update secrets
-secrets.Set("API_KEY", newKey, core.WithDescription("2025-01 rotation"))
+store.Set("API_KEY", newKey, secrets.WithDescription("2025-01 rotation"))
 
 // Old secrets are automatically overwritten (UPSERT)
 ```
@@ -241,18 +357,19 @@ secrets.Set("API_KEY", newKey, core.WithDescription("2025-01 rotation"))
 ### 4. Environment Isolation
 
 ```go
+store := secrets.GetStore(app)
+
 // Use test keys for development environment
-secrets.Set("STRIPE_KEY", "sk_test_xxx", core.WithEnv("dev"))
+store.Set("STRIPE_KEY", "sk_test_xxx", secrets.WithEnv("dev"))
 
 // Use real keys for production environment
-secrets.Set("STRIPE_KEY", "sk_live_xxx", core.WithEnv("prod"))
+store.Set("STRIPE_KEY", "sk_live_xxx", secrets.WithEnv("prod"))
 ```
 
 ## Encryption Details
 
-- **Algorithm**: AES-256-GCM
-- **Key Derivation**: PBKDF2 (SHA-256, 100,000 iterations)
-- **Nonce**: 12-byte random number
+- **Algorithm**: AES-256-GCM (Galois/Counter Mode)
+- **Nonce**: 12-byte random number (generated fresh for each encryption)
 - **Storage Format**: Base64 encoded `nonce + ciphertext + tag`
 
 ## Database Compatibility
@@ -266,3 +383,48 @@ Secrets module is fully compatible with SQLite and PostgreSQL:
 | Unique Constraint | `UNIQUE(key, env)` | `UNIQUE(key, env)` |
 
 No code changes needed - the system automatically adapts to different databases.
+
+## Migration from Old Version
+
+If you were using the `app.Secrets()` API (old version), follow these steps to migrate:
+
+### 1. Update Imports
+
+```go
+// Old version
+import "github.com/pocketbase/pocketbase/core"
+
+// New version
+import "github.com/pocketbase/pocketbase/plugins/secrets"
+```
+
+### 2. Register Plugin
+
+```go
+// Add before app.Start()
+secrets.MustRegister(app, secrets.DefaultConfig())
+```
+
+### 3. Update API Calls
+
+```go
+// Old version
+secrets := app.Secrets()
+secrets.Set("KEY", "value", core.WithDescription("desc"))
+
+// New version
+store := secrets.GetStore(app)
+store.Set("KEY", "value", secrets.WithDescription("desc"))
+```
+
+### 4. Update Option References
+
+```go
+// Old version
+core.WithDescription("desc")
+core.WithEnv("prod")
+
+// New version
+secrets.WithDescription("desc")
+secrets.WithEnv("prod")
+```

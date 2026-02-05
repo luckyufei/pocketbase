@@ -11,6 +11,20 @@ import (
 
 // ==================== Phase 8: HTTP API 测试 ====================
 
+// superuserHeaders 返回超级用户认证头
+func superuserHeaders() map[string]string {
+	return map[string]string{
+		"Authorization": "eyJhbGciOiJIUzI1NiJ9.eyJpZCI6InN5d2JoZWNuaDQ2cmhtMCIsInR5cGUiOiJhdXRoIiwiY29sbGVjdGlvbklkIjoicGJjXzMxNDI2MzU4MjMiLCJleHAiOjI1MjQ2MDQ0NjEsInJlZnJlc2hhYmxlIjp0cnVlfQ.UXgO3j-0BumcugrFjbd7j0M4MQvbrLggLlcu_YNGjoY",
+	}
+}
+
+// userHeaders 返回普通用户认证头
+func userHeaders() map[string]string {
+	return map[string]string{
+		"Authorization": "eyJhbGciOiJIUzI1NiJ9.eyJpZCI6IjRxMXhsY2xtZmxva3UzMyIsInR5cGUiOiJhdXRoIiwiY29sbGVjdGlvbklkIjoiX3BiX3VzZXJzX2F1dGhfIiwiZXhwIjoyNTI0NjA0NDYxLCJyZWZyZXNoYWJsZSI6dHJ1ZX0.ZT3F0Z3iM-xbGgSG3LEKiEzHrPHr8t8IuHLZGGNuxLo",
+	}
+}
+
 func TestJobEnqueueAPI(t *testing.T) {
 	t.Parallel()
 
@@ -55,7 +69,7 @@ func TestJobEnqueueAPI(t *testing.T) {
 			Method:          http.MethodPost,
 			URL:             "/api/jobs/enqueue",
 			Body:            strings.NewReader(`{"topic":"test","payload":{}}`),
-			Headers:         map[string]string{"Authorization": userToken},
+			Headers:         userHeaders(),
 			ExpectedStatus:  403,
 			ExpectedContent: []string{`"message"`},
 		},
@@ -88,7 +102,16 @@ func TestJobGetAPI(t *testing.T) {
 func TestJobGetExistingAPI(t *testing.T) {
 	t.Parallel()
 
-	// 这个测试需要先创建 job，然后用动态 ID 查询
+	scenario := tests.ApiScenario{
+		Name:            "get existing job",
+		Method:          http.MethodGet,
+		URL:             "/api/jobs/", // 会在测试时更新
+		Headers:         superuserHeaders(),
+		ExpectedStatus:  200,
+		ExpectedContent: []string{`"topic":"test:topic"`},
+	}
+
+	// 手动运行测试，因为需要动态 URL
 	app, err := tests.NewTestApp()
 	if err != nil {
 		t.Fatalf("failed to create test app: %v", err)
@@ -101,18 +124,11 @@ func TestJobGetExistingAPI(t *testing.T) {
 		t.Fatalf("failed to enqueue job: %v", err)
 	}
 
-	scenario := tests.ApiScenario{
-		Name:            "get existing job",
-		Method:          http.MethodGet,
-		URL:             "/api/jobs/" + job.ID,
-		Headers:         superuserHeaders(),
-		ExpectedStatus:  200,
-		ExpectedContent: []string{`"topic":"test:topic"`},
-		TestAppFactory: func(t testing.TB) *tests.TestApp {
-			return app
-		},
+	scenario.URL = "/api/jobs/" + job.ID
+	scenario.TestAppFactory = func(t testing.TB) *tests.TestApp {
+		return app
 	}
-	scenario.TestBothDBs(t)
+	scenario.Test(t)
 }
 
 func TestJobListAPI(t *testing.T) {

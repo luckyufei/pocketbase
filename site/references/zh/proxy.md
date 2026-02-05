@@ -197,13 +197,21 @@ curl -X POST http://localhost:8090/-/openai/v1/chat/completions \
 ```json
 {
   "headers": {
-    "Authorization": "Bearer {secrets.OPENAI_API_KEY}"
+    "Authorization": "Bearer {secret.OPENAI_API_KEY}"
   }
 }
 ```
 
 ::: tip 提示
-使用 `{secrets.KEY_NAME}` 语法可以从 Secrets 存储中获取加密的密钥值。
+使用 `{secret.KEY_NAME}` 语法可以从 Secrets 存储中获取加密的密钥值。
+:::
+
+::: warning 前置条件
+使用 Secrets 集成需要：
+1. 设置 `PB_MASTER_KEY` 环境变量（64 字符 hex）
+2. 注册 secrets 插件：`secrets.MustRegister(app, secrets.DefaultConfig())`
+
+详见 [Secrets 密钥管理](./secrets.md)。
 :::
 
 ### 自动添加的请求头
