@@ -292,10 +292,6 @@ type App interface {
 	// IsSQLite returns true if the app is using SQLite database.
 	IsSQLite() bool
 
-	// GetPoolMetrics returns the current connection pool metrics.
-	// This includes metrics for both the main data database and auxiliary database.
-	GetPoolMetrics() *PoolMetrics
-
 	// ---------------------------------------------------------------
 
 	// ModelQuery creates a new preconfigured select data.db query with preset

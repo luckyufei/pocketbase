@@ -19,7 +19,7 @@
             error = null;
             
             // 获取数据库类型和统计信息
-            const response = await ApiClient.send("/api/system/database/stats", {
+            const response = await ApiClient.send("/api/system/metrics/database", {
                 method: "GET"
             });
             

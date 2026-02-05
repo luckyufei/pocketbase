@@ -37,7 +37,7 @@ export function DatabaseStats({ compact = false, refreshInterval = 30000 }: Data
   const loadDatabaseStats = useCallback(async () => {
     try {
       setError(null)
-      const response = await pb.send('/api/system/database/stats', {
+      const response = await pb.send('/api/system/metrics/database', {
         method: 'GET',
         requestKey: `db-stats-${Date.now()}`,
       })

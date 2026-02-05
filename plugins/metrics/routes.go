@@ -79,4 +79,7 @@ func (p *metricsPlugin) bindRoutes(e *core.ServeEvent) {
 
 		return re.JSON(http.StatusOK, m)
 	})
+
+	// GET /api/system/metrics/database - 获取数据库统计信息
+	subGroup.GET("/metrics/database", databaseStats)
 }

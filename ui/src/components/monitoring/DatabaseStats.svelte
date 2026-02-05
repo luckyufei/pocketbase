@@ -24,7 +24,7 @@
     async function loadDatabaseStats() {
         try {
             error = null;
-            const response = await ApiClient.send("/api/system/database/stats", {
+            const response = await ApiClient.send("/api/system/metrics/database", {
                 method: "GET",
             });
             dbStats = response.stats;
