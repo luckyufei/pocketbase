@@ -50,4 +50,36 @@ const TabsContent = React.forwardRef<
 ))
 TabsContent.displayName = TabsPrimitive.Content.displayName
 
-export { Tabs, TabsList, TabsTrigger, TabsContent }
+// Underline style tabs for API details
+const UnderlineTabsList = React.forwardRef<
+  React.ElementRef<typeof TabsPrimitive.List>,
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
+>(({ className, ...props }, ref) => (
+  <TabsPrimitive.List
+    ref={ref}
+    className={cn('inline-flex items-center border-b border-border', className)}
+    {...props}
+  />
+))
+UnderlineTabsList.displayName = 'UnderlineTabsList'
+
+const UnderlineTabsTrigger = React.forwardRef<
+  React.ElementRef<typeof TabsPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
+>(({ className, ...props }, ref) => (
+  <TabsPrimitive.Trigger
+    ref={ref}
+    className={cn(
+      'inline-flex items-center justify-center whitespace-nowrap px-4 py-2 text-sm font-medium text-muted-foreground transition-all border-b-2 border-transparent -mb-px',
+      'hover:text-foreground',
+      'focus-visible:outline-none',
+      'disabled:pointer-events-none disabled:opacity-50',
+      'data-[state=active]:text-foreground data-[state=active]:border-primary',
+      className
+    )}
+    {...props}
+  />
+))
+UnderlineTabsTrigger.displayName = 'UnderlineTabsTrigger'
+
+export { Tabs, TabsList, TabsTrigger, TabsContent, UnderlineTabsList, UnderlineTabsTrigger }

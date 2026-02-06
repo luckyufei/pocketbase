@@ -1,9 +1,10 @@
 /**
- * AuthWithOtpDocs 组件
- * OTP 认证 API 文档
+ * AuthWithOtpDocs component
+ * OTP auth API documentation
  */
 import { SdkTabs } from './SdkTabs'
 import { CodeBlock } from './CodeBlock'
+import { ResponseTabs } from './ResponseTabs'
 import { getApiEndpoint } from '@/lib/apiDocsUtils'
 
 interface Collection {
@@ -102,29 +103,29 @@ print(pb.authStore.record.id);`
       <div>
         <h3 className="text-lg font-medium mb-2">Auth with OTP ({collection.name})</h3>
         <p className="text-muted-foreground">
-          使用一次性密码（OTP）进行认证。OTP 会发送到用户的邮箱。
+          Authenticate using a One-Time Password (OTP). The OTP is sent to the user's email.
         </p>
       </div>
 
       <SdkTabs js={jsCode} dart={dartCode} />
 
-      {/* 流程说明 */}
+      {/* Auth flow */}
       <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm font-medium text-blue-800 mb-2">认证流程</p>
+        <p className="text-sm font-medium text-blue-800 mb-2">Authentication flow</p>
         <ol className="text-sm text-blue-700 list-decimal list-inside space-y-1">
           <li>
-            调用 <code>requestOTP</code> 发送 OTP 到用户邮箱
+            Call <code>requestOTP</code> to send OTP to user's email
           </li>
-          <li>用户收到邮件后输入 OTP 验证码</li>
+          <li>User receives the email and enters the OTP code</li>
           <li>
-            调用 <code>authWithOTP</code> 完成认证
+            Call <code>authWithOTP</code> to complete authentication
           </li>
         </ol>
       </div>
 
-      {/* API 端点 */}
+      {/* API details */}
       <div>
-        <h4 className="text-sm font-medium mb-2">API 端点</h4>
+        <h4 className="text-sm font-medium mb-2">API details</h4>
         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
           <span className="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700">
             POST
@@ -133,16 +134,16 @@ print(pb.authStore.record.id);`
         </div>
       </div>
 
-      {/* Body 参数 */}
+      {/* Body parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">Body 参数</h4>
+        <h4 className="text-sm font-medium mb-2">Body parameters</h4>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-32">参数</th>
-                <th className="text-left p-2 font-medium w-20">类型</th>
-                <th className="text-left p-2 font-medium">说明</th>
+                <th className="text-left p-2 font-medium w-32">Param</th>
+                <th className="text-left p-2 font-medium w-20">Type</th>
+                <th className="text-left p-2 font-medium">Description</th>
               </tr>
             </thead>
             <tbody>
@@ -150,7 +151,7 @@ print(pb.authStore.record.id);`
                 <td className="p-2">
                   <div className="flex items-center gap-2">
                     <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                      必填
+                      Required
                     </span>
                     <span className="font-mono text-xs">otpId</span>
                   </div>
@@ -158,13 +159,13 @@ print(pb.authStore.record.id);`
                 <td className="p-2">
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
-                <td className="p-2 text-muted-foreground">OTP 请求 ID（从 requestOTP 返回）</td>
+                <td className="p-2 text-muted-foreground">OTP request ID (returned from requestOTP)</td>
               </tr>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
                     <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                      必填
+                      Required
                     </span>
                     <span className="font-mono text-xs">password</span>
                   </div>
@@ -172,35 +173,15 @@ print(pb.authStore.record.id);`
                 <td className="p-2">
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
-                <td className="p-2 text-muted-foreground">用户收到的 OTP 验证码</td>
+                <td className="p-2 text-muted-foreground">The OTP code received by the user</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* 响应示例 */}
-      <div>
-        <h4 className="text-sm font-medium mb-2">响应示例</h4>
-        <div className="space-y-3">
-          {responses.map((resp) => (
-            <div key={resp.code}>
-              <div className="flex items-center gap-2 mb-1">
-                <span
-                  className={`px-2 py-0.5 rounded text-xs font-bold ${
-                    resp.code === 200
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-yellow-100 text-yellow-700'
-                  }`}
-                >
-                  {resp.code}
-                </span>
-              </div>
-              <CodeBlock content={resp.body} language="json" />
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Responses */}
+      <ResponseTabs responses={responses} />
     </div>
   )
 }

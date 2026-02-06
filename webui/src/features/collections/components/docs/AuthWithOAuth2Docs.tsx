@@ -1,9 +1,10 @@
 /**
- * AuthWithOAuth2Docs 组件
- * OAuth2 认证 API 文档
+ * AuthWithOAuth2Docs component
+ * OAuth2 auth API documentation
  */
 import { SdkTabs } from './SdkTabs'
 import { CodeBlock } from './CodeBlock'
+import { ResponseTabs } from './ResponseTabs'
 import { getApiEndpoint } from '@/lib/apiDocsUtils'
 
 interface Collection {
@@ -108,14 +109,14 @@ pb.authStore.clear();`
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-medium mb-2">Auth with OAuth2 ({collection.name})</h3>
-        <p className="text-muted-foreground">使用第三方 OAuth2 提供商进行认证。</p>
+        <p className="text-muted-foreground">Authenticate using a third-party OAuth2 provider.</p>
       </div>
 
       <SdkTabs js={jsCode} dart={dartCode} />
 
-      {/* API 端点 */}
+      {/* API details */}
       <div>
-        <h4 className="text-sm font-medium mb-2">API 端点</h4>
+        <h4 className="text-sm font-medium mb-2">API details</h4>
         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
           <span className="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700">
             POST
@@ -124,16 +125,16 @@ pb.authStore.clear();`
         </div>
       </div>
 
-      {/* Body 参数 */}
+      {/* Body parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">Body 参数</h4>
+        <h4 className="text-sm font-medium mb-2">Body parameters</h4>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-32">参数</th>
-                <th className="text-left p-2 font-medium w-20">类型</th>
-                <th className="text-left p-2 font-medium">说明</th>
+                <th className="text-left p-2 font-medium w-32">Param</th>
+                <th className="text-left p-2 font-medium w-20">Type</th>
+                <th className="text-left p-2 font-medium">Description</th>
               </tr>
             </thead>
             <tbody>
@@ -141,7 +142,7 @@ pb.authStore.clear();`
                 <td className="p-2">
                   <div className="flex items-center gap-2">
                     <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                      必填
+                      Required
                     </span>
                     <span className="font-mono text-xs">provider</span>
                   </div>
@@ -150,14 +151,14 @@ pb.authStore.clear();`
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
                 <td className="p-2 text-muted-foreground">
-                  OAuth2 提供商名称（如 google, github, facebook 等）
+                  OAuth2 provider name (e.g. google, github, facebook, etc.)
                 </td>
               </tr>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
                     <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                      必填
+                      Required
                     </span>
                     <span className="font-mono text-xs">code</span>
                   </div>
@@ -165,13 +166,13 @@ pb.authStore.clear();`
                 <td className="p-2">
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
-                <td className="p-2 text-muted-foreground">OAuth2 授权码</td>
+                <td className="p-2 text-muted-foreground">OAuth2 authorization code</td>
               </tr>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
                     <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                      必填
+                      Required
                     </span>
                     <span className="font-mono text-xs">codeVerifier</span>
                   </div>
@@ -179,13 +180,13 @@ pb.authStore.clear();`
                 <td className="p-2">
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
-                <td className="p-2 text-muted-foreground">PKCE 验证码</td>
+                <td className="p-2 text-muted-foreground">PKCE code verifier</td>
               </tr>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
                     <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                      必填
+                      Required
                     </span>
                     <span className="font-mono text-xs">redirectURL</span>
                   </div>
@@ -194,14 +195,14 @@ pb.authStore.clear();`
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
                 <td className="p-2 text-muted-foreground">
-                  重定向 URL（必须与授权请求时的 URL 匹配）
+                  Redirect URL (must match the URL used in the authorization request)
                 </td>
               </tr>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
                     <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
-                      可选
+                      Optional
                     </span>
                     <span className="font-mono text-xs">createData</span>
                   </div>
@@ -209,16 +210,16 @@ pb.authStore.clear();`
                 <td className="p-2">
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">Object</span>
                 </td>
-                <td className="p-2 text-muted-foreground">创建新用户时的额外数据</td>
+                <td className="p-2 text-muted-foreground">Additional data for creating a new user</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* 支持的提供商 */}
+      {/* Supported providers */}
       <div>
-        <h4 className="text-sm font-medium mb-2">支持的 OAuth2 提供商</h4>
+        <h4 className="text-sm font-medium mb-2">Supported OAuth2 providers</h4>
         <div className="flex flex-wrap gap-2">
           {[
             'google',
@@ -249,28 +250,8 @@ pb.authStore.clear();`
         </div>
       </div>
 
-      {/* 响应示例 */}
-      <div>
-        <h4 className="text-sm font-medium mb-2">响应示例</h4>
-        <div className="space-y-3">
-          {responses.map((resp) => (
-            <div key={resp.code}>
-              <div className="flex items-center gap-2 mb-1">
-                <span
-                  className={`px-2 py-0.5 rounded text-xs font-bold ${
-                    resp.code === 200
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-yellow-100 text-yellow-700'
-                  }`}
-                >
-                  {resp.code}
-                </span>
-              </div>
-              <CodeBlock content={resp.body} language="json" />
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Responses */}
+      <ResponseTabs responses={responses} />
     </div>
   )
 }

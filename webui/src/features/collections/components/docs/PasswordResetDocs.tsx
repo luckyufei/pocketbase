@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  UnderlineTabsList,
+  UnderlineTabsTrigger,
+} from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { SdkTabs } from './SdkTabs'
 import { CodeBlock } from './CodeBlock'
@@ -274,15 +281,15 @@ await pb.collection('${collection.name}').confirmPasswordReset(
         </div>
       </div>
 
-      <SdkTabs jsCode={jsCode} dartCode={dartCode} />
+      <SdkTabs js={jsCode} dart={dartCode} />
 
       <div>
         <h6 className="font-medium mb-2">API details</h6>
         <Tabs value={activeApiTab} onValueChange={setActiveApiTab}>
-          <TabsList>
-            <TabsTrigger value="request">Request password reset</TabsTrigger>
-            <TabsTrigger value="confirm">Confirm password reset</TabsTrigger>
-          </TabsList>
+          <UnderlineTabsList>
+            <UnderlineTabsTrigger value="request">Request password reset</UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="confirm">Confirm password reset</UnderlineTabsTrigger>
+          </UnderlineTabsList>
           <TabsContent value="request">
             <PasswordResetApiRequestDocs collection={collection} />
           </TabsContent>

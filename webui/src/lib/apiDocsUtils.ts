@@ -1,10 +1,10 @@
 /**
  * API Docs Utils
- * API 文档相关工具函数
+ * API documentation utility functions
  */
 
 /**
- * 文档标签类型
+ * Document tab type
  */
 export interface DocTab {
   id: string
@@ -13,7 +13,7 @@ export interface DocTab {
 }
 
 /**
- * 查询参数
+ * Query parameter
  */
 export interface QueryParam {
   name: string
@@ -24,7 +24,36 @@ export interface QueryParam {
 }
 
 /**
- * 获取 API 端点
+ * Collection type for API docs
+ */
+export interface ApiDocsCollection {
+  id: string
+  name: string
+  type: string
+  schema?: Array<{
+    name: string
+    type: string
+    required?: boolean
+  }>
+  fields?: Array<{
+    name: string
+    type: string
+    required?: boolean
+  }>
+  passwordAuth?: {
+    enabled: boolean
+    identityFields?: string[]
+  }
+  oauth2?: {
+    enabled: boolean
+  }
+  otp?: {
+    enabled: boolean
+  }
+}
+
+/**
+ * Get API endpoint
  */
 export function getApiEndpoint(collectionName: string, action: string): string {
   const base = `/api/collections/${collectionName}`
@@ -70,7 +99,7 @@ export function getApiEndpoint(collectionName: string, action: string): string {
 }
 
 /**
- * 基础标签
+ * Base tabs
  */
 const BASE_TABS: DocTab[] = [
   { id: 'list', label: 'List/Search' },
@@ -83,39 +112,47 @@ const BASE_TABS: DocTab[] = [
 ]
 
 /**
- * 认证标签
+ * Get collection document tabs
  */
-const AUTH_TABS: DocTab[] = [
-  { id: 'auth-methods', label: 'List auth methods' },
-  { id: 'auth-with-password', label: 'Auth with password' },
-  { id: 'auth-with-oauth2', label: 'Auth with OAuth2' },
-  { id: 'auth-with-otp', label: 'Auth with OTP' },
-  { id: 'auth-refresh', label: 'Auth refresh' },
-  { id: 'verification', label: 'Verification' },
-  { id: 'password-reset', label: 'Password reset' },
-  { id: 'email-change', label: 'Email change' },
-]
-
-/**
- * 获取集合的文档标签
- */
-export function getCollectionTabs(collectionType: string): DocTab[] {
-  if (collectionType === 'view') {
+export function getCollectionTabs(collection: ApiDocsCollection): DocTab[] {
+  if (collection.type === 'view') {
     return [
       { id: 'list', label: 'List/Search' },
       { id: 'view', label: 'View' },
     ]
   }
 
-  if (collectionType === 'auth') {
-    return [...BASE_TABS, ...AUTH_TABS]
+  if (collection.type === 'auth') {
+    const authTabs: DocTab[] = [
+      { id: 'auth-methods', label: 'List auth methods' },
+      {
+        id: 'auth-with-password',
+        label: 'Auth with password',
+        disabled: !collection.passwordAuth?.enabled,
+      },
+      {
+        id: 'auth-with-oauth2',
+        label: 'Auth with OAuth2',
+        disabled: !collection.oauth2?.enabled,
+      },
+      {
+        id: 'auth-with-otp',
+        label: 'Auth with OTP',
+        disabled: !collection.otp?.enabled,
+      },
+      { id: 'auth-refresh', label: 'Auth refresh' },
+      { id: 'verification', label: 'Verification' },
+      { id: 'password-reset', label: 'Password reset' },
+      { id: 'email-change', label: 'Email change' },
+    ]
+    return [...BASE_TABS, ...authTabs]
   }
 
   return [...BASE_TABS]
 }
 
 /**
- * 获取 HTTP 方法
+ * Get HTTP method
  */
 export function getHttpMethod(action: string): string {
   switch (action) {
@@ -146,7 +183,7 @@ export function getHttpMethod(action: string): string {
 }
 
 /**
- * 生成 cURL 示例
+ * Generate cURL example
  */
 export function generateCurlExample(
   collectionName: string,
@@ -168,7 +205,7 @@ export function generateCurlExample(
 }
 
 /**
- * 生成 JavaScript SDK 示例
+ * Generate JavaScript SDK example
  */
 export function generateJsExample(collectionName: string, action: string): string {
   const collection = `pb.collection('${collectionName}')`
@@ -216,7 +253,7 @@ ${collection}.unsubscribe();`
 }
 
 /**
- * 格式化字段类型
+ * Format field type
  */
 export function formatFieldType(type: string): string {
   const typeMap: Record<string, string> = {
@@ -239,100 +276,99 @@ export function formatFieldType(type: string): string {
 }
 
 /**
- * 获取查询参数说明
+ * Get field query parameters
  */
 export function getFieldQueryParams(): QueryParam[] {
   return [
     {
       name: 'page',
       type: 'Number',
-      description: '页码 (默认为 1)',
+      description: 'Page number (default is 1)',
       default: '1',
     },
     {
       name: 'perPage',
       type: 'Number',
-      description: '每页记录数 (默认为 30, 最大 500)',
+      description: 'Number of records per page (default is 30, max is 500)',
       default: '30',
     },
     {
       name: 'sort',
       type: 'String',
-      description: '排序字段，使用 - 前缀表示降序。支持多字段排序，用逗号分隔。',
+      description: 'Sort field, use - prefix for descending order. Supports multi-field sorting, separated by commas.',
     },
     {
       name: 'filter',
       type: 'String',
-      description: '过滤表达式，支持 =, !=, >, >=, <, <=, ~, !~ 等操作符',
+      description: 'Filter expression, supports =, !=, >, >=, <, <=, ~, !~ operators',
     },
     {
       name: 'expand',
       type: 'String',
-      description: '展开关联记录，用逗号分隔多个关联字段',
+      description: 'Expand related records, separated by commas',
     },
     {
       name: 'fields',
       type: 'String',
-      description: '指定返回的字段，用逗号分隔',
+      description: 'Specify fields to return, separated by commas',
     },
     {
       name: 'skipTotal',
       type: 'Boolean',
-      description: '跳过总数统计以提高性能',
+      description: 'Skip total count calculation for performance',
       default: 'false',
     },
   ]
 }
 
 /**
- * 过滤语法说明
+ * Filter operators description
  */
 export const FILTER_OPERATORS = [
-  { operator: '=', description: '等于', example: "status='active'" },
-  { operator: '!=', description: '不等于', example: "status!='deleted'" },
-  { operator: '>', description: '大于', example: 'count>10' },
-  { operator: '>=', description: '大于等于', example: 'count>=10' },
-  { operator: '<', description: '小于', example: 'count<100' },
-  { operator: '<=', description: '小于等于', example: 'count<=100' },
-  { operator: '~', description: '包含 (LIKE)', example: "name~'test'" },
-  { operator: '!~', description: '不包含', example: "name!~'test'" },
-  { operator: '?=', description: '数组包含任意一个', example: "tags?='important'" },
-  { operator: '?!=', description: '数组不包含', example: "tags?!='spam'" },
-  { operator: '?~', description: '数组任意一个包含', example: "tags?~'test'" },
-  { operator: '?!~', description: '数组任意一个不包含', example: "tags?!~'test'" },
+  { operator: '=', description: 'Equals', example: "status='active'" },
+  { operator: '!=', description: 'Not equals', example: "status!='deleted'" },
+  { operator: '>', description: 'Greater than', example: 'count>10' },
+  { operator: '>=', description: 'Greater than or equals', example: 'count>=10' },
+  { operator: '<', description: 'Less than', example: 'count<100' },
+  { operator: '<=', description: 'Less than or equals', example: 'count<=100' },
+  { operator: '~', description: 'Contains (LIKE)', example: "name~'test'" },
+  { operator: '!~', description: 'Not contains', example: "name!~'test'" },
+  { operator: '?=', description: 'Array contains any', example: "tags?='important'" },
+  { operator: '?!=', description: 'Array does not contain', example: "tags?!='spam'" },
+  { operator: '?~', description: 'Array any contains', example: "tags?~'test'" },
+  { operator: '?!~', description: 'Array any does not contain', example: "tags?!~'test'" },
 ]
 
 /**
- * 生成示例记录
+ * Generate dummy record
  */
 export function generateDummyRecord(collection: {
   id: string
   name: string
   type: string
-  schema?: Array<{ name: string; type: string; required?: boolean }>
-  fields?: Array<{ name: string; type: string; required?: boolean }>
+  schema?: Array<{ name: string; type: string; required?: boolean; maxSelect?: number; values?: string[] }>
+  fields?: Array<{ name: string; type: string; required?: boolean; hidden?: boolean; primaryKey?: boolean; autogeneratePattern?: string; maxSelect?: number; values?: string[] }>
 }): Record<string, unknown> {
-  const now = new Date().toISOString().replace('T', ' ').replace('Z', '')
+  // Fixed timestamp format like official UI version
+  const fixedTimestamp = '2022-01-01 10:00:00.123Z'
+  
+  // Start with collectionId and collectionName first (like official UI)
   const record: Record<string, unknown> = {
-    id: 'RECORD_ID',
     collectionId: collection.id,
     collectionName: collection.name,
-    created: now,
-    updated: now,
   }
 
-  // Auth 集合特殊字段
-  if (collection.type === 'auth') {
-    record.email = 'test@example.com'
-    record.emailVisibility = true
-    record.verified = true
-  }
-
-  // 添加 schema 字段
+  // Add schema fields
   const fields = collection.fields || collection.schema || []
   fields.forEach((field) => {
+    // Skip hidden fields
+    if ('hidden' in field && field.hidden) {
+      return
+    }
+    
     switch (field.type) {
       case 'text':
+      case 'editor':
         record[field.name] = 'test'
         break
       case 'number':
@@ -349,30 +385,61 @@ export function generateDummyRecord(collection: {
         break
       case 'date':
       case 'autodate':
-        record[field.name] = now
+        record[field.name] = fixedTimestamp
         break
       case 'json':
-        record[field.name] = {}
+        record[field.name] = 'JSON'
         break
-      case 'file':
-        record[field.name] = 'filename.jpg'
+      case 'file': {
+        const val = 'filename.jpg'
+        record[field.name] = field.maxSelect !== 1 ? [val] : val
         break
-      case 'relation':
-        record[field.name] = 'RELATION_RECORD_ID'
+      }
+      case 'relation': {
+        const val = 'RELATION_RECORD_ID'
+        record[field.name] = field.maxSelect !== 1 ? [val] : val
         break
-      case 'select':
-        record[field.name] = 'optionA'
+      }
+      case 'select': {
+        const val = field.values?.[0] || 'optionA'
+        record[field.name] = field.maxSelect !== 1 ? [val] : val
         break
-      case 'editor':
-        record[field.name] = '<p>test content</p>'
-        break
+      }
       case 'geoPoint':
         record[field.name] = { lon: 0, lat: 0 }
         break
       default:
-        record[field.name] = ''
+        record[field.name] = 'test'
     }
   })
 
   return record
+}
+
+/**
+ * Get all collection field identifiers for sort/filter parameters
+ */
+export function getAllCollectionIdentifiers(collection: {
+  type: string
+  fields?: Array<{ name: string }>
+}): string[] {
+  let result: string[] = []
+
+  if (collection.type === 'auth') {
+    result = ['id', 'created', 'updated', 'username', 'email', 'emailVisibility', 'verified']
+  } else if (collection.type === 'view') {
+    result = ['id']
+  } else {
+    result = ['id', 'created', 'updated']
+  }
+
+  const fields = collection.fields || []
+  for (const field of fields) {
+    const name = field.name
+    if (name && !result.includes(name)) {
+      result.push(name)
+    }
+  }
+
+  return result
 }

@@ -1,11 +1,11 @@
 /**
- * UpdateApiDocs 组件
- * 更新 API 文档
+ * UpdateApiDocs component
+ * Update API documentation
  */
 import { useMemo } from 'react'
 import { SdkTabs } from './SdkTabs'
 import { CodeBlock } from './CodeBlock'
-import { FieldsQueryParam } from './FieldsQueryParam'
+import { ResponseTabs } from './ResponseTabs'
 import { getApiEndpoint, generateDummyRecord } from '@/lib/apiDocsUtils'
 
 interface Field {
@@ -75,6 +75,22 @@ export function UpdateApiDocs({
     },
   ]
 
+  // Generate example update data based on collection type
+  const getExampleUpdateData = () => {
+    if (isAuth) {
+      return `{
+    "emailVisibility": true,
+    "name": "test",
+    "oldPassword": "12345678",
+    "password": "87654321",
+    "passwordConfirm": "87654321"
+}`
+    }
+    return `{
+    "someField": "updated value"
+}`
+  }
+
   const jsCode = `import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('${baseUrl}');
@@ -82,11 +98,25 @@ const pb = new PocketBase('${baseUrl}');
 ...
 
 // example update data
-const data = {
-    "someField": "updated value"
-};
+const data = ${getExampleUpdateData()};
 
 const record = await pb.collection('${collection.name}').update('RECORD_ID', data);`
+
+  // Generate Dart example update data based on collection type
+  const getDartExampleUpdateData = () => {
+    if (isAuth) {
+      return `{
+  "emailVisibility": true,
+  "name": "test",
+  "oldPassword": "12345678",
+  "password": "87654321",
+  "passwordConfirm": "87654321"
+}`
+    }
+    return `{
+  "someField": "updated value"
+}`
+  }
 
   const dartCode = `import 'package:pocketbase/pocketbase.dart';
 
@@ -95,9 +125,7 @@ final pb = PocketBase('${baseUrl}');
 ...
 
 // example update body
-final body = <String, dynamic>{
-  "someField": "updated value"
-};
+final body = <String, dynamic>${getDartExampleUpdateData()};
 
 final record = await pb.collection('${collection.name}').update('RECORD_ID', body: body);`
 
@@ -106,19 +134,40 @@ final record = await pb.collection('${collection.name}').update('RECORD_ID', bod
       <div>
         <h3 className="text-lg font-medium mb-2">Update ({collection.name})</h3>
         <p className="text-muted-foreground">
-          更新现有的 <strong>{collection.name}</strong> 记录。
+          Update an existing <strong>{collection.name}</strong> record.
         </p>
         <p className="text-sm text-muted-foreground mt-2">
-          请求体可以使用 <code>application/json</code> 或 <code>multipart/form-data</code> 格式。
-          只需要发送要更新的字段。
+          Body parameters could be sent as <code className="bg-muted px-1 py-0.5 rounded text-xs">application/json</code> or <code className="bg-muted px-1 py-0.5 rounded text-xs">multipart/form-data</code>.
         </p>
+        <p className="text-sm text-muted-foreground mt-1">
+          File upload is supported only via <code className="bg-muted px-1 py-0.5 rounded text-xs">multipart/form-data</code>.
+        </p>
+        <p className="text-sm text-muted-foreground mt-1">
+          For more info and examples you could check the detailed{' '}
+          <a
+            href="https://pocketbase.io/docs/files-handling/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            Files upload and handling docs
+          </a>.
+        </p>
+        {isAuth && (
+          <p className="text-sm text-muted-foreground mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <em>
+              Note that in case of a password change all previously issued tokens for the current record will be automatically
+              invalidated and if you want your user to remain signed in you need to reauthenticate manually after the update call.
+            </em>
+          </p>
+        )}
       </div>
 
       <SdkTabs js={jsCode} dart={dartCode} />
 
-      {/* API 端点 */}
+      {/* API details */}
       <div>
-        <h4 className="text-sm font-medium mb-2">API 端点</h4>
+        <h4 className="text-sm font-medium mb-2">API details</h4>
         <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <span className="px-2 py-0.5 rounded text-xs font-bold bg-yellow-100 text-yellow-700">
             PATCH
@@ -126,22 +175,22 @@ final record = await pb.collection('${collection.name}').update('RECORD_ID', bod
           <span className="font-mono text-sm">{endpoint}</span>
           {superusersOnly && (
             <span className="ml-auto text-xs text-muted-foreground">
-              需要超级用户 <code>Authorization:TOKEN</code> 头
+              Requires superuser <code>Authorization:TOKEN</code> header
             </span>
           )}
         </div>
       </div>
 
-      {/* 路径参数 */}
+      {/* Path parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">路径参数</h4>
+        <h4 className="text-sm font-medium mb-2">Path parameters</h4>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-28">参数</th>
-                <th className="text-left p-2 font-medium w-20">类型</th>
-                <th className="text-left p-2 font-medium">说明</th>
+                <th className="text-left p-2 font-medium w-28">Param</th>
+                <th className="text-left p-2 font-medium w-20">Type</th>
+                <th className="text-left p-2 font-medium">Description</th>
               </tr>
             </thead>
             <tbody>
@@ -150,59 +199,26 @@ final record = await pb.collection('${collection.name}').update('RECORD_ID', bod
                 <td className="p-2">
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
-                <td className="p-2 text-muted-foreground">要更新的记录 ID</td>
+                <td className="p-2 text-muted-foreground">ID of the record to update.</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Body 参数说明 */}
-      <div>
-        <h4 className="text-sm font-medium mb-2">Body 参数</h4>
-        <p className="text-sm text-muted-foreground mb-3">
-          发送要更新的字段。未发送的字段将保持不变。
-        </p>
-        {isAuth && (
-          <div className="p-3 bg-muted rounded-lg text-sm mb-3">
-            <p className="font-medium mb-2">Auth 集合特殊字段：</p>
-            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-              <li>
-                <code>oldPassword</code> - 更新密码时需要提供当前密码
-              </li>
-              <li>
-                <code>password</code> - 新密码
-              </li>
-              <li>
-                <code>passwordConfirm</code> - 新密码确认
-              </li>
-            </ul>
-          </div>
-        )}
-        <div className="p-3 bg-muted rounded-lg text-sm">
-          <p className="font-medium mb-2">文件字段特殊操作：</p>
-          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-            <li>发送新文件会追加到现有文件列表（多文件字段）</li>
-            <li>
-              使用 <code>fieldName-</code> 删除特定文件，值为文件名
-            </li>
-            <li>
-              设置为空值（<code>null</code>, <code>""</code>, <code>[]</code>）删除所有文件
-            </li>
-          </ul>
-        </div>
-      </div>
+      {/* Body parameters */}
+      <BodyParametersTable collection={collection} isAuth={isAuth} />
 
-      {/* 查询参数 */}
+      {/* Query parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">查询参数</h4>
+        <h4 className="text-sm font-medium mb-2">Query parameters</h4>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-28">参数</th>
-                <th className="text-left p-2 font-medium w-20">类型</th>
-                <th className="text-left p-2 font-medium">说明</th>
+                <th className="text-left p-2 font-medium w-28">Param</th>
+                <th className="text-left p-2 font-medium w-20">Type</th>
+                <th className="text-left p-2 font-medium">Description</th>
               </tr>
             </thead>
             <tbody>
@@ -211,40 +227,295 @@ final record = await pb.collection('${collection.name}').update('RECORD_ID', bod
                 <td className="p-2">
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
-                <td className="p-2 text-muted-foreground">返回更新后的记录时自动展开关联记录。</td>
+                <td className="p-2 text-muted-foreground">
+                  <p>Auto expand relations when returning the updated record. Ex.:</p>
+                  <CodeBlock
+                    content="?expand=relField1,relField2.subRelField21"
+                    showCopy={false}
+                    className="mt-1"
+                  />
+                  <p className="mt-2">
+                    Supports up to 6-levels depth nested relations expansion.
+                    <br />
+                    The expanded relations will be appended to the record under the{' '}
+                    <code>expand</code> property (eg. <code>{`"expand": {"relField1": {...}, ...}`}</code>).{' '}
+                    Only the relations that the user has permissions to <strong>view</strong> will be expanded.
+                  </p>
+                </td>
+              </tr>
+              <tr className="border-t">
+                <td className="p-2 font-mono text-xs">fields</td>
+                <td className="p-2">
+                  <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
+                </td>
+                <td className="p-2 text-muted-foreground">
+                  <p>
+                    Comma separated string of the fields to return in the JSON response{' '}
+                    <em>(by default returns all fields)</em>. Ex.:
+                  </p>
+                  <CodeBlock content="?fields=*,expand.relField.name" showCopy={false} className="mt-1" />
+                  <p className="mt-2">
+                    <code>*</code> targets all keys from the specific depth level.
+                  </p>
+                  <p className="mt-2">In addition, the following field modifiers are also supported:</p>
+                  <ul className="list-disc list-inside mt-1">
+                    <li>
+                      <code>:excerpt(maxLength, withEllipsis?)</code>
+                      <br />
+                      Returns a short plain text version of the field string value.
+                      <br />
+                      Ex.: <code>?fields=*,description:excerpt(200,true)</code>
+                    </li>
+                  </ul>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* fields 参数 */}
-      <FieldsQueryParam />
+      {/* Responses */}
+      <ResponseTabs responses={responses} />
+    </div>
+  )
+}
 
-      {/* 响应示例 */}
-      <div>
-        <h4 className="text-sm font-medium mb-2">响应示例</h4>
-        <div className="space-y-3">
-          {responses.map((resp) => (
-            <div key={resp.code}>
-              <div className="flex items-center gap-2 mb-1">
-                <span
-                  className={`px-2 py-0.5 rounded text-xs font-bold ${
-                    resp.code === 200
-                      ? 'bg-green-100 text-green-700'
-                      : resp.code === 400
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-red-100 text-red-700'
-                  }`}
-                >
-                  {resp.code}
-                </span>
-              </div>
-              <CodeBlock content={resp.body} language="json" />
-            </div>
-          ))}
-        </div>
+// Body parameters table component for Update API
+function BodyParametersTable({
+  collection,
+  isAuth,
+}: {
+  collection: Collection
+  isAuth: boolean
+}) {
+  const fields = useMemo(() => {
+    // For auth collections, exclude password-related fields as they are shown separately
+    const excludedFields = isAuth ? ['password', 'email', 'emailVisibility', 'verified'] : []
+    return (
+      (collection.fields || collection.schema)?.filter(
+        (f) => !f.hidden && f.type !== 'autodate' && !excludedFields.includes(f.name)
+      ) || []
+    )
+  }, [collection, isAuth])
+
+  return (
+    <div>
+      <h4 className="text-sm font-medium mb-2">Body Parameters</h4>
+      <div className="border rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-muted">
+            <tr>
+              <th className="text-left p-2 font-medium w-36">Param</th>
+              <th className="text-left p-2 font-medium w-20">Type</th>
+              <th className="text-left p-2 font-medium">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isAuth && (
+              <>
+                <tr className="border-t bg-muted/50">
+                  <td colSpan={3} className="p-2 text-xs font-medium">
+                    Auth specific fields
+                  </td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
+                        Optional
+                      </span>
+                      <span className="font-mono text-xs">email</span>
+                    </div>
+                  </td>
+                  <td className="p-2">
+                    <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
+                  </td>
+                  <td className="p-2 text-muted-foreground">
+                    The auth record email address.
+                    <br />
+                    This field can be updated only by superusers or auth records with "Manage" access.
+                    <br />
+                    Regular accounts can update their email by calling "Request email change".
+                  </td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
+                        Optional
+                      </span>
+                      <span className="font-mono text-xs">emailVisibility</span>
+                    </div>
+                  </td>
+                  <td className="p-2">
+                    <span className="px-1.5 py-0.5 bg-muted rounded text-xs">Boolean</span>
+                  </td>
+                  <td className="p-2 text-muted-foreground">Whether to show/hide the auth record email when fetching the record data.</td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
+                        Optional
+                      </span>
+                      <span className="font-mono text-xs">oldPassword</span>
+                    </div>
+                  </td>
+                  <td className="p-2">
+                    <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
+                  </td>
+                  <td className="p-2 text-muted-foreground">
+                    Old auth record password.
+                    <br />
+                    This field is required only when changing the record password. Superusers and auth records with "Manage" access can skip this field.
+                  </td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
+                        Optional
+                      </span>
+                      <span className="font-mono text-xs">password</span>
+                    </div>
+                  </td>
+                  <td className="p-2">
+                    <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
+                  </td>
+                  <td className="p-2 text-muted-foreground">New auth record password.</td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
+                        Optional
+                      </span>
+                      <span className="font-mono text-xs">passwordConfirm</span>
+                    </div>
+                  </td>
+                  <td className="p-2">
+                    <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
+                  </td>
+                  <td className="p-2 text-muted-foreground">New auth record password confirmation.</td>
+                </tr>
+                <tr className="border-t">
+                  <td className="p-2">
+                    <div className="flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
+                        Optional
+                      </span>
+                      <span className="font-mono text-xs">verified</span>
+                    </div>
+                  </td>
+                  <td className="p-2">
+                    <span className="px-1.5 py-0.5 bg-muted rounded text-xs">Boolean</span>
+                  </td>
+                  <td className="p-2 text-muted-foreground">
+                    Indicates whether the auth record is verified or not.
+                    <br />
+                    This field can be set only by superusers or auth records with "Manage" access.
+                  </td>
+                </tr>
+                <tr className="border-t bg-muted/50">
+                  <td colSpan={3} className="p-2 text-xs font-medium">
+                    Other fields
+                  </td>
+                </tr>
+              </>
+            )}
+            {fields.map((field) => (
+              <tr key={field.name} className="border-t">
+                <td className="p-2">
+                  <div className="flex items-center gap-2">
+                    <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
+                      Optional
+                    </span>
+                    <span className="font-mono text-xs">{field.name}</span>
+                  </div>
+                </td>
+                <td className="p-2">
+                  <span className="px-1.5 py-0.5 bg-muted rounded text-xs">
+                    {getFieldType(field.type)}
+                  </span>
+                </td>
+                <td className="p-2 text-muted-foreground">
+                  {field.type === 'file' ? (
+                    <>
+                      File object.
+                      <br />
+                      Set to empty value (<code className="bg-muted px-1 py-0.5 rounded text-xs">null</code>, <code className="bg-muted px-1 py-0.5 rounded text-xs">""</code>, or <code className="bg-muted px-1 py-0.5 rounded text-xs">[]</code>) to delete already uploaded file(s).
+                    </>
+                  ) : (
+                    getFieldDescription(field)
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
+}
+
+function getFieldType(type: string): string {
+  switch (type) {
+    case 'text':
+    case 'email':
+    case 'url':
+    case 'editor':
+      return 'String'
+    case 'number':
+      return 'Number'
+    case 'bool':
+      return 'Boolean'
+    case 'date':
+      return 'String'
+    case 'json':
+      return 'Object/Array'
+    case 'file':
+      return 'File'
+    case 'relation':
+      return 'String/Array'
+    case 'select':
+      return 'String/Array'
+    default:
+      return 'String'
+  }
+}
+
+function getFieldDescription(field: Field): string {
+  // Handle id field specially
+  if (field.name === 'id') {
+    return 'Plain text value. It is autogenerated if not set.'
+  }
+
+  switch (field.type) {
+    case 'text':
+      return 'Plain text value.'
+    case 'number':
+      return 'Number value.'
+    case 'bool':
+      return 'Boolean value.'
+    case 'email':
+      return 'Email address.'
+    case 'url':
+      return 'URL value.'
+    case 'date':
+      return 'Datetime string.'
+    case 'json':
+      return 'JSON array or object.'
+    case 'file':
+      return 'File object.'
+    case 'relation':
+      return 'Relation record id.'
+    case 'select':
+      return 'Select value.'
+    case 'editor':
+      return 'HTML (rich text) value.'
+    case 'geoPoint':
+      return 'Geo point object {"lon":x,"lat":y}.'
+    default:
+      return ''
+  }
 }

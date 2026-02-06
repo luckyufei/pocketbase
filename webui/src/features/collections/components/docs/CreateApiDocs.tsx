@@ -1,11 +1,11 @@
 /**
- * CreateApiDocs 组件
- * 创建 API 文档
+ * CreateApiDocs component
+ * Create API documentation
  */
 import { useMemo } from 'react'
 import { SdkTabs } from './SdkTabs'
 import { CodeBlock } from './CodeBlock'
-import { FieldsQueryParam } from './FieldsQueryParam'
+import { ResponseTabs } from './ResponseTabs'
 import { getApiEndpoint, generateDummyRecord } from '@/lib/apiDocsUtils'
 
 interface Field {
@@ -39,7 +39,8 @@ export function CreateApiDocs({
   const isAuth = collection.type === 'auth'
 
   const fields = useMemo(() => {
-    const excludedFields = isAuth ? ['password', 'verified', 'email', 'emailVisibility'] : []
+    // For auth collections, exclude password-related fields as they are shown separately
+    const excludedFields = isAuth ? ['password', 'email', 'emailVisibility', 'verified'] : []
     return (
       (collection.fields || collection.schema)?.filter(
         (f) => !f.hidden && f.type !== 'autodate' && !excludedFields.includes(f.name)
@@ -51,10 +52,24 @@ export function CreateApiDocs({
 
   const payload = useMemo(() => {
     const data: Record<string, unknown> = {}
+    
+    // For auth collections, include auth-specific fields first
+    if (isAuth) {
+      data.email = 'test@example.com'
+      data.emailVisibility = true
+      data.name = 'test'
+      data.password = '12345678'
+      data.passwordConfirm = '12345678'
+    }
+    
+    // Add other schema fields
     fields.forEach((field) => {
+      // Skip id field as it's auto-generated
+      if (field.name === 'id') return
+      
       switch (field.type) {
         case 'text':
-          data[field.name] = 'test value'
+          data[field.name] = 'test'
           break
         case 'number':
           data[field.name] = 123
@@ -69,22 +84,22 @@ export function CreateApiDocs({
           data[field.name] = 'https://example.com'
           break
         case 'date':
-          data[field.name] = '2024-01-01 00:00:00.000Z'
+          data[field.name] = '2022-01-01 10:00:00.123Z'
           break
         case 'json':
-          data[field.name] = {}
+          data[field.name] = 'JSON'
           break
         case 'relation':
           data[field.name] = 'RELATION_RECORD_ID'
+          break
+        case 'file':
+          // Skip file fields in example payload as they require multipart
           break
         default:
           data[field.name] = ''
       }
     })
-    if (isAuth) {
-      data.password = '12345678'
-      data.passwordConfirm = '12345678'
-    }
+    
     return data
   }, [fields, isAuth])
 
@@ -157,19 +172,32 @@ await pb.collection('${collection.name}').requestVerification('test@example.com'
       <div>
         <h3 className="text-lg font-medium mb-2">Create ({collection.name})</h3>
         <p className="text-muted-foreground">
-          创建新的 <strong>{collection.name}</strong> 记录。
+          Create a new <strong>{collection.name}</strong> record.
         </p>
         <p className="text-sm text-muted-foreground mt-2">
-          请求体可以使用 <code>application/json</code> 或 <code>multipart/form-data</code> 格式。
-          文件上传仅支持 <code>multipart/form-data</code>。
+          Body parameters could be sent as <code className="bg-muted px-1 py-0.5 rounded text-xs">application/json</code> or <code className="bg-muted px-1 py-0.5 rounded text-xs">multipart/form-data</code>.
+        </p>
+        <p className="text-sm text-muted-foreground mt-1">
+          File upload is supported only via <code className="bg-muted px-1 py-0.5 rounded text-xs">multipart/form-data</code>.
+        </p>
+        <p className="text-sm text-muted-foreground mt-1">
+          For more info and examples you could check the detailed{' '}
+          <a
+            href="https://pocketbase.io/docs/files-handling/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            Files upload and handling docs
+          </a>.
         </p>
       </div>
 
       <SdkTabs js={jsCode} dart={dartCode} />
 
-      {/* API 端点 */}
+      {/* API details */}
       <div>
-        <h4 className="text-sm font-medium mb-2">API 端点</h4>
+        <h4 className="text-sm font-medium mb-2">API details</h4>
         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
           <span className="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700">
             POST
@@ -177,22 +205,22 @@ await pb.collection('${collection.name}').requestVerification('test@example.com'
           <span className="font-mono text-sm">{endpoint}</span>
           {superusersOnly && (
             <span className="ml-auto text-xs text-muted-foreground">
-              需要超级用户 <code>Authorization:TOKEN</code> 头
+              Requires superuser <code>Authorization:TOKEN</code> header
             </span>
           )}
         </div>
       </div>
 
-      {/* Body 参数 */}
+      {/* Body parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">Body 参数</h4>
+        <h4 className="text-sm font-medium mb-2">Body parameters</h4>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-36">参数</th>
-                <th className="text-left p-2 font-medium w-20">类型</th>
-                <th className="text-left p-2 font-medium">说明</th>
+                <th className="text-left p-2 font-medium w-36">Param</th>
+                <th className="text-left p-2 font-medium w-20">Type</th>
+                <th className="text-left p-2 font-medium">Description</th>
               </tr>
             </thead>
             <tbody>
@@ -200,14 +228,14 @@ await pb.collection('${collection.name}').requestVerification('test@example.com'
                 <>
                   <tr className="border-t bg-muted/50">
                     <td colSpan={3} className="p-2 text-xs font-medium">
-                      Auth 特有字段
+                      Auth specific fields
                     </td>
                   </tr>
                   <tr className="border-t">
                     <td className="p-2">
                       <div className="flex items-center gap-2">
-                        <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
-                          可选
+                        <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+                          Required
                         </span>
                         <span className="font-mono text-xs">email</span>
                       </div>
@@ -215,13 +243,27 @@ await pb.collection('${collection.name}').requestVerification('test@example.com'
                     <td className="p-2">
                       <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                     </td>
-                    <td className="p-2 text-muted-foreground">认证记录的邮箱地址</td>
+                    <td className="p-2 text-muted-foreground">Auth record email address.</td>
+                  </tr>
+                  <tr className="border-t">
+                    <td className="p-2">
+                      <div className="flex items-center gap-2">
+                        <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
+                          Optional
+                        </span>
+                        <span className="font-mono text-xs">emailVisibility</span>
+                      </div>
+                    </td>
+                    <td className="p-2">
+                      <span className="px-1.5 py-0.5 bg-muted rounded text-xs">Boolean</span>
+                    </td>
+                    <td className="p-2 text-muted-foreground">Whether to show/hide the auth record email when fetching the record data.</td>
                   </tr>
                   <tr className="border-t">
                     <td className="p-2">
                       <div className="flex items-center gap-2">
                         <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                          必填
+                          Required
                         </span>
                         <span className="font-mono text-xs">password</span>
                       </div>
@@ -229,13 +271,13 @@ await pb.collection('${collection.name}').requestVerification('test@example.com'
                     <td className="p-2">
                       <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                     </td>
-                    <td className="p-2 text-muted-foreground">认证记录的密码</td>
+                    <td className="p-2 text-muted-foreground">Auth record password.</td>
                   </tr>
                   <tr className="border-t">
                     <td className="p-2">
                       <div className="flex items-center gap-2">
                         <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                          必填
+                          Required
                         </span>
                         <span className="font-mono text-xs">passwordConfirm</span>
                       </div>
@@ -243,11 +285,29 @@ await pb.collection('${collection.name}').requestVerification('test@example.com'
                     <td className="p-2">
                       <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                     </td>
-                    <td className="p-2 text-muted-foreground">密码确认</td>
+                    <td className="p-2 text-muted-foreground">Auth record password confirmation.</td>
+                  </tr>
+                  <tr className="border-t">
+                    <td className="p-2">
+                      <div className="flex items-center gap-2">
+                        <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
+                          Optional
+                        </span>
+                        <span className="font-mono text-xs">verified</span>
+                      </div>
+                    </td>
+                    <td className="p-2">
+                      <span className="px-1.5 py-0.5 bg-muted rounded text-xs">Boolean</span>
+                    </td>
+                    <td className="p-2 text-muted-foreground">
+                      Indicates whether the auth record is verified or not.
+                      <br />
+                      This field can be set only by superusers or auth records with "Manage" access.
+                    </td>
                   </tr>
                   <tr className="border-t bg-muted/50">
                     <td colSpan={3} className="p-2 text-xs font-medium">
-                      其他字段
+                      Other fields
                     </td>
                   </tr>
                 </>
@@ -263,7 +323,7 @@ await pb.collection('${collection.name}').requestVerification('test@example.com'
                             : 'bg-yellow-100 text-yellow-700'
                         }`}
                       >
-                        {field.required && !field.autogeneratePattern ? '必填' : '可选'}
+                        {field.required && !field.autogeneratePattern ? 'Required' : 'Optional'}
                       </span>
                       <span className="font-mono text-xs">{field.name}</span>
                     </div>
@@ -273,7 +333,17 @@ await pb.collection('${collection.name}').requestVerification('test@example.com'
                       {getFieldType(field.type)}
                     </span>
                   </td>
-                  <td className="p-2 text-muted-foreground">{getFieldDescription(field)}</td>
+                  <td className="p-2 text-muted-foreground">
+                    {field.type === 'file' ? (
+                      <>
+                        File object.
+                        <br />
+                        Set to empty value (<code className="bg-muted px-1 py-0.5 rounded text-xs">null</code>, <code className="bg-muted px-1 py-0.5 rounded text-xs">""</code>, or <code className="bg-muted px-1 py-0.5 rounded text-xs">[]</code>) to delete already uploaded file(s).
+                      </>
+                    ) : (
+                      getFieldDescription(field)
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -281,16 +351,16 @@ await pb.collection('${collection.name}').requestVerification('test@example.com'
         </div>
       </div>
 
-      {/* 查询参数 */}
+      {/* Query parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">查询参数</h4>
+        <h4 className="text-sm font-medium mb-2">Query parameters</h4>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-28">参数</th>
-                <th className="text-left p-2 font-medium w-20">类型</th>
-                <th className="text-left p-2 font-medium">说明</th>
+                <th className="text-left p-2 font-medium w-28">Param</th>
+                <th className="text-left p-2 font-medium w-20">Type</th>
+                <th className="text-left p-2 font-medium">Description</th>
               </tr>
             </thead>
             <tbody>
@@ -299,40 +369,55 @@ await pb.collection('${collection.name}').requestVerification('test@example.com'
                 <td className="p-2">
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
-                <td className="p-2 text-muted-foreground">返回创建的记录时自动展开关联记录。</td>
+                <td className="p-2 text-muted-foreground">
+                  <p>Auto expand relations when returning the created record. Ex.:</p>
+                  <CodeBlock
+                    content="?expand=relField1,relField2.subRelField21"
+                    showCopy={false}
+                    className="mt-1"
+                  />
+                  <p className="mt-2">
+                    Supports up to 6-levels depth nested relations expansion.
+                    <br />
+                    The expanded relations will be appended to the record under the{' '}
+                    <code>expand</code> property (eg. <code>{`"expand": {"relField1": {...}, ...}`}</code>).{' '}
+                    Only the relations that the user has permissions to <strong>view</strong> will be expanded.
+                  </p>
+                </td>
+              </tr>
+              <tr className="border-t">
+                <td className="p-2 font-mono text-xs">fields</td>
+                <td className="p-2">
+                  <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
+                </td>
+                <td className="p-2 text-muted-foreground">
+                  <p>
+                    Comma separated string of the fields to return in the JSON response{' '}
+                    <em>(by default returns all fields)</em>. Ex.:
+                  </p>
+                  <CodeBlock content="?fields=*,expand.relField.name" showCopy={false} className="mt-1" />
+                  <p className="mt-2">
+                    <code>*</code> targets all keys from the specific depth level.
+                  </p>
+                  <p className="mt-2">In addition, the following field modifiers are also supported:</p>
+                  <ul className="list-disc list-inside mt-1">
+                    <li>
+                      <code>:excerpt(maxLength, withEllipsis?)</code>
+                      <br />
+                      Returns a short plain text version of the field string value.
+                      <br />
+                      Ex.: <code>?fields=*,description:excerpt(200,true)</code>
+                    </li>
+                  </ul>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* fields 参数 */}
-      <FieldsQueryParam />
-
-      {/* 响应示例 */}
-      <div>
-        <h4 className="text-sm font-medium mb-2">响应示例</h4>
-        <div className="space-y-3">
-          {responses.map((resp) => (
-            <div key={resp.code}>
-              <div className="flex items-center gap-2 mb-1">
-                <span
-                  className={`px-2 py-0.5 rounded text-xs font-bold ${
-                    resp.code === 200
-                      ? 'bg-green-100 text-green-700'
-                      : resp.code === 400
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : 'bg-red-100 text-red-700'
-                  }`}
-                >
-                  {resp.code}
-                </span>
-              </div>
-              <CodeBlock content={resp.body} language="json" />
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Responses */}
+      <ResponseTabs responses={responses} />
     </div>
   )
 }
@@ -364,31 +449,36 @@ function getFieldType(type: string): string {
 }
 
 function getFieldDescription(field: Field): string {
+  // Handle id field specially
+  if (field.name === 'id') {
+    return 'Plain text value. It is autogenerated if not set.'
+  }
+  
   switch (field.type) {
     case 'text':
-      return field.autogeneratePattern ? '纯文本值。如果未设置会自动生成。' : '纯文本值。'
+      return field.autogeneratePattern ? 'Plain text value. It is autogenerated if not set.' : 'Plain text value.'
     case 'number':
-      return '数字值。'
+      return 'Number value.'
     case 'bool':
-      return '布尔值。'
+      return 'Boolean value.'
     case 'email':
-      return '邮箱地址。'
+      return 'Email address.'
     case 'url':
-      return 'URL 地址。'
+      return 'URL value.'
     case 'date':
-      return '日期时间字符串。'
+      return 'Datetime string.'
     case 'json':
-      return 'JSON 数组或对象。'
+      return 'JSON array or object.'
     case 'file':
-      return '文件对象。设置为空值可删除已上传的文件。'
+      return 'File object.'
     case 'relation':
-      return '关联记录 ID。'
+      return 'Relation record id.'
     case 'select':
-      return '选择值。'
+      return 'Select value.'
     case 'editor':
-      return '富文本内容。'
+      return 'HTML (rich text) value.'
     case 'geoPoint':
-      return '地理坐标对象 {"lon":x,"lat":y}。'
+      return 'Geo point object {"lon":x,"lat":y}.'
     default:
       return ''
   }

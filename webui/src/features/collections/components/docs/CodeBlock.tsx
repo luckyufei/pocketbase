@@ -1,26 +1,49 @@
 /**
- * CodeBlock 组件
- * 代码块展示
+ * CodeBlock component
+ * Code block display with syntax highlighting
  */
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { Copy, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import Prism from 'prismjs'
+import 'prismjs/components/prism-javascript'
+import 'prismjs/components/prism-dart'
+import 'prismjs/components/prism-json'
+import 'prismjs/plugins/normalize-whitespace/prism-normalize-whitespace'
+import './prism-light.css'
 
 interface CodeBlockProps {
   content: string
-  language?: string
+  language?: 'javascript' | 'dart' | 'json' | 'html' | 'text'
   showCopy?: boolean
   className?: string
 }
 
 export function CodeBlock({
   content,
-  language = 'text',
+  language = 'javascript',
   showCopy = true,
   className,
 }: CodeBlockProps) {
   const [copied, setCopied] = useState(false)
+
+  const highlighted = useMemo(() => {
+    if (language === 'text' || !Prism.languages[language]) {
+      return content.trim()
+    }
+
+    // Normalize whitespace using Prism plugin
+    // @see https://prismjs.com/plugins/normalize-whitespace
+    const normalized = Prism.plugins.NormalizeWhitespace?.normalize(content, {
+      'remove-trailing': true,
+      'remove-indent': true,
+      'left-trim': true,
+      'right-trim': true,
+    }) || content.trim()
+
+    return Prism.highlight(normalized, Prism.languages[language], language)
+  }, [content, language])
 
   const handleCopy = useCallback(async () => {
     try {
@@ -33,9 +56,12 @@ export function CodeBlock({
   }, [content])
 
   return (
-    <div className={cn('relative group', className)}>
-      <pre className="p-3 bg-muted rounded-lg overflow-auto text-sm font-mono">
-        <code className={`language-${language}`}>{content.trim()}</code>
+    <div className={cn('relative group prism-light', className)}>
+      <pre className="p-3 bg-muted rounded-lg overflow-auto text-sm">
+        <code
+          className={`language-${language}`}
+          dangerouslySetInnerHTML={{ __html: highlighted }}
+        />
       </pre>
       {showCopy && (
         <Button
