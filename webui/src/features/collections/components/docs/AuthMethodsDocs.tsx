@@ -76,7 +76,7 @@ final result = await pb.collection('${collection.name}').listAuthMethods();`
         </p>
       </div>
 
-      <SdkTabs jsCode={jsCode} dartCode={dartCode} />
+      <SdkTabs js={jsCode} dart={dartCode} />
 
       <div>
         <h6 className="font-medium mb-2">API details</h6>

@@ -1,57 +1,47 @@
 /**
- * FieldsQueryParam 组件
- * 字段查询参数文档
+ * FieldsQueryParam component
+ * Fields query parameter documentation - renders as table row
  */
-import { CodeBlock } from './CodeBlock'
+import { Badge } from '@/components/ui/badge'
 
-interface FieldsQueryParamProps {
-  className?: string
-}
-
-export function FieldsQueryParam({ className }: FieldsQueryParamProps) {
+export function FieldsQueryParam() {
   return (
-    <div className={className}>
-      <h4 className="text-sm font-medium mb-2">fields 参数</h4>
-      <p className="text-sm text-muted-foreground mb-3">
-        使用 <code className="text-xs">fields</code> 参数可以指定返回的字段，减少响应数据量。
-      </p>
-
-      <div className="space-y-3">
-        <div>
-          <p className="text-sm font-medium mb-1">选择特定字段：</p>
-          <CodeBlock content={`?fields=id,title,created`} language="text" showCopy={false} />
-        </div>
-
-        <div>
-          <p className="text-sm font-medium mb-1">排除特定字段：</p>
-          <CodeBlock content={`?fields=*,-content,-metadata`} language="text" showCopy={false} />
-        </div>
-
-        <div>
-          <p className="text-sm font-medium mb-1">选择展开关系的字段：</p>
-          <CodeBlock
-            content={`?expand=author&fields=id,title,expand.author.name`}
-            language="text"
-            showCopy={false}
-          />
-        </div>
-
-        <div className="text-sm text-muted-foreground">
-          <p>说明：</p>
-          <ul className="list-disc list-inside space-y-1 mt-1">
-            <li>
-              <code className="text-xs">*</code> 表示所有字段
-            </li>
-            <li>
-              <code className="text-xs">-fieldName</code> 表示排除该字段
-            </li>
-            <li>
-              <code className="text-xs">expand.relationField.subField</code>{' '}
-              用于选择展开关系中的字段
-            </li>
-          </ul>
-        </div>
-      </div>
-    </div>
+    <tr className="border-t">
+      <td className="p-3 align-top font-mono text-sm">fields</td>
+      <td className="p-3 align-top">
+        <Badge variant="secondary" className="font-normal">
+          String
+        </Badge>
+      </td>
+      <td className="p-3 align-top text-sm">
+        <p className="mb-2">
+          Comma separated string of the fields to return in the JSON response{' '}
+          <em>(by default returns all fields)</em>. Ex.:
+        </p>
+        <code className="block bg-muted px-2 py-1 rounded text-xs mb-3 font-mono">
+          ?fields=*,expand.relField.name
+        </code>
+        <p className="mb-1">
+          <code className="text-primary">*</code> targets all keys from the specific depth level.
+        </p>
+        <p className="mb-2">
+          In addition, the following field modifiers are also supported:
+        </p>
+        <ul className="list-disc list-inside space-y-2 text-sm">
+          <li>
+            <code className="font-mono text-xs">:excerpt(maxLength, withEllipsis?)</code>
+            <br />
+            <span className="text-muted-foreground ml-5">
+              Returns a short plain text version of the field string value.
+            </span>
+            <br />
+            <span className="text-muted-foreground ml-5">Ex.:</span>
+            <code className="block bg-muted px-2 py-1 rounded text-xs mt-1 ml-5 font-mono">
+              ?fields=*,description:excerpt(200,true)
+            </code>
+          </li>
+        </ul>
+      </td>
+    </tr>
   )
 }

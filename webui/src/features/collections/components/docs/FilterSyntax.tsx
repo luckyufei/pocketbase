@@ -1,28 +1,38 @@
 /**
- * FilterSyntax 组件
- * 过滤语法文档
+ * FilterSyntax component
+ * Filter syntax documentation
  */
-import { FILTER_OPERATORS } from '@/lib/apiDocsUtils'
+import { useMemo } from 'react'
+import { FILTER_OPERATORS, getAllCollectionIdentifiers } from '@/lib/apiDocsUtils'
 import { CodeBlock } from './CodeBlock'
 
 interface FilterSyntaxProps {
   className?: string
+  collection?: {
+    type: string
+    fields?: Array<{ name: string }>
+  }
 }
 
-export function FilterSyntax({ className }: FilterSyntaxProps) {
+export function FilterSyntax({ className, collection }: FilterSyntaxProps) {
+  const fieldNames = useMemo(() => {
+    if (!collection) return []
+    return getAllCollectionIdentifiers(collection)
+  }, [collection])
+
   return (
     <div className={className}>
-      <p className="text-sm text-muted-foreground mb-3">支持的过滤操作符和语法：</p>
+      <p className="text-sm text-muted-foreground mb-3">Supported filter operators and syntax:</p>
 
       <div className="space-y-4">
-        {/* 操作符表格 */}
+        {/* Operators table */}
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-24">操作符</th>
-                <th className="text-left p-2 font-medium">说明</th>
-                <th className="text-left p-2 font-medium w-40">示例</th>
+                <th className="text-left p-2 font-medium w-24">Operator</th>
+                <th className="text-left p-2 font-medium">Description</th>
+                <th className="text-left p-2 font-medium w-40">Example</th>
               </tr>
             </thead>
             <tbody>
@@ -41,48 +51,63 @@ export function FilterSyntax({ className }: FilterSyntaxProps) {
           </table>
         </div>
 
-        {/* 示例 */}
+        {/* Supported filter fields */}
+        {fieldNames.length > 0 && (
+          <div>
+            <p className="text-sm font-medium mb-2">Supported filter fields:</p>
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-xs">
+                {fieldNames.map((name, i) => (
+                  <span key={name}>
+                    <code>{name}</code>{i < fieldNames.length - 1 ? ', ' : ''}
+                  </span>
+                ))}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Examples */}
         <div>
-          <p className="text-sm font-medium mb-2">过滤示例：</p>
+          <p className="text-sm font-medium mb-2">Filter examples:</p>
           <CodeBlock
-            content={`// 简单过滤
+            content={`// Simple filter
 ?filter=(status='active')
 
-// 多条件组合
+// Multiple conditions
 ?filter=(status='active' && created>'2024-01-01')
 
-// 使用 OR
+// Using OR
 ?filter=(status='active' || status='pending')
 
-// 嵌套条件
+// Nested conditions
 ?filter=((status='active' && priority>5) || featured=true)
 
-// 关系字段过滤
+// Relation field filter
 ?filter=(author.name~'John')
 
-// 数组包含
+// Array contains
 ?filter=(tags?~'important')`}
             language="text"
             showCopy={false}
           />
         </div>
 
-        {/* 特殊值 */}
+        {/* Special values */}
         <div>
-          <p className="text-sm font-medium mb-2">特殊值：</p>
+          <p className="text-sm font-medium mb-2">Special values:</p>
           <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
             <li>
-              <code className="text-xs">@now</code> - 当前时间
+              <code className="text-xs">@now</code> - Current datetime
             </li>
             <li>
-              <code className="text-xs">@request.auth.id</code> - 当前认证用户的 ID
+              <code className="text-xs">@request.auth.id</code> - Current authenticated user ID
             </li>
             <li>
-              <code className="text-xs">@request.auth.collectionId</code> - 当前认证用户的集合 ID
+              <code className="text-xs">@request.auth.collectionId</code> - Current authenticated user collection ID
             </li>
             <li>
-              <code className="text-xs">@collection.collectionName.fieldName</code> -
-              引用其他集合的字段
+              <code className="text-xs">@collection.collectionName.fieldName</code> - Reference to another collection's field
             </li>
           </ul>
         </div>

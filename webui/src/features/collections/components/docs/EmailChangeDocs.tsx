@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  UnderlineTabsList,
+  UnderlineTabsTrigger,
+} from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { SdkTabs } from './SdkTabs'
 import { CodeBlock } from './CodeBlock'
@@ -38,6 +45,14 @@ function EmailChangeApiRequestDocs({ collection }: { collection: Collection }) {
       body: `{
   "status": 401,
   "message": "The request requires valid record authorization token.",
+  "data": {}
+}`,
+    },
+    {
+      code: '403',
+      body: `{
+  "status": 403,
+  "message": "The authorized record is not allowed to perform this action.",
   "data": {}
 }`,
     },
@@ -167,7 +182,7 @@ function EmailChangeApiConfirmDocs({ collection }: { collection: Collection }) {
                   <Badge variant="outline">String</Badge>
                 </td>
                 <td className="p-2 text-muted-foreground">
-                  The token from the email change request email.
+                  The token from the change email request email.
                 </td>
               </tr>
               <tr className="border-t">
@@ -182,7 +197,9 @@ function EmailChangeApiConfirmDocs({ collection }: { collection: Collection }) {
                 <td className="p-2">
                   <Badge variant="outline">String</Badge>
                 </td>
-                <td className="p-2 text-muted-foreground">The current account password.</td>
+                <td className="p-2 text-muted-foreground">
+                  The account password to confirm the email change.
+                </td>
               </tr>
             </tbody>
           </table>
@@ -272,15 +289,15 @@ await pb.collection('${collection.name}').confirmEmailChange(
         </div>
       </div>
 
-      <SdkTabs jsCode={jsCode} dartCode={dartCode} />
+      <SdkTabs js={jsCode} dart={dartCode} />
 
       <div>
         <h6 className="font-medium mb-2">API details</h6>
         <Tabs value={activeApiTab} onValueChange={setActiveApiTab}>
-          <TabsList>
-            <TabsTrigger value="request">Request email change</TabsTrigger>
-            <TabsTrigger value="confirm">Confirm email change</TabsTrigger>
-          </TabsList>
+          <UnderlineTabsList>
+            <UnderlineTabsTrigger value="request">Request email change</UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="confirm">Confirm email change</UnderlineTabsTrigger>
+          </UnderlineTabsList>
           <TabsContent value="request">
             <EmailChangeApiRequestDocs collection={collection} />
           </TabsContent>

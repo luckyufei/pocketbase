@@ -1,9 +1,10 @@
 /**
- * AuthWithPasswordDocs 组件
- * 密码认证 API 文档
+ * AuthWithPasswordDocs component
+ * Password auth API documentation
  */
 import { SdkTabs } from './SdkTabs'
 import { CodeBlock } from './CodeBlock'
+import { ResponseTabs } from './ResponseTabs'
 import { getApiEndpoint } from '@/lib/apiDocsUtils'
 
 interface Collection {
@@ -97,14 +98,14 @@ pb.authStore.clear();`
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-medium mb-2">Auth with password ({collection.name})</h3>
-        <p className="text-muted-foreground">使用邮箱/用户名和密码进行认证。</p>
+        <p className="text-muted-foreground">Authenticate with email/username and password.</p>
       </div>
 
       <SdkTabs js={jsCode} dart={dartCode} />
 
-      {/* API 端点 */}
+      {/* API details */}
       <div>
-        <h4 className="text-sm font-medium mb-2">API 端点</h4>
+        <h4 className="text-sm font-medium mb-2">API details</h4>
         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
           <span className="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700">
             POST
@@ -113,16 +114,16 @@ pb.authStore.clear();`
         </div>
       </div>
 
-      {/* Body 参数 */}
+      {/* Body Parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">Body 参数</h4>
+        <h4 className="text-sm font-medium mb-2">Body Parameters</h4>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-32">参数</th>
-                <th className="text-left p-2 font-medium w-20">类型</th>
-                <th className="text-left p-2 font-medium">说明</th>
+                <th className="text-left p-2 font-medium w-32">Param</th>
+                <th className="text-left p-2 font-medium w-20">Type</th>
+                <th className="text-left p-2 font-medium">Description</th>
               </tr>
             </thead>
             <tbody>
@@ -130,7 +131,7 @@ pb.authStore.clear();`
                 <td className="p-2">
                   <div className="flex items-center gap-2">
                     <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                      必填
+                      Required
                     </span>
                     <span className="font-mono text-xs">identity</span>
                   </div>
@@ -138,13 +139,13 @@ pb.authStore.clear();`
                 <td className="p-2">
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
-                <td className="p-2 text-muted-foreground">用户身份标识（邮箱或用户名）</td>
+                <td className="p-2 text-muted-foreground">User identity (email or username)</td>
               </tr>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
                     <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
-                      必填
+                      Required
                     </span>
                     <span className="font-mono text-xs">password</span>
                   </div>
@@ -152,35 +153,90 @@ pb.authStore.clear();`
                 <td className="p-2">
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
-                <td className="p-2 text-muted-foreground">用户密码</td>
+                <td className="p-2 text-muted-foreground">User password</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* 响应示例 */}
+      {/* Query parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">响应示例</h4>
-        <div className="space-y-3">
-          {responses.map((resp) => (
-            <div key={resp.code}>
-              <div className="flex items-center gap-2 mb-1">
-                <span
-                  className={`px-2 py-0.5 rounded text-xs font-bold ${
-                    resp.code === 200
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-yellow-100 text-yellow-700'
-                  }`}
-                >
-                  {resp.code}
-                </span>
-              </div>
-              <CodeBlock content={resp.body} language="json" />
-            </div>
-          ))}
+        <h4 className="text-sm font-medium mb-2">Query parameters</h4>
+        <div className="border rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted">
+              <tr>
+                <th className="text-left p-3 font-medium">Param</th>
+                <th className="text-left p-3 font-medium">Type</th>
+                <th className="text-left p-3 font-medium">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-t">
+                <td className="p-3 align-top font-mono text-sm">expand</td>
+                <td className="p-3 align-top">
+                  <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
+                </td>
+                <td className="p-3 align-top text-sm">
+                  <p className="mb-2">Auto expand record relations. Ex.:</p>
+                  <code className="block bg-muted px-2 py-1 rounded text-xs mb-3 font-mono">
+                    ?expand=relField1,relField2.subRelField
+                  </code>
+                  <p className="mb-1">Supports up to 6-levels depth nested relations expansion.</p>
+                  <p className="mb-1">
+                    The expanded relations will be appended to the record under the{' '}
+                    <code className="text-primary">expand</code> property (eg.{' '}
+                    <code className="font-mono text-xs">{`"expand": {"relField1": {...}, ...}`}</code>).
+                  </p>
+                  <p>
+                    Only the relations to which the request user has permissions to{' '}
+                    <strong>view</strong> will be expanded.
+                  </p>
+                </td>
+              </tr>
+              <tr className="border-t">
+                <td className="p-3 align-top font-mono text-sm">fields</td>
+                <td className="p-3 align-top">
+                  <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
+                </td>
+                <td className="p-3 align-top text-sm">
+                  <p className="mb-2">
+                    Comma separated string of the fields to return in the JSON response{' '}
+                    <em>(by default returns all fields)</em>. Ex.:
+                  </p>
+                  <code className="block bg-muted px-2 py-1 rounded text-xs mb-3 font-mono">
+                    ?fields=*,record.expand.relField.name
+                  </code>
+                  <p className="mb-1">
+                    <code className="text-primary">*</code> targets all keys from the specific depth level.
+                  </p>
+                  <p className="mb-2">
+                    In addition, the following field modifiers are also supported:
+                  </p>
+                  <ul className="list-disc list-inside space-y-2 text-sm">
+                    <li>
+                      <code className="font-mono text-xs">:excerpt(maxLength, withEllipsis?)</code>
+                      <br />
+                      <span className="text-muted-foreground ml-5">
+                        Returns a short plain text version of the field string value.
+                      </span>
+                      <br />
+                      <span className="text-muted-foreground ml-5">Ex.:</span>
+                      <code className="block bg-muted px-2 py-1 rounded text-xs mt-1 ml-5 font-mono">
+                        ?fields=*,record.description:excerpt(200,true)
+                      </code>
+                    </li>
+                  </ul>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
+
+      {/* Responses */}
+      <ResponseTabs responses={responses} />
     </div>
   )
 }

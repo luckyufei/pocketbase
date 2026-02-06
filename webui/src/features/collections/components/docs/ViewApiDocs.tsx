@@ -1,11 +1,11 @@
 /**
- * ViewApiDocs 组件
- * 详情 API 文档
+ * ViewApiDocs component
+ * View API documentation
  */
 import { useMemo } from 'react'
 import { SdkTabs } from './SdkTabs'
 import { CodeBlock } from './CodeBlock'
-import { FieldsQueryParam } from './FieldsQueryParam'
+import { ResponseTabs } from './ResponseTabs'
 import { getApiEndpoint, generateDummyRecord } from '@/lib/apiDocsUtils'
 
 interface Collection {
@@ -87,15 +87,15 @@ final record = await pb.collection('${collection.name}').getOne('RECORD_ID',
       <div>
         <h3 className="text-lg font-medium mb-2">View ({collection.name})</h3>
         <p className="text-muted-foreground">
-          获取单条 <strong>{collection.name}</strong> 记录。
+          Fetch a single <strong>{collection.name}</strong> record.
         </p>
       </div>
 
       <SdkTabs js={jsCode} dart={dartCode} />
 
-      {/* API 端点 */}
+      {/* API details */}
       <div>
-        <h4 className="text-sm font-medium mb-2">API 端点</h4>
+        <h4 className="text-sm font-medium mb-2">API details</h4>
         <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <span className="px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700">
             GET
@@ -103,22 +103,22 @@ final record = await pb.collection('${collection.name}').getOne('RECORD_ID',
           <span className="font-mono text-sm">{endpoint}</span>
           {superusersOnly && (
             <span className="ml-auto text-xs text-muted-foreground">
-              需要超级用户 <code>Authorization:TOKEN</code> 头
+              Requires superuser <code>Authorization:TOKEN</code> header
             </span>
           )}
         </div>
       </div>
 
-      {/* 路径参数 */}
+      {/* Path parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">路径参数</h4>
+        <h4 className="text-sm font-medium mb-2">Path Parameters</h4>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-28">参数</th>
-                <th className="text-left p-2 font-medium w-20">类型</th>
-                <th className="text-left p-2 font-medium">说明</th>
+                <th className="text-left p-2 font-medium w-28">Param</th>
+                <th className="text-left p-2 font-medium w-20">Type</th>
+                <th className="text-left p-2 font-medium">Description</th>
               </tr>
             </thead>
             <tbody>
@@ -127,23 +127,23 @@ final record = await pb.collection('${collection.name}').getOne('RECORD_ID',
                 <td className="p-2">
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
-                <td className="p-2 text-muted-foreground">要查看的记录 ID</td>
+                <td className="p-2 text-muted-foreground">ID of the record to view.</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* 查询参数 */}
+      {/* Query parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">查询参数</h4>
+        <h4 className="text-sm font-medium mb-2">Query parameters</h4>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-28">参数</th>
-                <th className="text-left p-2 font-medium w-20">类型</th>
-                <th className="text-left p-2 font-medium">说明</th>
+                <th className="text-left p-2 font-medium w-28">Param</th>
+                <th className="text-left p-2 font-medium w-20">Type</th>
+                <th className="text-left p-2 font-medium">Description</th>
               </tr>
             </thead>
             <tbody>
@@ -153,12 +153,46 @@ final record = await pb.collection('${collection.name}').getOne('RECORD_ID',
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
                 <td className="p-2 text-muted-foreground">
-                  自动展开关联记录。支持最多 6 层嵌套。
+                  <p>Auto expand record relations. Ex.:</p>
                   <CodeBlock
                     content="?expand=relField1,relField2.subRelField"
                     showCopy={false}
                     className="mt-1"
                   />
+                  <p className="mt-2">
+                    Supports up to 6-levels depth nested relations expansion.
+                    <br />
+                    The expanded relations will be appended to the record under the{' '}
+                    <code>expand</code> property (eg. <code>{`"expand": {"relField1": {...}, ...}`}</code>).
+                    <br />
+                    Only the relations to which the request user has permissions to <strong>view</strong> will be expanded.
+                  </p>
+                </td>
+              </tr>
+              <tr className="border-t">
+                <td className="p-2 font-mono text-xs">fields</td>
+                <td className="p-2">
+                  <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
+                </td>
+                <td className="p-2 text-muted-foreground">
+                  <p>
+                    Comma separated string of the fields to return in the JSON response{' '}
+                    <em>(by default returns all fields)</em>. Ex.:
+                  </p>
+                  <CodeBlock content="?fields=*,expand.relField.name" showCopy={false} className="mt-1" />
+                  <p className="mt-2">
+                    <code>*</code> targets all keys from the specific depth level.
+                  </p>
+                  <p className="mt-2">In addition, the following field modifiers are also supported:</p>
+                  <ul className="list-disc list-inside mt-1">
+                    <li>
+                      <code>:excerpt(maxLength, withEllipsis?)</code>
+                      <br />
+                      Returns a short plain text version of the field string value.
+                      <br />
+                      Ex.: <code>?fields=*,description:excerpt(200,true)</code>
+                    </li>
+                  </ul>
                 </td>
               </tr>
             </tbody>
@@ -166,33 +200,8 @@ final record = await pb.collection('${collection.name}').getOne('RECORD_ID',
         </div>
       </div>
 
-      {/* fields 参数 */}
-      <FieldsQueryParam />
-
-      {/* 响应示例 */}
-      <div>
-        <h4 className="text-sm font-medium mb-2">响应示例</h4>
-        <div className="space-y-3">
-          {responses.map((resp) => (
-            <div key={resp.code}>
-              <div className="flex items-center gap-2 mb-1">
-                <span
-                  className={`px-2 py-0.5 rounded text-xs font-bold ${
-                    resp.code === 200
-                      ? 'bg-green-100 text-green-700'
-                      : resp.code === 403
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-yellow-100 text-yellow-700'
-                  }`}
-                >
-                  {resp.code}
-                </span>
-              </div>
-              <CodeBlock content={resp.body} language="json" />
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Responses */}
+      <ResponseTabs responses={responses} />
     </div>
   )
 }

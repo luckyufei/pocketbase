@@ -1,26 +1,56 @@
 /**
- * SdkTabs 组件
- * SDK 代码示例标签页
+ * SdkTabs component
+ * SDK code examples with tabs (JavaScript + Dart)
  */
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Copy, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { CodeBlock } from './CodeBlock'
+
+const SDK_PREFERENCE_KEY = 'pb_sdk_preference'
+const PB_JS_SDK_URL = 'https://github.com/pocketbase/js-sdk'
+const PB_DART_SDK_URL = 'https://github.com/pocketbase/dart-sdk'
 
 interface SdkTabsProps {
   js: string
-  dart?: string
-  curl?: string
+  dart: string
   className?: string
 }
 
-export function SdkTabs({ js, dart, curl, className }: SdkTabsProps) {
-  const [activeTab, setActiveTab] = useState('js')
+type SdkLanguage = 'javascript' | 'dart'
+
+export function SdkTabs({ js, dart, className }: SdkTabsProps) {
+  const [activeTab, setActiveTab] = useState<SdkLanguage>(() => {
+    const stored = localStorage.getItem(SDK_PREFERENCE_KEY)
+    return (stored === 'javascript' || stored === 'dart') ? stored : 'javascript'
+  })
   const [copied, setCopied] = useState(false)
 
+  // Store user preference when tab changes
+  useEffect(() => {
+    localStorage.setItem(SDK_PREFERENCE_KEY, activeTab)
+  }, [activeTab])
+
+  const sdkExamples = [
+    {
+      id: 'javascript' as const,
+      title: 'JavaScript',
+      language: 'javascript' as const,
+      code: js,
+      url: PB_JS_SDK_URL,
+    },
+    {
+      id: 'dart' as const,
+      title: 'Dart',
+      language: 'dart' as const,
+      code: dart,
+      url: PB_DART_SDK_URL,
+    },
+  ]
+
   const handleCopy = useCallback(async () => {
-    const code = activeTab === 'js' ? js : activeTab === 'dart' ? dart : curl || ''
+    const code = activeTab === 'javascript' ? js : dart
     try {
       await navigator.clipboard.writeText(code.trim())
       setCopied(true)
@@ -28,42 +58,57 @@ export function SdkTabs({ js, dart, curl, className }: SdkTabsProps) {
     } catch (err) {
       console.error('Failed to copy:', err)
     }
-  }, [activeTab, js, dart, curl])
-
-  const tabs = [
-    { id: 'js', label: 'JavaScript', code: js },
-    ...(dart ? [{ id: 'dart', label: 'Dart', code: dart }] : []),
-    ...(curl ? [{ id: 'curl', label: 'cURL', code: curl }] : []),
-  ]
+  }, [activeTab, js, dart])
 
   return (
-    <div className={cn('relative', className)}>
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex items-center justify-between mb-2">
-          <TabsList className="h-8">
-            {tabs.map((tab) => (
-              <TabsTrigger key={tab.id} value={tab.id} className="text-xs px-3 h-7">
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopy}>
-            {copied ? (
-              <Check className="h-3.5 w-3.5 text-green-500" />
-            ) : (
-              <Copy className="h-3.5 w-3.5" />
-            )}
-          </Button>
+    <div className={cn('sdk-tabs', className)}>
+      <div className="flex items-center justify-between border-b">
+        <div className="flex gap-0">
+          {sdkExamples.map((example) => (
+            <button
+              key={example.id}
+              type="button"
+              onClick={() => setActiveTab(example.id)}
+              className={cn(
+                'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px min-w-[100px]',
+                activeTab === example.id
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {example.title}
+            </button>
+          ))}
         </div>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopy}>
+          {copied ? (
+            <Check className="h-3.5 w-3.5 text-green-500" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" />
+          )}
+        </Button>
+      </div>
 
-        {tabs.map((tab) => (
-          <TabsContent key={tab.id} value={tab.id} className="mt-0">
-            <pre className="p-4 bg-muted rounded-lg overflow-auto text-sm font-mono max-h-[300px]">
-              <code>{tab.code.trim()}</code>
-            </pre>
-          </TabsContent>
-        ))}
-      </Tabs>
+      {sdkExamples.map((example) => (
+        <div
+          key={example.id}
+          className={cn(activeTab === example.id ? 'block' : 'hidden')}
+        >
+          <CodeBlock content={example.code} language={example.language} showCopy={false} />
+          <div className="text-right mt-1">
+            <em className="text-sm text-muted-foreground">
+              <a
+                href={example.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline"
+              >
+                {example.title} SDK
+              </a>
+            </em>
+          </div>
+        </div>
+      ))}
     </div>
   )
 }
