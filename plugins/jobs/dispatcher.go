@@ -1,4 +1,4 @@
-package core
+package jobs
 
 import (
 	"context"
@@ -7,32 +7,34 @@ import (
 	"time"
 )
 
-// jobDispatcher 负责任务分发和执行
-type jobDispatcher struct {
-	store      *jobStore
+// Dispatcher 负责任务分发和执行
+type Dispatcher struct {
+	store      *JobStore
+	config     Config
 	workerPool chan struct{}
 	ctx        context.Context
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
 }
 
-// newJobDispatcher 创建 Dispatcher 实例
-func newJobDispatcher(store *jobStore) *jobDispatcher {
-	return &jobDispatcher{
+// newDispatcher 创建 Dispatcher 实例
+func newDispatcher(store *JobStore, config Config) *Dispatcher {
+	return &Dispatcher{
 		store:      store,
-		workerPool: make(chan struct{}, JobDefaultWorkerPoolSize),
+		config:     config,
+		workerPool: make(chan struct{}, config.Workers),
 	}
 }
 
 // Start 启动 Dispatcher
-func (d *jobDispatcher) Start() {
+func (d *Dispatcher) Start() {
 	d.ctx, d.cancel = context.WithCancel(context.Background())
 	d.wg.Add(1)
 	go d.pollLoop()
 }
 
 // Stop 停止 Dispatcher
-func (d *jobDispatcher) Stop() {
+func (d *Dispatcher) Stop() {
 	if d.cancel != nil {
 		d.cancel()
 	}
@@ -40,10 +42,10 @@ func (d *jobDispatcher) Stop() {
 }
 
 // pollLoop 轮询循环
-func (d *jobDispatcher) pollLoop() {
+func (d *Dispatcher) pollLoop() {
 	defer d.wg.Done()
 
-	ticker := time.NewTicker(JobDefaultPollInterval)
+	ticker := time.NewTicker(d.config.PollInterval)
 	defer ticker.Stop()
 
 	for {
@@ -57,7 +59,7 @@ func (d *jobDispatcher) pollLoop() {
 }
 
 // fetchAndExecute 获取并执行任务
-func (d *jobDispatcher) fetchAndExecute() {
+func (d *Dispatcher) fetchAndExecute() {
 	// 获取已注册的 topics
 	topics := d.store.getRegisteredTopics()
 	if len(topics) == 0 {
@@ -79,10 +81,10 @@ func (d *jobDispatcher) fetchAndExecute() {
 }
 
 // fetchJobs 从数据库获取待执行任务
-func (d *jobDispatcher) fetchJobs(topics []string) ([]*Job, error) {
+func (d *Dispatcher) fetchJobs(topics []string) ([]*Job, error) {
 	now := time.Now().UTC()
 	nowStr := now.Format(time.RFC3339)
-	lockedUntil := now.Add(JobDefaultLockDuration).Format(time.RFC3339)
+	lockedUntil := now.Add(d.config.LockDuration).Format(time.RFC3339)
 
 	if d.store.app.IsPostgres() {
 		return d.fetchJobsPostgres(topics, nowStr, lockedUntil)
@@ -91,13 +93,13 @@ func (d *jobDispatcher) fetchJobs(topics []string) ([]*Job, error) {
 }
 
 // fetchJobsPostgres 使用 SKIP LOCKED 获取任务（PostgreSQL）
-func (d *jobDispatcher) fetchJobsPostgres(topics []string, nowStr, lockedUntil string) ([]*Job, error) {
+func (d *Dispatcher) fetchJobsPostgres(topics []string, nowStr, lockedUntil string) ([]*Job, error) {
 	// 构建 topic IN 条件
 	topicPlaceholders := ""
 	bindings := map[string]any{
 		"now":          nowStr,
 		"locked_until": lockedUntil,
-		"limit":        JobDefaultBatchSize,
+		"limit":        d.config.BatchSize,
 	}
 	for i, topic := range topics {
 		if i > 0 {
@@ -142,11 +144,11 @@ func (d *jobDispatcher) fetchJobsPostgres(topics []string, nowStr, lockedUntil s
 }
 
 // fetchJobsSQLite 使用乐观锁 + CAS 获取任务（SQLite）
-func (d *jobDispatcher) fetchJobsSQLite(topics []string, nowStr, lockedUntil string) ([]*Job, error) {
+func (d *Dispatcher) fetchJobsSQLite(topics []string, nowStr, lockedUntil string) ([]*Job, error) {
 	var jobs []*Job
 
 	// SQLite 不支持 SKIP LOCKED，使用乐观锁逐个获取
-	for i := 0; i < JobDefaultBatchSize; i++ {
+	for i := 0; i < d.config.BatchSize; i++ {
 		job, err := d.fetchOneJobSQLite(topics, nowStr, lockedUntil)
 		if err != nil {
 			break // 没有更多任务
@@ -160,7 +162,7 @@ func (d *jobDispatcher) fetchJobsSQLite(topics []string, nowStr, lockedUntil str
 }
 
 // fetchOneJobSQLite 使用 CAS 获取单个任务
-func (d *jobDispatcher) fetchOneJobSQLite(topics []string, nowStr, lockedUntil string) (*Job, error) {
+func (d *Dispatcher) fetchOneJobSQLite(topics []string, nowStr, lockedUntil string) (*Job, error) {
 	// 构建 topic IN 条件
 	topicPlaceholders := ""
 	bindings := map[string]any{
@@ -209,7 +211,7 @@ func (d *jobDispatcher) fetchOneJobSQLite(topics []string, nowStr, lockedUntil s
 }
 
 // executeJob 执行单个任务
-func (d *jobDispatcher) executeJob(job *Job) {
+func (d *Dispatcher) executeJob(job *Job) {
 	defer d.wg.Done()
 
 	// 获取 Worker 槽位
@@ -239,7 +241,7 @@ func (d *jobDispatcher) executeJob(job *Job) {
 }
 
 // safeExecute 安全执行任务（捕获 panic）
-func (d *jobDispatcher) safeExecute(handler JobHandler, job *Job) (err error) {
+func (d *Dispatcher) safeExecute(handler JobHandler, job *Job) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("panic: %v", r)
@@ -249,7 +251,7 @@ func (d *jobDispatcher) safeExecute(handler JobHandler, job *Job) (err error) {
 }
 
 // handleSuccess 处理任务成功
-func (d *jobDispatcher) handleSuccess(job *Job) {
+func (d *Dispatcher) handleSuccess(job *Job) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	query := `
 		UPDATE _jobs
@@ -268,7 +270,7 @@ func (d *jobDispatcher) handleSuccess(job *Job) {
 }
 
 // handleFailure 处理任务失败
-func (d *jobDispatcher) handleFailure(job *Job, jobErr error) {
+func (d *Dispatcher) handleFailure(job *Job, jobErr error) {
 	now := time.Now().UTC()
 	nowStr := now.Format(time.RFC3339)
 	errorMsg := jobErr.Error()

@@ -1,4 +1,4 @@
-package core
+package jobs
 
 import (
 	"encoding/json"
@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
@@ -114,19 +115,19 @@ type JobListResult struct {
 
 // JobStats 任务统计
 type JobStats struct {
-	Pending    int     `json:"pending"`
-	Processing int     `json:"processing"`
-	Completed  int     `json:"completed"`
-	Failed     int     `json:"failed"`
-	Total      int     `json:"total"`
+	Pending     int     `json:"pending"`
+	Processing  int     `json:"processing"`
+	Completed   int     `json:"completed"`
+	Failed      int     `json:"failed"`
+	Total       int     `json:"total"`
 	SuccessRate float64 `json:"success_rate"`
 }
 
 // JobHandler 任务处理函数
 type JobHandler func(job *Job) error
 
-// JobStore 定义任务队列接口
-type JobStore interface {
+// Store 定义任务队列接口
+type Store interface {
 	// ==================== 入队操作 ====================
 
 	// Enqueue 入队任务（立即执行）
@@ -169,20 +170,22 @@ type JobStore interface {
 	Stop() error
 }
 
-// jobStore 是 JobStore 接口的实现
-type jobStore struct {
-	app        App
+// JobStore 是 Store 接口的实现
+type JobStore struct {
+	app        core.App
+	config     Config
 	handlers   map[string]JobHandler
 	handlersMu sync.RWMutex
-	dispatcher *jobDispatcher
+	dispatcher *Dispatcher
 	running    bool
 	runningMu  sync.Mutex
 }
 
 // newJobStore 创建 JobStore 实例
-func newJobStore(app App) *jobStore {
-	return &jobStore{
+func newJobStore(app core.App, config Config) *JobStore {
+	return &JobStore{
 		app:      app,
+		config:   config,
 		handlers: make(map[string]JobHandler),
 	}
 }
@@ -199,12 +202,12 @@ func generateJobID() string {
 }
 
 // validatePayloadSize 验证 payload 大小
-func validatePayloadSize(payload any) error {
+func validatePayloadSize(payload any, maxSize int64) error {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return nil // 序列化失败时不阻止，让后续操作处理
 	}
-	if len(data) > JobMaxPayloadSize {
+	if int64(len(data)) > maxSize {
 		return ErrJobPayloadTooLarge
 	}
 	return nil
@@ -212,30 +215,30 @@ func validatePayloadSize(payload any) error {
 
 // ==================== 入队操作实现 ====================
 
-func (js *jobStore) Enqueue(topic string, payload any) (*Job, error) {
+func (js *JobStore) Enqueue(topic string, payload any) (*Job, error) {
 	return js.EnqueueWithOptions(topic, payload, nil)
 }
 
-func (js *jobStore) EnqueueAt(topic string, payload any, runAt time.Time) (*Job, error) {
+func (js *JobStore) EnqueueAt(topic string, payload any, runAt time.Time) (*Job, error) {
 	opts := &JobEnqueueOptions{RunAt: runAt}
 	return js.EnqueueWithOptions(topic, payload, opts)
 }
 
-func (js *jobStore) EnqueueWithOptions(topic string, payload any, opts *JobEnqueueOptions) (*Job, error) {
+func (js *JobStore) EnqueueWithOptions(topic string, payload any, opts *JobEnqueueOptions) (*Job, error) {
 	// 验证 topic
 	if topic == "" {
 		return nil, ErrJobTopicEmpty
 	}
 
 	// 验证 payload 大小
-	if err := validatePayloadSize(payload); err != nil {
+	if err := validatePayloadSize(payload, js.config.MaxPayloadSize); err != nil {
 		return nil, err
 	}
 
 	// 设置默认值
 	now := time.Now().UTC()
 	runAt := now
-	maxRetries := JobDefaultMaxRetries
+	maxRetries := js.config.MaxRetries
 
 	if opts != nil {
 		if !opts.RunAt.IsZero() {
@@ -299,7 +302,7 @@ func (js *jobStore) EnqueueWithOptions(topic string, payload any, opts *JobEnque
 
 // ==================== 查询操作实现 ====================
 
-func (js *jobStore) Get(id string) (*Job, error) {
+func (js *JobStore) Get(id string) (*Job, error) {
 	// 直接选择字段，types.DateTime 可以处理 NULL 值
 	query := `
 		SELECT id, topic, payload, status, run_at, 
@@ -323,7 +326,7 @@ func (js *jobStore) Get(id string) (*Job, error) {
 	return &job, nil
 }
 
-func (js *jobStore) List(filter *JobFilter) (*JobListResult, error) {
+func (js *JobStore) List(filter *JobFilter) (*JobListResult, error) {
 	if filter == nil {
 		filter = &JobFilter{}
 	}
@@ -378,7 +381,7 @@ func (js *jobStore) List(filter *JobFilter) (*JobListResult, error) {
 	}, nil
 }
 
-func (js *jobStore) Stats() (*JobStats, error) {
+func (js *JobStore) Stats() (*JobStats, error) {
 	stats := &JobStats{}
 
 	// 查询各状态数量
@@ -424,7 +427,7 @@ func (js *jobStore) Stats() (*JobStats, error) {
 
 // ==================== 管理操作实现 ====================
 
-func (js *jobStore) Delete(id string) error {
+func (js *JobStore) Delete(id string) error {
 	query := `DELETE FROM _jobs WHERE id = {:id} AND status IN ('pending', 'failed')`
 	result, err := js.app.DB().NewQuery(query).Bind(map[string]any{"id": id}).Execute()
 	if err != nil {
@@ -444,7 +447,7 @@ func (js *jobStore) Delete(id string) error {
 	return nil
 }
 
-func (js *jobStore) Requeue(id string) (*Job, error) {
+func (js *JobStore) Requeue(id string) (*Job, error) {
 	now := time.Now().UTC()
 	nowStr := now.Format(time.RFC3339)
 
@@ -482,7 +485,7 @@ func (js *jobStore) Requeue(id string) (*Job, error) {
 
 // ==================== Worker 操作实现 ====================
 
-func (js *jobStore) Register(topic string, handler JobHandler) error {
+func (js *JobStore) Register(topic string, handler JobHandler) error {
 	js.handlersMu.Lock()
 	defer js.handlersMu.Unlock()
 
@@ -494,7 +497,7 @@ func (js *jobStore) Register(topic string, handler JobHandler) error {
 	return nil
 }
 
-func (js *jobStore) Start() error {
+func (js *JobStore) Start() error {
 	js.runningMu.Lock()
 	defer js.runningMu.Unlock()
 
@@ -502,14 +505,14 @@ func (js *jobStore) Start() error {
 		return nil
 	}
 
-	js.dispatcher = newJobDispatcher(js)
+	js.dispatcher = newDispatcher(js, js.config)
 	js.dispatcher.Start()
 	js.running = true
 
 	return nil
 }
 
-func (js *jobStore) Stop() error {
+func (js *JobStore) Stop() error {
 	js.runningMu.Lock()
 	defer js.runningMu.Unlock()
 
@@ -526,7 +529,7 @@ func (js *jobStore) Stop() error {
 }
 
 // getHandler 获取 topic 对应的处理函数
-func (js *jobStore) getHandler(topic string) (JobHandler, bool) {
+func (js *JobStore) getHandler(topic string) (JobHandler, bool) {
 	js.handlersMu.RLock()
 	defer js.handlersMu.RUnlock()
 	handler, ok := js.handlers[topic]
@@ -534,7 +537,7 @@ func (js *jobStore) getHandler(topic string) (JobHandler, bool) {
 }
 
 // getRegisteredTopics 获取所有已注册的 topic
-func (js *jobStore) getRegisteredTopics() []string {
+func (js *JobStore) getRegisteredTopics() []string {
 	js.handlersMu.RLock()
 	defer js.handlersMu.RUnlock()
 	topics := make([]string, 0, len(js.handlers))

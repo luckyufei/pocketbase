@@ -14,6 +14,7 @@ import (
 	"github.com/pocketbase/pocketbase/plugins/analytics"
 	"github.com/pocketbase/pocketbase/plugins/gateway"
 	"github.com/pocketbase/pocketbase/plugins/ghupdate"
+	"github.com/pocketbase/pocketbase/plugins/jobs"
 	"github.com/pocketbase/pocketbase/plugins/jsvm"
 	"github.com/pocketbase/pocketbase/plugins/kv"
 	"github.com/pocketbase/pocketbase/plugins/metrics"
@@ -167,6 +168,11 @@ func main() {
 	// 需要设置 PB_MASTER_KEY 环境变量（64 位十六进制字符）
 	// 可通过环境变量配置: PB_SECRETS_DEFAULT_ENV, PB_SECRETS_MAX_VALUE_SIZE 等
 	secrets.MustRegister(app, secrets.DefaultConfig())
+
+	// Jobs 插件 - 后台任务队列
+	// 提供可靠的任务入队、延迟执行、失败重试、崩溃恢复等功能
+	// 可通过环境变量配置: PB_JOBS_WORKERS, PB_JOBS_POLL_INTERVAL 等
+	jobs.MustRegister(app, jobs.DefaultConfig())
 
 	// load jsvm (pb_hooks and pb_migrations)
 	jsvm.MustRegister(app, jsvm.Config{

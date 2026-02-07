@@ -196,9 +196,6 @@ type BaseApp struct {
 	onCollectionsImportRequest *hook.Hook[*CollectionsImportRequestEvent]
 
 	onBatchRequest *hook.Hook[*BatchRequestEvent]
-
-	// job store for job queue
-	jobStore *jobStore
 }
 
 // NewBaseApp creates and returns a new BaseApp instance
@@ -437,9 +434,6 @@ func (app *BaseApp) Bootstrap() error {
 		if err := app.ReloadSettings(); err != nil {
 			return err
 		}
-
-		// initialize Job store
-		app.initJobStore()
 
 		// initialize CryptoEngine (Layer 1 - 用于 SecretField 和 Secrets Plugin)
 		app.initCryptoEngine()

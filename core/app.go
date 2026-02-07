@@ -85,10 +85,6 @@ type App interface {
 	// SubscriptionsBroker returns the app realtime subscriptions broker instance.
 	SubscriptionsBroker() *subscriptions.Broker
 
-	// Jobs returns the app JobStore instance for job queue operations.
-	// Provides native job queue with support for delayed jobs, retries, and crash recovery.
-	Jobs() JobStore
-
 	// Crypto returns the app CryptoProvider instance for encryption/decryption operations.
 	// Layer 1 of the crypto architecture - shared by SecretField (Layer 2) and Secrets Plugin (Layer 3).
 	// If PB_MASTER_KEY is not set, returns a NoopCryptoProvider that always returns ErrCryptoNotEnabled.

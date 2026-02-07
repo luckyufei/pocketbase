@@ -1,6 +1,10 @@
 # Jobs 任务队列
 
-PocketBase 内置了一个轻量级的任务队列系统，支持延时任务、自动重试、并发处理等功能。同时兼容 SQLite 和 PostgreSQL。
+PocketBase 提供了一个轻量级的任务队列插件，支持延时任务、自动重试、并发处理等功能。同时兼容 SQLite 和 PostgreSQL。
+
+::: tip 插件化设计
+从最新版本开始，Jobs 功能已迁移到 `plugins/jobs` 插件，遵循 Opt-in 原则。需要显式注册插件才能使用此功能。
+:::
 
 ## 功能特性
 
@@ -8,29 +12,45 @@ PocketBase 内置了一个轻量级的任务队列系统，支持延时任务、
 - **自动重试** - 失败任务自动重试，可配置最大重试次数
 - **并发处理** - Worker 池并发执行任务
 - **持久化存储** - 任务存储在数据库中，服务重启不丢失
+- **崩溃恢复** - Worker 崩溃后任务自动被其他 Worker 接管
 - **管理 API** - 提供 RESTful API 进行任务管理
 - **双数据库兼容** - 同时支持 SQLite 和 PostgreSQL
 
 ## 快速开始
 
-### 1. 注册任务处理器
+### 1. 注册插件和任务处理器
 
 ```go
 package main
 
 import (
     "log"
+
     "github.com/pocketbase/pocketbase"
     "github.com/pocketbase/pocketbase/core"
+    "github.com/pocketbase/pocketbase/plugins/jobs"
 )
 
 func main() {
     app := pocketbase.New()
 
+    // 注册 jobs 插件
+    jobs.MustRegister(app, jobs.DefaultConfig())
+
     // 在应用启动后注册任务处理器
-    app.OnServe().BindFunc(func(se *core.ServeEvent) error {
+    app.OnBootstrap().BindFunc(func(e *core.BootstrapEvent) error {
+        if err := e.Next(); err != nil {
+            return err
+        }
+
+        // 获取 JobStore 实例
+        store := jobs.GetJobStore(app)
+        if store == nil {
+            return nil // 插件未注册
+        }
+
         // 注册 "send_email" 主题的处理器
-        app.Jobs().Register("send_email", func(job *core.Job) error {
+        store.Register("send_email", func(job *jobs.Job) error {
             // 解析 Payload
             var payload struct {
                 To      string `json:"to"`
@@ -48,10 +68,7 @@ func main() {
             return nil
         })
 
-        // 启动任务调度器
-        app.Jobs().Start()
-
-        return se.Next()
+        return nil
     })
 
     if err := app.Start(); err != nil {
@@ -63,22 +80,81 @@ func main() {
 ### 2. 入队任务
 
 ```go
+import "github.com/pocketbase/pocketbase/plugins/jobs"
+
+// 获取 JobStore
+store := jobs.GetJobStore(app)
+
 // 立即执行
-job, err := app.Jobs().Enqueue("send_email", map[string]any{
+job, err := store.Enqueue("send_email", map[string]any{
     "to":      "user@example.com",
     "subject": "欢迎注册",
     "body":    "感谢您的注册！",
 })
 
 // 延时执行（10 分钟后）
-job, err := app.Jobs().EnqueueAt("send_email", payload, time.Now().Add(10*time.Minute))
+job, err := store.EnqueueAt("send_email", payload, time.Now().Add(10*time.Minute))
 
 // 带选项入队
-job, err := app.Jobs().EnqueueWithOptions("send_email", payload, &core.JobEnqueueOptions{
+job, err := store.EnqueueWithOptions("send_email", payload, &jobs.JobEnqueueOptions{
     RunAt:      time.Now().Add(1*time.Hour),  // 1 小时后执行
     MaxRetries: 5,                            // 最多重试 5 次
 })
 ```
+
+## 配置
+
+```go
+jobs.MustRegister(app, jobs.Config{
+    // 禁用插件（环境变量: PB_JOBS_DISABLED）
+    Disabled: false,
+
+    // Worker 池大小（环境变量: PB_JOBS_WORKERS，默认: 10）
+    Workers: 10,
+
+    // 轮询间隔（环境变量: PB_JOBS_POLL_INTERVAL，默认: 1s）
+    PollInterval: time.Second,
+
+    // 任务锁定时长（环境变量: PB_JOBS_LOCK_DURATION，默认: 5m）
+    LockDuration: 5 * time.Minute,
+
+    // 批量获取任务数（环境变量: PB_JOBS_BATCH_SIZE，默认: 10）
+    BatchSize: 10,
+
+    // 默认最大重试次数（默认: 3）
+    MaxRetries: 3,
+
+    // 最大 Payload 大小（默认: 1MB）
+    MaxPayloadSize: 1 << 20,
+
+    // 是否启用 HTTP API（环境变量: PB_JOBS_HTTP_ENABLED，默认: true）
+    HTTPEnabled: true,
+
+    // 入队权限规则（默认: "" 仅 Superuser）
+    EnqueueRule: "",
+
+    // 管理权限规则（默认: "" 仅 Superuser）
+    ManageRule: "",
+
+    // Topic 白名单（可选，空表示允许所有）
+    AllowedTopics: []string{},
+
+    // 是否自动启动 Dispatcher（环境变量: PB_JOBS_AUTO_START，默认: true）
+    AutoStart: true,
+})
+```
+
+## 环境变量
+
+| 环境变量 | 说明 | 默认值 |
+|---------|------|--------|
+| `PB_JOBS_DISABLED` | 禁用插件 | `false` |
+| `PB_JOBS_WORKERS` | Worker 数量 | `10` |
+| `PB_JOBS_POLL_INTERVAL` | 轮询间隔 | `1s` |
+| `PB_JOBS_LOCK_DURATION` | 锁定时长 | `5m` |
+| `PB_JOBS_BATCH_SIZE` | 批量获取数 | `10` |
+| `PB_JOBS_HTTP_ENABLED` | 启用 HTTP API | `true` |
+| `PB_JOBS_AUTO_START` | 自动启动 Dispatcher | `true` |
 
 ## 任务状态
 
@@ -92,7 +168,7 @@ job, err := app.Jobs().EnqueueWithOptions("send_email", payload, &core.JobEnqueu
 ## API 接口
 
 ::: warning 注意
-所有 Jobs API 都需要超级用户 (Superuser) 权限。
+所有 Jobs API 默认需要超级用户 (Superuser) 权限。可通过 `EnqueueRule` 和 `ManageRule` 配置自定义权限规则。
 :::
 
 ### 入队任务
@@ -193,23 +269,54 @@ DELETE /api/jobs/{id}
 仅 `pending` 或 `failed` 状态的任务可以删除。
 :::
 
-## 配置参数
+## Go API
 
-| 常量 | 默认值 | 说明 |
-|------|--------|------|
-| `JobMaxPayloadSize` | 1 MB | Payload 最大大小 |
-| `JobDefaultMaxRetries` | 3 | 默认最大重试次数 |
-| `JobDefaultLockDuration` | 5 分钟 | 任务锁定时长（执行超时时间） |
-| `JobDefaultPollInterval` | 1 秒 | 轮询间隔 |
-| `JobDefaultWorkerPoolSize` | 10 | Worker 池大小 |
-| `JobDefaultBatchSize` | 10 | 批量获取任务数量 |
+### 查询任务
+
+```go
+store := jobs.GetJobStore(app)
+
+// 获取单个任务
+job, err := store.Get("job-id")
+
+// 列表查询
+result, err := store.List(&jobs.JobFilter{
+    Topic:  "send_email",
+    Status: "pending",
+    Limit:  20,
+    Offset: 0,
+})
+
+// 获取统计
+stats, err := store.Stats()
+```
+
+### 管理任务
+
+```go
+// 删除任务（仅 pending/failed 状态）
+err := store.Delete("job-id")
+
+// 重新入队（仅 failed 状态）
+job, err := store.Requeue("job-id")
+```
+
+### 手动控制 Dispatcher
+
+```go
+// 如果配置 AutoStart: false，需要手动启动
+store.Start()
+
+// 停止 Dispatcher
+store.Stop()
+```
 
 ## 错误处理
 
 任务处理器返回错误时，系统会自动重试：
 
 ```go
-app.Jobs().Register("risky_task", func(job *core.Job) error {
+store.Register("risky_task", func(job *jobs.Job) error {
     if err := doSomethingRisky(); err != nil {
         // 返回错误会触发重试
         return err
@@ -221,6 +328,19 @@ app.Jobs().Register("risky_task", func(job *core.Job) error {
 - 每次重试会增加 `retries` 计数
 - 达到 `max_retries` 后，任务状态变为 `failed`
 - 失败任务可通过 API 或 UI 手动重新入队
+
+## 重试策略
+
+失败的任务会按照指数退避策略重试：
+
+- 第 1 次重试：1 分钟后
+- 第 2 次重试：4 分钟后
+- 第 3 次重试：9 分钟后
+- ...
+
+## 崩溃恢复
+
+当 Worker 崩溃或超时时，任务会在 `locked_until` 过期后被其他 Worker 自动接管。默认锁定时长为 5 分钟。
 
 ## UI 管理
 
@@ -240,7 +360,7 @@ app.Jobs().Register("risky_task", func(job *core.Job) error {
 任务可能因重试而多次执行，确保处理器具有幂等性：
 
 ```go
-app.Jobs().Register("process_order", func(job *core.Job) error {
+store.Register("process_order", func(job *jobs.Job) error {
     var payload struct {
         OrderID string `json:"order_id"`
     }
@@ -259,12 +379,12 @@ app.Jobs().Register("process_order", func(job *core.Job) error {
 
 ```go
 // 对于网络请求类任务，可以设置较多重试
-app.Jobs().EnqueueWithOptions("call_webhook", payload, &core.JobEnqueueOptions{
+store.EnqueueWithOptions("call_webhook", payload, &jobs.JobEnqueueOptions{
     MaxRetries: 10,
 })
 
 // 对于不可恢复的错误，可以设置较少重试
-app.Jobs().EnqueueWithOptions("send_sms", payload, &core.JobEnqueueOptions{
+store.EnqueueWithOptions("send_sms", payload, &jobs.JobEnqueueOptions{
     MaxRetries: 2,
 })
 ```
@@ -275,19 +395,29 @@ Payload 最大 1MB，对于大数据量，建议存储引用而非数据本身�
 
 ```go
 // 推荐：存储文件 ID
-app.Jobs().Enqueue("process_file", map[string]any{
+store.Enqueue("process_file", map[string]any{
     "file_id": "abc123",
 })
 
 // 不推荐：存储文件内容
-// app.Jobs().Enqueue("process_file", map[string]any{
+// store.Enqueue("process_file", map[string]any{
 //     "content": largeFileContent,  // 可能超过 1MB
 // })
 ```
 
+### 4. Topic 白名单
+
+通过配置 `AllowedTopics` 限制可入队的 Topic：
+
+```go
+jobs.MustRegister(app, jobs.Config{
+    AllowedTopics: []string{"email:send", "sms:send", "webhook:call"},
+})
+```
+
 ## 数据库兼容性
 
-Jobs 模块完全兼容 SQLite 和 PostgreSQL：
+Jobs 插件完全兼容 SQLite 和 PostgreSQL：
 
 | 功能 | SQLite | PostgreSQL |
 |------|--------|------------|
@@ -295,5 +425,24 @@ Jobs 模块完全兼容 SQLite 和 PostgreSQL：
 | 索引 | 普通索引 | 部分索引 (WHERE) |
 | 任务获取 | 乐观锁 + CAS | FOR UPDATE SKIP LOCKED |
 | 时间类型 | TEXT | TIMESTAMP |
+| 并发性能 | 中等 | 高 |
 
 无需修改代码，系统会自动适配不同数据库。
+
+## 注意事项
+
+1. **Topic 必须先注册**：只有注册了 handler 的 topic 才会被 Dispatcher 拉取执行
+2. **Payload 大小限制**：默认最大 1MB
+3. **幂等性**：Worker 应该设计为幂等的，因为任务可能被重复执行
+4. **事务支持**：在事务中入队的任务会在事务提交后才可见
+5. **Opt-in 设计**：不注册插件时 `_jobs` 表不会创建，零开销
+
+## 迁移指南
+
+如果你从旧版本迁移（使用 `app.Jobs()` API），请参考 [迁移指南](/docs/MIGRATION_JOBS_PLUGIN.md)。
+
+主要变更：
+- `app.Jobs()` → `jobs.GetJobStore(app)`
+- `core.Job` → `jobs.Job`
+- `core.JobFilter` → `jobs.JobFilter`
+- 需要显式注册插件：`jobs.MustRegister(app, jobs.DefaultConfig())`

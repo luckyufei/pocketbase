@@ -46,7 +46,7 @@ func NewRouter(app core.App) (*router.Router[*core.RequestEvent], error) {
 	bindBatchApi(app, apiGroup)
 	bindRealtimeApi(app, apiGroup)
 	bindHealthApi(app, apiGroup)
-	bindJobsApi(app, apiGroup)
+	// jobs 路由已迁移到 plugins/jobs
 	// database stats 路由已迁移到 plugins/metrics
 	// secrets 路由已迁移到 plugins/secrets
 
