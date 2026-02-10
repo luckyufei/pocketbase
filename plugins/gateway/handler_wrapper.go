@@ -46,6 +46,22 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 	return rw.ResponseWriter.Write(b)
 }
 
+// Flush implements http.Flusher for streaming support (e.g. SSE/LLM token stream).
+// This ensures httputil.ReverseProxy's FlushInterval works correctly
+// when the responseWriter wrapper is used.
+func (rw *responseWriter) Flush() {
+	if f, ok := rw.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+// Unwrap returns the underlying ResponseWriter.
+// Required for http.NewResponseController (Go 1.20+) to discover
+// Flusher/Hijacker capabilities through wrapper chains.
+func (rw *responseWriter) Unwrap() http.ResponseWriter {
+	return rw.ResponseWriter
+}
+
 // StatusCode 返回记录的状态码
 func (rw *responseWriter) StatusCode() int {
 	return rw.statusCode

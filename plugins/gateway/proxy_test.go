@@ -4,7 +4,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
+	"strings"
 	"testing"
+	"time"
 )
 
 // TestIsHopByHopHeader 测试 hop-by-hop 头判断
@@ -198,6 +202,227 @@ func TestManagerGetProxies(t *testing.T) {
 	result := m.GetProxies()
 	if len(result) != 2 {
 		t.Errorf("GetProxies() returned %d proxies, want 2", len(result))
+	}
+}
+
+// TestSSEStreamingEndToEnd tests that SSE events are flushed through
+// the full wrapHandler → responseWriter → ReverseProxy chain without
+// being buffered. This simulates an LLM token stream.
+func TestSSEStreamingEndToEnd(t *testing.T) {
+	const totalEvents = 5
+
+	// 1. Create a mock upstream SSE server that emits events with small delays
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+
+		for i := 0; i < totalEvents; i++ {
+			_, _ = w.Write([]byte("data: token_" + string(rune('A'+i)) + "\n\n"))
+			flusher.Flush()
+			time.Sleep(50 * time.Millisecond)
+		}
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+		flusher.Flush()
+	}))
+	defer upstream.Close()
+
+	// 2. Parse upstream URL
+	upstreamURL, _ := url.Parse(upstream.URL)
+
+	// 3. Build ReverseProxy with FlushInterval (same as production code)
+	rp := &httputil.ReverseProxy{
+		Director: func(req *http.Request) {
+			req.URL.Scheme = upstreamURL.Scheme
+			req.URL.Host = upstreamURL.Host
+			req.Host = upstreamURL.Host
+			req.Header.Del("Accept-Encoding")
+		},
+		FlushInterval: DefaultFlushInterval,
+	}
+
+	// 4. Wrap with wrapHandler (includes responseWriter wrapper)
+	wrapped := wrapHandler(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rp.ServeHTTP(w, r)
+		}),
+		"test-sse-proxy",
+		nil, // no limiter
+		nil, // no breaker
+		nil, // no metrics
+	)
+
+	// 5. Create a test server with the wrapped handler
+	proxyServer := httptest.NewServer(wrapped)
+	defer proxyServer.Close()
+
+	// 6. Send request and read SSE events incrementally
+	resp, err := http.Get(proxyServer.URL)
+	if err != nil {
+		t.Fatalf("failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Verify Content-Type is preserved
+	ct := resp.Header.Get("Content-Type")
+	if ct != "text/event-stream" {
+		t.Errorf("Content-Type = %q, want %q", ct, "text/event-stream")
+	}
+
+	// Read the full body and verify all events arrived
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read body: %v", err)
+	}
+
+	bodyStr := string(body)
+
+	// Verify all token events are present
+	for i := 0; i < totalEvents; i++ {
+		expected := "data: token_" + string(rune('A'+i))
+		if !strings.Contains(bodyStr, expected) {
+			t.Errorf("response body missing %q", expected)
+		}
+	}
+	if !strings.Contains(bodyStr, "data: [DONE]") {
+		t.Errorf("response body missing [DONE] sentinel")
+	}
+}
+
+// TestSSEStreamingChunkedDelivery verifies that SSE events arrive
+// incrementally (not all at once), proving true streaming pass-through.
+func TestSSEStreamingChunkedDelivery(t *testing.T) {
+	// 1. Upstream sends events with deliberate delays
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+
+		// Event 1: immediate
+		_, _ = w.Write([]byte("data: first\n\n"))
+		flusher.Flush()
+
+		// Event 2: after 200ms delay
+		time.Sleep(200 * time.Millisecond)
+		_, _ = w.Write([]byte("data: second\n\n"))
+		flusher.Flush()
+
+		// Event 3: after another 200ms delay
+		time.Sleep(200 * time.Millisecond)
+		_, _ = w.Write([]byte("data: third\n\n"))
+		flusher.Flush()
+	}))
+	defer upstream.Close()
+
+	upstreamURL, _ := url.Parse(upstream.URL)
+
+	rp := &httputil.ReverseProxy{
+		Director: func(req *http.Request) {
+			req.URL.Scheme = upstreamURL.Scheme
+			req.URL.Host = upstreamURL.Host
+			req.Host = upstreamURL.Host
+			req.Header.Del("Accept-Encoding")
+		},
+		FlushInterval: DefaultFlushInterval, // 100ms
+	}
+
+	wrapped := wrapHandler(
+		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rp.ServeHTTP(w, r)
+		}),
+		"test-sse-chunked",
+		nil, nil, nil,
+	)
+
+	proxyServer := httptest.NewServer(wrapped)
+	defer proxyServer.Close()
+
+	resp, err := http.Get(proxyServer.URL)
+	if err != nil {
+		t.Fatalf("failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Read events one by one, tracking arrival times
+	buf := make([]byte, 4096)
+	var events []string
+	var timestamps []time.Time
+
+	for {
+		n, readErr := resp.Body.Read(buf)
+		if n > 0 {
+			chunk := string(buf[:n])
+			events = append(events, chunk)
+			timestamps = append(timestamps, time.Now())
+		}
+		if readErr != nil {
+			break
+		}
+	}
+
+	// We should have received multiple chunks (not a single blob)
+	if len(events) < 2 {
+		t.Errorf("expected multiple incremental chunks, got %d (streaming may be buffered)", len(events))
+		for i, e := range events {
+			t.Logf("  chunk[%d]: %q", i, e)
+		}
+	}
+
+	// Verify time gaps between chunks (proves incremental delivery)
+	if len(timestamps) >= 2 {
+		gap := timestamps[len(timestamps)-1].Sub(timestamps[0])
+		if gap < 100*time.Millisecond {
+			t.Errorf("time gap between first and last chunk = %v, expected >= 100ms (events should arrive incrementally)", gap)
+		}
+	}
+
+	// Verify all three events were received
+	fullBody := strings.Join(events, "")
+	for _, expected := range []string{"data: first", "data: second", "data: third"} {
+		if !strings.Contains(fullBody, expected) {
+			t.Errorf("missing event %q in response", expected)
+		}
+	}
+}
+
+// TestResponseWriterFlusher verifies that the responseWriter wrapper
+// correctly implements http.Flusher and Unwrap interfaces.
+func TestResponseWriterFlusher(t *testing.T) {
+	rec := httptest.NewRecorder()
+	rw := newResponseWriter(rec)
+
+	// Cast to interface so we can do type assertions
+	var w http.ResponseWriter = rw
+
+	// Test Flush() via http.Flusher interface
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		t.Fatal("responseWriter should implement http.Flusher")
+	}
+	// Should not panic
+	flusher.Flush()
+
+	// Test Unwrap()
+	type unwrapper interface {
+		Unwrap() http.ResponseWriter
+	}
+	uw, ok := w.(unwrapper)
+	if !ok {
+		t.Fatal("responseWriter should implement Unwrap()")
+	}
+	if uw.Unwrap() != rec {
+		t.Error("Unwrap() should return the underlying ResponseWriter")
 	}
 }
 
