@@ -106,3 +106,59 @@ export function sentenize(str: string): string {
   if (!str) return ''
   return str.charAt(0).toUpperCase() + str.slice(1)
 }
+
+// Image extensions
+const imageExtensions = ['jpg', 'jpeg', 'png', 'svg', 'gif', 'webp', 'avif']
+
+// Document extensions
+const documentExtensions = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'txt', 'rtf', 'csv', 'json', 'xml', 'html', 'htm', 'md']
+
+// Video extensions
+const videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'mkv', 'webm', 'mpeg', 'mpg', '3gp', 'm4v']
+
+// Audio extensions
+const audioExtensions = ['mp3', 'wav', 'ogg', 'flac', 'aac', 'wma', 'm4a', 'opus']
+
+/**
+ * 获取文件扩展名（小写）
+ */
+export function getFileExtension(filename: string): string {
+  if (!filename) return ''
+  const parts = filename.split('.')
+  return parts.length > 1 ? parts.pop()?.toLowerCase() || '' : ''
+}
+
+/**
+ * 检查是否为图片扩展名
+ */
+export function hasImageExtension(filename: string): boolean {
+  const ext = getFileExtension(filename)
+  return imageExtensions.includes(ext)
+}
+
+/**
+ * 获取文件类型
+ */
+export function getFileType(filename: string): 'image' | 'document' | 'video' | 'audio' | 'file' {
+  const ext = getFileExtension(filename)
+  
+  if (imageExtensions.includes(ext)) return 'image'
+  if (documentExtensions.includes(ext)) return 'document'
+  if (videoExtensions.includes(ext)) return 'video'
+  if (audioExtensions.includes(ext)) return 'audio'
+  
+  return 'file'
+}
+
+/**
+ * 格式化文件大小
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B'
+  
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const k = 1024
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + units[i]
+}

@@ -27,7 +27,9 @@ export function Confirmation() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    // 使用非常高的 z-index (9999) 确保确认对话框始终在最上层
+    // 这解决了从 UpsertPanel 触发确认对话框时被遮挡的问题
+    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 9999 }}>
       {/* 遮罩层 */}
       <div className="absolute inset-0 bg-black/50" onClick={handleCancel} />
 

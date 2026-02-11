@@ -17,8 +17,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { useToast } from '@/hooks/useToast'
-import { getApiExampleUrl } from '@/lib/apiDocsUtils'
+import { getApiExampleUrl } from '@/lib/api-utils'
 import pb from '@/lib/pocketbase'
 import type { RecordModel, CollectionModel } from 'pocketbase'
 
@@ -39,7 +38,7 @@ export function ImpersonatePopup({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [token, setToken] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
-  const { toast } = useToast()
+  const [error, setError] = useState<string | null>(null)
 
   const backendAbsUrl = getApiExampleUrl(pb.baseURL)
   const defaultDuration =
@@ -53,14 +52,11 @@ export function ImpersonatePopup({
     setIsSubmitting(true)
 
     try {
+      setError(null)
       const client = await pb.collection(collection.name).impersonate(record.id, duration)
       setToken(client.authStore.token)
     } catch (err) {
-      toast({
-        title: '生成令牌失败',
-        description: err instanceof Error ? err.message : '请重试',
-        variant: 'destructive',
-      })
+      setError(err instanceof Error ? err.message : 'Failed to generate token')
     } finally {
       setIsSubmitting(false)
     }
@@ -73,16 +69,14 @@ export function ImpersonatePopup({
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      toast({
-        title: '复制失败',
-        variant: 'destructive',
-      })
+      console.error('Failed to copy to clipboard')
     }
   }
 
   const handleReset = () => {
     setToken(null)
     setDuration(0)
+    setError(null)
   }
 
   const handleClose = () => {
@@ -115,6 +109,12 @@ pb.authStore.save(token, null);`
           <DialogTitle>模拟认证令牌</DialogTitle>
           <DialogDescription className="sr-only">生成用于模拟用户身份的认证令牌</DialogDescription>
         </DialogHeader>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         {token ? (
           <div className="space-y-4">

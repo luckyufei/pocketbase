@@ -127,6 +127,105 @@
 }
 
 /**
+ * 表单字段样式 - 对标旧版 Svelte UI 的卡片式设计
+ * 标签与输入框形成统一的灰色背景视觉块
+ */
+@layer components {
+  /* 整个字段块：统一灰色背景，圆角 */
+  .form-field {
+    @apply rounded-md bg-muted overflow-hidden;
+  }
+
+  /* 标签区域：加深标签的视觉权重 */
+  .form-field > [data-field-label] {
+    @apply flex items-center gap-1.5 w-full select-none;
+    @apply font-semibold text-xs;
+    @apply text-muted-foreground;
+    @apply px-3 pt-2.5 pb-1;
+    letter-spacing: 0.1px;
+  }
+
+  /* 所有 input/textarea 在 form-field 内：去掉边框，与背景融合 */
+  .form-field input,
+  .form-field textarea {
+    @apply border-0 bg-transparent shadow-none;
+  }
+
+  .form-field input:focus-visible,
+  .form-field textarea:focus-visible {
+    @apply ring-0 ring-offset-0;
+  }
+
+  /* 内容区域的内边距 */
+  .form-field > input,
+  .form-field > textarea {
+    @apply px-3 py-1.5 text-sm;
+  }
+
+  .form-field > .relative {
+    @apply px-0;
+  }
+
+  .form-field > .relative > input {
+    @apply px-3 py-1.5 text-sm;
+  }
+
+  /* Select trigger 样式 */
+  .form-field button[role="combobox"] {
+    @apply border-0 bg-transparent shadow-none;
+  }
+
+  /* Select trigger 聚焦样式 - 移除 ring 效果，与 form-field 卡片风格一致 */
+  .form-field button[role="combobox"]:focus {
+    @apply ring-0 ring-offset-0 outline-none;
+  }
+
+  /* 聚焦时标签高亮 */
+  .form-field:focus-within:not(.form-field-toggle) > [data-field-label] {
+    @apply text-foreground;
+  }
+
+  /* Bool 字段 (toggle) 特殊样式 - 不使用卡片式 */
+  .form-field.form-field-toggle {
+    @apply bg-transparent overflow-visible;
+  }
+
+  .form-field.form-field-toggle > [data-field-label] {
+    @apply bg-transparent pt-0 pb-0 px-0;
+  }
+
+  /* 错误状态 */
+  .form-field.error > [data-field-label] {
+    @apply text-destructive;
+  }
+
+  /* 只读状态 */
+  .form-field.readonly {
+    @apply opacity-70;
+  }
+
+  .form-field.readonly input {
+    @apply text-muted-foreground cursor-not-allowed;
+  }
+
+  /* 复合字段内容区（文件上传、关联选择、JSON编辑器等） */
+  .form-field > .space-y-2,
+  .form-field > .space-y-3 {
+    @apply px-3 pb-2;
+  }
+
+  /* Button 在 form-field 内的样式 */
+  .form-field button:not([role="combobox"]) {
+    @apply bg-background border border-input;
+  }
+
+  /* CodeMirror 编辑器区域 */
+  .form-field .cm-editor {
+    @apply bg-transparent border-0;
+  }
+}
+
+/**
  * CodeMirror 样式适配
  * Task 9: 确保 CodeMirror 样式与现有 UI 风格一致
  * 对标 ui/src/scss/_searchbar.scss 的设计
@@ -245,5 +344,30 @@
 
   .dark .searchbar-container .cm-atom {
     @apply text-red-400;
+  }
+}
+
+/**
+ * DateTimePicker 样式 - 与 UI 版本的 Flatpickr 风格保持一致
+ */
+@layer components {
+  /* react-day-picker 样式覆盖，与 Flatpickr 风格一致 */
+  .rdp {
+    --rdp-cell-size: 36px;
+    --rdp-accent-color: hsl(var(--primary));
+    --rdp-background-color: hsl(var(--accent));
+  }
+
+  .rdp-day_button:hover:not([disabled]):not(.rdp-day_selected) {
+    background-color: hsl(var(--accent));
+  }
+
+  .rdp-day_selected {
+    background-color: hsl(var(--primary)) !important;
+    color: hsl(var(--primary-foreground)) !important;
+  }
+
+  .rdp-day_today:not(.rdp-day_selected) {
+    border: 1px solid hsl(var(--primary));
   }
 }

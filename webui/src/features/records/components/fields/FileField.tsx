@@ -5,10 +5,29 @@
  */
 import { useRef, useState, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Upload, X, GripVertical } from 'lucide-react'
+import { FormField } from '@/components/ui/FormField'
+import { FieldLabel } from './FieldLabel'
+import { Upload, X, ExternalLink, GripVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { RecordFileThumb, getFileType } from '../RecordFileThumb'
+import { usePocketbase } from '@/hooks/usePocketbase'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface FileFieldProps {
   field: {
@@ -33,17 +52,154 @@ interface FileFieldProps {
   }
 }
 
+// Sortable File Item Component
+function SortableFileItem({
+  id,
+  fileName,
+  record,
+  onRemove,
+  onOpenInNewTab,
+  isMultiple,
+}: {
+  id: string
+  fileName: string
+  record?: FileFieldProps['record']
+  onRemove: () => void
+  onOpenInNewTab?: () => void
+  isMultiple: boolean
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="group relative flex flex-col items-center"
+    >
+      {/* Drag handle for multiple files */}
+      {isMultiple && (
+        <div
+          {...attributes}
+          {...listeners}
+          className="absolute -left-1 top-1/2 -translate-y-1/2 z-10 cursor-grab opacity-0 group-hover:opacity-100 transition-opacity p-1 bg-background/80 rounded"
+        >
+          <GripVertical className="h-4 w-4 text-muted-foreground" />
+        </div>
+      )}
+      
+      {record ? (
+        <RecordFileThumb record={record} filename={fileName} size="lg" />
+      ) : (
+        <div className="w-24 h-24 flex items-center justify-center rounded-md border bg-muted">
+          <span className="text-xs text-center px-1 truncate max-w-full">{fileName}</span>
+        </div>
+      )}
+      
+      {/* Action buttons */}
+      <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {record && onOpenInNewTab && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="h-5 w-5 p-0 rounded-full"
+            onClick={onOpenInNewTab}
+            aria-label="Open in new tab"
+          >
+            <ExternalLink className="h-3 w-3" />
+          </Button>
+        )}
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          className="h-5 w-5 p-0 rounded-full"
+          onClick={onRemove}
+          aria-label="Remove file"
+        >
+          <X className="h-3 w-3" />
+        </Button>
+      </div>
+      
+      <span className="text-xs text-muted-foreground mt-1 max-w-24 truncate">
+        {fileName}
+      </span>
+    </div>
+  )
+}
+
 export function FileField({ field, value, onChange, newFiles = [], record }: FileFieldProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const { pb } = usePocketbase()
 
   const isMultiple = (field.options?.maxSelect || 1) > 1
   const maxSelect = field.options?.maxSelect || 1
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  // Handle drag end for reordering
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event
+      if (!over || active.id === over.id) return
+
+      const oldIndex = value.indexOf(active.id as string)
+      const newIndex = value.indexOf(over.id as string)
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove(value, oldIndex, newIndex)
+        onChange(newOrder, newFiles)
+      }
+    },
+    [value, newFiles, onChange]
+  )
   const maxSize = field.options?.maxSize || 5242880 // 5MB default
   const acceptTypes = field.options?.mimeTypes?.join(',') || '*'
 
   const totalFiles = value.length + newFiles.length
   const canAddMore = maxSelect <= 0 || totalFiles < maxSelect
+
+  // Open file in new tab
+  const openInNewTab = useCallback(
+    async (filename: string) => {
+      if (!record?.id) return
+      try {
+        // Get superuser file token for protected files
+        const token = await pb.files.getToken()
+        const url = pb.files.getURL(record as any, filename, { token })
+        window.open(url, '_blank')
+      } catch (error) {
+        // Fallback without token
+        const url = pb.files.getURL(record as any, filename)
+        window.open(url, '_blank')
+      }
+    },
+    [pb, record]
+  )
 
   // 处理文件选择
   const handleFileSelect = useCallback(
@@ -141,41 +297,33 @@ export function FileField({ field, value, onChange, newFiles = [], record }: Fil
   }
 
   return (
-    <div className="space-y-2">
-      <Label>
-        {field.name}
-        {field.required && <span className="text-destructive ml-1">*</span>}
-      </Label>
+    <FormField name={field.name}>
+      <FieldLabel field={field as any} />
 
       <div className="space-y-3">
-        {/* 已有文件列表 */}
+        {/* 已有文件列表 - 支持拖拽排序 */}
         {value.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {value.map((fileName) => (
-              <div key={fileName} className="group relative flex flex-col items-center">
-                {record ? (
-                  <RecordFileThumb record={record} filename={fileName} size="lg" />
-                ) : (
-                  <div className="w-24 h-24 flex items-center justify-center rounded-md border bg-muted">
-                    <span className="text-xs text-center px-1 truncate max-w-full">{fileName}</span>
-                  </div>
-                )}
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  className="absolute -top-2 -right-2 h-5 w-5 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => removeExistingFile(fileName)}
-                  aria-label="Remove file"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-                <span className="text-xs text-muted-foreground mt-1 max-w-24 truncate">
-                  {fileName}
-                </span>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext items={value} strategy={rectSortingStrategy}>
+              <div className="flex flex-wrap gap-2">
+                {value.map((fileName) => (
+                  <SortableFileItem
+                    key={fileName}
+                    id={fileName}
+                    fileName={fileName}
+                    record={record}
+                    isMultiple={isMultiple}
+                    onRemove={() => removeExistingFile(fileName)}
+                    onOpenInNewTab={() => openInNewTab(fileName)}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
         )}
 
         {/* 新上传的文件 */}
@@ -263,20 +411,7 @@ export function FileField({ field, value, onChange, newFiles = [], record }: Fil
           onChange={handleInputChange}
           className="hidden"
         />
-
-        {/* 上传按钮（备用） */}
-        {canAddMore && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Choose files
-          </Button>
-        )}
       </div>
-    </div>
+    </FormField>
   )
 }

@@ -7,6 +7,7 @@ import { router } from '@/router'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import '@/i18n'
 import '@/index.css'
+import 'react-day-picker/style.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -1,14 +1,60 @@
 // T061: Record 创建/编辑面板
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, useId } from 'react'
 import type { RecordModel, CollectionField, CollectionModel } from 'pocketbase'
+import { useSetAtom, useAtomValue } from 'jotai'
 import { OverlayPanel } from '@/components/OverlayPanel'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Eye, EyeOff } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  X,
+  RefreshCw,
+  MoreHorizontal,
+  Mail,
+  Lock,
+  UserCheck,
+  Braces,
+  Copy,
+  Trash,
+  ChevronDown,
+  Key,
+} from 'lucide-react'
+// 字段组件
+import { TextField } from './fields/TextField'
+import { NumberField } from './fields/NumberField'
+import { BoolField } from './fields/BoolField'
+import { EmailField } from './fields/EmailField'
+import { UrlField } from './fields/UrlField'
+import { EditorField } from './fields/EditorField'
+import { DateField } from './fields/DateField'
+import { SelectField } from './fields/SelectField'
+import { JsonField } from './fields/JsonField'
 import { FileField } from './fields/FileField'
+import { RelationField } from './fields/RelationField'
+import { PasswordField } from './fields/PasswordField'
+import { SecretField } from './fields/SecretField'
+import { GeoPointField } from './fields/GeoPointField'
 import { AuthFields } from './fields/AuthFields'
+import { ExternalAuthsList } from './ExternalAuthsList'
+import { AutodateIcon } from './AutodateIcon'
+import { ImpersonatePopup } from './ImpersonatePopup'
+import { useDraft } from '../hooks/useDraft'
+import { useChangeDetection } from '../hooks/useChangeDetection'
+import { showConfirmation } from '@/store/confirmation'
+import { usePocketbase } from '@/hooks/usePocketbase'
+import { addToast } from '@/store/toasts'
+import { setFormErrorsAtom, clearFormErrorsAtom, formErrorsAtom } from '@/store/formErrors'
+import { canSave as computeCanSave } from '../utils/canSave'
 
 interface UpsertPanelProps {
   open: boolean
@@ -17,6 +63,10 @@ interface UpsertPanelProps {
   fields: CollectionField[]
   collection?: CollectionModel | null
   onSave: (data: Record<string, unknown>, files?: Record<string, File[]>) => Promise<void>
+  onDelete?: () => Promise<void>
+  onDuplicate?: (data: Record<string, unknown>) => void
+  /** Custom z-index for nested panels (default: 50) */
+  zIndex?: number
 }
 
 // 基础跳过的字段
@@ -42,13 +92,53 @@ export function UpsertPanel({
   fields,
   collection,
   onSave,
+  onDelete,
+  onDuplicate,
+  zIndex,
 }: UpsertPanelProps) {
+  // 为每个 UpsertPanel 实例生成唯一的表单 ID，避免嵌套时 ID 冲突
+  const uniqueId = useId()
+  const formId = `upsert-record-form-${uniqueId}`
+  
   const [formData, setFormData] = useState<Record<string, unknown>>({})
+  const [originalData, setOriginalData] = useState<Record<string, unknown>>({})
   const [newFiles, setNewFiles] = useState<Record<string, File[]>>({})
+  const [deletedFiles, setDeletedFiles] = useState<Record<string, string[]>>({})
   const [saving, setSaving] = useState(false)
+  const [draftRestored, setDraftRestored] = useState(false)
+  const [activeTab, setActiveTab] = useState<'form' | 'providers'>('form')
+
+  const showConfirm = useSetAtom(showConfirmation)
+const { pb } = usePocketbase()
+  const toast = useSetAtom(addToast)
+  const setFormErrors = useSetAtom(setFormErrorsAtom)
+  const clearFormErrors = useSetAtom(clearFormErrorsAtom)
+  const formErrors = useAtomValue(formErrorsAtom)
 
   const isEdit = !!record?.id
+  const isNew = !isEdit
   const isAuthCollection = collection?.type === 'auth'
+  const isSuperusers = collection?.name === '_superusers'
+  const showTabs = isAuthCollection && !isSuperusers && isEdit
+
+  // Get ID field configuration
+  const idField = useMemo(() => {
+    return collection?.fields?.find((f) => f.name === 'id')
+  }, [collection?.fields])
+
+  // Draft management
+  const { hasDraft, saveDraft, deleteDraft, restoreDraft } = useDraft({
+    collectionId: collection?.id || '',
+    recordId: record?.id,
+  })
+
+  // Change detection
+  const { hasChanges } = useChangeDetection({
+    original: originalData,
+    current: formData,
+    uploadedFiles: newFiles,
+    deletedFiles,
+  })
 
   // 根据 collection 类型选择要跳过的字段
   const skipFieldNames = isAuthCollection ? AUTH_SKIP_FIELD_NAMES : BASE_SKIP_FIELD_NAMES
@@ -58,12 +148,28 @@ export function UpsertPanel({
     (f) => !skipFieldNames.includes(f.name) && f.type !== 'autodate'
   )
 
+  // canSave logic (uses utility function for testability)
+  const canSave = useMemo(
+    () => computeCanSave({ saving, isNew, hasChanges }),
+    [saving, isNew, hasChanges]
+  )
+
+  // Dynamic panel width based on editor field presence
+  const hasEditorField = useMemo(() => {
+    return fields.some((f) => f.type === 'editor')
+  }, [fields])
+
   // 初始化表单数据
   useEffect(() => {
     if (!open) return
 
+    // Clear form errors when panel opens
+    clearFormErrors()
+
+    let initialData: Record<string, unknown> = {}
+
     if (record) {
-      setFormData({ ...record })
+      initialData = { ...record }
     } else {
       // 初始化默认值
       const defaults: Record<string, unknown> = {}
@@ -86,7 +192,7 @@ export function UpsertPanel({
             defaults[field.name] = 0
             break
           case 'json':
-            defaults[field.name] = {}
+            defaults[field.name] = '{}'  // 字符串形式，与 JsonField 保持一致
             break
           case 'select':
             defaults[field.name] = field.maxSelect === 1 ? '' : []
@@ -97,28 +203,142 @@ export function UpsertPanel({
           case 'file':
             defaults[field.name] = []
             break
+          case 'geoPoint':
+            defaults[field.name] = { lat: 0, lon: 0 }
+            break
           default:
             defaults[field.name] = ''
         }
       })
-      setFormData(defaults)
+      initialData = defaults
     }
-    // 重置新文件
+
+    setFormData(initialData)
+    setOriginalData(initialData)
+    // 重置文件状态
     setNewFiles({})
+    setDeletedFiles({})
+    setDraftRestored(false)
+    setActiveTab('form')
   }, [record, fields, open, isAuthCollection])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Auto-save draft when data changes (debounced)
+  const draftSaveTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  useEffect(() => {
+    if (!open || !hasChanges || saving) return
+
+    // Clear previous timeout
+    if (draftSaveTimeoutRef.current) {
+      clearTimeout(draftSaveTimeoutRef.current)
+    }
+
+    // Debounce draft save
+    draftSaveTimeoutRef.current = setTimeout(() => {
+      saveDraft(formData)
+    }, 1000)
+
+    return () => {
+      if (draftSaveTimeoutRef.current) {
+        clearTimeout(draftSaveTimeoutRef.current)
+      }
+    }
+  }, [formData, open, hasChanges, saving, saveDraft])
+
+  // Ctrl+S shortcut
+  useEffect(() => {
+    if (!open) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        e.stopPropagation()
+        if (canSave && !saving) {
+          handleSave(false) // false = don't close panel
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [open, canSave, saving])
+
+  const handleSave = async (closeAfterSave: boolean = true) => {
     setSaving(true)
     try {
       await onSave(formData, newFiles)
-      onClose()
+      deleteDraft() // Clear draft on successful save
+      clearFormErrors() // Clear form errors on successful save
+      if (closeAfterSave) {
+        onClose()
+      } else {
+        // Update original data to reflect saved state
+        setOriginalData({ ...formData })
+        setNewFiles({})
+        setDeletedFiles({})
+      }
     } catch (error) {
       console.error('Save record failed:', error)
+
+      // Check if it's a PocketBase validation error with field-specific errors
+      const pbError = error as { response?: { data?: Record<string, { code: string; message: string }> } }
+      if (pbError?.response?.data && typeof pbError.response.data === 'object') {
+        // Set field-specific errors to formErrors store
+        setFormErrors(pbError.response.data)
+      }
+
+      // Show error toast with helpful message
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const isNetworkError = errorMessage.toLowerCase().includes('network') ||
+        errorMessage.toLowerCase().includes('failed to fetch') ||
+        errorMessage.toLowerCase().includes('connection')
+      toast({
+        type: 'error',
+        message: isNetworkError
+          ? 'Network error. Please check your connection and try again.'
+          : `Failed to save record: ${errorMessage}`,
+      })
     } finally {
       setSaving(false)
     }
   }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    e.stopPropagation() // 阻止事件冒泡，避免触发外层表单
+    await handleSave(true)
+  }
+
+  // Handle close with unsaved changes confirmation
+  const handleClose = useCallback(() => {
+    if (hasChanges) {
+      showConfirm({
+        title: 'Unsaved Changes',
+        message: 'You have unsaved changes. Do you really want to close the panel?',
+        confirmText: 'Discard',
+        cancelText: 'Cancel',
+        isDanger: true,
+        onConfirm: () => {
+          deleteDraft()
+          onClose()
+        },
+      })
+    } else {
+      deleteDraft()
+      onClose()
+    }
+  }, [hasChanges, deleteDraft, onClose, showConfirm])
+
+  // Handle draft restoration
+  const handleRestoreDraft = useCallback(() => {
+    const draft = restoreDraft()
+    if (draft) {
+      setFormData((prev) => ({ ...prev, ...draft }))
+      // 恢复草稿后删除草稿，与旧版 UI 保持一致
+      // 这样用户不会再次看到 "The record has previous unsaved changes." 提示
+      deleteDraft()
+      setDraftRestored(true)
+    }
+  }, [restoreDraft, deleteDraft])
 
   const handleFieldChange = useCallback((name: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -133,87 +353,207 @@ export function UpsertPanel({
     []
   )
 
+  // === Phase 3: More Actions ===
+
+  // Send verification email
+  const handleSendVerificationEmail = useCallback(() => {
+    if (!collection?.id || !record?.email) return
+
+    showConfirm({
+      title: 'Send Verification Email',
+      message: `Do you really want to send a verification email to ${record.email}?`,
+      confirmText: 'Send',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          await pb.collection(collection.id).requestVerification(record.email as string)
+          toast({
+            type: 'success',
+            message: `Successfully sent verification email to ${record.email}.`,
+          })
+        } catch (err) {
+          toast({
+            type: 'error',
+            message: `Failed to send verification email: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          })
+        }
+      },
+    })
+  }, [collection?.id, record?.email, pb, showConfirm, toast])
+
+  // Send password reset email
+  const handleSendPasswordResetEmail = useCallback(() => {
+    if (!collection?.id || !record?.email) return
+
+    showConfirm({
+      title: 'Send Password Reset Email',
+      message: `Do you really want to send a password reset email to ${record.email}?`,
+      confirmText: 'Send',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          await pb.collection(collection.id).requestPasswordReset(record.email as string)
+          toast({
+            type: 'success',
+            message: `Successfully sent password reset email to ${record.email}.`,
+          })
+        } catch (err) {
+          toast({
+            type: 'error',
+            message: `Failed to send password reset email: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          })
+        }
+      },
+    })
+  }, [collection?.id, record?.email, pb, showConfirm, toast])
+
+  // Copy raw JSON
+  const handleCopyJSON = useCallback(() => {
+    if (!record) return
+
+    try {
+      navigator.clipboard.writeText(JSON.stringify(record, null, 2))
+      toast({
+        type: 'success',
+        message: 'Raw JSON copied to clipboard.',
+      })
+    } catch (err) {
+      toast({
+        type: 'error',
+        message: 'Failed to copy to clipboard.',
+      })
+    }
+  }, [record, toast])
+
+  // Duplicate record
+  const handleDuplicate = useCallback(() => {
+    if (!record || !onDuplicate) return
+
+    // Create a copy without id, created, updated
+    const duplicateData = { ...record }
+    delete duplicateData.id
+    delete duplicateData.created
+    delete duplicateData.updated
+
+    onDuplicate(duplicateData)
+    onClose()
+  }, [record, onDuplicate, onClose])
+
+  // Delete record
+  const handleDelete = useCallback(() => {
+    if (!record || !onDelete) return
+
+    showConfirm({
+      title: 'Delete Record',
+      message: `Do you really want to delete record "${record.id}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          await onDelete()
+          onClose()
+        } catch (err) {
+          toast({
+            type: 'error',
+            message: `Failed to delete record: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          })
+        }
+      },
+    })
+  }, [record, onDelete, showConfirm, onClose, toast])
+
+  // Impersonate popup state
+  const [showImpersonatePopup, setShowImpersonatePopup] = useState(false)
+
+  // Impersonate - open popup
+  const handleImpersonate = useCallback(() => {
+    setShowImpersonatePopup(true)
+  }, [])
+
   const renderField = (field: CollectionField) => {
     const value = formData[field.name]
 
     switch (field.type) {
-      case 'bool':
+      case 'text':
         return (
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id={field.name}
-              checked={!!value}
-              onCheckedChange={(checked) => handleFieldChange(field.name, checked)}
-            />
-            <Label htmlFor={field.name}>{field.name}</Label>
-          </div>
+          <TextField
+            field={field}
+            original={record || undefined}
+            value={(value as string) || ''}
+            onChange={(v) => handleFieldChange(field.name, v)}
+          />
         )
 
       case 'number':
         return (
-          <Input
-            id={field.name}
-            type="number"
-            value={(value as number) || 0}
-            onChange={(e) => handleFieldChange(field.name, parseFloat(e.target.value) || 0)}
+          <NumberField
+            field={field}
+            value={value as number | undefined}
+            onChange={(v) => handleFieldChange(field.name, v)}
           />
         )
 
-      case 'date':
+      case 'bool':
         return (
-          <Input
-            id={field.name}
-            type="datetime-local"
-            value={value ? new Date(value as string).toISOString().slice(0, 16) : ''}
-            onChange={(e) => handleFieldChange(field.name, e.target.value)}
-          />
-        )
-
-      case 'json':
-        return (
-          <textarea
-            id={field.name}
-            className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono"
-            value={typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
-            onChange={(e) => {
-              try {
-                handleFieldChange(field.name, JSON.parse(e.target.value))
-              } catch {
-                handleFieldChange(field.name, e.target.value)
-              }
-            }}
-          />
-        )
-
-      case 'editor':
-        return (
-          <textarea
-            id={field.name}
-            className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-            value={(value as string) || ''}
-            onChange={(e) => handleFieldChange(field.name, e.target.value)}
-          />
-        )
-
-      case 'url':
-        return (
-          <Input
-            id={field.name}
-            type="url"
-            value={(value as string) || ''}
-            onChange={(e) => handleFieldChange(field.name, e.target.value)}
-            placeholder="https://..."
+          <BoolField
+            field={field}
+            value={!!value}
+            onChange={(v) => handleFieldChange(field.name, v)}
           />
         )
 
       case 'email':
         return (
-          <Input
-            id={field.name}
-            type="email"
+          <EmailField
+            field={field}
             value={(value as string) || ''}
-            onChange={(e) => handleFieldChange(field.name, e.target.value)}
-            placeholder="email@example.com"
+            onChange={(v) => handleFieldChange(field.name, v)}
+          />
+        )
+
+      case 'url':
+        return (
+          <UrlField
+            field={field}
+            value={(value as string) || ''}
+            onChange={(v) => handleFieldChange(field.name, v)}
+          />
+        )
+
+      case 'editor':
+        return (
+          <EditorField
+            field={field}
+            value={(value as string) || ''}
+            onChange={(v) => handleFieldChange(field.name, v)}
+          />
+        )
+
+      case 'date':
+        return (
+          <DateField
+            field={field}
+            value={(value as string) || ''}
+            onChange={(v) => handleFieldChange(field.name, v)}
+          />
+        )
+
+      case 'select':
+        return (
+          <SelectField
+            field={field}
+            value={value as string | string[]}
+            onChange={(v) => handleFieldChange(field.name, v)}
+          />
+        )
+
+      case 'json':
+        return (
+          <JsonField
+            field={field}
+            value={value}
+            onChange={(v) => handleFieldChange(field.name, v)}
           />
         )
 
@@ -239,12 +579,39 @@ export function UpsertPanel({
           />
         )
 
-      case 'password':
-        // 普通 password 字段（非 auth collection 的 password）
+      case 'relation':
         return (
-          <PasswordInput
-            id={field.name}
+          <RelationField
+            field={field}
+            value={value as string | string[]}
+            onChange={(v) => handleFieldChange(field.name, v)}
+            zIndex={zIndex ? zIndex + 10 : undefined}
+          />
+        )
+
+      case 'password':
+        return (
+          <PasswordField
+            field={field}
             value={(value as string) || ''}
+            onChange={(v) => handleFieldChange(field.name, v)}
+          />
+        )
+
+      case 'secret':
+        return (
+          <SecretField
+            field={field}
+            value={(value as string) || ''}
+            onChange={(v) => handleFieldChange(field.name, v)}
+          />
+        )
+
+      case 'geoPoint':
+        return (
+          <GeoPointField
+            field={field}
+            value={value as { lat: number; lon: number } | undefined}
             onChange={(v) => handleFieldChange(field.name, v)}
           />
         )
@@ -260,99 +627,230 @@ export function UpsertPanel({
     }
   }
 
+  // More actions menu for edit mode
+  const renderMoreActions = () => {
+    if (isNew) return null
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="rounded-full h-8 w-8">
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {isAuthCollection && !record?.verified && record?.email && (
+            <DropdownMenuItem onClick={handleSendVerificationEmail}>
+              <Mail className="mr-2 h-4 w-4" />
+              Send verification email
+            </DropdownMenuItem>
+          )}
+          {isAuthCollection && record?.email && (
+            <DropdownMenuItem onClick={handleSendPasswordResetEmail}>
+              <Lock className="mr-2 h-4 w-4" />
+              Send password reset email
+            </DropdownMenuItem>
+          )}
+          {isAuthCollection && (
+            <DropdownMenuItem onClick={handleImpersonate}>
+              <UserCheck className="mr-2 h-4 w-4" />
+              Impersonate
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onClick={handleCopyJSON}>
+            <Braces className="mr-2 h-4 w-4" />
+            Copy raw JSON
+          </DropdownMenuItem>
+          {onDuplicate && (
+            <DropdownMenuItem onClick={handleDuplicate}>
+              <Copy className="mr-2 h-4 w-4" />
+              Duplicate
+            </DropdownMenuItem>
+          )}
+          {onDelete && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleDelete} className="text-destructive">
+                <Trash className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+  }
+
+  // Footer actions
+  const footerContent = (
+    <>
+      <Button type="button" variant="outline" onClick={handleClose}>
+        Cancel
+      </Button>
+      <div className="flex">
+        <Button
+          type="submit"
+          form={formId}
+          disabled={!canSave}
+          className={isEdit ? 'rounded-r-none' : ''}
+        >
+          {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create'}
+        </Button>
+        {isEdit && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                disabled={!canSave}
+                className="rounded-l-none border-l-0 px-2"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleSave(false)}>
+                Save and continue
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    </>
+  )
+
   return (
-    <OverlayPanel open={open} onClose={onClose} title={isEdit ? '编辑记录' : '新建记录'} width="lg">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* 编辑模式显示只读的 ID 字段 */}
-        {isEdit && record?.id && (
-          <div className="space-y-2">
-            <Label htmlFor="id" className="text-muted-foreground">
+    <TooltipProvider>
+    <>
+    <OverlayPanel
+      open={open}
+      onClose={handleClose}
+      title={`${isEdit ? 'Edit' : 'New'} ${collection?.name || ''} record`}
+      width={hasEditorField ? 'xl' : 'lg'}
+      headerExtra={renderMoreActions()}
+      escClose={!saving}
+      loading={saving}
+      overlayClose={!saving}
+      footer={footerContent}
+      zIndex={zIndex}
+    >
+      <form 
+        id={formId} 
+        onSubmit={handleSubmit} 
+        className="space-y-4"
+      >
+        {/* Draft restoration alert - 与旧版 UI 保持一致 */}
+        {!draftRestored && hasDraft && !hasChanges && (
+          <Alert variant="info" className="mb-0">
+            <AlertDescription className="flex items-center gap-2">
+              <span>The record has previous unsaved changes.</span>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={handleRestoreDraft}
+              >
+                Restore draft
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* ID 字段 */}
+        <div className={`form-field ${isEdit ? 'readonly' : ''}`}>
+          <div data-field-label="" className="flex items-center justify-between w-full">
+            <Label htmlFor="id" className="flex items-center gap-1.5">
+              <Key className="h-3.5 w-3.5" />
               id
             </Label>
-            <Input id="id" value={record.id} disabled className="font-mono text-sm bg-muted" />
+            {isEdit && record && <AutodateIcon record={record} />}
           </div>
-        )}
+          <Input
+            id="id"
+            value={isEdit ? (record?.id || '') : ((formData.id as string) || '')}
+            readOnly={isEdit}
+            disabled={isEdit}
+            placeholder={
+              isNew && idField?.autogeneratePattern
+                ? 'Leave empty to auto generate...'
+                : ''
+            }
+            minLength={idField?.min}
+            maxLength={idField?.max}
+            onChange={isNew ? (e) => handleFieldChange('id', e.target.value) : undefined}
+            className="font-mono text-sm"
+          />
+        </div>
 
-        {/* Auth Collection 专用字段 */}
-        {isAuthCollection && collection && (
+        {/* Auth Collection with Tabs (Edit mode, non-superusers) */}
+        {showTabs ? (
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'form' | 'providers')}>
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="form">Account</TabsTrigger>
+              <TabsTrigger value="providers">Authorized providers</TabsTrigger>
+            </TabsList>
+            <TabsContent value="form" className="space-y-4">
+              {/* Auth Fields */}
+              {collection && (
+                <AuthFields
+                  record={formData}
+                  onChange={handleFieldChange}
+                  collection={collection}
+                  isNew={false}
+                />
+              )}
+              {editableFields.length > 0 && <hr className="my-4" />}
+              {/* Regular Fields */}
+              {editableFields.map((field) => (
+                <div key={field.name}>
+                  {renderField(field)}
+                </div>
+              ))}
+            </TabsContent>
+            <TabsContent value="providers">
+              {record && <ExternalAuthsList record={record} />}
+            </TabsContent>
+          </Tabs>
+        ) : (
           <>
-            <AuthFields
-              record={formData}
-              onChange={handleFieldChange}
-              collection={collection}
-              isNew={!isEdit}
-            />
-            {editableFields.length > 0 && <hr className="my-4" />}
+            {/* Auth Collection 专用字段 (New mode or superusers) */}
+            {isAuthCollection && collection && (
+              <>
+                <AuthFields
+                  record={formData}
+                  onChange={handleFieldChange}
+                  collection={collection}
+                  isNew={!isEdit}
+                />
+                {editableFields.length > 0 && <hr className="my-4" />}
+              </>
+            )}
+
+            {/* 普通字段 */}
+            {editableFields.length === 0 && !isAuthCollection ? (
+              <div className="text-muted-foreground text-center py-4">No editable fields</div>
+            ) : (
+              editableFields.map((field) => (
+                <div key={field.name}>
+                  {renderField(field)}
+                </div>
+              ))
+            )}
           </>
         )}
-
-        {/* 普通字段 */}
-        {editableFields.length === 0 && !isAuthCollection ? (
-          <div className="text-muted-foreground text-center py-4">没有可编辑的字段</div>
-        ) : (
-          editableFields.map((field) => (
-            <div key={field.name} className="space-y-2">
-              {field.type !== 'bool' && field.type !== 'file' && (
-                <Label htmlFor={field.name}>
-                  {field.name}
-                  {field.required && <span className="text-destructive ml-1">*</span>}
-                </Label>
-              )}
-              {renderField(field)}
-            </div>
-          ))
-        )}
-
-        <div className="flex justify-end gap-2 pt-4 border-t">
-          <Button type="button" variant="outline" onClick={onClose}>
-            取消
-          </Button>
-          <Button type="submit" disabled={saving}>
-            {saving ? '保存中...' : isEdit ? '保存' : '创建'}
-          </Button>
-        </div>
       </form>
     </OverlayPanel>
-  )
-}
 
-/**
- * 密码输入组件（带显示/隐藏切换）
- */
-function PasswordInput({
-  id,
-  value,
-  onChange,
-}: {
-  id: string
-  value: string
-  onChange: (value: string) => void
-}) {
-  const [show, setShow] = useState(false)
-
-  return (
-    <div className="relative">
-      <Input
-        id={id}
-        type={show ? 'text' : 'password'}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="pr-10"
+    {/* Impersonate Popup */}
+    {isAuthCollection && collection && record && (
+      <ImpersonatePopup
+        open={showImpersonatePopup}
+        onOpenChange={setShowImpersonatePopup}
+        collection={collection}
+        record={record}
       />
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-        onClick={() => setShow(!show)}
-      >
-        {show ? (
-          <EyeOff className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <Eye className="h-4 w-4 text-muted-foreground" />
-        )}
-      </Button>
-    </div>
+    )}
+    </>
+    </TooltipProvider>
   )
 }
 

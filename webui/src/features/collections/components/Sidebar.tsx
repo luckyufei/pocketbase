@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAtom, useSetAtom } from 'jotai'
-import { Plus, Search, ChevronRight } from 'lucide-react'
+import { Plus, Search, ChevronDown, ChevronUp } from 'lucide-react'
 import { useCollections } from '../hooks/useCollections'
 import { searchQueryAtom, filteredCollectionsAtom } from '../store'
 import { CollectionItem } from './CollectionItem'
@@ -15,7 +15,6 @@ import { Input } from '@/components/ui/input'
 import { addToast } from '@/store/toasts'
 import { showConfirmation } from '@/store/confirmation'
 import type { CollectionModel } from 'pocketbase'
-import { cn } from '@/lib/utils'
 
 const PINNED_STORAGE_KEY = '@pinnedCollections'
 
@@ -176,12 +175,51 @@ export function CollectionsSidebar() {
     [editingCollection, saveCollection, createCollection, toast, t, navigate]
   )
 
-  // 按 Pinned/Others/System 分组
-  const groupedCollections = useMemo(() => ({
-    pinned: filteredCollections.filter((c) => pinnedIds.includes(c.id)),
-    others: filteredCollections.filter((c) => !c.name.startsWith('_') && !pinnedIds.includes(c.id)),
-    system: filteredCollections.filter((c) => c.name.startsWith('_') && !pinnedIds.includes(c.id)),
-  }), [filteredCollections, pinnedIds])
+  // 按类型和名称排序 collections（与 UI 版本 CommonHelper.sortCollections 保持一致）
+  // 顺序：auth → base → view，同类型按名称字母排序
+  const sortCollections = useCallback((collections: CollectionModel[]) => {
+    const auth: CollectionModel[] = []
+    const base: CollectionModel[] = []
+    const view: CollectionModel[] = []
+
+    for (const c of collections) {
+      if (c.type === 'auth') {
+        auth.push(c)
+      } else if (c.type === 'base') {
+        base.push(c)
+      } else {
+        view.push(c)
+      }
+    }
+
+    const sortByName = (a: CollectionModel, b: CollectionModel) => {
+      if (a.name > b.name) return 1
+      if (a.name < b.name) return -1
+      return 0
+    }
+
+    return [...auth.sort(sortByName), ...base.sort(sortByName), ...view.sort(sortByName)]
+  }, [])
+
+  // 按 Pinned/Others/System 分组（使用 c.system 属性判断系统 collection，与 UI 版本保持一致）
+  const groupedCollections = useMemo(() => {
+    const pinned = filteredCollections.filter((c) => pinnedIds.includes(c.id))
+    const others = filteredCollections.filter((c) => !c.system && !pinnedIds.includes(c.id))
+    const system = filteredCollections.filter((c) => c.system && !pinnedIds.includes(c.id))
+
+    return {
+      pinned: sortCollections(pinned),
+      others: sortCollections(others),
+      system: sortCollections(system),
+    }
+  }, [filteredCollections, pinnedIds, sortCollections])
+
+  // 当选中的是系统 collection（且未被 pinned）时，自动展开 System 分组
+  useEffect(() => {
+    if (activeCollection?.system && !pinnedIds.includes(activeCollection.id)) {
+      setSystemExpanded(true)
+    }
+  }, [activeCollection, pinnedIds])
 
   return (
     <div className="w-64 border-r border-slate-200 bg-slate-50/50 flex flex-col h-full">
@@ -261,22 +299,31 @@ export function CollectionsSidebar() {
               </div>
             )}
 
-            {/* 系统 Collections（可折叠，默认收起） */}
+            {/* 系统 Collections（可折叠，默认收起，搜索时强制展开） */}
             {groupedCollections.system.length > 0 && (
               <div>
                 <button
-                  onClick={() => setSystemExpanded(!systemExpanded)}
+                  onClick={() => {
+                    // 有搜索时不响应点击
+                    if (!searchQuery) {
+                      setSystemExpanded(!systemExpanded)
+                    }
+                  }}
                   className="flex items-center gap-1 text-xs font-medium text-slate-400 px-3 py-1 hover:text-slate-600 w-full text-left"
+                  disabled={!!searchQuery}
                 >
-                  <ChevronRight 
-                    className={cn(
-                      "h-3 w-3 transition-transform",
-                      systemExpanded && "rotate-90"
-                    )} 
-                  />
-                  System ({groupedCollections.system.length})
+                  <span>System</span>
+                  {/* 有搜索时不显示箭头 */}
+                  {!searchQuery && (
+                    systemExpanded ? (
+                      <ChevronUp className="h-3 w-3" />
+                    ) : (
+                      <ChevronDown className="h-3 w-3" />
+                    )
+                  )}
                 </button>
-                {systemExpanded && groupedCollections.system.map((collection) => (
+                {/* 搜索时强制展开，否则根据 systemExpanded 状态 */}
+                {(systemExpanded || searchQuery) && groupedCollections.system.map((collection) => (
                   <CollectionItem
                     key={collection.id}
                     collection={collection}
