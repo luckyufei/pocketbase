@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Compiled binary
+pocketless
+pocketless-linux
+pocketless-macos
+pocketless-windows.exe
+
+# Data directory (runtime)
+pb_data/
+pb_migrations/
+pb_hooks/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.tmp
+
+# Test coverage
+coverage/
+*.lcov
+
+# Logs
+*.log

@@ -634,6 +634,8 @@ apps/web/src/features/core/services/
 ## Active Technologies
 - Go 1.24.0 (backend), JavaScript/Svelte 4.x (frontend) (001-system-monitoring)
 - SQLite (metrics.db - 独立监控数据库) (001-system-monitoring)
+- TypeScript 5.x on Bun 1.x runtime + Hono (HTTP), Kysely (Query Builder), jose (JWT), arctic (OAuth2), croner (Cron), Commander.js (CLI), Zod (Validation), nodemailer (Email), @aws-sdk/client-s3 (S3) (032-pocketless)
+- SQLite (bun:sqlite, 默认) + PostgreSQL (Bun.SQL) (032-pocketless)
 
 ## Recent Changes
 - 001-system-monitoring: Added Go 1.24.0 (backend), JavaScript/Svelte 4.x (frontend)

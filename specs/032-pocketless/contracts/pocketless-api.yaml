@@ -1,0 +1,1101 @@
+openapi: "3.0.3"
+info:
+  title: Pocketless REST API
+  description: |
+    Pocketless API — 100% 兼容 PocketBase Go 版的 REST API。
+    所有端点路径、参数、请求体和响应体格式与 Go 版完全一致。
+  version: "0.1.0"
+  contact:
+    name: Pocketless
+servers:
+  - url: http://localhost:8090
+    description: 本地开发
+
+paths:
+  # ─── Health ───
+  /api/health:
+    get:
+      summary: 健康检查
+      operationId: healthCheck
+      tags: [System]
+      responses:
+        "200":
+          description: 服务正常
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 200 }
+                  message: { type: string, example: "API is healthy." }
+                  data:
+                    type: object
+                    properties:
+                      canBackup: { type: boolean }
+
+  # ─── Settings ───
+  /api/settings:
+    get:
+      summary: 获取设置（敏感字段 masked）
+      operationId: settingsList
+      tags: [Settings]
+      security: [{ superuserAuth: [] }]
+      responses:
+        "200":
+          description: 设置对象
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+    patch:
+      summary: 更新设置
+      operationId: settingsUpdate
+      tags: [Settings]
+      security: [{ superuserAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Settings"
+      responses:
+        "200":
+          description: 更新后的设置
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+
+  /api/settings/test/s3:
+    post:
+      summary: 测试 S3 连通性
+      operationId: testS3
+      tags: [Settings]
+      security: [{ superuserAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filesystem: { type: string, enum: [storage, backups] }
+      responses:
+        "204":
+          description: 连通正常
+
+  /api/settings/test/email:
+    post:
+      summary: 发送测试邮件
+      operationId: testEmail
+      tags: [Settings]
+      security: [{ superuserAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, template]
+              properties:
+                email: { type: string }
+                template: { type: string }
+      responses:
+        "204":
+          description: 邮件发送成功
+
+  # ─── Collections ───
+  /api/collections:
+    get:
+      summary: 列出所有 Collections
+      operationId: collectionsList
+      tags: [Collections]
+      security: [{ superuserAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/perPage"
+        - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/filter"
+        - $ref: "#/components/parameters/fields"
+        - $ref: "#/components/parameters/skipTotal"
+      responses:
+        "200":
+          description: 分页列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PagedResult"
+    post:
+      summary: 创建 Collection
+      operationId: collectionCreate
+      tags: [Collections]
+      security: [{ superuserAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Collection"
+      responses:
+        "200":
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+
+  /api/collections/{idOrName}:
+    get:
+      summary: 获取单个 Collection
+      operationId: collectionView
+      tags: [Collections]
+      security: [{ superuserAuth: [] }]
+      parameters:
+        - name: idOrName
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+    patch:
+      summary: 更新 Collection
+      operationId: collectionUpdate
+      tags: [Collections]
+      security: [{ superuserAuth: [] }]
+      parameters:
+        - name: idOrName
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Collection"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+    delete:
+      summary: 删除 Collection
+      operationId: collectionDelete
+      tags: [Collections]
+      security: [{ superuserAuth: [] }]
+      parameters:
+        - name: idOrName
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: 删除成功
+
+  /api/collections/{idOrName}/truncate:
+    delete:
+      summary: 清空 Collection 所有记录
+      operationId: collectionTruncate
+      tags: [Collections]
+      security: [{ superuserAuth: [] }]
+      parameters:
+        - name: idOrName
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: 清空成功
+
+  /api/collections/import:
+    put:
+      summary: 导入 Collections
+      operationId: collectionsImport
+      tags: [Collections]
+      security: [{ superuserAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [collections]
+              properties:
+                collections:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Collection"
+                deleteMissing: { type: boolean, default: false }
+      responses:
+        "204":
+          description: 导入成功
+
+  # ─── Records ───
+  /api/collections/{collection}/records:
+    get:
+      summary: 列出 Records
+      operationId: recordsList
+      tags: [Records]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/perPage"
+        - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/filter"
+        - $ref: "#/components/parameters/expand"
+        - $ref: "#/components/parameters/fields"
+        - $ref: "#/components/parameters/skipTotal"
+      responses:
+        "200":
+          description: 分页列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PagedResult"
+    post:
+      summary: 创建 Record
+      operationId: recordCreate
+      tags: [Records]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+          multipart/form-data:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Record"
+
+  /api/collections/{collection}/records/{id}:
+    get:
+      summary: 获取单个 Record
+      operationId: recordView
+      tags: [Records]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - $ref: "#/components/parameters/expand"
+        - $ref: "#/components/parameters/fields"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Record"
+    patch:
+      summary: 更新 Record
+      operationId: recordUpdate
+      tags: [Records]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+          multipart/form-data:
+            schema:
+              type: object
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Record"
+    delete:
+      summary: 删除 Record
+      operationId: recordDelete
+      tags: [Records]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: 删除成功
+
+  # ─── Auth ───
+  /api/collections/{collection}/auth-methods:
+    get:
+      summary: 获取认证方法列表
+      operationId: authMethods
+      tags: [Auth]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  password: { type: object }
+                  oauth2: { type: object }
+                  otp: { type: object }
+                  mfa: { type: object }
+
+  /api/collections/{collection}/auth-with-password:
+    post:
+      summary: 密码认证
+      operationId: authWithPassword
+      tags: [Auth]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identity, password]
+              properties:
+                identity: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /api/collections/{collection}/auth-with-oauth2:
+    post:
+      summary: OAuth2 认证
+      operationId: authWithOAuth2
+      tags: [Auth]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, code, codeVerifier, redirectURL]
+              properties:
+                provider: { type: string }
+                code: { type: string }
+                codeVerifier: { type: string }
+                redirectURL: { type: string }
+                createData: { type: object }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /api/collections/{collection}/request-otp:
+    post:
+      summary: 请求 OTP
+      operationId: requestOTP
+      tags: [Auth]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  otpId: { type: string }
+
+  /api/collections/{collection}/auth-with-otp:
+    post:
+      summary: OTP 认证
+      operationId: authWithOTP
+      tags: [Auth]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otpId, password]
+              properties:
+                otpId: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /api/collections/{collection}/auth-refresh:
+    post:
+      summary: 刷新 Auth Token
+      operationId: authRefresh
+      tags: [Auth]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+      security: [{ recordAuth: [] }]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /api/collections/{collection}/request-verification:
+    post:
+      summary: 请求邮箱验证
+      operationId: requestVerification
+      tags: [Auth]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+      responses:
+        "204":
+          description: 验证邮件已发送
+
+  /api/collections/{collection}/confirm-verification:
+    post:
+      summary: 确认邮箱验证
+      operationId: confirmVerification
+      tags: [Auth]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        "204":
+          description: 验证成功
+
+  /api/collections/{collection}/request-password-reset:
+    post:
+      summary: 请求密码重置
+      operationId: requestPasswordReset
+      tags: [Auth]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string }
+      responses:
+        "204":
+          description: 重置邮件已发送
+
+  /api/collections/{collection}/confirm-password-reset:
+    post:
+      summary: 确认密码重置
+      operationId: confirmPasswordReset
+      tags: [Auth]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password, passwordConfirm]
+              properties:
+                token: { type: string }
+                password: { type: string }
+                passwordConfirm: { type: string }
+      responses:
+        "204":
+          description: 密码重置成功
+
+  /api/collections/{collection}/request-email-change:
+    post:
+      summary: 请求邮箱变更
+      operationId: requestEmailChange
+      tags: [Auth]
+      security: [{ recordAuth: [] }]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newEmail]
+              properties:
+                newEmail: { type: string }
+      responses:
+        "204":
+          description: 变更确认邮件已发送
+
+  /api/collections/{collection}/confirm-email-change:
+    post:
+      summary: 确认邮箱变更
+      operationId: confirmEmailChange
+      tags: [Auth]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string }
+      responses:
+        "204":
+          description: 邮箱变更成功
+
+  /api/collections/{collection}/impersonate/{id}:
+    post:
+      summary: 模拟用户
+      operationId: impersonate
+      tags: [Auth]
+      security: [{ superuserAuth: [] }]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                duration: { type: integer }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  record: { $ref: "#/components/schemas/Record" }
+
+  # ─── Files ───
+  /api/files/{collection}/{recordId}/{filename}:
+    get:
+      summary: 下载文件
+      operationId: fileDownload
+      tags: [Files]
+      parameters:
+        - name: collection
+          in: path
+          required: true
+          schema: { type: string }
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string }
+        - name: filename
+          in: path
+          required: true
+          schema: { type: string }
+        - name: thumb
+          in: query
+          schema: { type: string, example: "100x100" }
+        - name: token
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: 文件内容
+
+  # ─── Realtime (SSE) ───
+  /api/realtime:
+    get:
+      summary: 建立 SSE 连接
+      operationId: realtimeConnect
+      tags: [Realtime]
+      responses:
+        "200":
+          description: SSE 事件流
+          content:
+            text/event-stream:
+              schema:
+                type: string
+    post:
+      summary: 设置订阅
+      operationId: realtimeSetSubscriptions
+      tags: [Realtime]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [clientId, subscriptions]
+              properties:
+                clientId: { type: string }
+                subscriptions:
+                  type: array
+                  items: { type: string }
+      responses:
+        "204":
+          description: 订阅设置成功
+
+  # ─── Batch ───
+  /api/batch:
+    post:
+      summary: 批量 API 操作（事务性）
+      operationId: batchProcess
+      tags: [Batch]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requests]
+              properties:
+                requests:
+                  type: array
+                  items:
+                    type: object
+                    required: [method, url]
+                    properties:
+                      method: { type: string }
+                      url: { type: string }
+                      headers: { type: object }
+                      body: { type: object }
+      responses:
+        "200":
+          description: 批量操作结果
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    status: { type: integer }
+                    body: { type: object }
+
+  # ─── Logs ───
+  /api/logs:
+    get:
+      summary: 列出日志
+      operationId: logsList
+      tags: [Logs]
+      security: [{ superuserAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/page"
+        - $ref: "#/components/parameters/perPage"
+        - $ref: "#/components/parameters/sort"
+        - $ref: "#/components/parameters/filter"
+        - $ref: "#/components/parameters/fields"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PagedResult"
+
+  /api/logs/{id}:
+    get:
+      summary: 获取单条日志
+      operationId: logView
+      tags: [Logs]
+      security: [{ superuserAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Log"
+
+  /api/logs/stats:
+    get:
+      summary: 日志统计
+      operationId: logsStats
+      tags: [Logs]
+      security: [{ superuserAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/filter"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    date: { type: string }
+                    total: { type: integer }
+
+  # ─── Crons ───
+  /api/crons:
+    get:
+      summary: 列出 Cron 任务
+      operationId: cronsList
+      tags: [Crons]
+      security: [{ superuserAuth: [] }]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string }
+                    expression: { type: string }
+
+  /api/crons/{jobId}:
+    post:
+      summary: 手动触发 Cron 任务
+      operationId: cronRun
+      tags: [Crons]
+      security: [{ superuserAuth: [] }]
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: 任务已触发
+
+  # ─── Backups ───
+  /api/backups:
+    get:
+      summary: 列出备份
+      operationId: backupsList
+      tags: [Backups]
+      security: [{ superuserAuth: [] }]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Backup"
+    post:
+      summary: 创建备份
+      operationId: backupCreate
+      tags: [Backups]
+      security: [{ superuserAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+      responses:
+        "204":
+          description: 备份创建中
+
+  /api/backups/{key}:
+    get:
+      summary: 下载备份
+      operationId: backupDownload
+      tags: [Backups]
+      security: [{ superuserAuth: [] }]
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: 备份文件
+    delete:
+      summary: 删除备份
+      operationId: backupDelete
+      tags: [Backups]
+      security: [{ superuserAuth: [] }]
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: 删除成功
+
+  /api/backups/{key}/restore:
+    post:
+      summary: 从备份恢复
+      operationId: backupRestore
+      tags: [Backups]
+      security: [{ superuserAuth: [] }]
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: 恢复成功
+
+components:
+  securitySchemes:
+    superuserAuth:
+      type: http
+      scheme: bearer
+      description: Superuser JWT Token
+    recordAuth:
+      type: http
+      scheme: bearer
+      description: Record Auth JWT Token
+
+  parameters:
+    page:
+      name: page
+      in: query
+      schema: { type: integer, default: 1 }
+    perPage:
+      name: perPage
+      in: query
+      schema: { type: integer, default: 30 }
+    sort:
+      name: sort
+      in: query
+      schema: { type: string }
+      description: "排序字段（-field 降序）"
+    filter:
+      name: filter
+      in: query
+      schema: { type: string }
+      description: "过滤表达式（fexpr 语法）"
+    expand:
+      name: expand
+      in: query
+      schema: { type: string }
+      description: "展开关联记录"
+    fields:
+      name: fields
+      in: query
+      schema: { type: string }
+      description: "指定返回字段"
+    skipTotal:
+      name: skipTotal
+      in: query
+      schema: { type: boolean, default: false }
+      description: "跳过 totalItems/totalPages 计算"
+
+  schemas:
+    Record:
+      type: object
+      properties:
+        id: { type: string, example: "abc123def456ghi" }
+        collectionId: { type: string }
+        collectionName: { type: string }
+        created: { type: string, format: date-time }
+        updated: { type: string, format: date-time }
+      additionalProperties: true
+
+    Collection:
+      type: object
+      properties:
+        id: { type: string }
+        type: { type: string, enum: [base, auth, view] }
+        name: { type: string }
+        system: { type: boolean }
+        fields:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              type: { type: string }
+              required: { type: boolean }
+              options: { type: object }
+        indexes: { type: array, items: { type: string } }
+        listRule: { type: string, nullable: true }
+        viewRule: { type: string, nullable: true }
+        createRule: { type: string, nullable: true }
+        updateRule: { type: string, nullable: true }
+        deleteRule: { type: string, nullable: true }
+        options: { type: object }
+        created: { type: string, format: date-time }
+        updated: { type: string, format: date-time }
+
+    AuthResponse:
+      type: object
+      properties:
+        token: { type: string }
+        record: { $ref: "#/components/schemas/Record" }
+        meta:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string }
+            email: { type: string }
+            avatarURL: { type: string }
+            isNew: { type: boolean }
+
+    Log:
+      type: object
+      properties:
+        id: { type: string }
+        level: { type: integer }
+        message: { type: string }
+        data: { type: object }
+        created: { type: string, format: date-time }
+
+    Backup:
+      type: object
+      properties:
+        key: { type: string }
+        size: { type: integer }
+        modified: { type: string, format: date-time }
+
+    Settings:
+      type: object
+      properties:
+        meta:
+          type: object
+          properties:
+            appName: { type: string }
+            appURL: { type: string }
+            senderName: { type: string }
+            senderAddress: { type: string }
+            hideControls: { type: boolean }
+        smtp:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            host: { type: string }
+            port: { type: integer }
+            username: { type: string }
+            password: { type: string, description: "masked in GET response" }
+            tls: { type: boolean }
+        s3:
+          type: object
+          properties:
+            enabled: { type: boolean }
+            endpoint: { type: string }
+            bucket: { type: string }
+            region: { type: string }
+            accessKey: { type: string }
+            secret: { type: string, description: "masked in GET response" }
+        rateLimits:
+          type: array
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              maxRequests: { type: integer }
+              duration: { type: integer }
+        batch:
+          type: object
+          properties:
+            maxRequests: { type: integer, default: 50 }
+            timeout: { type: integer }
+
+    PagedResult:
+      type: object
+      properties:
+        page: { type: integer }
+        perPage: { type: integer }
+        totalItems: { type: integer }
+        totalPages: { type: integer }
+        items:
+          type: array
+          items: { type: object }
+
+    Error:
+      type: object
+      properties:
+        code: { type: integer }
+        message: { type: string }
+        data: { type: object }
