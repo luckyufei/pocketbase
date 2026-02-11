@@ -11,7 +11,9 @@ import { useState, useCallback, useMemo, lazy, Suspense } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Map, MapPin, Loader2 } from 'lucide-react'
+import { FormField } from '@/components/ui/FormField'
+import { FieldLabel } from './FieldLabel'
+import { Map, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 // 懒加载地图组件
@@ -92,15 +94,11 @@ export function GeoPointField({
   }, [])
 
   return (
-    <div className={cn('space-y-2', className)}>
-      <Label className="flex items-center gap-1">
-        <MapPin className="h-4 w-4" />
-        <span>{field.name}</span>
-        {field.required && <span className="text-destructive">*</span>}
-      </Label>
+    <FormField name={field.name} className={cn('', className)}>
+      <FieldLabel field={field as any} />
 
       {/* 坐标输入区域 */}
-      <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/30">
+      <div className="flex items-center gap-2 px-3 pb-2">
         <div className="flex-1 flex items-center gap-2">
           <Label
             htmlFor={`${field.name}-lon`}
@@ -118,12 +116,10 @@ export function GeoPointField({
             max={180}
             step="any"
             placeholder="0"
-            className="h-8"
+            className="h-8 bg-background border"
             aria-label="Longitude"
           />
         </div>
-
-        <div className="w-px h-6 bg-border" />
 
         <div className="flex-1 flex items-center gap-2">
           <Label
@@ -142,12 +138,10 @@ export function GeoPointField({
             max={90}
             step="any"
             placeholder="0"
-            className="h-8"
+            className="h-8 bg-background border"
             aria-label="Latitude"
           />
         </div>
-
-        <div className="w-px h-6 bg-border" />
 
         <Button
           type="button"
@@ -164,7 +158,7 @@ export function GeoPointField({
 
       {/* 地图区域 */}
       {isMapVisible && (
-        <div className="h-[200px] rounded-md overflow-hidden border">
+        <div className="h-[200px] mx-3 mb-2 rounded-md overflow-hidden border">
           <Suspense
             fallback={
               <div className="h-full flex items-center justify-center bg-muted">
@@ -181,7 +175,7 @@ export function GeoPointField({
           </Suspense>
         </div>
       )}
-    </div>
+    </FormField>
   )
 }
 

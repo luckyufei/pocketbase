@@ -1,15 +1,34 @@
 /**
  * 字段标签组件
- * 展示字段名称和相关元信息（必填、类型等）
+ * 展示字段名称、类型图标和相关元信息（必填、类型等）
  */
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { HelpCircle } from 'lucide-react'
-import type { SchemaField } from 'pocketbase'
+import {
+  HelpCircle,
+  Type,
+  Hash,
+  ToggleLeft,
+  Mail,
+  Link,
+  Calendar,
+  CalendarCheck,
+  Pencil,
+  ListChecks,
+  Braces,
+  Image,
+  GitFork,
+  Lock,
+  MapPin,
+  Key,
+  Star,
+} from 'lucide-react'
+import type { CollectionField } from 'pocketbase'
+import type { LucideIcon } from 'lucide-react'
 
 interface FieldLabelProps {
-  field: SchemaField
+  field: CollectionField & { hidden?: boolean; primaryKey?: boolean; options?: Record<string, unknown> }
   htmlFor?: string
   showType?: boolean
   showRequired?: boolean
@@ -33,6 +52,31 @@ const FIELD_TYPE_LABELS: Record<string, string> = {
   geoPoint: '地理坐标',
 }
 
+const FIELD_TYPE_ICONS: Record<string, LucideIcon> = {
+  primary: Key,
+  text: Type,
+  number: Hash,
+  bool: ToggleLeft,
+  email: Mail,
+  url: Link,
+  date: Calendar,
+  autodate: CalendarCheck,
+  editor: Pencil,
+  select: ListChecks,
+  json: Braces,
+  file: Image,
+  relation: GitFork,
+  password: Lock,
+  geoPoint: MapPin,
+}
+
+function getFieldTypeIcon(field: FieldLabelProps['field']): LucideIcon {
+  if ((field as any).primaryKey) {
+    return FIELD_TYPE_ICONS.primary
+  }
+  return FIELD_TYPE_ICONS[field.type] || Star
+}
+
 export function FieldLabel({
   field,
   htmlFor,
@@ -41,14 +85,23 @@ export function FieldLabel({
   className = '',
 }: FieldLabelProps) {
   const typeLabel = FIELD_TYPE_LABELS[field.type] || field.type
+  const IconComponent = getFieldTypeIcon(field)
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <Label htmlFor={htmlFor} className="font-medium">
+    <div data-field-label="" className={`flex items-center gap-1.5 min-w-0 ${className}`}>
+      <IconComponent className="h-3.5 w-3.5 shrink-0" />
+      <Label htmlFor={htmlFor} className="font-medium truncate max-w-[200px]" title={field.name}>
         {field.name}
       </Label>
 
       {showRequired && field.required && <span className="text-destructive">*</span>}
+
+      {/* Hidden field indicator */}
+      {(field as any).hidden && (
+        <Badge variant="destructive" className="text-xs font-normal">
+          Hidden
+        </Badge>
+      )}
 
       {showType && (
         <Badge variant="outline" className="text-xs font-normal">

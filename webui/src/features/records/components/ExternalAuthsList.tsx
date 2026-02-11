@@ -5,9 +5,10 @@
 import { useEffect, useState } from 'react'
 import { X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useToast } from '@/hooks/useToast'
-import { useConfirmation } from '@/components/Confirmation'
-import { getProviderByKey, sentenize } from '@/lib/providers'
+import { useSetAtom } from 'jotai'
+import { addToast as addToastAtom } from '@/store/toasts'
+import { useConfirmation } from '@/hooks/useConfirmation'
+import { getProviderByName, getProviderDisplayName } from '@/lib/providers'
 import pb from '@/lib/pocketbase'
 import type { RecordModel } from 'pocketbase'
 
@@ -27,16 +28,15 @@ interface ExternalAuthsListProps {
 export function ExternalAuthsList({ record, onUnlink }: ExternalAuthsListProps) {
   const [externalAuths, setExternalAuths] = useState<ExternalAuth[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const { toast } = useToast()
+  const addToast = useSetAtom(addToastAtom)
   const { confirm } = useConfirmation()
 
   const getProviderTitle = (provider: string) => {
-    const config = getProviderByKey(provider)
-    return config?.title || sentenize(provider)
+    return getProviderDisplayName(provider)
   }
 
   const getProviderLogo = (provider: string) => {
-    const config = getProviderByKey(provider)
+    const config = getProviderByName(provider)
     return config?.logo || 'default.svg'
   }
 
@@ -58,10 +58,9 @@ export function ExternalAuthsList({ record, onUnlink }: ExternalAuthsListProps) 
       })
       setExternalAuths(auths as unknown as ExternalAuth[])
     } catch (err) {
-      toast({
-        title: '加载外部认证失败',
-        description: err instanceof Error ? err.message : '请重试',
-        variant: 'destructive',
+      addToast({
+        type: 'error',
+        message: `加载外部认证失败: ${err instanceof Error ? err.message : '请重试'}`,
       })
     } finally {
       setIsLoading(false)
@@ -77,21 +76,20 @@ export function ExternalAuthsList({ record, onUnlink }: ExternalAuthsListProps) 
       title: '解除关联',
       message: `确定要解除与 ${providerTitle} 的关联吗？`,
       confirmText: '解除关联',
-      variant: 'destructive',
+      isDanger: true,
       onConfirm: async () => {
         try {
           await pb.collection('_externalAuths').delete(externalAuth.id)
-          toast({
-            title: '解除关联成功',
-            description: `已成功解除与 ${providerTitle} 的关联`,
+          addToast({
+            type: 'success',
+            message: `已成功解除与 ${providerTitle} 的关联`,
           })
           onUnlink?.(externalAuth.provider)
           loadExternalAuths()
         } catch (err) {
-          toast({
-            title: '解除关联失败',
-            description: err instanceof Error ? err.message : '请重试',
-            variant: 'destructive',
+          addToast({
+            type: 'error',
+            message: `解除关联失败: ${err instanceof Error ? err.message : '请重试'}`,
           })
         }
       },

@@ -51,38 +51,56 @@ export function FormField({
   const wrappedChildren = React.Children.map(children, (child) => {
     if (!React.isValidElement(child)) return child
 
-    const originalOnChange = (child.props as any).onChange
-    const originalClassName = (child.props as any).className
+    const childProps = child.props as Record<string, unknown>
+    const originalClassName = childProps.className as string | undefined
 
-    return React.cloneElement(child as React.ReactElement<any>, {
-      onChange: (e: any) => {
-        // 输入时清除错误
-        if (fieldError) {
-          removeError(name)
-        }
-        originalOnChange?.(e)
-      },
+    // 检查是否有 data-field-label 属性，这是标签元素，不需要包装
+    if (childProps['data-field-label'] !== undefined) {
+      return child
+    }
+
+    // 创建新的 props
+    const newProps: Record<string, unknown> = {
       className: cn(
         originalClassName,
         fieldError && 'border-destructive focus-visible:ring-destructive'
       ),
-    })
+    }
+
+    // 智能处理不同类型的 onChange
+    // Switch 使用 onCheckedChange，Select 使用 onValueChange，普通 input 使用 onChange
+    const changeHandlers = ['onChange', 'onCheckedChange', 'onValueChange'] as const
+    for (const handler of changeHandlers) {
+      const originalHandler = childProps[handler] as ((...args: unknown[]) => void) | undefined
+      if (originalHandler) {
+        newProps[handler] = (...args: unknown[]) => {
+          // 输入时清除错误
+          if (fieldError) {
+            removeError(name)
+          }
+          originalHandler(...args)
+        }
+        break // 只处理第一个找到的 handler
+      }
+    }
+
+    return React.cloneElement(child as React.ReactElement, newProps)
   })
 
   return (
-    <div className={cn('form-field space-y-1.5', fieldError && 'error', className)}>
+    <div className={cn('form-field', fieldError && 'error', className)}>
       {label && (
-        <label className="text-sm font-medium text-foreground">
+        <label data-field-label="" className="text-sm font-medium text-foreground">
           {label}
           {required && <span className="text-destructive ml-0.5">*</span>}
         </label>
       )}
       {wrappedChildren}
       {hint && !errorMessage && (
-        <p className="text-xs text-muted-foreground">{hint}</p>
+        <p className="text-xs text-muted-foreground px-3 py-1">{hint}</p>
       )}
       {errorMessage && (
-        <p className="text-destructive text-sm">{errorMessage}</p>
+        <p className="text-destructive text-sm px-3 py-1">{errorMessage}</p>
       )}
     </div>
   )

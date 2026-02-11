@@ -20,7 +20,7 @@ interface CodeEditorProps {
   readOnly?: boolean
   height?: string
   minHeight?: number | string
-  maxHeight?: string
+  maxHeight?: string | number
   placeholder?: string
   className?: string
   theme?: 'light' | 'dark'
@@ -33,6 +33,8 @@ interface CodeEditorProps {
   }
   // 是否显示加载状态
   loading?: boolean
+  // 简洁模式：隐藏行号、折叠等功能，用于表单字段
+  minimal?: boolean
 }
 
 /**
@@ -58,6 +60,7 @@ export function CodeEditor({
   theme = 'light',
   sqlSchema,
   loading = false,
+  minimal = false,
 }: CodeEditorProps) {
   const [focused, setFocused] = useState(false)
   
@@ -139,8 +142,10 @@ export function CodeEditor({
   return (
     <div 
       className={cn(
-        'border rounded-md overflow-hidden transition-colors',
-        focused && 'ring-2 ring-blue-500 ring-offset-1',
+        'overflow-hidden transition-colors',
+        !minimal && 'border rounded-md',
+        !minimal && focused && 'ring-2 ring-blue-500 ring-offset-1',
+        minimal && 'bg-transparent',
         className
       )}
     >
@@ -153,12 +158,37 @@ export function CodeEditor({
         readOnly={readOnly}
         height={height}
         minHeight={minHeightStyle}
-        maxHeight={maxHeight}
+        maxHeight={typeof maxHeight === 'number' ? `${maxHeight}px` : maxHeight}
         placeholder={placeholder}
         theme={theme}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        basicSetup={{
+        basicSetup={minimal ? {
+          // 简洁模式：关闭行号、折叠等
+          lineNumbers: false,
+          highlightActiveLineGutter: false,
+          highlightSpecialChars: true,
+          foldGutter: false,
+          drawSelection: true,
+          dropCursor: true,
+          allowMultipleSelections: false,
+          indentOnInput: true,
+          syntaxHighlighting: true,
+          bracketMatching: true,
+          closeBrackets: true,
+          autocompletion: false,
+          rectangularSelection: false,
+          crosshairCursor: false,
+          highlightActiveLine: false,
+          highlightSelectionMatches: false,
+          closeBracketsKeymap: true,
+          defaultKeymap: true,
+          searchKeymap: false,
+          historyKeymap: true,
+          foldKeymap: false,
+          completionKeymap: false,
+          lintKeymap: false,
+        } : {
           lineNumbers: true,
           highlightActiveLineGutter: true,
           highlightSpecialChars: true,

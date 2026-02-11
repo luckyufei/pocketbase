@@ -11,7 +11,8 @@
 import { useState, useCallback, useMemo } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
+import { FormField } from '@/components/ui/FormField'
+import { FieldLabel } from './FieldLabel'
 import { Eye, EyeOff, Key, RefreshCw, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -138,12 +139,8 @@ export function PasswordField({
   // 遮罩模式：显示占位符和解锁按钮
   if (isMasked) {
     return (
-      <div className={cn('space-y-2', className)}>
-        <Label className="flex items-center gap-1">
-          <Lock className="h-4 w-4" />
-          <span>{field.name}</span>
-          {field.required && <span className="text-destructive">*</span>}
-        </Label>
+      <FormField name={field.name} className={cn('', className)}>
+        <FieldLabel field={field as any} />
         <div className="relative">
           <Input type="text" placeholder="******" disabled className="pr-10" />
           <Button
@@ -157,17 +154,13 @@ export function PasswordField({
             <Key className="h-4 w-4" />
           </Button>
         </div>
-      </div>
+      </FormField>
     )
   }
 
   return (
-    <div className={cn('space-y-2', className)}>
-      <Label className="flex items-center gap-1">
-        <Lock className="h-4 w-4" />
-        <span>{field.name}</span>
-        {field.required && <span className="text-destructive">*</span>}
-      </Label>
+    <FormField name={field.name} className={cn('', className)}>
+      <FieldLabel field={field as any} />
 
       {/* 主密码输入 */}
       <div className="relative">
@@ -241,7 +234,7 @@ export function PasswordField({
           {showMismatchError && <p className="text-xs text-destructive">Passwords do not match</p>}
         </div>
       )}
-    </div>
+    </FormField>
   )
 }
 

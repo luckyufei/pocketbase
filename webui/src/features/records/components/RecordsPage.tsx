@@ -10,11 +10,14 @@ import { activeCollectionAtom, collectionsAtom } from '@/features/collections/st
 import { setPageTitle } from '@/store/app'
 import { addToast } from '@/store/toasts'
 import { showConfirmation } from '@/store/confirmation'
+import { superuserAtom, clearAuth } from '@/store/auth'
+import { getApiClient } from '@/lib/ApiClient'
 import { useRecords } from '@/features/records/hooks/useRecords'
 import { useCollections } from '@/features/collections/hooks/useCollections'
 import { isAllSelectedAtom } from '@/features/records/store'
 import { RecordsTable } from '@/features/records/components/RecordsTable'
 import { UpsertPanel as RecordUpsertPanel } from '@/features/records/components/UpsertPanel'
+import { RecordPreviewPanel } from '@/features/records/components/RecordPreviewPanel'
 import { UpsertPanel as CollectionUpsertPanel } from '@/features/collections/components/UpsertPanel'
 import { CollectionDocsPanel } from '@/features/collections/components/docs/CollectionDocsPanel'
 import { Button } from '@/components/ui/button'
@@ -34,17 +37,24 @@ export function RecordsPage() {
   const isAllSelected = useAtomValue(isAllSelectedAtom)
   const setTitle = useSetAtom(setPageTitle)
   const toast = useSetAtom(addToast)
-  const confirm = useSetAtom(showConfirmation)
+const confirm = useSetAtom(showConfirmation)
+  const currentSuperuser = useAtomValue(superuserAtom)
+  const logout = useSetAtom(clearAuth)
 
   const [panelOpen, setPanelOpen] = useState(false)
   const [editingRecord, setEditingRecord] = useState<RecordModel | null>(null)
   const [collectionPanelOpen, setCollectionPanelOpen] = useState(false)
   const [editingCollection, setEditingCollection] = useState<CollectionModel | null>(null)
-  const [docsPanelOpen, setDocsPanelOpen] = useState(false)
+const [docsPanelOpen, setDocsPanelOpen] = useState(false)
+  const [previewPanelOpen, setPreviewPanelOpen] = useState(false)
+  const [previewRecordId, setPreviewRecordId] = useState<string | null>(null)
   // 输入框的临时值（用户正在输入）
   const [filterInput, setFilterInput] = useState('')
 
-  const { saveCollection, fetchCollections } = useCollections()
+const { saveCollection, fetchCollections } = useCollections()
+
+  // Check if this is a View Collection
+  const isViewCollection = collection?.type === 'view'
 
   const {
     records,
@@ -114,11 +124,18 @@ export function RecordsPage() {
     setFilter(normalizedFilter)
   }, [setFilter, searchableFields])
 
-  // 处理行点击
+// 处理行点击
   const handleRowClick = useCallback((record: RecordModel) => {
-    setEditingRecord(record)
-    setPanelOpen(true)
-  }, [])
+    if (isViewCollection) {
+      // For View Collections, open preview panel
+      setPreviewRecordId(record.id)
+      setPreviewPanelOpen(true)
+    } else {
+      // For other collections, open edit panel
+      setEditingRecord(record)
+      setPanelOpen(true)
+    }
+  }, [isViewCollection])
 
   // 处理新建
   const handleNew = useCallback(() => {
@@ -164,6 +181,22 @@ export function RecordsPage() {
         if (editingRecord) {
           await saveRecord(editingRecord.id, saveData)
           toast({ type: 'success', message: t('records.updateSuccess', '更新成功') })
+
+          // T4400: Check if superuser changed own password - trigger logout
+          if (
+            collection?.name === '_superusers' &&
+            editingRecord.id === currentSuperuser?.id &&
+            (data.password || data.newPassword)
+          ) {
+            toast({
+              type: 'info',
+              message: 'Password changed. Please login again.',
+            })
+            // Clear auth state and redirect to login
+            getApiClient().authStore.clear()
+            logout()
+            navigate('/login')
+          }
         } else {
           await createRecord(saveData)
           toast({ type: 'success', message: t('records.createSuccess', '创建成功') })
@@ -232,8 +265,9 @@ export function RecordsPage() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* 工具栏 */}
-      <div className="flex items-center justify-between p-4 border-b">
+      {/* 工具栏 - 与 UI 版本一致，支持换行，小屏幕时按钮组占满宽度 */}
+      <div className="page-header flex flex-wrap items-center gap-2 p-4 border-b">
+        {/* 左侧：Collection 名称和操作按钮 */}
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">{collection.name}</h2>
           {/* 编辑 Collection 按钮 */}
@@ -264,33 +298,51 @@ export function RecordsPage() {
             {records.totalItems} {t('records.total', '条记录')}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <Suspense fallback={<div className="w-80 h-9 border rounded-md bg-muted/30 animate-pulse" />}>
-            <FilterAutocompleteInput
-              value={filterInput}
-              onChange={setFilterInput}
-              onSubmit={handleFilterSubmit}
-              collections={collections}
-              baseCollection={collection}
-              placeholder={t('records.filterPlaceholder', 'Filter records, e.g. created > @now')}
-              className="w-80"
-            />
-          </Suspense>
-          {selectedIds.size > 0 && (
-            <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
-              <Trash2 className="w-4 h-4 mr-1" />
-              {t('records.deleteSelected', `删除 (${selectedIds.size})`)}
-            </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={() => setDocsPanelOpen(true)}>
+        {/* 右侧按钮组 - 与 UI 版本一致：
+            - 正常情况：ml-auto 推到右侧
+            - 小屏幕时（<1050px）：w-full 占满宽度，按钮均分 */}
+        <div className="btns-group flex items-center gap-2 ml-auto max-[1050px]:w-full max-[1050px]:justify-stretch">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setDocsPanelOpen(true)}
+            className="max-[1050px]:flex-1"
+          >
             <Code className="w-4 h-4 mr-1" />
             {t('records.apiPreview', 'API Preview')}
           </Button>
-          <Button size="sm" onClick={handleNew}>
-            <Plus className="w-4 h-4 mr-1" />
-            {t('records.new', 'New Record')}
-          </Button>
+          {!isViewCollection && (
+            <Button 
+              size="sm" 
+              onClick={handleNew}
+              className="max-[1050px]:flex-1"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              {t('records.new', 'New Record')}
+            </Button>
+          )}
         </div>
+      </div>
+
+      {/* 筛选栏 - 独立一行 */}
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b">
+        <Suspense fallback={<div className="flex-1 min-w-[200px] max-w-md h-9 border rounded-md bg-muted/30 animate-pulse" />}>
+          <FilterAutocompleteInput
+            value={filterInput}
+            onChange={setFilterInput}
+            onSubmit={handleFilterSubmit}
+            collections={collections}
+            baseCollection={collection}
+            placeholder={t('records.filterPlaceholder', 'Filter records, e.g. created > @now')}
+            className="flex-1 min-w-[200px] max-w-md"
+          />
+        </Suspense>
+        {selectedIds.size > 0 && (
+          <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
+            <Trash2 className="w-4 h-4 mr-1" />
+            {t('records.deleteSelected', `删除 (${selectedIds.size})`)}
+          </Button>
+        )}
       </div>
 
       {/* Records 表格 */}
@@ -368,6 +420,14 @@ export function RecordsPage() {
         collection={collection}
         open={docsPanelOpen}
         onOpenChange={setDocsPanelOpen}
+      />
+
+      {/* Record 预览面板 (用于 View Collection) */}
+      <RecordPreviewPanel
+        open={previewPanelOpen}
+        onClose={() => setPreviewPanelOpen(false)}
+        collection={collection}
+        recordId={previewRecordId || ''}
       />
     </div>
   )
