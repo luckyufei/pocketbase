@@ -7,15 +7,48 @@ import type { DailyStats } from '../store'
 
 interface Props {
   data: DailyStats[]
+  days?: number
 }
 
-const CHART_HEIGHT = 180
+const CHART_HEIGHT = 200
 const PADDING_TOP = 20
 const PADDING_BOTTOM = 30
 const PADDING_LEFT = 40
-const PADDING_RIGHT = 20
+const PADDING_RIGHT = 40
 
-export function AnalyticsChart({ data }: Props) {
+/**
+ * 格式化日期为 MM-DD 格式
+ */
+function formatDate(d: Date): string {
+  const month = (d.getMonth() + 1).toString().padStart(2, '0')
+  const day = d.getDate().toString().padStart(2, '0')
+  return `${month}-${day}`
+}
+
+/**
+ * 处理数据：如果数据为空，生成占位日期数据
+ */
+function processData(raw: DailyStats[], days: number): DailyStats[] {
+  if (!raw || raw.length === 0) {
+    // Generate empty data with dates
+    const result: DailyStats[] = []
+    const now = new Date()
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(now)
+      d.setDate(d.getDate() - i)
+      result.push({
+        date: formatDate(d),
+        pv: 0,
+        uv: 0,
+      })
+    }
+    return result
+  }
+  // Sort by date
+  return [...raw].sort((a, b) => a.date.localeCompare(b.date))
+}
+
+export function AnalyticsChart({ data, days = 7 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
 
@@ -34,32 +67,33 @@ export function AnalyticsChart({ data }: Props) {
     return () => observer.disconnect()
   }, [])
 
-  // 处理数据
-  const chartData = useMemo(() => {
-    if (!data || data.length === 0) return []
-    // 按日期排序
-    return [...data].sort((a, b) => a.date.localeCompare(b.date))
-  }, [data])
+  // 处理数据（当数据为空时生成占位数据）
+  const chartData = useMemo(() => processData(data, days), [data, days])
 
   // 计算最大值
   const maxPV = useMemo(() => Math.max(...chartData.map(d => d.pv), 1), [chartData])
   const maxUV = useMemo(() => Math.max(...chartData.map(d => d.uv), 1), [chartData])
-  const maxValue = Math.max(maxPV, maxUV)
 
   // 计算点坐标
   const getX = (index: number) => {
     const usableWidth = width - PADDING_LEFT - PADDING_RIGHT
     if (chartData.length <= 1) return PADDING_LEFT + usableWidth / 2
-    return PADDING_LEFT + (index / (chartData.length - 1)) * usableWidth
+    const step = usableWidth / Math.max(chartData.length - 1, 1)
+    return PADDING_LEFT + index * step
   }
 
-  const getY = (value: number) => {
+  const getYPV = (value: number) => {
     const usableHeight = CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM
-    return CHART_HEIGHT - PADDING_BOTTOM - (value / maxValue) * usableHeight
+    return CHART_HEIGHT - PADDING_BOTTOM - (value / maxPV) * usableHeight
+  }
+
+  const getYUV = (value: number) => {
+    const usableHeight = CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM
+    return CHART_HEIGHT - PADDING_BOTTOM - (value / maxUV) * usableHeight
   }
 
   // 生成路径
-  const generatePath = (values: number[]) => {
+  const generatePath = (values: number[], getY: (v: number) => number) => {
     if (values.length === 0) return ''
     if (values.length === 1) return `M ${getX(0)} ${getY(values[0])}`
     
@@ -70,72 +104,37 @@ export function AnalyticsChart({ data }: Props) {
     return path
   }
 
-  // 生成填充区域路径
-  const generateAreaPath = (values: number[]) => {
-    if (values.length === 0) return ''
-    
-    const linePath = generatePath(values)
-    const lastX = getX(values.length - 1)
-    const firstX = getX(0)
-    const bottomY = CHART_HEIGHT - PADDING_BOTTOM
-    
-    return `${linePath} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`
-  }
-
-  const pvPath = generatePath(chartData.map(d => d.pv))
-  const uvPath = generatePath(chartData.map(d => d.uv))
-  const pvAreaPath = generateAreaPath(chartData.map(d => d.pv))
-  const uvAreaPath = generateAreaPath(chartData.map(d => d.uv))
+  const pvPath = generatePath(chartData.map(d => d.pv), getYPV)
+  const uvPath = generatePath(chartData.map(d => d.uv), getYUV)
 
   // Y 轴刻度
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(ratio => Math.round(maxValue * ratio))
-
-  if (chartData.length === 0) {
-    return (
-      <div className="h-[180px] flex items-center justify-center text-slate-400 text-sm">
-        暂无数据
-      </div>
-    )
-  }
+  const yTicks = [0, 0.25, 0.5, 0.75, 1]
 
   return (
     <div ref={containerRef} className="w-full">
       {width > 0 && (
         <svg width={width} height={CHART_HEIGHT} className="overflow-visible">
           {/* 网格线 */}
-          {yTicks.map((tick, i) => (
-            <g key={i}>
-              <line
-                x1={PADDING_LEFT}
-                y1={getY(tick)}
-                x2={width - PADDING_RIGHT}
-                y2={getY(tick)}
-                stroke="#e2e8f0"
-                strokeDasharray="4"
-              />
-              <text
-                x={PADDING_LEFT - 8}
-                y={getY(tick) + 4}
-                textAnchor="end"
-                className="text-[10px] fill-slate-400"
-              >
-                {tick >= 1000 ? (tick / 1000).toFixed(0) + 'k' : tick}
-              </text>
-            </g>
+          {yTicks.map((ratio, i) => (
+            <line
+              key={i}
+              x1={PADDING_LEFT}
+              y1={CHART_HEIGHT - PADDING_BOTTOM - ratio * (CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM)}
+              x2={width - PADDING_RIGHT}
+              y2={CHART_HEIGHT - PADDING_BOTTOM - ratio * (CHART_HEIGHT - PADDING_TOP - PADDING_BOTTOM)}
+              stroke="#e2e8f0"
+              strokeDasharray="4"
+            />
           ))}
 
-          {/* UV 填充区域 */}
+          {/* PV 折线 */}
           <path
-            d={uvAreaPath}
-            fill="url(#uvGradient)"
-            opacity={0.3}
-          />
-
-          {/* PV 填充区域 */}
-          <path
-            d={pvAreaPath}
-            fill="url(#pvGradient)"
-            opacity={0.3}
+            d={pvPath}
+            fill="none"
+            stroke="#3b82f6"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
 
           {/* UV 折线 */}
@@ -148,28 +147,18 @@ export function AnalyticsChart({ data }: Props) {
             strokeLinejoin="round"
           />
 
-          {/* PV 折线 */}
-          <path
-            d={pvPath}
-            fill="none"
-            stroke="#3b82f6"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
           {/* 数据点 */}
           {chartData.map((d, i) => (
             <g key={i}>
               <circle
                 cx={getX(i)}
-                cy={getY(d.pv)}
+                cy={getYPV(d.pv)}
                 r={3}
                 fill="#3b82f6"
               />
               <circle
                 cx={getX(i)}
-                cy={getY(d.uv)}
+                cy={getYUV(d.uv)}
                 r={3}
                 fill="#10b981"
               />
@@ -190,26 +179,14 @@ export function AnalyticsChart({ data }: Props) {
               <text
                 key={i}
                 x={getX(i)}
-                y={CHART_HEIGHT - 8}
+                y={CHART_HEIGHT - 5}
                 textAnchor="middle"
                 className="text-[10px] fill-slate-400"
               >
-                {d.date.slice(5)} {/* 只显示 MM-DD */}
+                {d.date}
               </text>
             )
           })}
-
-          {/* 渐变定义 */}
-          <defs>
-            <linearGradient id="pvGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#3b82f6" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="uvGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#10b981" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
-            </linearGradient>
-          </defs>
         </svg>
       )}
 
