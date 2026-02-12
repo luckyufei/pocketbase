@@ -14,10 +14,7 @@ interface UseCtrlSOptions {
  * @param onSave 保存回调函数
  * @param options 配置选项
  */
-export function useCtrlS(
-  onSave: () => void,
-  options: UseCtrlSOptions = {}
-) {
+export function useCtrlS(onSave: () => void, options: UseCtrlSOptions = {}) {
   const { enabled = true } = options
 
   const handleKeyDown = useCallback(

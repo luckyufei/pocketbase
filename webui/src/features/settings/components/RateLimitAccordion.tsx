@@ -2,7 +2,7 @@
  * 速率限制配置组件
  * 用于配置 API 请求的速率限制规则
  */
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Accordion,
   AccordionContent,
@@ -44,7 +44,7 @@ export interface RateLimitRule {
   label: string
   maxRequests: number
   duration: number
-  audience: '' | '@guest' | '@auth'
+  audience: string
 }
 
 export interface RateLimitsSettings {
@@ -59,10 +59,14 @@ interface RateLimitAccordionProps {
 }
 
 const AUDIENCE_OPTIONS = [
-  { value: '', label: '全部' },
-  { value: '@guest', label: '仅游客' },
-  { value: '@auth', label: '仅已认证用户' },
+  { value: 'all', label: 'All' },
+  { value: '@guest', label: 'Guest only' },
+  { value: '@auth', label: 'Auth only' },
 ]
+
+// Convert between UI value and API value
+const audienceToUI = (value: string) => (value === '' ? 'all' : value)
+const audienceToAPI = (value: string) => (value === 'all' ? '' : value)
 
 const BASE_PREDEFINED_TAGS = [
   { value: '*:list' },
@@ -70,10 +74,10 @@ const BASE_PREDEFINED_TAGS = [
   { value: '*:create' },
   { value: '*:update' },
   { value: '*:delete' },
-  { value: '*:file', description: '针对文件下载端点' },
+  { value: '*:file', description: 'targets the files download endpoint' },
   { value: '*:listAuthMethods' },
   { value: '*:authRefresh' },
-  { value: '*:auth', description: '针对所有认证方法' },
+  { value: '*:auth', description: 'targets all auth methods' },
   { value: '*:authWithPassword' },
   { value: '*:authWithOAuth2' },
   { value: '*:authWithOTP' },
@@ -88,13 +92,12 @@ const BASE_PREDEFINED_TAGS = [
 
 export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAccordionProps) {
   const [showInfoDialog, setShowInfoDialog] = useState(false)
-  const [predefinedTags, setPredefinedTags] = useState(BASE_PREDEFINED_TAGS)
   const { collections } = useCollections()
 
   const hasErrors = Object.keys(errors).some((key) => key.startsWith('rateLimits'))
 
-  // 根据集合生成预定义标签
-  useEffect(() => {
+  // Generate predefined tags based on collections
+  const predefinedTags = useMemo(() => {
     const tags: { value: string; description?: string }[] = []
 
     for (const collection of collections) {
@@ -131,7 +134,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
       }
     }
 
-    setPredefinedTags([...tags, ...BASE_PREDEFINED_TAGS])
+    return [...tags, ...BASE_PREDEFINED_TAGS]
   }, [collections])
 
   const handleAddRule = () => {
@@ -141,13 +144,12 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
         label: '',
         maxRequests: 300,
         duration: 10,
-        audience: '' as const,
+        audience: '',
       },
     ]
     onChange({
       ...value,
       rules: newRules,
-      enabled: newRules.length > 0 ? true : value.enabled,
     })
   }
 
@@ -173,15 +175,15 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
   return (
     <>
       <Accordion type="single" collapsible>
-        <AccordionItem value="rate-limit">
+        <AccordionItem value="rate-limit" className="border rounded-lg px-4">
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2 flex-1">
               <Activity className="h-4 w-4" />
-              <span>速率限制</span>
+              <span>Rate Limits</span>
               <div className="flex-1" />
               {hasErrors && <AlertCircle className="h-4 w-4 text-destructive" />}
               <Badge variant={value.enabled ? 'default' : 'secondary'}>
-                {value.enabled ? '已启用' : '已禁用'}
+                {value.enabled ? 'Enabled' : 'Disabled'}
               </Badge>
             </div>
           </AccordionTrigger>
@@ -193,7 +195,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
                 onCheckedChange={(checked) => onChange({ ...value, enabled: checked })}
               />
               <Label htmlFor="rate-limit-enabled">
-                启用 <span className="text-muted-foreground">(实验性)</span>
+                Enable <span className="text-muted-foreground">(experimental)</span>
               </Label>
             </div>
 
@@ -201,18 +203,18 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>速率限制标签</TableHead>
+                    <TableHead>Rate limit label</TableHead>
                     <TableHead className="w-[120px]">
-                      最大请求数
+                      Max requests
                       <br />
-                      <span className="text-xs text-muted-foreground">(每 IP)</span>
+                      <span className="text-xs text-muted-foreground">(per IP)</span>
                     </TableHead>
                     <TableHead className="w-[100px]">
-                      时间间隔
+                      Interval
                       <br />
-                      <span className="text-xs text-muted-foreground">(秒)</span>
+                      <span className="text-xs text-muted-foreground">(in seconds)</span>
                     </TableHead>
-                    <TableHead className="w-[140px]">目标用户</TableHead>
+                    <TableHead className="w-[140px]">Targeted users</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -223,7 +225,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
                         <Input
                           list={`predefined-tags-${index}`}
                           required
-                          placeholder="标签 (users:create) 或路径 (/api/)"
+                          placeholder="tag (users:create) or path (/api/)"
                           value={rule.label}
                           onChange={(e) => handleRuleChange(index, 'label', e.target.value)}
                           className={
@@ -244,7 +246,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
                           required
                           min={1}
                           step={1}
-                          placeholder="最大请求数"
+                          placeholder="Max requests"
                           value={rule.maxRequests}
                           onChange={(e) =>
                             handleRuleChange(index, 'maxRequests', parseInt(e.target.value) || 0)
@@ -262,7 +264,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
                           required
                           min={1}
                           step={1}
-                          placeholder="间隔"
+                          placeholder="Interval"
                           value={rule.duration}
                           onChange={(e) =>
                             handleRuleChange(index, 'duration', parseInt(e.target.value) || 0)
@@ -274,9 +276,9 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
                       </TableCell>
                       <TableCell>
                         <Select
-                          value={rule.audience}
+                          value={audienceToUI(rule.audience)}
                           onValueChange={(v) =>
-                            handleRuleChange(index, 'audience', v as RateLimitRule['audience'])
+                            handleRuleChange(index, 'audience', audienceToAPI(v))
                           }
                         >
                           <SelectTrigger>
@@ -310,7 +312,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
             <div className="flex items-center justify-between">
               <Button type="button" variant="secondary" size="sm" onClick={handleAddRule}>
                 <Plus className="h-4 w-4 mr-1" />
-                添加速率限制规则
+                Add rate limit rule
               </Button>
 
               <Button
@@ -320,7 +322,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
                 onClick={() => setShowInfoDialog(true)}
               >
                 <HelpCircle className="h-4 w-4 mr-1" />
-                了解更多
+                Learn more about the rate limit rules
               </Button>
             </div>
           </AccordionContent>
@@ -330,58 +332,61 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
       <Dialog open={showInfoDialog} onOpenChange={setShowInfoDialog}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>速率限制标签格式</DialogTitle>
-            <DialogDescription className="sr-only">速率限制规则说明</DialogDescription>
+            <DialogTitle>Rate limit label format</DialogTitle>
+            <DialogDescription className="sr-only">Rate limit rules description</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 text-sm">
-            <p>速率限制规则按以下顺序解析（在第一个匹配时停止）：</p>
+            <p>
+              The rate limit rules are resolved in the following order (stops on the first match):
+            </p>
             <ol className="list-decimal list-inside space-y-1">
               <li>
-                精确标签 (如 <code>users:create</code>)
+                exact tag (e.g. <code>users:create</code>)
               </li>
               <li>
-                通配符标签 (如 <code>*:create</code>)
+                wildcard tag (e.g. <code>*:create</code>)
               </li>
               <li>
-                METHOD + 精确路径 (如 <code>POST /a/b</code>)
+                METHOD + exact path (e.g. <code>POST /a/b</code>)
               </li>
               <li>
-                METHOD + 前缀路径 (如 <code>POST /a/b/</code>)
+                METHOD + prefix path (e.g. <code>POST /a/b/</code>)
               </li>
               <li>
-                精确路径 (如 <code>/a/b</code>)
+                exact path (e.g. <code>/a/b</code>)
               </li>
               <li>
-                前缀路径 (如 <code>/a/b/</code>)
+                prefix path (e.g. <code>/a/b/</code>)
               </li>
             </ol>
 
             <p>
-              如果存在多个相同标签但不同目标用户的规则（如 "guest" vs
-              "auth"），只有匹配的用户规则会被考虑。
+              In case of multiple rules with the same label but different target user audience (e.g.
+              "guest" vs "auth"), only the matching audience rule is taken in consideration.
             </p>
 
             <hr />
 
-            <p>速率限制标签可以是以下格式之一：</p>
+            <p>The rate limit label could be in one of the following formats:</p>
             <ul className="space-y-2">
               <li>
-                <code>[METHOD ]/my/path</code> - 完整精确路由匹配（
-                <strong>必须不带尾部斜杠</strong>；"METHOD" 可选）
+                <code>[METHOD ]/my/path</code> - full exact route match (
+                <strong>must be without trailing slash</strong>; "METHOD" is optional)
               </li>
               <li>
-                <code>[METHOD ]/my/prefix/</code> - 路径前缀（
-                <strong>必须以斜杠结尾</strong>；"METHOD" 可选）
+                <code>[METHOD ]/my/prefix/</code> - path prefix (
+                <strong>must end with trailing slash</strong>; "METHOD" is optional)
               </li>
               <li>
-                <code>collectionName:predefinedTag</code> - 针对单个集合的特定操作。使用{' '}
-                <code>*</code> 通配符可应用于所有集合。
+                <code>collectionName:predefinedTag</code> - targets a specific action of a single
+                collection. To apply the rule for all collections you can use the <code>*</code>{' '}
+                wildcard.
               </li>
             </ul>
 
             <div>
-              <p className="font-medium mb-2">预定义的集合标签：</p>
+              <p className="font-medium mb-2">The predefined collection tags are:</p>
               <ul className="grid grid-cols-2 gap-1 text-xs">
                 {BASE_PREDEFINED_TAGS.map((tag) => (
                   <li key={tag.value}>
@@ -397,7 +402,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setShowInfoDialog(false)}>
-              关闭
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

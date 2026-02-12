@@ -1,6 +1,6 @@
 /**
  * JobsFilters 组件
- * 任务筛选器
+ * 任务筛选器 - 与 UI 版本对齐
  */
 import { useCallback } from 'react'
 import { cn } from '@/lib/utils'
@@ -24,7 +24,7 @@ interface JobsFiltersProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: '', label: '全部状态' },
+  { value: 'all', label: 'All Statuses' },
   { value: 'pending', label: 'Pending' },
   { value: 'processing', label: 'Processing' },
   { value: 'completed', label: 'Completed' },
@@ -43,7 +43,7 @@ export function JobsFilters({ filter, onChange, onClear, className }: JobsFilter
 
   const handleStatusChange = useCallback(
     (value: string) => {
-      onChange({ status: value })
+      onChange({ status: value === 'all' ? '' : value })
     },
     [onChange]
   )
@@ -56,27 +56,27 @@ export function JobsFilters({ filter, onChange, onClear, className }: JobsFilter
   )
 
   return (
-    <div className={cn('flex flex-wrap items-end gap-4', className)}>
-      <div className="space-y-1.5">
-        <Label htmlFor="filter-topic">Topic</Label>
+    <div className={cn('flex flex-wrap items-end gap-2.5', className)}>
+      <div className="space-y-1">
+        <Label htmlFor="filter-topic" className="text-xs font-medium">Topic</Label>
         <Input
           id="filter-topic"
-          placeholder="按 topic 筛选..."
+          placeholder="Filter by topic..."
           value={filter.topic}
           onChange={handleTopicChange}
-          className="w-[180px]"
+          className="h-[38px] w-[180px]"
         />
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="filter-status">状态</Label>
-        <Select value={filter.status} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="全部状态" />
+      <div className="space-y-1">
+        <Label htmlFor="filter-status" className="text-xs font-medium">Status</Label>
+        <Select value={filter.status || 'all'} onValueChange={handleStatusChange}>
+          <SelectTrigger className="h-[38px] w-[140px]">
+            <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
           <SelectContent>
             {STATUS_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value || 'all'}>
+              <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
               </SelectItem>
             ))}
@@ -84,10 +84,10 @@ export function JobsFilters({ filter, onChange, onClear, className }: JobsFilter
         </Select>
       </div>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="filter-limit">每页条数</Label>
+      <div className="space-y-1">
+        <Label htmlFor="filter-limit" className="text-xs font-medium">Per Page</Label>
         <Select value={String(filter.limit)} onValueChange={handleLimitChange}>
-          <SelectTrigger className="w-[100px]">
+          <SelectTrigger className="h-[38px] w-[80px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -100,9 +100,12 @@ export function JobsFilters({ filter, onChange, onClear, className }: JobsFilter
         </Select>
       </div>
 
-      <Button variant="outline" onClick={onClear}>
-        清除
-      </Button>
+      <div className="space-y-1">
+        <Label className="text-xs">&nbsp;</Label>
+        <Button variant="secondary" size="sm" className="h-[38px]" onClick={onClear}>
+          Clear
+        </Button>
+      </div>
     </div>
   )
 }

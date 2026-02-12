@@ -1,12 +1,11 @@
 /**
  * Processes 页面
- * 进程管理
+ * 进程管理 - 与 UI 版本 Jobs 页面对齐
  */
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RefreshCw, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   ProcessStats,
   ProcessFilters,
@@ -26,9 +25,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-
-// 自动刷新间隔 (5秒)
-const AUTO_REFRESH_INTERVAL = 5000
 
 export default function ProcessesPage() {
   const { t } = useTranslation()
@@ -61,26 +57,10 @@ export default function ProcessesPage() {
     processId: string
   } | null>(null)
 
-  // 自动刷新
-  const autoRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
   // 初始加载
   useEffect(() => {
     loadProcesses()
   }, [])
-
-  // 自动刷新
-  useEffect(() => {
-    autoRefreshRef.current = setInterval(() => {
-      loadProcesses()
-    }, AUTO_REFRESH_INTERVAL)
-
-    return () => {
-      if (autoRefreshRef.current) {
-        clearInterval(autoRefreshRef.current)
-      }
-    }
-  }, [loadProcesses])
 
   // 查看详情
   const handleViewDetails = useCallback(
@@ -155,32 +135,37 @@ export default function ProcessesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* 统计卡片 */}
       <ProcessStats stats={stats} isLoading={isLoading && stats.total === 0} />
 
-      {/* 进程列表 */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-xl">{t('processes.title')}</CardTitle>
-          <div className="flex items-center gap-3">
-            {/* 最后刷新时间 */}
-            <div className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Clock className="h-4 w-4" />
-              <span>{t('processes.lastRefresh')}: {formatLastRefresh()}</span>
-            </div>
-            {/* 刷新按钮 */}
-            <Button variant="outline" size="sm" onClick={() => loadProcesses()} disabled={isLoading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              {t('processes.refresh')}
-            </Button>
+      {/* 进程列表面板 - 使用 panel 样式与 UI 版本对齐 */}
+      <div className="panel">
+        {/* 面板头部 */}
+        <div className="flex items-center gap-2.5 mb-3">
+          <span className="text-xl font-semibold">{t('processes.title')}</span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => loadProcesses()}
+            disabled={isLoading}
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </Button>
+          <div className="flex-1" />
+          {/* 最后刷新时间 */}
+          <div className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Clock className="h-4 w-4" />
+            <span>{t('processes.lastRefresh')}: {formatLastRefresh()}</span>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* 筛选器 */}
-          <ProcessFilters filter={filter} onChange={updateFilter} onClear={clearFilter} />
+        </div>
 
-          {/* 列表 */}
+        {/* 筛选器 */}
+        <ProcessFilters filter={filter} onChange={updateFilter} onClear={clearFilter} />
+
+        {/* 列表 */}
+        <div className="mt-3">
           <ProcessList
             processes={filteredProcesses}
             isLoading={isLoading}
@@ -191,8 +176,8 @@ export default function ProcessesPage() {
             onViewDetails={handleViewDetails}
             onViewLogs={handleViewLogs}
           />
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* 详情面板 */}
       <ProcessDetails

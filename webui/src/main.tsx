@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
 import { Provider } from 'jotai'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Toaster } from 'sonner'
 import { router } from '@/router'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import '@/i18n'
@@ -24,6 +25,7 @@ createRoot(document.getElementById('root')!).render(
       <QueryClientProvider client={queryClient}>
         <Provider>
           <RouterProvider router={router} />
+<Toaster richColors position="top-right" />
         </Provider>
       </QueryClientProvider>
     </ErrorBoundary>

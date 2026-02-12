@@ -87,7 +87,7 @@ export function TrustedProxyAccordion({
         <AccordionTrigger className="hover:no-underline">
           <div className="flex items-center gap-2 flex-1">
             <Route className="h-4 w-4" />
-            <span>User IP proxy headers</span>
+            <span>Trusted Proxy</span>
             {!isEnabled && healthData.possibleProxyHeader && (
               <TooltipProvider>
                 <Tooltip>

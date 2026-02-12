@@ -51,17 +51,22 @@ const ProxyDetailPage = lazy(() =>
   }))
 )
 
-// 设置页面懒加载（扁平化）
-const Application = lazy(() => import('@/pages/settings/Application').then((m) => ({ default: m.Application })))
-const Mail = lazy(() => import('@/pages/settings/Mail').then((m) => ({ default: m.Mail })))
-const Storage = lazy(() => import('@/pages/settings/Storage').then((m) => ({ default: m.Storage })))
-const Backups = lazy(() => import('@/pages/settings/Backups').then((m) => ({ default: m.Backups })))
-const Admins = lazy(() => import('@/pages/settings/Admins').then((m) => ({ default: m.Admins })))
-const Export = lazy(() => import('@/pages/settings/Export').then((m) => ({ default: m.Export })))
-const Import = lazy(() => import('@/pages/settings/Import').then((m) => ({ default: m.Import })))
-const Crons = lazy(() => import('@/pages/settings/Crons').then((m) => ({ default: m.Crons })))
-const Secrets = lazy(() => import('@/pages/settings/Secrets').then((m) => ({ default: m.Secrets })))
-const Processes = lazy(() => import('@/pages/settings/Processes'))
+// Settings Layout
+const SettingsLayout = lazy(() => import('@/pages/settings/Layout'))
+
+// 设置页面懒加载
+const Application = lazy(() => import('@/pages/settings/Application'))
+const Mail = lazy(() => import('@/pages/settings/Mail'))
+const Storage = lazy(() => import('@/pages/settings/Storage'))
+const Backups = lazy(() => import('@/pages/settings/Backups'))
+const Admins = lazy(() => import('@/pages/settings/Admins'))
+const Export = lazy(() => import('@/pages/settings/Export'))
+const Import = lazy(() => import('@/pages/settings/Import'))
+const Crons = lazy(() => import('@/pages/settings/Crons'))
+const Secrets = lazy(() => import('@/pages/settings/Secrets'))
+const Jobs = lazy(() => import('@/pages/settings/Jobs'))
+const AnalyticsSettings = lazy(() => import('@/pages/settings/AnalyticsSettings'))
+const Tokens = lazy(() => import('@/pages/settings/Tokens'))
 
 // 认证相关页面
 const RequestPasswordReset = lazy(() => import('@/pages/RequestPasswordReset'))
@@ -175,110 +180,144 @@ export const router = createBrowserRouter(
           element: withSuspense(AnalyticsPage),
         },
 
-        // ========== Infrastructure ==========
+        // ========== Settings (嵌套路由，使用独立侧边栏) ==========
+        {
+          path: 'settings',
+          element: withSuspense(SettingsLayout),
+          children: [
+            // 默认重定向到 Application
+            {
+              index: true,
+              element: <Navigate to="/settings/application" replace />,
+            },
+            // System
+            {
+              path: 'application',
+              element: withSuspense(Application),
+            },
+            {
+              path: 'mail',
+              element: withSuspense(Mail),
+            },
+            {
+              path: 'storage',
+              element: withSuspense(Storage),
+            },
+            {
+              path: 'backups',
+              element: withSuspense(Backups),
+            },
+            // Operations
+            {
+              path: 'crons',
+              element: withSuspense(Crons),
+            },
+            {
+              path: 'jobs',
+              element: withSuspense(Jobs),
+            },
+            {
+              path: 'secrets',
+              element: withSuspense(Secrets),
+            },
+            // Security
+            {
+              path: 'admins',
+              element: withSuspense(Admins),
+            },
+            {
+              path: 'tokens',
+              element: withSuspense(Tokens),
+            },
+            {
+              path: 'analytics-settings',
+              element: withSuspense(AnalyticsSettings),
+            },
+            // Infrastructure - Gateway
+            {
+              path: 'gateway',
+              element: withSuspense(ProxyListPage),
+            },
+            {
+              path: 'gateway/new',
+              element: withSuspense(ProxyDetailPage),
+            },
+            {
+              path: 'gateway/:id',
+              element: withSuspense(ProxyDetailPage),
+            },
+            // Sync
+            {
+              path: 'export',
+              element: withSuspense(Export),
+            },
+            {
+              path: 'import',
+              element: withSuspense(Import),
+            },
+          ],
+        },
+
+        // 兼容旧的扁平路由（重定向到新的 /settings/* 路由）
         {
           path: 'gateway',
-          element: withSuspense(ProxyListPage),
+          element: <Navigate to="/settings/gateway" replace />,
         },
         {
           path: 'gateway/new',
-          element: withSuspense(ProxyDetailPage),
+          element: <Navigate to="/settings/gateway/new" replace />,
         },
         {
           path: 'gateway/:id',
-          element: withSuspense(ProxyDetailPage),
+          element: <Navigate to="/settings/gateway/:id" replace />,
         },
-        {
-          path: 'processes',
-          element: withSuspense(Processes),
-        },
-        {
-          path: 'crons',
-          element: withSuspense(Crons),
-        },
-
-        // ========== System ==========
         {
           path: 'application',
-          element: withSuspense(Application),
+          element: <Navigate to="/settings/application" replace />,
         },
         {
           path: 'mail',
-          element: withSuspense(Mail),
+          element: <Navigate to="/settings/mail" replace />,
         },
         {
           path: 'storage',
-          element: withSuspense(Storage),
+          element: <Navigate to="/settings/storage" replace />,
         },
         {
           path: 'backups',
-          element: withSuspense(Backups),
+          element: <Navigate to="/settings/backups" replace />,
         },
-
-        // ========== Security ==========
         {
-          path: 'admins',
-          element: withSuspense(Admins),
+          path: 'crons',
+          element: <Navigate to="/settings/crons" replace />,
+        },
+        {
+          path: 'jobs',
+          element: <Navigate to="/settings/jobs" replace />,
         },
         {
           path: 'secrets',
-          element: withSuspense(Secrets),
+          element: <Navigate to="/settings/secrets" replace />,
         },
-
-        // ========== Migration ==========
+        {
+          path: 'admins',
+          element: <Navigate to="/settings/admins" replace />,
+        },
         {
           path: 'export',
-          element: withSuspense(Export),
+          element: <Navigate to="/settings/export" replace />,
         },
         {
           path: 'import',
-          element: withSuspense(Import),
-        },
-
-        // 兼容旧的 /settings/* 路由（重定向）
-        {
-          path: 'settings',
-          element: <Navigate to="/application" replace />,
+          element: <Navigate to="/settings/import" replace />,
         },
         {
-          path: 'settings/application',
-          element: <Navigate to="/application" replace />,
+          path: 'tokens',
+          element: <Navigate to="/settings/tokens" replace />,
         },
         {
-          path: 'settings/mail',
-          element: <Navigate to="/mail" replace />,
-        },
-        {
-          path: 'settings/storage',
-          element: <Navigate to="/storage" replace />,
-        },
-        {
-          path: 'settings/backups',
-          element: <Navigate to="/backups" replace />,
-        },
-        {
-          path: 'settings/crons',
-          element: <Navigate to="/crons" replace />,
-        },
-        {
-          path: 'settings/processes',
-          element: <Navigate to="/processes" replace />,
-        },
-        {
-          path: 'settings/secrets',
-          element: <Navigate to="/secrets" replace />,
-        },
-        {
-          path: 'settings/admins',
-          element: <Navigate to="/admins" replace />,
-        },
-        {
-          path: 'settings/export',
-          element: <Navigate to="/export" replace />,
-        },
-        {
-          path: 'settings/import',
-          element: <Navigate to="/import" replace />,
+          path: 'analytics-settings',
+          element: <Navigate to="/settings/analytics-settings" replace />,
         },
 
         // 404

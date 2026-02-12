@@ -94,7 +94,9 @@ export function EmailTestPopup({
       })
       setAuthCollections(collections)
       if (collections.length > 0 && !collectionIdOrName) {
-        setCollectionIdOrName(collections[0].id)
+        // Prefer _superusers as default, fallback to first collection
+        const superusers = collections.find((c) => c.name === '_superusers')
+        setCollectionIdOrName(superusers ? superusers.id : collections[0].id)
       }
     } catch (err) {
       toast({

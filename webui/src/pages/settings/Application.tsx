@@ -1,19 +1,17 @@
 /**
  * Application Settings 页面
- * 应用基本设置
+ * 应用基本设置 - 与 UI 版本 1:1 对齐
  */
 import { useEffect } from 'react'
 import { useSettings } from '@/features/settings'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
+  TrustedProxyAccordion,
+  RateLimitAccordion,
+  BatchAccordion,
+} from '@/features/settings/components'
 import { Database, FileText, Loader2 } from 'lucide-react'
 
 export function Application() {
@@ -31,7 +29,8 @@ export function Application() {
 
   useEffect(() => {
     loadSettings()
-  }, [loadSettings])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,10 +57,15 @@ export function Application() {
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* 基本设置 */}
+        {/* 基本设置 - Application name 和 Application URL */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="appName">Application name</Label>
+            <Label
+              htmlFor="appName"
+              className="after:content-['*'] after:text-destructive after:ml-0.5"
+            >
+              Application name
+            </Label>
             <Input
               id="appName"
               type="text"
@@ -72,7 +76,12 @@ export function Application() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="appURL">Application URL</Label>
+            <Label
+              htmlFor="appURL"
+              className="after:content-['*'] after:text-destructive after:ml-0.5"
+            >
+              Application URL
+            </Label>
             <Input
               id="appURL"
               type="text"
@@ -85,11 +94,11 @@ export function Application() {
 
         {/* 数据库信息 */}
         <div className="bg-muted/50 border rounded-lg p-4">
-          <h3 className="font-medium mb-3">数据库信息</h3>
+          <h3 className="font-medium mb-3 text-sm">数据库信息</h3>
           <div className="flex items-center gap-2 text-sm">
             <span className="text-muted-foreground">数据库类型:</span>
             {healthData.databaseType ? (
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1.5 font-medium">
                 {healthData.databaseType === 'PostgreSQL' ? (
                   <Database className="w-4 h-4 text-green-500" />
                 ) : (
@@ -103,146 +112,28 @@ export function Application() {
           </div>
         </div>
 
-        {/* 高级设置 */}
-        <Accordion type="multiple" className="w-full">
+        {/* 高级设置 - 使用独立的 Accordion 组件，与 UI 版本一致 */}
+        <div className="space-y-3">
           {/* Trusted Proxy */}
-          <AccordionItem value="trustedProxy">
-            <AccordionTrigger>Trusted Proxy</AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-4 pt-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="useLeftmostIP"
-                    checked={settings.trustedProxy.useLeftmostIP}
-                    onCheckedChange={(checked) =>
-                      updateSettings({
-                        trustedProxy: { useLeftmostIP: checked as boolean },
-                      })
-                    }
-                  />
-                  <Label htmlFor="useLeftmostIP">Use leftmost IP</Label>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="proxyHeaders">Trusted headers (one per line)</Label>
-                  <textarea
-                    id="proxyHeaders"
-                    className="w-full min-h-[100px] px-3 py-2 border rounded-md bg-background"
-                    value={settings.trustedProxy.headers.join('\n')}
-                    onChange={(e) =>
-                      updateSettings({
-                        trustedProxy: {
-                          headers: e.target.value
-                            .split('\n')
-                            .map((h) => h.trim())
-                            .filter(Boolean),
-                        },
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+          <TrustedProxyAccordion
+            settings={settings.trustedProxy}
+            healthData={healthData}
+            onChange={(trustedProxy) => updateSettings({ trustedProxy })}
+          />
 
           {/* Rate Limits */}
-          <AccordionItem value="rateLimits">
-            <AccordionTrigger>Rate Limits</AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-4 pt-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="rateLimitsEnabled"
-                    checked={settings.rateLimits.enabled}
-                    onCheckedChange={(checked) =>
-                      updateSettings({
-                        rateLimits: { enabled: checked as boolean },
-                      })
-                    }
-                  />
-                  <Label htmlFor="rateLimitsEnabled">Enable rate limiting</Label>
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          {/* Batch */}
-          <AccordionItem value="batch">
-            <AccordionTrigger>Batch Requests</AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-4 pt-2">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="batchEnabled"
-                    checked={settings.batch.enabled}
-                    onCheckedChange={(checked) =>
-                      updateSettings({
-                        batch: { enabled: checked as boolean },
-                      })
-                    }
-                  />
-                  <Label htmlFor="batchEnabled">Enable batch requests</Label>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="maxRequests">Max requests</Label>
-                    <Input
-                      id="maxRequests"
-                      type="number"
-                      value={settings.batch.maxRequests}
-                      onChange={(e) =>
-                        updateSettings({
-                          batch: { maxRequests: parseInt(e.target.value) || 0 },
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="timeout">Timeout (seconds)</Label>
-                    <Input
-                      id="timeout"
-                      type="number"
-                      value={settings.batch.timeout}
-                      onChange={(e) =>
-                        updateSettings({
-                          batch: { timeout: parseInt(e.target.value) || 0 },
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="maxBodySize">Max body size</Label>
-                    <Input
-                      id="maxBodySize"
-                      type="number"
-                      value={settings.batch.maxBodySize}
-                      onChange={(e) =>
-                        updateSettings({
-                          batch: { maxBodySize: parseInt(e.target.value) || 0 },
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-
-        {/* Hide Controls */}
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="hideControls"
-            checked={settings.meta.hideControls}
-            onCheckedChange={(checked) =>
-              updateSettings({ meta: { hideControls: checked as boolean } })
-            }
+          <RateLimitAccordion
+            value={settings.rateLimits}
+            onChange={(rateLimits) => updateSettings({ rateLimits })}
           />
-          <Label htmlFor="hideControls" className="flex items-center gap-2">
-            Hide collection create and edit controls
-            <span className="text-xs text-muted-foreground">
-              (Prevents accidental schema changes in production)
-            </span>
-          </Label>
+
+          {/* Batch Requests */}
+          <BatchAccordion
+            settings={settings.batch}
+            onChange={(batch) => updateSettings({ batch })}
+            hideControls={settings.meta.hideControls}
+            onHideControlsChange={(hideControls) => updateSettings({ meta: { hideControls } })}
+          />
         </div>
 
         {/* 操作按钮 */}
@@ -252,7 +143,7 @@ export function Application() {
               Cancel
             </Button>
           )}
-          <Button type="submit" disabled={!hasChanges || isSaving}>
+          <Button type="submit" disabled={!hasChanges || isSaving} className="min-w-[120px]">
             {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             Save changes
           </Button>

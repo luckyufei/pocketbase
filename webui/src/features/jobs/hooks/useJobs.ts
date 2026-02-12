@@ -72,8 +72,8 @@ export function useJobs() {
         addJobs((result.items || []) as Job[])
         setTotal(result.total || 0)
       } catch (err) {
-        console.error('Failed to load jobs:', err)
-        toast.error('加载任务列表失败')
+      console.error('Failed to load jobs:', err)
+        toast.error('Failed to load jobs')
       } finally {
         setIsLoading(false)
       }
@@ -117,11 +117,11 @@ export function useJobs() {
         await pb.send(`/api/jobs/${jobId}/requeue`, {
           method: 'POST',
         })
-        toast.success(`任务 ${jobId} 已重新入队`)
+        toast.success(`Job ${jobId} requeued successfully.`)
         await refresh()
       } catch (err) {
         console.error('Failed to requeue job:', err)
-        toast.error('重新入队失败')
+        toast.error('Failed to requeue job')
       } finally {
         setActionLoading({ id: jobId, action: null })
       }
@@ -140,12 +140,12 @@ export function useJobs() {
         await pb.send(`/api/jobs/${jobId}`, {
           method: 'DELETE',
         })
-        toast.success(`任务 ${jobId} 已删除`)
+        toast.success(`Job ${jobId} deleted successfully.`)
         removeJob(jobId)
         await loadStats()
       } catch (err) {
         console.error('Failed to delete job:', err)
-        toast.error('删除任务失败')
+        toast.error('Failed to delete job')
       } finally {
         setActionLoading({ id: jobId, action: null })
       }

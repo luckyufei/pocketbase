@@ -1,23 +1,13 @@
 /**
  * JobsList 组件
- * 任务列表
+ * 任务列表 - 与 UI 版本对齐
  */
-import { useMemo, useCallback } from 'react'
-import { Loader2, RefreshCw, Trash2, AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react'
+import { useCallback } from 'react'
+import { Loader2, RotateCcw, Trash2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Job, JobsFilter } from '../store'
-import dayjs from 'dayjs'
 
 interface JobsListProps {
   jobs: Job[]
@@ -49,7 +39,8 @@ function getStatusClass(status: string): string {
 
 function formatDate(dateStr: string | undefined): string {
   if (!dateStr) return '-'
-  return dayjs(dateStr).format('YYYY-MM-DD HH:mm:ss')
+  const date = new Date(dateStr)
+  return date.toLocaleString()
 }
 
 function truncateId(id: string): string {
@@ -75,33 +66,34 @@ export function JobsList({
   const canNext = filter.offset + filter.limit < total
 
   return (
-    <div className={cn('space-y-4', className)}>
-      <ScrollArea className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[120px]">ID</TableHead>
-              <TableHead>Topic</TableHead>
-              <TableHead className="w-[100px]">状态</TableHead>
-              <TableHead className="w-[80px]">重试</TableHead>
-              <TableHead className="w-[160px]">运行时间</TableHead>
-              <TableHead className="w-[160px]">创建时间</TableHead>
-              <TableHead className="w-[100px]">操作</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+    <div className={cn('', className)}>
+      {/* 表格容器 - 使用 table-wrapper 样式与 UI 版本一致 */}
+      <div className="table-wrapper">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b">
+              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground w-[120px]">ID</th>
+              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground">Topic</th>
+              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground w-[100px]">Status</th>
+              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground w-[80px]">Retries</th>
+              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground w-[160px]">Run At</th>
+              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground w-[160px]">Created</th>
+              <th className="h-12 px-4 text-right align-middle font-semibold text-muted-foreground w-[100px]">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                </TableCell>
-              </TableRow>
+              <tr>
+                <td colSpan={7} className="h-24 text-center">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                </td>
+              </tr>
             ) : jobs.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                  暂无任务
-                </TableCell>
-              </TableRow>
+              <tr>
+                <td colSpan={7} className="h-24 text-center text-muted-foreground">
+                  No jobs found.
+                </td>
+              </tr>
             ) : (
               jobs.map((job) => (
                 <JobRow
@@ -113,26 +105,23 @@ export function JobsList({
                 />
               ))
             )}
-          </TableBody>
-        </Table>
-      </ScrollArea>
+          </tbody>
+        </table>
+      </div>
 
-      {/* 分页 */}
+      {/* 分页 - 与 UI 版本对齐 */}
       {total > 0 && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 mt-3">
           <span className="text-sm text-muted-foreground">
-            显示 {showingFrom} - {showingTo} / 共 {total} 条
+            Showing {showingFrom} - {showingTo} of {total}
           </span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={!canPrev} onClick={onPrevPage}>
-              <ChevronLeft className="h-4 w-4 mr-1" />
-              上一页
-            </Button>
-            <Button variant="outline" size="sm" disabled={!canNext} onClick={onNextPage}>
-              下一页
-              <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
+          <div className="flex-1"></div>
+          <Button variant="secondary" size="sm" disabled={!canPrev} onClick={onPrevPage}>
+            Previous
+          </Button>
+          <Button variant="secondary" size="sm" disabled={!canNext} onClick={onNextPage}>
+            Next
+          </Button>
         </div>
       )}
     </div>
@@ -157,8 +146,8 @@ function JobRow({ job, actionLoading, onRequeue, onDelete }: JobRowProps) {
   }, [job.id, onDelete])
 
   return (
-    <TableRow>
-      <TableCell>
+    <tr className="border-b transition-colors hover:bg-muted/50">
+      <td className="p-4 align-middle">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -169,13 +158,13 @@ function JobRow({ job, actionLoading, onRequeue, onDelete }: JobRowProps) {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-      </TableCell>
-      <TableCell>
+      </td>
+      <td className="p-4 align-middle">
         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-muted">
           {job.topic}
         </span>
-      </TableCell>
-      <TableCell>
+      </td>
+      <td className="p-4 align-middle">
         <span
           className={cn(
             'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
@@ -184,49 +173,63 @@ function JobRow({ job, actionLoading, onRequeue, onDelete }: JobRowProps) {
         >
           {job.status}
         </span>
-      </TableCell>
-      <TableCell className="text-sm">
+      </td>
+      <td className="p-4 align-middle text-sm">
         {job.retries}/{job.max_retries}
-      </TableCell>
-      <TableCell className="text-sm text-muted-foreground">{formatDate(job.run_at)}</TableCell>
-      <TableCell className="text-sm text-muted-foreground">{formatDate(job.created)}</TableCell>
-      <TableCell>
-        <div className="flex items-center gap-1">
+      </td>
+      <td className="p-4 align-middle text-sm text-muted-foreground">{formatDate(job.run_at)}</td>
+      <td className="p-4 align-middle text-sm text-muted-foreground">{formatDate(job.created)}</td>
+      <td className="p-4 align-middle text-right">
+        <div className="flex items-center justify-end gap-1">
           {job.status === 'failed' && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              disabled={!!actionLoading}
-              onClick={handleRequeue}
-            >
-              {actionLoading === 'requeue' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    disabled={!!actionLoading}
+                    onClick={handleRequeue}
+                  >
+                    {actionLoading === 'requeue' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Requeue</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
           {(job.status === 'pending' || job.status === 'failed') && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-destructive hover:text-destructive"
-              disabled={!!actionLoading}
-              onClick={handleDelete}
-            >
-              {actionLoading === 'delete' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive hover:text-destructive"
+                    disabled={!!actionLoading}
+                    onClick={handleDelete}
+                  >
+                    {actionLoading === 'delete' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
           {job.last_error && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <AlertTriangle className="h-4 w-4 text-destructive" />
+                  <AlertTriangle className="h-4 w-4 text-destructive cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-[300px]">
                   <p className="text-xs">{job.last_error}</p>
@@ -235,7 +238,7 @@ function JobRow({ job, actionLoading, onRequeue, onDelete }: JobRowProps) {
             </TooltipProvider>
           )}
         </div>
-      </TableCell>
-    </TableRow>
+      </td>
+    </tr>
   )
 }
