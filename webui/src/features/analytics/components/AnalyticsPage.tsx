@@ -18,6 +18,9 @@ const timeRanges = [
   { value: '90d', label: '90天' },
 ] as const
 
+// Auto refresh interval (60 seconds)
+const REFRESH_INTERVAL = 60000
+
 /**
  * 格式化数字（K/M）
  */
@@ -78,6 +81,17 @@ export function AnalyticsPage() {
     loadData()
   }, [selectedRange])
 
+  // Auto refresh every 60 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      refresh()
+    }, REFRESH_INTERVAL)
+
+    return () => {
+      clearInterval(intervalId)
+    }
+  }, [refresh])
+
   return (
     <div className="h-full flex flex-col bg-slate-50/50">
       {/* 头部 */}
@@ -120,9 +134,9 @@ export function AnalyticsPage() {
             <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
           </div>
         ) : (
-          <div className="space-y-4 max-w-6xl mx-auto">
+          <div className="space-y-4 max-w-[1400px] mx-auto">
             {/* 核心指标卡片 */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
               <AnalyticsCard
                 title="页面浏览量"
                 value={formatNumber(summary?.totalPV)}
@@ -155,12 +169,15 @@ export function AnalyticsPage() {
                 <h2 className="text-sm font-semibold text-slate-900">流量趋势</h2>
               </div>
               <div className="p-4">
-                <AnalyticsChart data={dailyData} />
+                <AnalyticsChart 
+                  data={dailyData} 
+                  days={selectedRange === '1d' ? 1 : selectedRange === '7d' ? 7 : selectedRange === '30d' ? 30 : 90}
+                />
               </div>
             </div>
 
             {/* Top 列表 */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {/* 热门页面 */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100">

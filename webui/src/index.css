@@ -348,6 +348,54 @@
 }
 
 /**
+ * Panel 和 Table 样式 - 与 UI 版本对齐
+ */
+@layer components {
+  /* Panel 容器 - 对标 ui/_base.scss .panel */
+  .panel {
+    @apply bg-card rounded-xl p-4 shadow-sm;
+  }
+
+  /* Table wrapper - 对标 ui/_table.scss .table-wrapper */
+  .table-wrapper {
+    @apply -mx-4 border-b border-border;
+  }
+
+  .table-wrapper table {
+    @apply min-w-full;
+  }
+
+  .table-wrapper th,
+  .table-wrapper td {
+    @apply px-4;
+  }
+
+  .table-wrapper th:first-child,
+  .table-wrapper td:first-child {
+    @apply pl-5;
+  }
+
+  .table-wrapper th:last-child,
+  .table-wrapper td:last-child {
+    @apply pr-5;
+  }
+
+  .table-wrapper thead tr {
+    @apply border-b border-border;
+  }
+
+  .table-wrapper tbody tr:last-child {
+    @apply border-b-0;
+  }
+
+  /* 移除 Table 组件默认边框 */
+  .table-wrapper [role="table"],
+  .table-wrapper table {
+    @apply border-0 rounded-none;
+  }
+}
+
+/**
  * DateTimePicker 样式 - 与 UI 版本的 Flatpickr 风格保持一致
  */
 @layer components {

@@ -3,7 +3,7 @@
  * 日志列表，支持分页、过滤、批量选择
  */
 import { useState, useCallback, useMemo } from 'react'
-import { ArrowRight, Loader2, Download, X } from 'lucide-react'
+import { ArrowRight, Loader2, Download, X, Bookmark, FileText, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -116,19 +116,22 @@ export function LogsList({ onSelect, className }: LogsListProps) {
                   />
                 )}
               </TableHead>
-              <TableHead className="w-[100px]">
-                <div className="flex items-center gap-1">
-                  <span>级别</span>
+              <TableHead className="w-[1%] whitespace-nowrap">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Bookmark className="h-4 w-4" />
+                  <span>level</span>
                 </div>
               </TableHead>
-              <TableHead className="min-w-[400px]">
-                <div className="flex items-center gap-1">
-                  <span>消息</span>
+              <TableHead>
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <FileText className="h-4 w-4" />
+                  <span>message</span>
                 </div>
               </TableHead>
-              <TableHead className="w-[220px]">
-                <div className="flex items-center gap-1">
-                  <span>创建时间</span>
+              <TableHead className="w-[1%] whitespace-nowrap">
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Calendar className="h-4 w-4" />
+                  <span>created</span>
                 </div>
               </TableHead>
               <TableHead className="w-[50px]" />
@@ -230,7 +233,7 @@ function LogRow({ log, isSelected, onSelect, onToggleSelect, onKeyDown }: LogRow
           onClick={(e) => onToggleSelect(log, e)}
         />
       </TableCell>
-      <TableCell>
+      <TableCell className="whitespace-nowrap">
         <LogLevel level={log.level} />
       </TableCell>
       <TableCell>
@@ -260,7 +263,7 @@ function LogRow({ log, isSelected, onSelect, onToggleSelect, onKeyDown }: LogRow
           )}
         </div>
       </TableCell>
-      <TableCell>
+      <TableCell className="whitespace-nowrap">
         <LogDate date={log.created} />
       </TableCell>
       <TableCell>

@@ -26,10 +26,12 @@ interface BatchSettings {
 interface BatchAccordionProps {
   settings: BatchSettings
   onChange: (settings: BatchSettings) => void
+  hideControls: boolean
+  onHideControlsChange: (value: boolean) => void
   errors?: Record<string, string>
 }
 
-export function BatchAccordion({ settings, onChange, errors }: BatchAccordionProps) {
+export function BatchAccordion({ settings, onChange, hideControls, onHideControlsChange, errors }: BatchAccordionProps) {
   const hasErrors = errors && Object.keys(errors).length > 0
 
   const handleChange = (field: keyof BatchSettings, value: unknown) => {
@@ -42,7 +44,7 @@ export function BatchAccordion({ settings, onChange, errors }: BatchAccordionPro
         <AccordionTrigger className="hover:no-underline">
           <div className="flex items-center gap-2 flex-1">
             <Archive className="h-4 w-4" />
-            <span>Batch API</span>
+            <span>Batch Requests</span>
           </div>
           <div className="flex items-center gap-2 mr-2">
             <Badge variant={settings.enabled ? 'default' : 'secondary'}>
@@ -130,6 +132,31 @@ export function BatchAccordion({ settings, onChange, errors }: BatchAccordionPro
                 }
               />
             </div>
+          </div>
+
+          {/* Hide collection create and edit controls */}
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch
+              id="batch-hideControls"
+              checked={hideControls}
+              onCheckedChange={onHideControlsChange}
+            />
+            <Label htmlFor="batch-hideControls" className="flex items-center gap-1">
+              Hide collection create and edit controls
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Info className="h-3 w-3 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>
+                      This could prevent making accidental schema changes when in production
+                      environment.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </Label>
           </div>
         </AccordionContent>
       </AccordionItem>

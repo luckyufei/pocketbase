@@ -8,7 +8,6 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import {
   Table,
   TableBody,
@@ -35,6 +34,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -43,11 +49,9 @@ import {
   RefreshCw,
   Plus,
   Trash2,
-  Eye,
-  EyeOff,
   Pencil,
-  AlertTriangle,
-  ShieldAlert,
+  Lock,
+  Key,
 } from 'lucide-react'
 import { getApiClient } from '@/lib/ApiClient'
 import { useTranslation } from 'react-i18next'
@@ -89,6 +93,40 @@ const defaultFormData: SecretFormData = {
   description: '',
 }
 
+/**
+ * Environment options for select
+ */
+const envOptions = [
+  { label: 'Global', value: 'global' },
+  { label: 'Development', value: 'dev' },
+  { label: 'Production', value: 'prod' },
+]
+
+/**
+ * Get badge variant based on environment
+ */
+function getEnvBadgeVariant(env: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+  switch (env) {
+    case 'production':
+    case 'prod':
+      return 'destructive'
+    case 'development':
+    case 'dev':
+      return 'secondary'
+    default:
+      return 'outline'
+  }
+}
+
+/**
+ * Format date string to locale string
+ */
+function formatDate(dateStr: string): string {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  return date.toLocaleString()
+}
+
 export function Secrets() {
   const { t } = useTranslation()
   const [secrets, setSecrets] = useState<SecretInfo[]>([])
@@ -97,16 +135,11 @@ export function Secrets() {
   const [error, setError] = useState<string | null>(null)
   const [isDisabled, setIsDisabled] = useState(false)
 
-  // 显示解密值的 keys
-  const [revealedKeys, setRevealedKeys] = useState<Set<string>>(new Set())
-  const [revealedValues, setRevealedValues] = useState<Map<string, string>>(new Map())
-  const [loadingKeys, setLoadingKeys] = useState<Set<string>>(new Set())
-
   // 对话框状态
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [selectedSecret, setSelectedSecret] = useState<SecretInfo | null>(null)
   const [formData, setFormData] = useState<SecretFormData>(defaultFormData)
 
   const pb = getApiClient()
@@ -120,17 +153,19 @@ export function Secrets() {
     setIsDisabled(false)
 
     try {
-      const response = (await pb.send('/api/secrets', { method: 'GET' })) as SecretsListResponse
-      setSecrets(response.items || [])
+      const result = await pb.send('/api/secrets', { method: 'GET' })
+      // Ensure result is array
+      const items = Array.isArray(result) ? result : (result?.secrets || result?.items || [])
+      setSecrets(items)
     } catch (err: any) {
       console.error('Failed to load secrets:', err)
       if (err.status === 503) {
         setIsDisabled(true)
-        setError(t('secrets.disabled', 'Secrets 功能未启用。请设置 PB_MASTER_KEY 环境变量。'))
+        setSecrets([])
       } else if (err.status === 401 || err.status === 403) {
-        setError(t('secrets.unauthorized', '需要 Superuser 权限才能管理 Secrets。'))
+        setError(t('secrets.unauthorized', 'Superuser permission required to manage Secrets.'))
       } else {
-        setError(err.message || t('secrets.loadError', '加载 Secrets 失败'))
+        setError(err.message || t('secrets.loadError', 'Failed to load Secrets'))
       }
       setSecrets([])
     } finally {
@@ -143,79 +178,34 @@ export function Secrets() {
   }, [])
 
   /**
-   * 显示/隐藏 Secret 解密值
-   */
-  const toggleRevealValue = async (key: string) => {
-    if (revealedKeys.has(key)) {
-      // 隐藏
-      setRevealedKeys((prev) => {
-        const next = new Set(prev)
-        next.delete(key)
-        return next
-      })
-      setRevealedValues((prev) => {
-        const next = new Map(prev)
-        next.delete(key)
-        return next
-      })
-      return
-    }
-
-    // 显示 - 需要从 API 获取解密值
-    setLoadingKeys((prev) => new Set(prev).add(key))
-    try {
-      const response = await pb.send(`/api/secrets/${encodeURIComponent(key)}`, { method: 'GET' })
-      setRevealedKeys((prev) => new Set(prev).add(key))
-      setRevealedValues((prev) => new Map(prev).set(key, response.value))
-    } catch (err: any) {
-      console.error('Failed to reveal secret:', err)
-      setError(err.message || t('secrets.revealError', '获取 Secret 值失败'))
-    } finally {
-      setLoadingKeys((prev) => {
-        const next = new Set(prev)
-        next.delete(key)
-        return next
-      })
-    }
-  }
-
-  /**
    * 打开创建对话框
    */
   const openCreateDialog = () => {
     setFormData(defaultFormData)
+    setError(null)
     setIsCreateDialogOpen(true)
   }
 
   /**
    * 打开编辑对话框
    */
-  const openEditDialog = async (key: string) => {
-    setSelectedKey(key)
-    const secret = secrets.find((s) => s.key === key)
-    if (secret) {
-      // 获取解密值
-      try {
-        const response = await pb.send(`/api/secrets/${encodeURIComponent(key)}`, { method: 'GET' })
-        setFormData({
-          key: secret.key,
-          value: response.value,
-          env: secret.env || 'global',
-          description: secret.description || '',
-        })
-        setIsEditDialogOpen(true)
-      } catch (err: any) {
-        console.error('Failed to get secret for edit:', err)
-        setError(err.message || t('secrets.getError', '获取 Secret 失败'))
-      }
-    }
+  const openEditDialog = (secret: SecretInfo) => {
+    setSelectedSecret(secret)
+    setFormData({
+      key: secret.key,
+      value: '', // Value not echoed back, need to re-enter
+      env: secret.env || 'global',
+      description: secret.description || '',
+    })
+    setError(null)
+    setIsEditDialogOpen(true)
   }
 
   /**
    * 打开删除确认对话框
    */
-  const openDeleteDialog = (key: string) => {
-    setSelectedKey(key)
+  const openDeleteDialog = (secret: SecretInfo) => {
+    setSelectedSecret(secret)
     setIsDeleteDialogOpen(true)
   }
 
@@ -224,7 +214,13 @@ export function Secrets() {
    */
   const handleCreate = async () => {
     if (!formData.key || !formData.value) {
-      setError(t('secrets.keyValueRequired', 'Key 和 Value 是必填项'))
+      setError(t('secrets.keyValueRequired', 'Key and Value are required'))
+      return
+    }
+
+    // Validate key format
+    if (!/^[A-Z0-9_]+$/.test(formData.key)) {
+      setError(t('secrets.keyFormatError', 'Key must be uppercase letters, numbers, and underscores only'))
       return
     }
 
@@ -246,7 +242,7 @@ export function Secrets() {
       await loadSecrets()
     } catch (err: any) {
       console.error('Failed to create secret:', err)
-      setError(err.message || t('secrets.createError', '创建 Secret 失败'))
+      setError(err.data?.message || err.message || t('secrets.createError', 'Failed to create Secret'))
     } finally {
       setIsSaving(false)
     }
@@ -256,8 +252,8 @@ export function Secrets() {
    * 更新 Secret
    */
   const handleUpdate = async () => {
-    if (!selectedKey || !formData.value) {
-      setError(t('secrets.valueRequired', 'Value 是必填项'))
+    if (!selectedSecret || !formData.value) {
+      setError(t('secrets.valueRequired', 'Value is required'))
       return
     }
 
@@ -265,7 +261,7 @@ export function Secrets() {
     setError(null)
 
     try {
-      await pb.send(`/api/secrets/${encodeURIComponent(selectedKey)}`, {
+      await pb.send(`/api/secrets/${encodeURIComponent(selectedSecret.key)}`, {
         method: 'PUT',
         body: {
           value: formData.value,
@@ -273,23 +269,12 @@ export function Secrets() {
         },
       })
       setIsEditDialogOpen(false)
-      setSelectedKey(null)
+      setSelectedSecret(null)
       setFormData(defaultFormData)
-      // 清除缓存的解密值
-      setRevealedKeys((prev) => {
-        const next = new Set(prev)
-        next.delete(selectedKey)
-        return next
-      })
-      setRevealedValues((prev) => {
-        const next = new Map(prev)
-        next.delete(selectedKey)
-        return next
-      })
       await loadSecrets()
     } catch (err: any) {
       console.error('Failed to update secret:', err)
-      setError(err.message || t('secrets.updateError', '更新 Secret 失败'))
+      setError(err.data?.message || err.message || t('secrets.updateError', 'Failed to update Secret'))
     } finally {
       setIsSaving(false)
     }
@@ -299,302 +284,348 @@ export function Secrets() {
    * 删除 Secret
    */
   const handleDelete = async () => {
-    if (!selectedKey) return
+    if (!selectedSecret) return
 
     setIsSaving(true)
     setError(null)
 
     try {
-      await pb.send(`/api/secrets/${encodeURIComponent(selectedKey)}`, {
+      await pb.send(`/api/secrets/${encodeURIComponent(selectedSecret.key)}`, {
         method: 'DELETE',
       })
       setIsDeleteDialogOpen(false)
-      setSelectedKey(null)
-      // 清除缓存的解密值
-      setRevealedKeys((prev) => {
-        const next = new Set(prev)
-        next.delete(selectedKey)
-        return next
-      })
-      setRevealedValues((prev) => {
-        const next = new Map(prev)
-        next.delete(selectedKey)
-        return next
-      })
+      setSelectedSecret(null)
       await loadSecrets()
     } catch (err: any) {
       console.error('Failed to delete secret:', err)
-      setError(err.message || t('secrets.deleteError', '删除 Secret 失败'))
+      setError(err.data?.message || err.message || t('secrets.deleteError', 'Failed to delete Secret'))
     } finally {
       setIsSaving(false)
     }
   }
 
-  /**
-   * 获取显示的值（掩码或解密）
-   */
-  const getDisplayValue = (secret: SecretInfo) => {
-    if (revealedKeys.has(secret.key)) {
-      return revealedValues.get(secret.key) || ''
-    }
-    return secret.masked_value
-  }
-
   return (
-    <div className="p-6 max-w-4xl">
-      {/* 页面标题 */}
-      <header className="mb-6">
-        <nav className="text-sm text-muted-foreground mb-2">
+    <div className="p-6 max-w-5xl">
+      {/* Page header */}
+      <header className="page-header mb-6">
+        <nav className="breadcrumbs flex items-center text-sm text-muted-foreground mb-2">
           <span>Settings</span>
           <span className="mx-2">/</span>
           <span className="text-foreground">Secrets</span>
         </nav>
-        <p className="text-sm text-muted-foreground mt-1">
-          {t('secrets.description', '管理加密存储的敏感数据（API 密钥、令牌等）')}
-        </p>
+        <div className="flex items-center justify-between">
+          <div />
+          {!isDisabled && (
+            <Button onClick={openCreateDialog}>
+              <Plus className="w-4 h-4 mr-2" />
+              <span>New secret</span>
+            </Button>
+          )}
+        </div>
       </header>
 
-      {/* 功能未启用提示 */}
+      {/* Disabled alert */}
       {isDisabled && (
-        <Alert variant="destructive" className="mb-4">
-          <ShieldAlert className="h-4 w-4" />
-          <AlertTitle>{t('secrets.disabledTitle', 'Secrets 功能未启用')}</AlertTitle>
-          <AlertDescription>
-            {t(
-              'secrets.disabledDescription',
-              '请在服务器上设置 PB_MASTER_KEY 环境变量（64 字符十六进制字符串）来启用 Secrets 功能。'
-            )}
+        <Alert className="mb-6 border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
+          <Lock className="h-4 w-4 text-yellow-600" />
+          <AlertTitle className="text-yellow-800 dark:text-yellow-200">
+            Secrets feature is disabled
+          </AlertTitle>
+          <AlertDescription className="text-yellow-700 dark:text-yellow-300">
+            <p className="mt-1">
+              To enable encrypted secret storage, set the <code className="bg-yellow-100 dark:bg-yellow-900/50 px-1 py-0.5 rounded text-sm">PB_MASTER_KEY</code> environment variable
+              with a 64-character hex string (32 bytes).
+            </p>
+            <p className="mt-2 text-sm opacity-80">
+              Example: <code className="bg-yellow-100 dark:bg-yellow-900/50 px-1 py-0.5 rounded text-xs">export PB_MASTER_KEY=$(openssl rand -hex 32)</code>
+            </p>
           </AlertDescription>
         </Alert>
       )}
 
-      {/* 错误提示 */}
+      {/* Error alert */}
       {error && !isDisabled && (
         <Alert variant="destructive" className="mb-4">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>{t('common.error', '错误')}</AlertTitle>
+          <AlertTitle>{t('common.error', 'Error')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      {/* 操作按钮 */}
-      <div className="flex gap-2 mb-4">
-        <Button onClick={openCreateDialog} disabled={isDisabled}>
-          <Plus className="w-4 h-4 mr-2" />
-          {t('secrets.addSecret', 'Add Secret')}
-        </Button>
-        <Button variant="outline" onClick={loadSecrets} disabled={isLoading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          {t('common.refresh', 'Refresh')}
-        </Button>
-      </div>
+      {/* Secrets list panel */}
+      {!isDisabled && (
+        <div className="rounded-lg border bg-card p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-xl flex items-center gap-2">
+              <Key className="w-5 h-5" />
+              Encrypted Secrets
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={loadSecrets}
+              disabled={isLoading}
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
 
-      {/* Secrets 列表 */}
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('secrets.key', 'Key')}</TableHead>
-              <TableHead>{t('secrets.value', 'Value')}</TableHead>
-              <TableHead>{t('secrets.env', 'Env')}</TableHead>
-              <TableHead className="w-32">{t('common.actions', 'Actions')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {secrets.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                  {isDisabled
-                    ? t('secrets.disabledEmpty', 'Secrets 功能未启用')
-                    : t('secrets.empty', '暂无 Secrets。点击 "Add Secret" 创建一个。')}
-                </TableCell>
-              </TableRow>
-            ) : (
-              secrets.map((secret) => (
-                <TableRow key={secret.key}>
-                  <TableCell className="font-mono font-medium">{secret.key}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <code className="text-sm bg-muted px-2 py-1 rounded max-w-xs truncate">
-                        {getDisplayValue(secret)}
-                      </code>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => toggleRevealValue(secret.key)}
-                        disabled={loadingKeys.has(secret.key)}
-                      >
-                        {loadingKeys.has(secret.key) ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : revealedKeys.has(secret.key) ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{secret.env || 'global'}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openEditDialog(secret.key)}
-                        title={t('common.edit', 'Edit')}
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => openDeleteDialog(secret.key)}
-                        title={t('common.delete', 'Delete')}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          <p className="text-sm text-muted-foreground mb-4">
+            Secrets are encrypted with AES-256-GCM. Values are never exposed in the UI.
+          </p>
+
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Key</TableHead>
+                  <TableHead>Value</TableHead>
+                  <TableHead>Environment</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Updated</TableHead>
+                  <TableHead className="w-24">Actions</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                ) : secrets.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
+                      No secrets found. Click "New secret" to create one.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  secrets.map((secret) => (
+                    <TableRow key={`${secret.key}-${secret.env}`}>
+                      <TableCell>
+                        <span className="font-mono font-bold">{secret.key}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-mono text-muted-foreground flex items-center gap-1">
+                          <Lock className="w-3 h-3" />
+                          {secret.masked_value || '***'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getEnvBadgeVariant(secret.env)}>
+                          {secret.env || 'global'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground max-w-[200px] truncate">
+                        {secret.description || '-'}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {formatDate(secret.updated)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditDialog(secret)}
+                            title="Overwrite value"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openDeleteDialog(secret)}
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
       )}
 
-      {/* 创建对话框 */}
+      {/* Create dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('secrets.createTitle', '创建 Secret')}</DialogTitle>
+            <DialogTitle>New Secret</DialogTitle>
             <DialogDescription>
-              {t('secrets.createDescription', '创建一个新的加密存储密钥')}
+              Create a new encrypted secret.
             </DialogDescription>
           </DialogHeader>
+          
+          {error && (
+            <Alert variant="destructive" className="my-2">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="key">{t('secrets.key', 'Key')}</Label>
+              <Label htmlFor="key">
+                Key <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="key"
                 value={formData.key}
-                onChange={(e) => setFormData({ ...formData, key: e.target.value })}
-                placeholder="OPENAI_API_KEY"
+                onChange={(e) => setFormData({ ...formData, key: e.target.value.toUpperCase() })}
+                placeholder="e.g., OPENAI_API_KEY"
                 className="font-mono"
+                pattern="[A-Z0-9_]+"
               />
+              <p className="text-xs text-muted-foreground">
+                Recommended format: <code className="bg-muted px-1 py-0.5 rounded">VENDOR_TYPE</code> (e.g., OPENAI_API_KEY)
+              </p>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="value">{t('secrets.value', 'Value')}</Label>
+              <Label htmlFor="value">
+                Value <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="value"
                 type="password"
                 value={formData.value}
                 onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                placeholder="sk-..."
+                placeholder="Enter secret value"
                 className="font-mono"
+                autoComplete="new-password"
               />
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Lock className="w-3 h-3" />
+                Value will be encrypted with AES-256-GCM
+              </p>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="env">{t('secrets.env', 'Environment')}</Label>
-              <Input
-                id="env"
+              <Label htmlFor="env">Environment</Label>
+              <Select
                 value={formData.env}
-                onChange={(e) => setFormData({ ...formData, env: e.target.value })}
-                placeholder="global"
-              />
+                onValueChange={(value) => setFormData({ ...formData, env: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select environment" />
+                </SelectTrigger>
+                <SelectContent>
+                  {envOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Use different environments to isolate dev/prod secrets
+              </p>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="description">{t('secrets.description', 'Description')}</Label>
-              <Textarea
+              <Label htmlFor="description">Description</Label>
+              <Input
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder={t('secrets.descriptionPlaceholder', 'Optional description')}
-                rows={2}
+                placeholder="Optional description"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-              {t('common.cancel', 'Cancel')}
+            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} disabled={isSaving}>
+              Cancel
             </Button>
             <Button onClick={handleCreate} disabled={isSaving}>
               {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {t('common.create', 'Create')}
+              Create
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* 编辑对话框 */}
+      {/* Edit (Overwrite) dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t('secrets.editTitle', '编辑 Secret')}</DialogTitle>
+            <DialogTitle>Overwrite "{selectedSecret?.key}"</DialogTitle>
             <DialogDescription>
-              {t('secrets.editDescription', '更新密钥 "{key}" 的值', { key: selectedKey })}
+              Enter a new value to overwrite the existing secret.
             </DialogDescription>
           </DialogHeader>
+
+          {error && (
+            <Alert variant="destructive" className="my-2">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="edit-key">{t('secrets.key', 'Key')}</Label>
-              <Input id="edit-key" value={formData.key} disabled className="font-mono" />
+              <Label htmlFor="edit-key">Key</Label>
+              <Input
+                id="edit-key"
+                value={formData.key}
+                disabled
+                className="font-mono bg-muted"
+              />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-value">{t('secrets.value', 'Value')}</Label>
+              <Label htmlFor="edit-value">
+                Value <span className="text-destructive">*</span>
+                <span className="text-xs text-muted-foreground ml-2">(enter new value to overwrite)</span>
+              </Label>
               <Input
                 id="edit-value"
                 type="password"
                 value={formData.value}
                 onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                placeholder="sk-..."
+                placeholder="Enter secret value"
                 className="font-mono"
+                autoComplete="new-password"
               />
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Lock className="w-3 h-3" />
+                Value will be encrypted with AES-256-GCM
+              </p>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-description">{t('secrets.description', 'Description')}</Label>
-              <Textarea
+              <Label htmlFor="edit-description">Description</Label>
+              <Input
                 id="edit-description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder={t('secrets.descriptionPlaceholder', 'Optional description')}
-                rows={2}
+                placeholder="Optional description"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              {t('common.cancel', 'Cancel')}
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSaving}>
+              Cancel
             </Button>
             <Button onClick={handleUpdate} disabled={isSaving}>
               {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {t('common.save', 'Save')}
+              Overwrite
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* 删除确认对话框 */}
+      {/* Delete confirmation dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('secrets.deleteTitle', '确认删除')}</AlertDialogTitle>
+            <AlertDialogTitle>Delete Secret</AlertDialogTitle>
             <AlertDialogDescription>
-              {t('secrets.deleteDescription', '确定要删除密钥 "{key}" 吗？此操作无法撤销。', {
-                key: selectedKey,
-              })}
+              Are you sure you want to delete secret "{selectedSecret?.key}"? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSaving}>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={isSaving}>
               {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {t('common.delete', 'Delete')}
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

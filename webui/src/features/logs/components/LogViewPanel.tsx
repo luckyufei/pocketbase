@@ -1,33 +1,23 @@
 /**
  * LogViewPanel 组件
- * 日志详情面板
+ * 日志详情面板 - Apple 风格侧边滑动面板
+ * 与 UI 版本对齐
  */
-import { useMemo, useCallback } from 'react'
-import { Download, Copy, Check, Loader2 } from 'lucide-react'
+import { useMemo, useCallback, useState } from 'react'
+import { Download, Copy, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { LogLevel } from './LogLevel'
 import { LogDate } from './LogDate'
 import type { LogEntry } from '../store'
 import { extractSortedDataKeys, isEmpty, downloadLogAsJson } from '@/lib/logUtils'
-import { useState } from 'react'
 
 interface LogViewPanelProps {
   log: LogEntry | null
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  isLoading?: boolean
+  onClose: () => void
 }
 
-export function LogViewPanel({ log, open, onOpenChange, isLoading = false }: LogViewPanelProps) {
+export function LogViewPanel({ log, onClose }: LogViewPanelProps) {
   const isRequest = log?.data?.type === 'request'
   const dataKeys = useMemo(() => (log?.data ? extractSortedDataKeys(log.data) : []), [log?.data])
 
@@ -37,34 +27,54 @@ export function LogViewPanel({ log, open, onOpenChange, isLoading = false }: Log
     }
   }, [log])
 
-  const handleClose = useCallback(() => {
-    onOpenChange(false)
-  }, [onOpenChange])
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh]">
-        <DialogHeader>
-          <DialogTitle>日志详情</DialogTitle>
-        </DialogHeader>
-
-        {isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin" />
+    <div
+      className={`fixed right-0 top-0 h-full w-[420px] bg-white border-l border-slate-200 shadow-xl transform transition-transform duration-300 ease-out z-50 ${
+        log ? 'translate-x-0' : 'translate-x-full'
+      }`}
+    >
+      {log && (
+        <div className="h-full flex flex-col">
+          {/* 面板头部 */}
+          <div className="h-14 px-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80 backdrop-blur-sm shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-slate-900">Log Details</span>
+              <LogLevel level={log.level} />
+            </div>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDownload}
+                className="h-8 w-8 p-0 text-slate-500 hover:text-slate-900"
+                title="Download as JSON"
+              >
+                <Download className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="h-8 w-8 p-0 text-slate-500 hover:text-slate-900"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-        ) : log ? (
-          <ScrollArea className="max-h-[60vh]">
-            <table className="w-full border-collapse">
+
+          {/* 面板内容 */}
+          <div className="flex-1 overflow-auto">
+            <table className="w-full">
               <tbody>
                 {/* ID */}
-                <DetailRow label="id" value={log.id} />
+                <DetailRow label="id" value={log.id} mono />
 
                 {/* Level */}
-                <tr className="border-b">
-                  <td className="py-3 pr-4 text-sm font-medium text-muted-foreground w-[120px]">
+                <tr className="border-b border-slate-100 hover:bg-slate-50 group">
+                  <td className="py-3 px-4 text-xs font-medium text-slate-500 w-[100px] align-top">
                     level
                   </td>
-                  <td className="py-3">
+                  <td className="py-3 px-4">
                     <div className="flex items-center justify-between">
                       <LogLevel level={log.level} />
                       <CopyButton value={String(log.level)} />
@@ -73,9 +83,11 @@ export function LogViewPanel({ log, open, onOpenChange, isLoading = false }: Log
                 </tr>
 
                 {/* Created */}
-                <tr className="border-b">
-                  <td className="py-3 pr-4 text-sm font-medium text-muted-foreground">created</td>
-                  <td className="py-3">
+                <tr className="border-b border-slate-100 hover:bg-slate-50 group">
+                  <td className="py-3 px-4 text-xs font-medium text-slate-500 align-top">
+                    created
+                  </td>
+                  <td className="py-3 px-4">
                     <div className="flex items-center justify-between">
                       <LogDate date={log.created} />
                       <CopyButton value={log.created} />
@@ -83,43 +95,45 @@ export function LogViewPanel({ log, open, onOpenChange, isLoading = false }: Log
                   </td>
                 </tr>
 
-                {/* Message (非请求类型) */}
-                {!isRequest && <DetailRow label="message" value={log.message} />}
+                {/* Message */}
+                <DetailRow
+                  label="message"
+                  value={log.message}
+                  mono
+                  wrap
+                />
 
                 {/* Data 字段 */}
                 {dataKeys.map((key) => {
                   const value = log.data[key]
                   const isEmptyValue = isEmpty(value)
                   const isJson = !isEmptyValue && value !== null && typeof value === 'object'
+                  const isError = key === 'error'
+                  const isDetails = key === 'details'
 
                   return (
-                    <tr key={key} className="border-b">
-                      <td
-                        className={cn(
-                          'py-3 pr-4 text-sm font-medium text-muted-foreground',
-                          isJson && 'align-top'
-                        )}
-                      >
+                    <tr key={key} className="border-b border-slate-100 hover:bg-slate-50 group">
+                      <td className="py-3 px-4 text-xs font-medium text-slate-500 align-top">
                         data.{key}
                       </td>
-                      <td className="py-3">
+                      <td className="py-3 px-4">
                         <div className="flex items-start justify-between gap-2">
                           {isEmptyValue ? (
-                            <span className="text-muted-foreground">N/A</span>
+                            <span className="text-xs text-slate-400">N/A</span>
                           ) : isJson ? (
-                            <pre className="text-sm bg-muted p-2 rounded overflow-auto max-w-full">
+                            <pre className="text-xs font-mono bg-slate-100 p-2 rounded-lg overflow-auto max-w-full max-h-[200px] text-slate-700">
                               {JSON.stringify(value, null, 2)}
                             </pre>
-                          ) : key === 'error' ? (
-                            <span className="inline-flex items-center rounded-md bg-red-100 px-2 py-1 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                          ) : isError ? (
+                            <span className="inline-flex items-center rounded px-2 py-1 text-xs bg-red-50 text-red-600 font-medium">
                               {String(value)}
                             </span>
-                          ) : key === 'details' ? (
-                            <pre className="text-sm bg-muted p-2 rounded overflow-auto max-w-full whitespace-pre-wrap">
+                          ) : isDetails ? (
+                            <pre className="text-xs font-mono bg-slate-100 p-2 rounded-lg overflow-auto max-w-full whitespace-pre-wrap text-slate-700">
                               {String(value)}
                             </pre>
                           ) : (
-                            <span className="text-sm">
+                            <span className="text-sm text-slate-700">
                               {String(value)}
                               {isRequest && key === 'execTime' ? 'ms' : ''}
                             </span>
@@ -138,20 +152,10 @@ export function LogViewPanel({ log, open, onOpenChange, isLoading = false }: Log
                 })}
               </tbody>
             </table>
-          </ScrollArea>
-        ) : null}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
-            关闭
-          </Button>
-          <Button onClick={handleDownload} disabled={isLoading || !log}>
-            <Download className="mr-2 h-4 w-4" />
-            下载 JSON
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -159,18 +163,30 @@ export function LogViewPanel({ log, open, onOpenChange, isLoading = false }: Log
 interface DetailRowProps {
   label: string
   value: string | undefined
+  mono?: boolean
+  wrap?: boolean
 }
 
-function DetailRow({ label, value }: DetailRowProps) {
+function DetailRow({ label, value, mono, wrap }: DetailRowProps) {
   return (
-    <tr className="border-b">
-      <td className="py-3 pr-4 text-sm font-medium text-muted-foreground w-[120px]">{label}</td>
-      <td className="py-3">
-        <div className="flex items-center justify-between">
+    <tr className="border-b border-slate-100 hover:bg-slate-50 group">
+      <td className="py-3 px-4 text-xs font-medium text-slate-500 w-[100px] align-top">
+        {label}
+      </td>
+      <td className="py-3 px-4">
+        <div className="flex items-start justify-between gap-2">
           {value ? (
-            <span className="text-sm">{value}</span>
+            <span
+              className={cn(
+                'text-sm text-slate-700',
+                mono && 'font-mono text-xs',
+                wrap && 'break-all'
+              )}
+            >
+              {value}
+            </span>
           ) : (
-            <span className="text-sm text-muted-foreground">N/A</span>
+            <span className="text-xs text-slate-400">N/A</span>
           )}
           {value && <CopyButton value={value} />}
         </div>
@@ -200,8 +216,8 @@ function CopyButton({ value }: CopyButtonProps) {
   return (
     <Button
       variant="ghost"
-      size="icon"
-      className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:opacity-100"
+      size="sm"
+      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:opacity-100 shrink-0 text-slate-400 hover:text-slate-600"
       onClick={handleCopy}
     >
       {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
