@@ -90,6 +90,42 @@ export const statsAtom = atom<LogsStats>({
  */
 export const zoomAtom = atom<{ min?: string; max?: string }>({})
 
+/**
+ * 是否包含超级用户日志
+ * 默认从 localStorage 读取，如果没有则默认为 false
+ */
+const SUPERUSER_LOGS_STORAGE_KEY = 'superuserLogRequests'
+
+function getInitialSuperuserLogsValue(): boolean {
+  if (typeof window !== 'undefined') {
+    const stored = window.localStorage?.getItem(SUPERUSER_LOGS_STORAGE_KEY)
+    return stored === '1'
+  }
+  return false
+}
+
+export const withSuperuserLogsAtom = atom<boolean>(getInitialSuperuserLogsValue())
+
+/**
+ * 图表统计数据
+ */
+export interface ChartDataPoint {
+  date: string
+  total: number
+}
+
+export const chartDataAtom = atom<ChartDataPoint[]>([])
+
+/**
+ * 日志总数（来自图表统计）
+ */
+export const totalLogsAtom = atom<number>(0)
+
+/**
+ * 图表加载状态
+ */
+export const chartLoadingAtom = atom<boolean>(false)
+
 // ============ 写入 Atoms ============
 
 /**
@@ -144,4 +180,36 @@ export const setSortAtom = atom(null, (_get, set, sort: string) => {
  */
 export const setZoomAtom = atom(null, (_get, set, zoom: { min?: string; max?: string }) => {
   set(zoomAtom, zoom)
+})
+
+/**
+ * 设置是否包含超级用户日志
+ */
+export const setWithSuperuserLogsAtom = atom(null, (_get, set, value: boolean) => {
+  set(withSuperuserLogsAtom, value)
+  // 持久化到 localStorage
+  if (typeof window !== 'undefined') {
+    window.localStorage?.setItem(SUPERUSER_LOGS_STORAGE_KEY, value ? '1' : '0')
+  }
+})
+
+/**
+ * 设置图表数据
+ */
+export const setChartDataAtom = atom(null, (_get, set, data: ChartDataPoint[]) => {
+  set(chartDataAtom, data)
+})
+
+/**
+ * 设置日志总数
+ */
+export const setTotalLogsAtom = atom(null, (_get, set, total: number) => {
+  set(totalLogsAtom, total)
+})
+
+/**
+ * 设置图表加载状态
+ */
+export const setChartLoadingAtom = atom(null, (_get, set, loading: boolean) => {
+  set(chartLoadingAtom, loading)
 })

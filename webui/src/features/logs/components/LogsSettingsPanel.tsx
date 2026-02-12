@@ -1,14 +1,20 @@
 /**
- * 日志设置面板组件
+ * 日志设置弹窗组件
  * 用于配置日志保留天数、最小日志级别、IP 和 Auth Id 日志开关
  */
 import { useState, useEffect, useCallback, useId } from 'react'
 import { useSetAtom } from 'jotai'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter } from '@/components/ui/sheet'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Switch } from '@/components/ui/switch'
 import { Loader2 } from 'lucide-react'
 import { pb } from '@/lib/ApiClient'
 import { addToast } from '@/store/toasts'
@@ -142,11 +148,11 @@ export function LogsSettingsPanel({ open, onOpenChange, onSave }: LogsSettingsPa
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>Logs settings</SheetTitle>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Logs settings</DialogTitle>
+        </DialogHeader>
 
         {isLoading ? (
           <div className="flex items-center justify-center py-8" data-testid="loading-spinner">
@@ -155,10 +161,12 @@ export function LogsSettingsPanel({ open, onOpenChange, onSave }: LogsSettingsPa
         ) : error ? (
           <div className="py-8 text-center text-destructive">{error}</div>
         ) : (
-          <form id={formId} className="space-y-6 py-4" onSubmit={handleSave}>
+          <form id={formId} className="space-y-5" onSubmit={handleSave}>
             {/* Max days retention */}
             <div className="space-y-2">
-              <Label htmlFor={`${formId}-maxDays`}>Max days retention</Label>
+              <Label htmlFor={`${formId}-maxDays`} className="text-sm font-medium">
+                Max days retention <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id={`${formId}-maxDays`}
                 type="number"
@@ -174,7 +182,9 @@ export function LogsSettingsPanel({ open, onOpenChange, onSave }: LogsSettingsPa
 
             {/* Min log level */}
             <div className="space-y-2">
-              <Label htmlFor={`${formId}-minLevel`}>Min log level</Label>
+              <Label htmlFor={`${formId}-minLevel`} className="text-sm font-medium">
+                Min log level
+              </Label>
               <Input
                 id={`${formId}-minLevel`}
                 type="number"
@@ -200,25 +210,25 @@ export function LogsSettingsPanel({ open, onOpenChange, onSave }: LogsSettingsPa
             </div>
 
             {/* Enable IP logging */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
+            <div className="flex items-center gap-3">
+              <Switch
                 id={`${formId}-logIP`}
                 checked={formSettings.logIP}
-                onCheckedChange={(checked) => updateField('logIP', checked === true)}
+                onCheckedChange={(checked) => updateField('logIP', checked)}
               />
-              <Label htmlFor={`${formId}-logIP`} className="cursor-pointer">
+              <Label htmlFor={`${formId}-logIP`} className="cursor-pointer text-sm">
                 Enable IP logging
               </Label>
             </div>
 
             {/* Enable Auth Id logging */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
+            <div className="flex items-center gap-3">
+              <Switch
                 id={`${formId}-logAuthId`}
                 checked={formSettings.logAuthId}
-                onCheckedChange={(checked) => updateField('logAuthId', checked === true)}
+                onCheckedChange={(checked) => updateField('logAuthId', checked)}
               />
-              <Label htmlFor={`${formId}-logAuthId`} className="cursor-pointer">
+              <Label htmlFor={`${formId}-logAuthId`} className="cursor-pointer text-sm">
                 Enable Auth Id logging
               </Label>
             </div>
@@ -228,7 +238,7 @@ export function LogsSettingsPanel({ open, onOpenChange, onSave }: LogsSettingsPa
           </form>
         )}
 
-        <SheetFooter className="mt-4">
+        <DialogFooter className="gap-2 sm:gap-0">
           <Button type="button" variant="outline" disabled={isSaving} onClick={handleCancel}>
             Cancel
           </Button>
@@ -236,8 +246,8 @@ export function LogsSettingsPanel({ open, onOpenChange, onSave }: LogsSettingsPa
             {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save changes
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

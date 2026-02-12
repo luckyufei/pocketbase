@@ -52,6 +52,8 @@ interface FilterAutocompleteInputProps {
   disabled?: boolean
   className?: string
   singleLine?: boolean
+  /** 额外的自动补全键（如 Logs 模块的 level, message, data.） */
+  extraAutocompleteKeys?: string[]
 }
 
 export function FilterAutocompleteInput({
@@ -64,6 +66,7 @@ export function FilterAutocompleteInput({
   disabled = false,
   className,
   singleLine = true, // 默认单行模式（搜索框场景）
+  extraAutocompleteKeys = [],
 }: FilterAutocompleteInputProps) {
   const editorRef = useRef<ReactCodeMirrorRef>(null)
   // 保存提交回调的 ref，避免 extensions 依赖变化
@@ -129,6 +132,14 @@ export function FilterAutocompleteInput({
       });
     }
 
+    // 添加额外的自动补全键（如 Logs 模块的 level, message, data.）
+    for (const key of extraAutocompleteKeys) {
+      options.push({
+        label: key,
+        type: 'property',
+      });
+    }
+
     // @request 键
     if (word?.text.startsWith('@r')) {
       for (const key of autocompleteKeys.requestKeys) {
@@ -160,7 +171,7 @@ export function FilterAutocompleteInput({
       from: word?.from ?? context.pos,
       options,
     };
-  }, [autocompleteKeys]);
+  }, [autocompleteKeys, extraAutocompleteKeys]);
 
   // CodeMirror 扩展配置
   // 对标 ui 版本: editor = new EditorView({ state: EditorState.create({ extensions: [...] }) })
