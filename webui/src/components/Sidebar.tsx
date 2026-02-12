@@ -1,6 +1,7 @@
 /**
  * 侧边栏组件
- * 所有菜单打平到一级，通过分组增加辨识度
+ * 主菜单不需要分组，直接显示所有菜单项
+ * Settings模块使用独立入口，点进去后显示分组菜单
  */
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -15,15 +16,6 @@ import {
   LogOut,
   Moon,
   Sun,
-  Network,
-  Mail,
-  HardDrive,
-  Clock,
-  Key,
-  Users,
-  Download,
-  Upload,
-  Cog,
 } from 'lucide-react'
 import { appNameAtom } from '@/store/app'
 import { superuserAtom } from '@/store/auth'
@@ -58,22 +50,6 @@ function NavItem({ to, icon, label }: NavItemProps) {
   )
 }
 
-interface NavGroupProps {
-  label: string
-  children: React.ReactNode
-}
-
-function NavGroup({ label, children }: NavGroupProps) {
-  return (
-    <div className="space-y-1">
-      <div className="px-3 py-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-        {label}
-      </div>
-      {children}
-    </div>
-  )
-}
-
 export function Sidebar() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -101,115 +77,42 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* 导航菜单 */}
+      {/* 导航菜单 - 无分组，直接列出所有菜单项 */}
       <nav
-        className="flex-1 p-3 space-y-4 overflow-y-auto"
+        className="flex-1 p-3 space-y-1 overflow-y-auto"
         role="menubar"
         aria-label={t('nav.menu', 'Navigation menu')}
       >
-        {/* 数据管理 */}
-        <NavGroup label={t('nav.group.data', 'Data')}>
-          <NavItem
-            to="/collections"
-            icon={<Database className="w-4 h-4" />}
-            label={t('nav.collections', 'Collections')}
-          />
-        </NavGroup>
-
-        {/* 可观测性 */}
-        <NavGroup label={t('nav.group.observability', 'Observability')}>
-          <NavItem
-            to="/logs"
-            icon={<FileText className="w-4 h-4" />}
-            label={t('nav.logs', 'Logs')}
-          />
-          <NavItem
-            to="/monitoring"
-            icon={<Activity className="w-4 h-4" />}
-            label={t('nav.monitoring', 'Monitoring')}
-          />
-          <NavItem
-            to="/traces"
-            icon={<Search className="w-4 h-4" />}
-            label={t('nav.traces', 'Traces')}
-          />
-          <NavItem
-            to="/analytics"
-            icon={<BarChart3 className="w-4 h-4" />}
-            label={t('nav.analytics', 'Analytics')}
-          />
-        </NavGroup>
-
-        {/* 基础设施 */}
-        <NavGroup label={t('nav.group.infra', 'Infrastructure')}>
-          <NavItem
-            to="/gateway"
-            icon={<Network className="w-4 h-4" />}
-            label={t('nav.gateway', 'Gateway')}
-          />
-          <NavItem
-            to="/processes"
-            icon={<Cog className="w-4 h-4" />}
-            label={t('nav.processes', 'Processes')}
-          />
-          <NavItem
-            to="/crons"
-            icon={<Clock className="w-4 h-4" />}
-            label={t('nav.crons', 'Cron Jobs')}
-          />
-        </NavGroup>
-
-        {/* 系统配置 */}
-        <NavGroup label={t('nav.group.system', 'System')}>
-          <NavItem
-            to="/application"
-            icon={<Settings className="w-4 h-4" />}
-            label={t('nav.application', 'Application')}
-          />
-          <NavItem
-            to="/mail"
-            icon={<Mail className="w-4 h-4" />}
-            label={t('nav.mail', 'Mail')}
-          />
-          <NavItem
-            to="/storage"
-            icon={<HardDrive className="w-4 h-4" />}
-            label={t('nav.storage', 'Storage')}
-          />
-          <NavItem
-            to="/backups"
-            icon={<Database className="w-4 h-4" />}
-            label={t('nav.backups', 'Backups')}
-          />
-        </NavGroup>
-
-        {/* 安全 */}
-        <NavGroup label={t('nav.group.security', 'Security')}>
-          <NavItem
-            to="/admins"
-            icon={<Users className="w-4 h-4" />}
-            label={t('nav.admins', 'Admins')}
-          />
-          <NavItem
-            to="/secrets"
-            icon={<Key className="w-4 h-4" />}
-            label={t('nav.secrets', 'Secrets')}
-          />
-        </NavGroup>
-
-        {/* 数据迁移 */}
-        <NavGroup label={t('nav.group.migration', 'Migration')}>
-          <NavItem
-            to="/export"
-            icon={<Download className="w-4 h-4" />}
-            label={t('nav.export', 'Export')}
-          />
-          <NavItem
-            to="/import"
-            icon={<Upload className="w-4 h-4" />}
-            label={t('nav.import', 'Import')}
-          />
-        </NavGroup>
+        <NavItem
+          to="/collections"
+          icon={<Database className="w-4 h-4" />}
+          label={t('nav.collections', 'Collections')}
+        />
+        <NavItem
+          to="/logs"
+          icon={<FileText className="w-4 h-4" />}
+          label={t('nav.logs', '日志')}
+        />
+        <NavItem
+          to="/monitoring"
+          icon={<Activity className="w-4 h-4" />}
+          label={t('nav.monitoring', '监控')}
+        />
+        <NavItem
+          to="/traces"
+          icon={<Search className="w-4 h-4" />}
+          label={t('nav.traces', '追踪')}
+        />
+        <NavItem
+          to="/analytics"
+          icon={<BarChart3 className="w-4 h-4" />}
+          label={t('nav.analytics', '分析')}
+        />
+        <NavItem
+          to="/settings"
+          icon={<Settings className="w-4 h-4" />}
+          label={t('nav.settings', '设置')}
+        />
       </nav>
 
       {/* 用户信息 */}

@@ -113,6 +113,7 @@ function sortRules(rules: any[]): any[] {
  */
 export function useSettings() {
   const [settings] = useAtom(settingsAtom)
+  const originalSettings = useAtomValue(originalSettingsAtom)
   const [isLoading, setIsLoading] = useAtom(isLoadingAtom)
   const [isSaving, setIsSaving] = useAtom(isSavingAtom)
   const hasChanges = useAtomValue(hasChangesAtom)
@@ -147,12 +148,37 @@ export function useSettings() {
     setIsLoading(true)
 
     try {
-      const response = await pb.settings.getAll()
+const response = await pb.settings.getAll()
       const settingsData: AppSettings = {
-        meta: response?.meta || { appName: '', appURL: '', hideControls: false },
+        meta: {
+          appName: response?.meta?.appName || '',
+          appURL: response?.meta?.appURL || '',
+          hideControls: response?.meta?.hideControls || false,
+          senderName: response?.meta?.senderName || 'Support',
+          senderAddress: response?.meta?.senderAddress || 'support@example.com',
+        },
         batch: response?.batch || { enabled: true, maxRequests: 50, timeout: 3, maxBodySize: 0 },
         trustedProxy: response?.trustedProxy || { headers: [], useLeftmostIP: false },
         rateLimits: response?.rateLimits || { enabled: false, rules: [] },
+        smtp: response?.smtp || {
+          enabled: false,
+          host: '',
+          port: 587,
+          username: '',
+          password: '',
+          tls: false,
+          authMethod: 'PLAIN',
+          localName: '',
+        },
+        s3: response?.s3 || {
+          enabled: false,
+          bucket: '',
+          region: '',
+          endpoint: '',
+          accessKey: '',
+          secret: '',
+          forcePathStyle: false,
+        },
       }
 
       // 排序规则
@@ -189,12 +215,20 @@ export function useSettings() {
         },
       }
 
-      const response = await pb.settings.update(filterRedactedProps(settingsToSave))
+const response = await pb.settings.update(filterRedactedProps(settingsToSave))
       const updatedSettings: AppSettings = {
-        meta: response?.meta || settings.meta,
+        meta: {
+          appName: response?.meta?.appName || settings.meta.appName,
+          appURL: response?.meta?.appURL || settings.meta.appURL,
+          hideControls: response?.meta?.hideControls || settings.meta.hideControls,
+          senderName: response?.meta?.senderName || settings.meta.senderName,
+          senderAddress: response?.meta?.senderAddress || settings.meta.senderAddress,
+        },
         batch: response?.batch || settings.batch,
         trustedProxy: response?.trustedProxy || settings.trustedProxy,
         rateLimits: response?.rateLimits || settings.rateLimits,
+        smtp: response?.smtp || settings.smtp,
+        s3: response?.s3 || (settings as any).s3,
       }
 
       initSettings(updatedSettings)
@@ -209,6 +243,7 @@ export function useSettings() {
 
   return {
     settings,
+    originalSettings,
     isLoading,
     isSaving,
     hasChanges,

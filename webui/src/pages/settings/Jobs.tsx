@@ -1,11 +1,10 @@
 /**
  * Jobs 页面
- * 任务队列管理
+ * 任务队列管理 - 与 UI 版本对齐
  */
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { JobsStats, JobsFilters, JobsList, useJobs } from '@/features/jobs'
 import {
   AlertDialog,
@@ -17,7 +16,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { useState } from 'react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 export default function JobsPage() {
   const {
@@ -60,50 +64,68 @@ export default function JobsPage() {
   }, [])
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-5">
+      {/* 面包屑导航 - 与 UI 版本对齐 */}
+      <div className="flex items-center gap-2 text-lg">
+        <span className="text-muted-foreground">Settings</span>
+        <span className="text-muted-foreground">/</span>
+        <span className="font-medium">Jobs</span>
+      </div>
+
       {/* 统计卡片 */}
       <JobsStats stats={stats} isLoading={isLoadingStats} />
 
-      {/* 任务列表 */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-xl">任务队列</CardTitle>
-          <Button variant="outline" size="sm" onClick={refresh}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            刷新
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* 筛选器 */}
-          <JobsFilters filter={filter} onChange={updateFilter} onClear={clearFilter} />
+      {/* 任务列表面板 - 使用 panel 样式，与 UI 版本一致 */}
+      <div className="panel">
+        {/* 标题栏 */}
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xl font-medium">Job Queue</span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={refresh}
+                >
+                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
 
-          {/* 列表 */}
-          <JobsList
-            jobs={jobs}
-            isLoading={isLoading}
-            filter={filter}
-            total={total}
-            actionLoading={actionLoading}
-            onRequeue={requeueJob}
-            onDelete={handleDeleteClick}
-            onPrevPage={prevPage}
-            onNextPage={nextPage}
-          />
-        </CardContent>
-      </Card>
+        {/* 筛选器 */}
+        <JobsFilters filter={filter} onChange={updateFilter} onClear={clearFilter} className="mb-2" />
+
+        {/* 列表 */}
+        <JobsList
+          jobs={jobs}
+          isLoading={isLoading}
+          filter={filter}
+          total={total}
+          actionLoading={actionLoading}
+          onRequeue={requeueJob}
+          onDelete={handleDeleteClick}
+          onPrevPage={prevPage}
+          onNextPage={nextPage}
+        />
+      </div>
 
       {/* 删除确认对话框 */}
       <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogTitle>Confirm Delete</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要删除任务 "{deleteConfirm}" 吗？此操作无法撤销。
+              Are you sure you want to delete job "{deleteConfirm}"?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>删除</AlertDialogAction>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

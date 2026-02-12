@@ -13,6 +13,8 @@ export interface MetaSettings {
   appName: string
   appURL: string
   hideControls: boolean
+  senderName: string
+  senderAddress: string
 }
 
 /**
@@ -51,6 +53,33 @@ export interface RateLimitsSettings {
 }
 
 /**
+ * SMTP 邮件设置
+ */
+export interface SmtpSettings {
+  enabled: boolean
+  host: string
+  port: number
+  username: string
+  password: string
+  tls: boolean
+  authMethod: string
+  localName: string
+}
+
+/**
+ * S3 存储设置
+ */
+export interface S3Settings {
+  enabled: boolean
+  bucket: string
+  region: string
+  endpoint: string
+  accessKey: string
+  secret: string
+  forcePathStyle: boolean
+}
+
+/**
  * 完整应用设置
  */
 export interface AppSettings {
@@ -58,6 +87,8 @@ export interface AppSettings {
   batch: BatchSettings
   trustedProxy: TrustedProxySettings
   rateLimits: RateLimitsSettings
+  smtp: SmtpSettings
+  s3: S3Settings
 }
 
 /**
@@ -75,6 +106,8 @@ const defaultSettings: AppSettings = {
     appName: '',
     appURL: '',
     hideControls: false,
+    senderName: 'Support',
+    senderAddress: 'support@example.com',
   },
   batch: {
     enabled: true,
@@ -89,6 +122,25 @@ const defaultSettings: AppSettings = {
   rateLimits: {
     enabled: false,
     rules: [],
+  },
+  smtp: {
+    enabled: false,
+    host: '',
+    port: 587,
+    username: '',
+    password: '',
+    tls: false,
+    authMethod: 'PLAIN',
+    localName: '',
+  },
+  s3: {
+    enabled: false,
+    bucket: '',
+    region: '',
+    endpoint: '',
+    accessKey: '',
+    secret: '',
+    forcePathStyle: false,
   },
 }
 
@@ -163,10 +215,15 @@ function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>)
 
 /**
  * 部分更新设置
+ * Only update if values actually changed to prevent unnecessary re-renders
  */
 export const updateSettingsAtom = atom(null, (get, set, update: Partial<AppSettings>) => {
   const current = get(settingsAtom)
   const merged = deepMerge(current, update)
+  // Only update if there's an actual change
+  if (JSON.stringify(current) === JSON.stringify(merged)) {
+    return
+  }
   set(settingsAtom, merged)
 })
 

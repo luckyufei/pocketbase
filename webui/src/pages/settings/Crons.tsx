@@ -4,56 +4,63 @@
  */
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Loader2, RefreshCw, Play, Pause } from 'lucide-react'
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { RefreshCw, Play, Loader2 } from 'lucide-react'
 import { getApiClient } from '@/lib/ApiClient'
+import { toast } from 'sonner'
 
 interface CronJob {
   id: string
-  name: string
   expression: string
-  enabled: boolean
-  lastRun?: string
-  nextRun?: string
 }
 
 export function Crons() {
   const [crons, setCrons] = useState<CronJob[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isRunning, setIsRunning] = useState<Record<string, boolean>>({})
 
   const pb = getApiClient()
 
   const loadCrons = async () => {
     setIsLoading(true)
     try {
-      // 使用 settings API 获取 cron 配置
-      const settings = await pb.send('/api/settings', { method: 'GET' })
-      // 解析 cron 设置（如果存在）
-      const cronJobs: CronJob[] = settings?.crons || []
-      setCrons(cronJobs)
-    } catch (err) {
-      console.error('Failed to load crons:', err)
-      setCrons([])
+      // 使用 crons API 获取所有 cron 任务
+      const result = await pb.send('/api/crons', { method: 'GET' })
+      setCrons(result || [])
+    } catch (err: any) {
+      if (!err?.isAbort) {
+        console.error('Failed to load crons:', err)
+        setCrons([])
+      }
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const runCron = async (jobId: string) => {
+    setIsRunning(prev => ({ ...prev, [jobId]: true }))
+    try {
+      await pb.send(`/api/crons/${encodeURIComponent(jobId)}`, { method: 'POST' })
+      toast.success(`Successfully triggered ${jobId}.`)
+    } catch (err: any) {
+      if (!err?.isAbort) {
+        console.error('Failed to run cron:', err)
+        toast.error(`Failed to trigger ${jobId}.`)
+      }
+    } finally {
+      setIsRunning(prev => ({ ...prev, [jobId]: false }))
     }
   }
 
   useEffect(() => {
     loadCrons()
   }, [])
-
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '-'
-    return new Date(dateStr).toLocaleString()
-  }
 
   return (
     <div className="p-6 max-w-4xl">
@@ -66,65 +73,104 @@ export function Crons() {
         </nav>
       </header>
 
-      {/* 操作按钮 */}
-      <div className="flex gap-2 mb-4">
-        <Button variant="outline" onClick={loadCrons} disabled={isLoading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
-        </Button>
-      </div>
-
-      {/* Cron 列表 */}
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      {/* 主面板 */}
+      <div className="border rounded-lg bg-card">
+        {/* 标题栏 */}
+        <div className="flex items-center gap-2 p-4 pb-2">
+          <span className="text-xl">Registered app cron jobs</span>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={loadCrons}
+                  disabled={isLoading}
+                  className="h-8 w-8 p-0"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
-      ) : crons.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">No cron jobs configured.</div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Expression</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Last Run</TableHead>
-              <TableHead>Next Run</TableHead>
-              <TableHead className="w-24">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {crons.map((cron) => (
-              <TableRow key={cron.id}>
-                <TableCell className="font-medium">{cron.name}</TableCell>
-                <TableCell className="font-mono text-sm">{cron.expression}</TableCell>
-                <TableCell>
-                  <span
-                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
-                      cron.enabled
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                        : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
-                    }`}
-                  >
-                    {cron.enabled ? 'Enabled' : 'Disabled'}
-                  </span>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {formatDate(cron.lastRun)}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {formatDate(cron.nextRun)}
-                </TableCell>
-                <TableCell>
-                  <Button variant="ghost" size="icon" title={cron.enabled ? 'Disable' : 'Enable'}>
-                    {cron.enabled ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+
+        {/* Cron 列表 */}
+        <div className="divide-y">
+          {isLoading ? (
+            // 加载状态 - skeleton loader
+            <>
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3 px-4 py-3">
+                  <Skeleton className="h-5 flex-1" />
+                </div>
+              ))}
+            </>
+          ) : crons.length === 0 ? (
+            // 空状态
+            <div className="px-4 py-6 text-center text-muted-foreground">
+              No app crons found.
+            </div>
+          ) : (
+            // Cron 列表
+            crons.map((cron) => (
+              <div key={cron.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50">
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm">{cron.id}</span>
+                </div>
+                <span className="text-sm text-muted-foreground font-mono whitespace-nowrap">
+                  {cron.expression}
+                </span>
+                <div className="flex items-center">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-full"
+                          onClick={() => runCron(cron.id)}
+                          disabled={isRunning[cron.id]}
+                        >
+                          {isRunning[cron.id] ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Play className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Run</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* 底部提示 */}
+        <p className="px-4 py-3 text-sm text-muted-foreground border-t">
+          App cron jobs can be registered only programmatically with{' '}
+          <a
+            href="https://pocketbase.io/docs/go-jobs-scheduling/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            Go
+          </a>{' '}
+          or{' '}
+          <a
+            href="https://pocketbase.io/docs/js-jobs-scheduling/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            JavaScript
+          </a>.
+        </p>
+      </div>
     </div>
   )
 }
