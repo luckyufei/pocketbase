@@ -4,6 +4,7 @@
  */
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -29,6 +30,7 @@ export function CircuitBreakerConfig({
   defaultExpanded = false,
 }: CircuitBreakerConfigProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
+  const { t } = useTranslation()
   const config = value || defaultConfig
 
   const handleEnabledChange = (enabled: boolean) => {
@@ -50,11 +52,11 @@ export function CircuitBreakerConfig({
         )}
         onClick={() => setExpanded(!expanded)}
       >
-        <span className="font-medium text-slate-700">熔断保护</span>
+        <span className="font-medium text-slate-700">{t('gateway.circuitBreaker')}</span>
         <div className="flex items-center gap-2">
           {config.enabled && (
             <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
-              已启用
+              {t('gateway.cbEnabledBadge')}
             </span>
           )}
           {expanded ? (
@@ -70,7 +72,7 @@ export function CircuitBreakerConfig({
         <div className="p-4 space-y-4">
           {/* 启用开关 */}
           <div className="flex items-center justify-between">
-            <Label htmlFor="cb-enabled">启用熔断</Label>
+            <Label htmlFor="cb-enabled">{t('gateway.cbEnabled')}</Label>
             <Switch
               id="cb-enabled"
               checked={config.enabled}
@@ -82,7 +84,7 @@ export function CircuitBreakerConfig({
             <>
               {/* 失败阈值 */}
               <div className="space-y-2">
-                <Label htmlFor="cb-threshold">失败阈值（连续失败次数）</Label>
+                <Label htmlFor="cb-threshold">{t('gateway.cbThreshold')}</Label>
                 <Input
                   id="cb-threshold"
                   type="number"
@@ -97,7 +99,7 @@ export function CircuitBreakerConfig({
 
               {/* 恢复超时 */}
               <div className="space-y-2">
-                <Label htmlFor="cb-recovery">恢复超时（秒）</Label>
+                <Label htmlFor="cb-recovery">{t('gateway.cbRecovery')}</Label>
                 <Input
                   id="cb-recovery"
                   type="number"
@@ -112,7 +114,7 @@ export function CircuitBreakerConfig({
 
               {/* 半开探测数 */}
               <div className="space-y-2">
-                <Label htmlFor="cb-halfopen">半开探测数</Label>
+                <Label htmlFor="cb-halfopen">{t('gateway.cbHalfOpen')}</Label>
                 <Input
                   id="cb-halfopen"
                   type="number"

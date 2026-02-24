@@ -4,6 +4,8 @@
  * 支持拖拽缩放和重置 - 与 UI 版本对齐
  */
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
+import i18next from 'i18next'
 import {
   Chart,
   LineElement,
@@ -44,11 +46,11 @@ function formatLocalizedDate(timestamp: number, lastTimestamp: number | null): s
     // 显示月日格式：2月7日
     const month = date.getMonth() + 1
     const day = date.getDate()
-    return `${month}月${day}日`
+    return i18next.t('logsChart.monthDay', { month, day })
   } else {
     // 显示时间格式：12时
     const hours = date.getHours()
-    return `${hours}时`
+    return i18next.t('logsChart.hour', { hours })
   }
 }
 
@@ -84,6 +86,7 @@ export function LogsChart({
   height = 170,
   onZoomChange,
 }: LogsChartProps) {
+  const { t } = useTranslation()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const chartRef = useRef<Chart | null>(null)
   const [isZoomed, setIsZoomed] = useState(false)
@@ -259,7 +262,7 @@ export function LogsChart({
           isLoading ? 'opacity-0' : 'opacity-100'
         }`}
       >
-        Found {totalLogs.toLocaleString()} {totalLogs === 1 ? 'log' : 'logs'}
+        {t('logs.foundLogs', 'Found {{count}} logs', { count: totalLogs.toLocaleString() })}
       </div>
 
       {/* 加载指示器 */}
@@ -284,7 +287,7 @@ export function LogsChart({
           className="absolute right-2 top-4 z-10"
           onClick={handleResetZoom}
         >
-          Reset zoom
+          {t('logs.resetZoom', 'Reset zoom')}
         </Button>
       )}
     </div>

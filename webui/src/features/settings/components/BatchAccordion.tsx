@@ -3,6 +3,7 @@
  * 用于配置批量 API 设置
  */
 import { Archive, AlertTriangle, Info } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import {
   Accordion,
   AccordionContent,
@@ -32,6 +33,7 @@ interface BatchAccordionProps {
 }
 
 export function BatchAccordion({ settings, onChange, hideControls, onHideControlsChange, errors }: BatchAccordionProps) {
+  const { t } = useTranslation()
   const hasErrors = errors && Object.keys(errors).length > 0
 
   const handleChange = (field: keyof BatchSettings, value: unknown) => {
@@ -44,11 +46,11 @@ export function BatchAccordion({ settings, onChange, hideControls, onHideControl
         <AccordionTrigger className="hover:no-underline">
           <div className="flex items-center gap-2 flex-1">
             <Archive className="h-4 w-4" />
-            <span>Batch Requests</span>
+            <span>{t('batchRequests.title', 'Batch Requests')}</span>
           </div>
           <div className="flex items-center gap-2 mr-2">
             <Badge variant={settings.enabled ? 'default' : 'secondary'}>
-              {settings.enabled ? 'Enabled' : 'Disabled'}
+              {settings.enabled ? t('common.enabled', 'Enabled') : t('common.disabled', 'Disabled')}
             </Badge>
             {hasErrors && <AlertTriangle className="h-4 w-4 text-destructive" />}
           </div>
@@ -61,8 +63,8 @@ export function BatchAccordion({ settings, onChange, hideControls, onHideControl
               onCheckedChange={(checked) => handleChange('enabled', checked)}
             />
             <Label htmlFor="batch-enabled" className="flex items-center gap-1">
-              Enable
-              <span className="text-muted-foreground text-xs">(experimental)</span>
+              {t('batchRequests.enable', 'Enable')}
+              <span className="text-muted-foreground text-xs">({t('common.experimental', 'experimental')})</span>
             </Label>
           </div>
 
@@ -73,7 +75,7 @@ export function BatchAccordion({ settings, onChange, hideControls, onHideControl
                 className={cn(settings.enabled && 'after:content-["*"] after:text-destructive')}
               >
                 <span className="flex items-center gap-1">
-                  Max requests in a batch
+                  {t('batchRequests.maxRequests', 'Max requests in a batch')}
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger>
@@ -81,8 +83,7 @@ export function BatchAccordion({ settings, onChange, hideControls, onHideControl
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
                         <p>
-                          Rate limiting (if enabled) also applies for the batch
-                          create/update/upsert/delete requests.
+                          {t('batchRequests.maxRequestsTooltip', 'Rate limiting (if enabled) also applies for the batch create/update/upsert/delete requests.')}
                         </p>
                       </TooltipContent>
                     </Tooltip>
@@ -105,7 +106,7 @@ export function BatchAccordion({ settings, onChange, hideControls, onHideControl
                 htmlFor="batch-timeout"
                 className={cn(settings.enabled && 'after:content-["*"] after:text-destructive')}
               >
-                Max processing time (in seconds)
+                {t('batchRequests.maxProcessingTime', 'Max processing time (in seconds)')}
               </Label>
               <Input
                 id="batch-timeout"
@@ -119,13 +120,13 @@ export function BatchAccordion({ settings, onChange, hideControls, onHideControl
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="batch-maxBodySize">Max body size (in bytes)</Label>
+              <Label htmlFor="batch-maxBodySize">{t('batchRequests.maxBodySize', 'Max body size (in bytes)')}</Label>
               <Input
                 id="batch-maxBodySize"
                 type="number"
                 min={0}
                 step={1}
-                placeholder="Default to 128MB"
+                placeholder={t('batchRequests.defaultSize', 'Default to 128MB')}
                 value={settings.maxBodySize || ''}
                 onChange={(e) =>
                   handleChange('maxBodySize', e.target.value ? parseInt(e.target.value) : undefined)
@@ -142,7 +143,7 @@ export function BatchAccordion({ settings, onChange, hideControls, onHideControl
               onCheckedChange={onHideControlsChange}
             />
             <Label htmlFor="batch-hideControls" className="flex items-center gap-1">
-              Hide collection create and edit controls
+              {t('batchRequests.hideControls', 'Hide collection create and edit controls')}
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger>
@@ -150,8 +151,7 @@ export function BatchAccordion({ settings, onChange, hideControls, onHideControl
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <p>
-                      This could prevent making accidental schema changes when in production
-                      environment.
+                      {t('batchRequests.hideControlsTooltip', 'This could prevent making accidental schema changes when in production environment.')}
                     </p>
                   </TooltipContent>
                 </Tooltip>

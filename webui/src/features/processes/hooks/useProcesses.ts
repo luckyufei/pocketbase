@@ -4,6 +4,7 @@
  */
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getApiClient } from '@/lib/ApiClient'
 import { toast } from 'sonner'
 import {
@@ -27,6 +28,7 @@ import {
  * 进程管理操作 Hook
  */
 export function useProcesses() {
+  const { t } = useTranslation()
   const processes = useAtomValue(processesAtom)
   const filteredProcesses = useAtomValue(filteredProcessesAtom)
   const stats = useAtomValue(statsAtom)
@@ -82,11 +84,11 @@ export function useProcesses() {
         await pb.send(`/api/pm/${processId}/restart`, {
           method: 'POST',
         })
-        toast.success(`进程 ${processId} 重启中`)
+        toast.success(t('processes.restarting', { id: processId }))
         await loadProcesses()
       } catch (err) {
         console.error('Failed to restart process:', err)
-        toast.error(`重启进程 ${processId} 失败`)
+        toast.error(t('processes.restartFailed', { id: processId }))
       } finally {
         clearActionLoading(processId)
       }
@@ -105,11 +107,11 @@ export function useProcesses() {
         await pb.send(`/api/pm/${processId}/stop`, {
           method: 'POST',
         })
-        toast.success(`进程 ${processId} 已停止`)
+        toast.success(t('processes.stopped', { id: processId }))
         await loadProcesses()
       } catch (err) {
         console.error('Failed to stop process:', err)
-        toast.error(`停止进程 ${processId} 失败`)
+        toast.error(t('processes.stopFailed', { id: processId }))
       } finally {
         clearActionLoading(processId)
       }
@@ -128,11 +130,11 @@ export function useProcesses() {
         await pb.send(`/api/pm/${processId}/start`, {
           method: 'POST',
         })
-        toast.success(`进程 ${processId} 启动中`)
+        toast.success(t('processes.starting', { id: processId }))
         await loadProcesses()
       } catch (err) {
         console.error('Failed to start process:', err)
-        toast.error(`启动进程 ${processId} 失败`)
+        toast.error(t('processes.startFailed', { id: processId }))
       } finally {
         clearActionLoading(processId)
       }

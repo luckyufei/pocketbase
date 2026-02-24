@@ -3,6 +3,7 @@
  * Displays API response examples with HTTP status code tabs
  */
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { CodeBlock } from './CodeBlock'
 
@@ -18,6 +19,7 @@ interface ResponseTabsProps {
 }
 
 export function ResponseTabs({ responses, className, showTabs = true }: ResponseTabsProps) {
+  const { t } = useTranslation()
   const [activeCode, setActiveCode] = useState(responses[0]?.code || 200)
 
   // If showTabs is false, just display the first response without tabs
@@ -31,7 +33,7 @@ export function ResponseTabs({ responses, className, showTabs = true }: Response
 
   return (
     <div className={className}>
-      <h4 className="text-sm font-medium mb-2">Responses</h4>
+      <h4 className="text-sm font-medium mb-2">{t('records.apiDocs.responses', 'Responses')}</h4>
       <div className="tabs">
         <div className="flex gap-0 mb-2 border-b">
           {responses.map((response) => (

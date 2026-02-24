@@ -20,6 +20,7 @@ interface VerificationDocsProps {
 }
 
 function VerificationApiRequestDocs({ collection }: { collection: Collection }) {
+  const { t } = useTranslation()
   const [responseTab, setResponseTab] = useState('204')
 
   const responses = [
@@ -54,22 +55,22 @@ function VerificationApiRequestDocs({ collection }: { collection: Collection }) 
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Body Parameters</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.bodyParameters')}</h6>
         <div className="border rounded-md overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium">Param</th>
-                <th className="text-left p-2 font-medium">Type</th>
-                <th className="text-left p-2 font-medium w-1/2">Description</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.param')}</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.type')}</th>
+                <th className="text-left p-2 font-medium w-1/2">{t('records.apiDocs.description')}</th>
               </tr>
             </thead>
             <tbody>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                      Required
+<Badge variant="secondary" className="bg-green-100 text-green-800 text-xs whitespace-nowrap">
+                      {t('records.apiDocs.required')}
                     </Badge>
                     <span>email</span>
                   </div>
@@ -78,7 +79,7 @@ function VerificationApiRequestDocs({ collection }: { collection: Collection }) 
                   <Badge variant="outline">String</Badge>
                 </td>
                 <td className="p-2 text-muted-foreground">
-                  The auth record email address to send the verification request (if exists).
+                  {t('records.apiDocs.auth.emailForRequest')}
                 </td>
               </tr>
             </tbody>
@@ -87,7 +88,7 @@ function VerificationApiRequestDocs({ collection }: { collection: Collection }) 
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Responses</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.responses')}</h6>
         <Tabs value={responseTab} onValueChange={setResponseTab}>
           <TabsList>
             {responses.map((response) => (
@@ -108,6 +109,7 @@ function VerificationApiRequestDocs({ collection }: { collection: Collection }) 
 }
 
 function VerificationApiConfirmDocs({ collection }: { collection: Collection }) {
+  const { t } = useTranslation()
   const [responseTab, setResponseTab] = useState('204')
 
   const responses = [
@@ -142,22 +144,22 @@ function VerificationApiConfirmDocs({ collection }: { collection: Collection }) 
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Body Parameters</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.bodyParameters')}</h6>
         <div className="border rounded-md overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium">Param</th>
-                <th className="text-left p-2 font-medium">Type</th>
-                <th className="text-left p-2 font-medium w-1/2">Description</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.param')}</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.type')}</th>
+                <th className="text-left p-2 font-medium w-1/2">{t('records.apiDocs.description')}</th>
               </tr>
             </thead>
             <tbody>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                      Required
+<Badge variant="secondary" className="bg-green-100 text-green-800 text-xs whitespace-nowrap">
+                      {t('records.apiDocs.required')}
                     </Badge>
                     <span>token</span>
                   </div>
@@ -166,7 +168,7 @@ function VerificationApiConfirmDocs({ collection }: { collection: Collection }) 
                   <Badge variant="outline">String</Badge>
                 </td>
                 <td className="p-2 text-muted-foreground">
-                  The token from the verification request email.
+                  {t('records.apiDocs.auth.verificationToken')}
                 </td>
               </tr>
             </tbody>
@@ -175,7 +177,7 @@ function VerificationApiConfirmDocs({ collection }: { collection: Collection }) 
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Responses</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.responses')}</h6>
         <Tabs value={responseTab} onValueChange={setResponseTab}>
           <TabsList>
             {responses.map((response) => (
@@ -231,20 +233,18 @@ await pb.collection('${collection.name}').confirmVerification('VERIFICATION_TOKE
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold mb-2">Account verification ({collection.name})</h3>
-        <p className="text-muted-foreground">
-          Sends <strong>{collection.name}</strong> account verification request.
-        </p>
+        <h3 className="text-lg font-semibold mb-2">{t('records.apiDocs.auth.verificationTitle', { name: collection.name })}</h3>
+        <p className="text-muted-foreground" dangerouslySetInnerHTML={{ __html: t('records.apiDocs.auth.verificationDesc', { name: collection.name }) }} />
       </div>
 
       <SdkTabs js={jsCode} dart={dartCode} />
 
       <div>
-        <h6 className="font-medium mb-2">API details</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.apiDetails')}</h6>
         <Tabs value={activeApiTab} onValueChange={setActiveApiTab}>
           <UnderlineTabsList>
-            <UnderlineTabsTrigger value="request">Request verification</UnderlineTabsTrigger>
-            <UnderlineTabsTrigger value="confirm">Confirm verification</UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="request">{t('records.apiDocs.auth.requestVerification')}</UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="confirm">{t('records.apiDocs.auth.confirmVerification')}</UnderlineTabsTrigger>
           </UnderlineTabsList>
           <TabsContent value="request">
             <VerificationApiRequestDocs collection={collection} />

@@ -3,6 +3,7 @@
  * 文件存储设置（S3 兼容）
  */
 import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSettings } from '@/features/settings'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,6 +20,7 @@ import {
 import { getApiClient } from '@/lib/ApiClient'
 
 export function Storage() {
+  const { t } = useTranslation()
   const {
     settings,
     originalSettings,
@@ -158,17 +160,17 @@ export function Storage() {
       {/* 页面标题 */}
       <header className="mb-6">
         <nav className="text-sm text-muted-foreground mb-2">
-          <span>Settings</span>
+          <span>{t('settingsLayout.title', 'Settings')}</span>
           <span className="mx-2">/</span>
-          <span className="text-foreground">Files storage</span>
+          <span className="text-foreground">{t('storageSettings.breadcrumb', 'Files storage')}</span>
         </nav>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* 说明文字 */}
         <div className="text-sm text-muted-foreground space-y-1">
-          <p>By default PocketBase uses the local file system to store uploaded files.</p>
-          <p>If you have limited disk space, you could optionally connect to an S3 compatible storage.</p>
+          <p>{t('storageSettings.description1', 'By default PocketBase uses the local file system to store uploaded files.')}</p>
+          <p>{t('storageSettings.description2', 'If you have limited disk space, you could optionally connect to an S3 compatible storage.')}</p>
         </div>
 
         {/* 启用 S3 开关 */}
@@ -178,7 +180,7 @@ export function Storage() {
             checked={s3Settings.enabled}
             onCheckedChange={(checked) => updateS3('enabled', checked)}
           />
-          <Label htmlFor="s3Enabled">Use S3 storage</Label>
+          <Label htmlFor="s3Enabled">{t('storageSettings.useS3Storage', 'Use S3 storage')}</Label>
         </div>
 
         {/* 迁移警告 */}
@@ -217,7 +219,7 @@ export function Storage() {
           <div className="space-y-4 pl-6 border-l-2 border-muted">
             {/* Endpoint */}
             <div className="space-y-2">
-              <Label htmlFor="endpoint">Endpoint <span className="text-destructive">*</span></Label>
+              <Label htmlFor="endpoint">{t('storageSettings.endpoint', 'Endpoint')} <span className="text-destructive">*</span></Label>
               <Input
                 id="endpoint"
                 type="text"
@@ -231,7 +233,7 @@ export function Storage() {
             {/* Bucket 和 Region */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="bucket">Bucket <span className="text-destructive">*</span></Label>
+                <Label htmlFor="bucket">{t('storageSettings.bucket', 'Bucket')} <span className="text-destructive">*</span></Label>
                 <Input
                   id="bucket"
                   type="text"
@@ -242,7 +244,7 @@ export function Storage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="region">Region <span className="text-destructive">*</span></Label>
+                <Label htmlFor="region">{t('storageSettings.region', 'Region')} <span className="text-destructive">*</span></Label>
                 <Input
                   id="region"
                   type="text"
@@ -257,7 +259,7 @@ export function Storage() {
             {/* Access Key 和 Secret */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="accessKey">Access key <span className="text-destructive">*</span></Label>
+                <Label htmlFor="accessKey">{t('storageSettings.accessKey', 'Access key')} <span className="text-destructive">*</span></Label>
                 <Input
                   id="accessKey"
                   type="text"
@@ -268,7 +270,7 @@ export function Storage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="secret">Secret <span className="text-destructive">*</span></Label>
+                <Label htmlFor="secret">{t('storageSettings.secret', 'Secret')} <span className="text-destructive">*</span></Label>
                 <Input
                   id="secret"
                   type="password"
@@ -288,14 +290,14 @@ export function Storage() {
                 onCheckedChange={(checked) => updateS3('forcePathStyle', checked)}
               />
               <Label htmlFor="forcePathStyle" className="flex items-center gap-1">
-                Force path-style addressing
+                {t('storageSettings.forcePathStyle', 'Force path-style addressing')}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-xs">
-                      <p>Forces the request to use path-style addressing, eg. "https://s3.amazonaws.com/BUCKET/KEY" instead of the default "https://BUCKET.s3.amazonaws.com/KEY".</p>
+                      <p>{t('storageSettings.forcePathStyleTooltip', 'Forces the request to use path-style addressing, eg. "https://s3.amazonaws.com/BUCKET/KEY" instead of the default "https://BUCKET.s3.amazonaws.com/KEY".')}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -308,7 +310,7 @@ export function Storage() {
         <div className="flex items-center justify-end gap-2 pt-4 border-t">
           {hasChanges && (
             <Button type="button" variant="ghost" onClick={resetSettings} disabled={isSaving}>
-              Reset
+              {t('common.reset', 'Reset')}
             </Button>
           )}
 
@@ -318,7 +320,7 @@ export function Storage() {
               {isTesting ? (
                 <span className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Testing connection...
+                  {t('storageSettings.testingConnection', 'Testing connection...')}
                 </span>
               ) : testError ? (
                 <TooltipProvider>
@@ -326,7 +328,7 @@ export function Storage() {
                     <TooltipTrigger asChild>
                       <span className="flex items-center gap-2 text-sm text-yellow-600 cursor-help">
                         <AlertTriangle className="h-4 w-4" />
-                        Failed to establish S3 connection
+                        {t('storageSettings.s3ConnectionFailed', 'Failed to establish S3 connection')}
                       </span>
                     </TooltipTrigger>
                     <TooltipContent side="top" className="max-w-sm break-words whitespace-pre-wrap">
@@ -337,7 +339,7 @@ export function Storage() {
               ) : testSuccess ? (
                 <span className="flex items-center gap-2 text-sm text-green-600">
                   <CheckCircle2 className="h-4 w-4" />
-                  S3 connected successfully
+                  {t('storageSettings.s3ConnectedSuccess', 'S3 connected successfully')}
                 </span>
               ) : null}
             </>
@@ -345,7 +347,7 @@ export function Storage() {
 
           <Button type="submit" disabled={!hasChanges || isSaving}>
             {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Save changes
+            {t('common.saveChanges', 'Save changes')}
           </Button>
         </div>
       </form>

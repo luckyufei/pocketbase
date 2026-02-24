@@ -40,13 +40,13 @@ export function Confirmation() {
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={handleCancel}>
-            {confirmation.cancelText || t('common.cancel', '取消')}
+            {confirmation.cancelText || t('common.cancel')}
           </Button>
           <Button
             variant={confirmation.isDanger ? 'destructive' : 'default'}
             onClick={handleConfirm}
           >
-            {confirmation.confirmText || t('common.confirm', '确定')}
+            {confirmation.confirmText || t('common.confirm')}
           </Button>
         </div>
       </div>

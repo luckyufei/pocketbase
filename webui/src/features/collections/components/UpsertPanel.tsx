@@ -675,7 +675,7 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
           {/* 标题行 */}
           <div className="h-14 px-4 flex items-center justify-between border-b border-slate-200">
             <h2 className="text-base font-semibold">
-              {isEdit ? 'Edit collection' : 'New collection'}
+              {isEdit ? t('collections.editCollection', 'Edit collection') : t('collections.newCollection', 'New collection')}
             </h2>
             <div className="flex items-center gap-1">
               {/* 更多操作下拉菜单 - 仅编辑模式且非系统集合显示 */}
@@ -694,13 +694,13 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem onClick={handleCopyJSON}>
                       <Copy className="h-4 w-4 mr-2" />
-                      Copy raw JSON
+                      {t('collections.copyRawJson', 'Copy raw JSON')}
                     </DropdownMenuItem>
                     {!isSystemCollection && (
                       <>
                         <DropdownMenuItem onClick={handleDuplicate}>
                           <Files className="h-4 w-4 mr-2" />
-                          Duplicate
+                          {t('collections.duplicate', 'Duplicate')}
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                       </>
@@ -711,7 +711,7 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
                         className="text-destructive focus:text-destructive"
                       >
                         <Eraser className="h-4 w-4 mr-2" />
-                        Truncate
+                        {t('collections.truncate', 'Truncate')}
                       </DropdownMenuItem>
                     )}
                     {!isSystemCollection && (
@@ -720,7 +720,7 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
                         className="text-destructive focus:text-destructive"
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
-                        Delete
+                        {t('common.delete', 'Delete')}
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
@@ -736,7 +736,7 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
           <div className="px-4 py-3">
             <div className="flex items-center gap-2">
               <div className="flex-1">
-                <label className="text-sm font-medium text-slate-700 mb-1.5 block">Name <span className="text-destructive">*</span></label>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">{t('collections.nameLabel', 'Name')} <span className="text-destructive">*</span></label>
                 <div className="flex group">
                   <Input
                     value={formData.name || ''}
@@ -753,7 +753,7 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
                         setFormData((prev) => ({ ...prev, name: value }))
                       }
                     }}
-                    placeholder={formData.type === 'auth' ? 'eg. "users"' : 'eg. "posts"'}
+                    placeholder={formData.type === 'auth' ? t('collections.nameAuthPlaceholder', 'eg. "users"') : t('collections.namePlaceholder', 'eg. "posts"')}
                     className={cn(
                       'rounded-r-none border-r-0 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-blue-500',
                       'placeholder:text-slate-400',
@@ -779,7 +779,7 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
                         )}
                         disabled={isEdit}
                       >
-                        <span className="text-sm">Type: {typeLabels[formData.type || 'base']}</span>
+                        <span className="text-sm">{t('collections.typeLabel', 'Type')}: {typeLabels[formData.type || 'base']}</span>
                         {!isEdit && <ChevronDown className="h-3 w-3" />}
                       </Button>
                     </DropdownMenuTrigger>
@@ -804,7 +804,7 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
                   <p className="text-xs text-destructive mt-1">{getNestedError(formErrors, 'name').message}</p>
                 )}
                 {isSystemCollection && (
-                  <p className="text-xs text-muted-foreground mt-1">System collection</p>
+                  <p className="text-xs text-muted-foreground mt-1">{t('collections.systemCollection', 'System collection')}</p>
                 )}
               </div>
             </div>
@@ -822,7 +822,7 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
               )}
               onClick={() => setActiveTab(TAB_SCHEMA)}
             >
-              {isViewCollection ? 'Query' : 'Fields'}
+              {isViewCollection ? t('collections.queryTab', 'Query') : t('collections.fieldsTab', 'Fields')}
               {schemaTabHasErrors && (
                 <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive" />
               )}
@@ -836,9 +836,9 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-900'
                 )}
-                onClick={() => setActiveTab(TAB_RULES)}
-              >
-                API Rules
+              onClick={() => setActiveTab(TAB_RULES)}
+            >
+              {t('collections.apiRulesTab', 'API Rules')}
                 {rulesTabHasErrors && (
                   <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive" />
                 )}
@@ -853,9 +853,9 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
                     ? 'border-blue-500 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-900'
                 )}
-                onClick={() => setActiveTab(TAB_OPTIONS)}
-              >
-                Options
+              onClick={() => setActiveTab(TAB_OPTIONS)}
+            >
+              {t('collections.optionsTab', 'Options')}
                 {optionsTabHasErrors && (
                   <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive" />
                 )}
@@ -941,13 +941,13 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
         </ScrollArea>
 
         {/* Footer 区域 */}
-        <div className="h-14 px-4 border-t flex items-center justify-between bg-background">
+        <div className="h-14 px-4 border-t flex items-center justify-end gap-2 bg-background">
           <Button type="button" variant="ghost" onClick={handleClose} disabled={saving}>
-            Cancel
+            {t('common.cancel', 'Cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create'}
+            {saving ? t('common.saving', 'Saving...') : isEdit ? t('common.saveChanges', 'Save changes') : t('common.create', 'Create')}
           </Button>
         </div>
       </div>

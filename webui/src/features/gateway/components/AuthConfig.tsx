@@ -4,6 +4,7 @@
  */
 import { ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import {
@@ -33,6 +34,7 @@ export function AuthConfig({
 }: AuthConfigProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const [showToken, setShowToken] = useState(false)
+  const { t } = useTranslation()
   const config = value || defaultConfig
 
   const handleTypeChange = (type: AuthConfigType['type']) => {
@@ -60,7 +62,7 @@ export function AuthConfig({
         )}
         onClick={() => setExpanded(!expanded)}
       >
-        <span className="font-medium text-slate-700">认证配置</span>
+        <span className="font-medium text-slate-700">{t('gateway.authConfig')}</span>
         <div className="flex items-center gap-2">
           {hasAuth && (
             <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded">
@@ -84,16 +86,16 @@ export function AuthConfig({
         <div className="p-4 space-y-4">
           {/* 认证类型 */}
           <div className="space-y-2">
-            <Label htmlFor="auth-type">认证类型</Label>
+            <Label htmlFor="auth-type">{t('gateway.authType')}</Label>
             <Select value={config.type} onValueChange={handleTypeChange}>
               <SelectTrigger id="auth-type">
-                <SelectValue placeholder="选择认证类型" />
+                <SelectValue placeholder={t('gateway.selectAuthType')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">无认证</SelectItem>
+                <SelectItem value="none">{t('gateway.authNone')}</SelectItem>
                 <SelectItem value="bearer">Bearer Token</SelectItem>
                 <SelectItem value="basic">Basic Auth</SelectItem>
-                <SelectItem value="header">自定义 Header</SelectItem>
+                <SelectItem value="header">{t('gateway.authHeader')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -124,7 +126,7 @@ export function AuthConfig({
           {config.type === 'header' && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="auth-header-name">Header 名称</Label>
+                <Label htmlFor="auth-header-name">{t('gateway.headerName')}</Label>
                 <Input
                   id="auth-header-name"
                   placeholder="X-API-Key"
@@ -133,7 +135,7 @@ export function AuthConfig({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="auth-header-value">Header 值</Label>
+                <Label htmlFor="auth-header-value">{t('gateway.headerValue')}</Label>
                 <div className="relative">
                   <Input
                     id="auth-header-value"

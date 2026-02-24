@@ -309,16 +309,16 @@ export function Secrets() {
       {/* Page header */}
       <header className="page-header mb-6">
         <nav className="breadcrumbs flex items-center text-sm text-muted-foreground mb-2">
-          <span>Settings</span>
+          <span>{t('settingsPage.breadcrumbSettings', 'Settings')}</span>
           <span className="mx-2">/</span>
-          <span className="text-foreground">Secrets</span>
+          <span className="text-foreground">{t('settingsLayout.secrets', 'Secrets')}</span>
         </nav>
         <div className="flex items-center justify-between">
           <div />
           {!isDisabled && (
             <Button onClick={openCreateDialog}>
               <Plus className="w-4 h-4 mr-2" />
-              <span>New secret</span>
+              <span>{t('settings.secrets.newSecret', 'New secret')}</span>
             </Button>
           )}
         </div>
@@ -329,15 +329,14 @@ export function Secrets() {
         <Alert className="mb-6 border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20">
           <Lock className="h-4 w-4 text-yellow-600" />
           <AlertTitle className="text-yellow-800 dark:text-yellow-200">
-            Secrets feature is disabled
+            {t('settings.secrets.disabledTitle', 'Secrets feature is disabled')}
           </AlertTitle>
           <AlertDescription className="text-yellow-700 dark:text-yellow-300">
             <p className="mt-1">
-              To enable encrypted secret storage, set the <code className="bg-yellow-100 dark:bg-yellow-900/50 px-1 py-0.5 rounded text-sm">PB_MASTER_KEY</code> environment variable
-              with a 64-character hex string (32 bytes).
+              {t('settings.secrets.disabledDesc', 'To enable encrypted secret storage, set the')} <code className="bg-yellow-100 dark:bg-yellow-900/50 px-1 py-0.5 rounded text-sm">PB_MASTER_KEY</code> {t('settings.secrets.disabledDesc2', 'environment variable with a 64-character hex string (32 bytes).')}
             </p>
             <p className="mt-2 text-sm opacity-80">
-              Example: <code className="bg-yellow-100 dark:bg-yellow-900/50 px-1 py-0.5 rounded text-xs">export PB_MASTER_KEY=$(openssl rand -hex 32)</code>
+              {t('settings.secrets.example', 'Example')}: <code className="bg-yellow-100 dark:bg-yellow-900/50 px-1 py-0.5 rounded text-xs">export PB_MASTER_KEY=$(openssl rand -hex 32)</code>
             </p>
           </AlertDescription>
         </Alert>
@@ -357,33 +356,33 @@ export function Secrets() {
           <div className="flex items-center gap-3 mb-2">
             <span className="text-xl flex items-center gap-2">
               <Key className="w-5 h-5" />
-              Encrypted Secrets
+              {t('settings.secrets.encryptedSecrets', 'Encrypted Secrets')}
             </span>
             <Button
               variant="ghost"
               size="sm"
               onClick={loadSecrets}
               disabled={isLoading}
-              title="Refresh"
+              title={t('common.refresh', 'Refresh')}
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
           </div>
 
           <p className="text-sm text-muted-foreground mb-4">
-            Secrets are encrypted with AES-256-GCM. Values are never exposed in the UI.
+            {t('settings.secrets.encryptionNote', 'Secrets are encrypted with AES-256-GCM. Values are never exposed in the UI.')}
           </p>
 
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Key</TableHead>
-                  <TableHead>Value</TableHead>
-                  <TableHead>Environment</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Updated</TableHead>
-                  <TableHead className="w-24">Actions</TableHead>
+                  <TableHead>{t('settings.secrets.key', 'Key')}</TableHead>
+                  <TableHead>{t('settings.secrets.value', 'Value')}</TableHead>
+                  <TableHead>{t('settings.secrets.environment', 'Environment')}</TableHead>
+                  <TableHead>{t('settings.secrets.description', 'Description')}</TableHead>
+                  <TableHead>{t('settings.secrets.updated', 'Updated')}</TableHead>
+                  <TableHead className="w-24">{t('common.actions', 'Actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -396,7 +395,7 @@ export function Secrets() {
                 ) : secrets.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-muted-foreground py-12">
-                      No secrets found. Click "New secret" to create one.
+                      {t('settings.secrets.noSecrets', 'No secrets found. Click "New secret" to create one.')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -428,7 +427,7 @@ export function Secrets() {
                             variant="ghost"
                             size="icon"
                             onClick={() => openEditDialog(secret)}
-                            title="Overwrite value"
+                            title={t('settings.secrets.overwriteValue', 'Overwrite value')}
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
@@ -436,7 +435,7 @@ export function Secrets() {
                             variant="ghost"
                             size="icon"
                             onClick={() => openDeleteDialog(secret)}
-                            title="Delete"
+                            title={t('common.delete', 'Delete')}
                           >
                             <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
@@ -455,9 +454,9 @@ export function Secrets() {
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New Secret</DialogTitle>
+            <DialogTitle>{t('settings.secrets.createTitle', 'New Secret')}</DialogTitle>
             <DialogDescription>
-              Create a new encrypted secret.
+              {t('settings.secrets.createDescription', 'Create a new encrypted secret.')}
             </DialogDescription>
           </DialogHeader>
           
@@ -470,46 +469,46 @@ export function Secrets() {
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="key">
-                Key <span className="text-destructive">*</span>
+                {t('settings.secrets.key', 'Key')} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="key"
                 value={formData.key}
                 onChange={(e) => setFormData({ ...formData, key: e.target.value.toUpperCase() })}
-                placeholder="e.g., OPENAI_API_KEY"
+                placeholder={t('settings.secrets.keyPlaceholder', 'e.g., OPENAI_API_KEY')}
                 className="font-mono"
                 pattern="[A-Z0-9_]+"
               />
               <p className="text-xs text-muted-foreground">
-                Recommended format: <code className="bg-muted px-1 py-0.5 rounded">VENDOR_TYPE</code> (e.g., OPENAI_API_KEY)
+                {t('settings.secrets.keyHint', 'Recommended format')}: <code className="bg-muted px-1 py-0.5 rounded">VENDOR_TYPE</code> ({t('settings.secrets.keyExample', 'e.g., OPENAI_API_KEY')})
               </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="value">
-                Value <span className="text-destructive">*</span>
+                {t('settings.secrets.value', 'Value')} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="value"
                 type="password"
                 value={formData.value}
                 onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                placeholder="Enter secret value"
+                placeholder={t('settings.secrets.valuePlaceholder', 'Enter secret value')}
                 className="font-mono"
                 autoComplete="new-password"
               />
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Lock className="w-3 h-3" />
-                Value will be encrypted with AES-256-GCM
+                {t('settings.secrets.encryptionHint', 'Value will be encrypted with AES-256-GCM')}
               </p>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="env">Environment</Label>
+              <Label htmlFor="env">{t('settings.secrets.environment', 'Environment')}</Label>
               <Select
                 value={formData.env}
                 onValueChange={(value) => setFormData({ ...formData, env: value })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select environment" />
+                  <SelectValue placeholder={t('settings.secrets.selectEnvironment', 'Select environment')} />
                 </SelectTrigger>
                 <SelectContent>
                   {envOptions.map((opt) => (
@@ -520,26 +519,26 @@ export function Secrets() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Use different environments to isolate dev/prod secrets
+                {t('settings.secrets.envHint', 'Use different environments to isolate dev/prod secrets')}
               </p>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t('settings.secrets.description', 'Description')}</Label>
               <Input
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Optional description"
+                placeholder={t('settings.secrets.descriptionPlaceholder', 'Optional description')}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} disabled={isSaving}>
-              Cancel
+              {t('common.cancel', 'Cancel')}
             </Button>
             <Button onClick={handleCreate} disabled={isSaving}>
               {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Create
+              {t('common.create', 'Create')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -549,9 +548,9 @@ export function Secrets() {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Overwrite "{selectedSecret?.key}"</DialogTitle>
+            <DialogTitle>{t('settings.secrets.overwriteTitle', 'Overwrite "{{key}}"', { key: selectedSecret?.key })}</DialogTitle>
             <DialogDescription>
-              Enter a new value to overwrite the existing secret.
+              {t('settings.secrets.overwriteDesc', 'Enter a new value to overwrite the existing secret.')}
             </DialogDescription>
           </DialogHeader>
 
@@ -563,7 +562,7 @@ export function Secrets() {
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="edit-key">Key</Label>
+              <Label htmlFor="edit-key">{t('settings.secrets.key', 'Key')}</Label>
               <Input
                 id="edit-key"
                 value={formData.key}
@@ -573,40 +572,40 @@ export function Secrets() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-value">
-                Value <span className="text-destructive">*</span>
-                <span className="text-xs text-muted-foreground ml-2">(enter new value to overwrite)</span>
+                {t('settings.secrets.value', 'Value')} <span className="text-destructive">*</span>
+                <span className="text-xs text-muted-foreground ml-2">({t('settings.secrets.enterNewValue', 'enter new value to overwrite')})</span>
               </Label>
               <Input
                 id="edit-value"
                 type="password"
                 value={formData.value}
                 onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                placeholder="Enter secret value"
+                placeholder={t('settings.secrets.valuePlaceholder', 'Enter secret value')}
                 className="font-mono"
                 autoComplete="new-password"
               />
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Lock className="w-3 h-3" />
-                Value will be encrypted with AES-256-GCM
+                {t('settings.secrets.encryptionHint', 'Value will be encrypted with AES-256-GCM')}
               </p>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-description">Description</Label>
+              <Label htmlFor="edit-description">{t('settings.secrets.description', 'Description')}</Label>
               <Input
                 id="edit-description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Optional description"
+                placeholder={t('settings.secrets.descriptionPlaceholder', 'Optional description')}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} disabled={isSaving}>
-              Cancel
+              {t('common.cancel', 'Cancel')}
             </Button>
             <Button onClick={handleUpdate} disabled={isSaving}>
               {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Overwrite
+              {t('settings.secrets.overwrite', 'Overwrite')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -616,16 +615,16 @@ export function Secrets() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Secret</AlertDialogTitle>
+            <AlertDialogTitle>{t('settings.secrets.deleteTitle', 'Delete Secret')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete secret "{selectedSecret?.key}"? This action cannot be undone.
+              {t('settings.secrets.deleteDescription', 'Are you sure you want to delete secret "{{key}}"? This action cannot be undone.', { key: selectedSecret?.key })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSaving}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSaving}>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} disabled={isSaving}>
               {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Delete
+              {t('common.delete', 'Delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

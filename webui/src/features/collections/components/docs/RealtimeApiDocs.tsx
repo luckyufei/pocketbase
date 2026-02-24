@@ -2,6 +2,7 @@
  * RealtimeApiDocs component
  * Realtime API documentation
  */
+import { useTranslation } from 'react-i18next'
 import { SdkTabs } from './SdkTabs'
 import { ResponseTabs } from './ResponseTabs'
 
@@ -20,6 +21,7 @@ export function RealtimeApiDocs({
   collection,
   baseUrl = 'http://127.0.0.1:8090',
 }: RealtimeApiDocsProps) {
+  const { t } = useTranslation()
   const jsCode = `import PocketBase from 'pocketbase';
 
 const pb = new PocketBase('${baseUrl}');
@@ -97,28 +99,19 @@ pb.collection('${collection.name}').unsubscribe(); // remove all subscriptions i
     <div className="space-y-6">
       {/* Title and description */}
       <div>
-        <h3 className="text-lg font-medium mb-2">Realtime ({collection.name})</h3>
+        <h3 className="text-lg font-medium mb-2">{t('records.apiDocs.realtime.title', { name: collection.name })}</h3>
         <p className="text-muted-foreground mb-3">
-          Subscribe to realtime changes via Server-Sent Events (SSE).
+          {t('records.apiDocs.realtime.desc')}
         </p>
-        <p className="text-muted-foreground">
-          Events are sent for <strong>create</strong>, <strong>update</strong> and <strong>delete</strong> record operations (see "Event data format" section below).
-        </p>
+        <p className="text-muted-foreground" dangerouslySetInnerHTML={{ __html: t('records.apiDocs.realtime.eventsDesc') }} />
       </div>
 
       {/* Info notice about ViewRule and ListRule */}
       <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm mb-2">
-          <span className="inline-block mr-1 text-blue-600">ℹ</span>
-          <strong>You could subscribe to a single record or to an entire collection.</strong>
-        </p>
+        <p className="text-sm mb-2" dangerouslySetInnerHTML={{ __html: `<span class="inline-block mr-1 text-blue-600">ℹ</span>${t('records.apiDocs.realtime.subscribeNote')}` }} />
         <ul className="text-sm list-disc list-inside space-y-1 ml-5">
-          <li>
-            When you subscribe to a <strong>single record</strong>, the collection's <strong>ViewRule</strong> will be used to determine whether the subscriber has access to receive the event message.
-          </li>
-          <li>
-            When you subscribe to an <strong>entire collection</strong>, the collection's <strong>ListRule</strong> will be used to determine whether the subscriber has access to receive the event message.
-          </li>
+          <li dangerouslySetInnerHTML={{ __html: t('records.apiDocs.realtime.singleRecordRule') }} />
+          <li dangerouslySetInnerHTML={{ __html: t('records.apiDocs.realtime.collectionRule') }} />
         </ul>
       </div>
 
@@ -127,7 +120,7 @@ pb.collection('${collection.name}').unsubscribe(); // remove all subscriptions i
 
       {/* API details */}
       <div>
-        <h4 className="text-sm font-medium mb-2">API details</h4>
+        <h4 className="text-sm font-medium mb-2">{t('records.apiDocs.apiDetails', 'API details')}</h4>
         <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <span className="px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700">
             SSE
@@ -138,7 +131,7 @@ pb.collection('${collection.name}').unsubscribe(); // remove all subscriptions i
 
       {/* Event data format */}
       <div>
-        <h4 className="text-sm font-medium mb-3">Event data format</h4>
+        <h4 className="text-sm font-medium mb-3">{t('records.apiDocs.realtime.eventDataFormat')}</h4>
         <ResponseTabs responses={eventDataResponse} showTabs={false} />
       </div>
     </div>

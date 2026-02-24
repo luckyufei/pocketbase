@@ -3,6 +3,7 @@
  * 代理配置表单
  */
 import { useState, useCallback, useRef, useImperativeHandle, forwardRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -32,6 +33,7 @@ export const ProxyForm = forwardRef<ProxyFormHandle, ProxyFormProps>(function Pr
   { initialData, onSubmit, isSubmitting },
   ref
 ) {
+  const { t } = useTranslation()
   const formRef = useRef<HTMLFormElement>(null)
   const [formData, setFormData] = useState<ProxyInput>({
     name: initialData?.name || '',
@@ -51,31 +53,31 @@ export const ProxyForm = forwardRef<ProxyFormHandle, ProxyFormProps>(function Pr
     const newErrors: FormErrors = {}
 
     if (!formData.name.trim()) {
-      newErrors.name = '名称不能为空'
+      newErrors.name = t('gateway.nameRequired')
     }
 
     if (!formData.path.trim()) {
-      newErrors.path = '拦截路径不能为空'
+      newErrors.path = t('gateway.pathRequired')
     } else if (!formData.path.startsWith('/')) {
-      newErrors.path = '拦截路径必须以 / 开头'
+      newErrors.path = t('gateway.pathStartSlash')
     } else if (formData.path.startsWith('/api/') || formData.path === '/api') {
-      newErrors.path = '拦截路径不能以 /api/ 开头（保留给数据 API）'
+      newErrors.path = t('gateway.pathNoApi')
     } else if (formData.path.startsWith('/_/') || formData.path === '/_') {
-      newErrors.path = '拦截路径不能以 /_/ 开头（保留给 Admin UI）'
+      newErrors.path = t('gateway.pathNoAdmin')
     }
 
     if (!formData.upstream.trim()) {
-      newErrors.upstream = '上游地址不能为空'
+      newErrors.upstream = t('gateway.upstreamRequired')
     } else {
       try {
         new URL(formData.upstream)
       } catch {
-        newErrors.upstream = '请输入有效的 URL'
+        newErrors.upstream = t('gateway.upstreamInvalid')
       }
     }
 
     if (formData.maxConcurrent !== undefined && formData.maxConcurrent < 0) {
-      newErrors.maxConcurrent = '并发数不能为负数'
+      newErrors.maxConcurrent = t('gateway.concurrentNegative')
     }
 
     setErrors(newErrors)
@@ -165,12 +167,12 @@ export const ProxyForm = forwardRef<ProxyFormHandle, ProxyFormProps>(function Pr
     <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
       {/* 基础配置 */}
       <div className="space-y-4">
-        <h3 className="font-semibold text-slate-700">基础配置</h3>
+        <h3 className="font-semibold text-slate-700">{t('gateway.basicConfig')}</h3>
 
         {/* 名称 */}
         <div className="space-y-2">
           <Label htmlFor="name">
-            名称 <span className="text-red-500">*</span>
+            {t('gateway.name')} <span className="text-red-500">*</span>
           </Label>
           <Input
             id="name"
@@ -185,7 +187,7 @@ export const ProxyForm = forwardRef<ProxyFormHandle, ProxyFormProps>(function Pr
         {/* 拦截路径 */}
         <div className="space-y-2">
           <Label htmlFor="path">
-            拦截路径 <span className="text-red-500">*</span>
+            {t('gateway.interceptPath')} <span className="text-red-500">*</span>
           </Label>
           <Input
             id="path"
@@ -194,14 +196,14 @@ export const ProxyForm = forwardRef<ProxyFormHandle, ProxyFormProps>(function Pr
             onChange={(e) => handleFieldChange('path', e.target.value)}
             className={errors.path ? 'border-red-500' : ''}
           />
-          <p className="text-xs text-slate-400">建议使用 /-/ 前缀，如 /-/openai</p>
+          <p className="text-xs text-slate-400">{t('gateway.pathHint')}</p>
           {errors.path && <p className="text-xs text-red-500">{errors.path}</p>}
         </div>
 
         {/* 上游地址 */}
         <div className="space-y-2">
           <Label htmlFor="upstream">
-            上游地址 <span className="text-red-500">*</span>
+            {t('gateway.upstreamUrl')} <span className="text-red-500">*</span>
           </Label>
           <Input
             id="upstream"
@@ -215,7 +217,7 @@ export const ProxyForm = forwardRef<ProxyFormHandle, ProxyFormProps>(function Pr
 
         {/* 启用 */}
         <div className="flex items-center justify-between">
-          <Label htmlFor="active">启用</Label>
+          <Label htmlFor="active">{t('gateway.enabled')}</Label>
           <Switch
             id="active"
             checked={formData.active}
@@ -226,8 +228,8 @@ export const ProxyForm = forwardRef<ProxyFormHandle, ProxyFormProps>(function Pr
         {/* 移除前缀 */}
         <div className="flex items-center justify-between">
           <div>
-            <Label htmlFor="stripPath">移除前缀</Label>
-            <p className="text-xs text-slate-400">转发时移除匹配的路径前缀</p>
+            <Label htmlFor="stripPath">{t('gateway.stripPath')}</Label>
+            <p className="text-xs text-slate-400">{t('gateway.stripPathDesc')}</p>
           </div>
           <Switch
             id="stripPath"
@@ -239,11 +241,11 @@ export const ProxyForm = forwardRef<ProxyFormHandle, ProxyFormProps>(function Pr
 
       {/* 流量控制 */}
       <div className="space-y-4">
-        <h3 className="font-semibold text-slate-700">流量控制</h3>
+        <h3 className="font-semibold text-slate-700">{t('gateway.trafficControl')}</h3>
 
         {/* 最大并发 */}
         <div className="space-y-2">
-          <Label htmlFor="maxConcurrent">最大并发</Label>
+          <Label htmlFor="maxConcurrent">{t('gateway.maxConcurrent')}</Label>
           <Input
             id="maxConcurrent"
             type="number"
@@ -256,7 +258,7 @@ export const ProxyForm = forwardRef<ProxyFormHandle, ProxyFormProps>(function Pr
             }
             className={errors.maxConcurrent ? 'border-red-500' : ''}
           />
-          <p className="text-xs text-slate-400">0 = 不限制</p>
+          <p className="text-xs text-slate-400">{t('gateway.noLimitHint')}</p>
           {errors.maxConcurrent && (
             <p className="text-xs text-red-500">{errors.maxConcurrent}</p>
           )}

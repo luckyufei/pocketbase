@@ -1,4 +1,5 @@
 // T011: Date 字段选项组件
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -18,6 +19,7 @@ interface DateFieldOptionsProps {
 }
 
 export function DateFieldOptions({ field, onChange }: DateFieldOptionsProps) {
+  const { t } = useTranslation()
   const handleChange = (key: keyof DateField, value: unknown) => {
     onChange({ ...field, [key]: value })
   }
@@ -26,14 +28,14 @@ export function DateFieldOptions({ field, onChange }: DateFieldOptionsProps) {
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-2">
         <div className="flex items-center gap-1">
-          <Label htmlFor="date-min">Min date</Label>
+          <Label htmlFor="date-min">{t('collections.minDate')}</Label>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>Minimum allowed date value. Leave empty for no restriction.</p>
+                <p>{t('collections.minDateTooltip')}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -48,14 +50,14 @@ export function DateFieldOptions({ field, onChange }: DateFieldOptionsProps) {
 
       <div className="space-y-2">
         <div className="flex items-center gap-1">
-          <Label htmlFor="date-max">Max date</Label>
+          <Label htmlFor="date-max">{t('collections.maxDate')}</Label>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>Maximum allowed date value. Leave empty for no restriction.</p>
+                <p>{t('collections.maxDateTooltip')}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

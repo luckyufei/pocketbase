@@ -3,6 +3,7 @@
  * 日志查看和筛选 - 与 UI 版本 1:1 对齐
  */
 import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLogs, type LogEntry } from '@/features/logs'
 import { LOG_LEVELS } from '@/lib/logUtils'
 import { Button } from '@/components/ui/button'
@@ -148,6 +149,7 @@ function LogPreviewBadges({ log }: { log: LogEntry }) {
 }
 
 export function LogsPage() {
+  const { t } = useTranslation()
   const {
     logs,
     activeLog,
@@ -251,6 +253,13 @@ export function LogsPage() {
     loadStats()
   }, [])
 
+  // 组件卸载时关闭详情面板
+  useEffect(() => {
+    return () => {
+      setActiveLog(null)
+    }
+  }, [setActiveLog])
+
   // 同步搜索输入与过滤条件（当外部改变 filter 时）
   useEffect(() => {
     setSearchInput(filter)
@@ -297,7 +306,7 @@ export function LogsPage() {
     <div className="h-full flex flex-col">
       {/* 头部 */}
       <header className="h-14 px-4 border-b border-slate-200 flex items-center justify-between shrink-0">
-        <h1 className="text-lg font-semibold text-slate-900">Logs</h1>
+        <h1 className="text-lg font-semibold text-slate-900">{t('logs.title', 'Logs')}</h1>
         <div className="flex items-center gap-3">
           {/* 设置按钮 */}
           <TooltipProvider>
@@ -312,7 +321,7 @@ export function LogsPage() {
                   <Settings className="w-4 h-4" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Logs settings</TooltipContent>
+              <TooltipContent>{t('logs.logsSettings', 'Logs settings')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
 
@@ -328,11 +337,11 @@ export function LogsPage() {
               checked={withSuperuserLogs}
               onCheckedChange={setWithSuperuserLogs}
             />
-            <Label
+              <Label
               htmlFor="superuser-logs"
               className="text-sm text-slate-600 cursor-pointer whitespace-nowrap"
             >
-              Include requests by superusers
+              {t('logs.includeSuperuserLogs', 'Include requests by superusers')}
             </Label>
           </div>
         </div>
@@ -345,7 +354,7 @@ export function LogsPage() {
             value={searchInput}
             onChange={setSearchInput}
             onSubmit={(value) => setFilter(value)}
-            placeholder={`Search term or filter like 'level > 0 && data.auth = "guest"'`}
+            placeholder={t('logs.filterPlaceholder', `Search term or filter like 'level > 0 && data.auth = "guest"'`)}
             className="h-10"
             extraAutocompleteKeys={['level', 'message', 'data.']}
           />
@@ -353,7 +362,7 @@ export function LogsPage() {
 
         {/* 日志级别信息 - 与 UI 版本一致 */}
         <div className="mt-2 text-xs text-slate-400">
-          <span>Default log levels:</span>
+          <span>{t('logs.defaultLogLevels', 'Default log levels:')}</span>
           <span className="inline-flex gap-1.5 ml-1">
             {LOG_LEVELS.map((l) => (
               <code
@@ -385,7 +394,7 @@ export function LogsPage() {
             <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
           </div>
         ) : logs.length === 0 ? (
-          <div className="text-center py-12 text-slate-500">No logs found</div>
+          <div className="text-center py-12 text-slate-500">{t('logs.noLogsFound', 'No logs found')}</div>
         ) : (
           <>
             <Table>
@@ -465,7 +474,7 @@ export function LogsPage() {
               <div className="p-4 text-center">
                 <Button variant="ghost" size="sm" onClick={loadMore} disabled={isLoading}>
                   {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  Load more
+                  {t('logs.loadMore', 'Load more')}
                 </Button>
               </div>
             )}
@@ -478,14 +487,14 @@ export function LogsPage() {
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
           <div className="flex items-center gap-3 px-4 py-2 rounded-full border border-slate-200 bg-white/95 backdrop-blur-sm shadow-lg animate-in fade-in slide-in-from-bottom-2 duration-200">
             <span className="text-sm text-slate-600">
-              Selected <strong className="text-slate-900">{totalBulkSelected}</strong> {totalBulkSelected === 1 ? 'log' : 'logs'}
+              {t('logs.selected', 'Selected')} <strong className="text-slate-900">{totalBulkSelected}</strong> {totalBulkSelected === 1 ? 'log' : t('logs.logsUnit', 'logs')}
             </span>
             <button
               type="button"
               className="px-2.5 py-1 text-sm text-slate-600 border border-slate-300 rounded hover:bg-slate-50 hover:border-slate-400 transition-colors"
               onClick={deselectAll}
             >
-              Reset
+              {t('common.reset', 'Reset')}
             </button>
             <div className="w-12" />
             <button
@@ -493,7 +502,7 @@ export function LogsPage() {
               className="px-3 py-1.5 text-sm font-medium text-white bg-slate-800 rounded hover:bg-slate-700 transition-colors"
               onClick={downloadSelected}
             >
-              Download as JSON
+              {t('logs.downloadAsJson', 'Download as JSON')}
             </button>
           </div>
         </div>

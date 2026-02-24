@@ -2,6 +2,7 @@
  * JobsStats 组件
  * 任务统计卡片 - 与 UI 版本对齐的简洁风格
  */
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { JobsStats as JobsStatsType } from '../store'
@@ -18,13 +19,15 @@ function formatPercent(rate: number | null | undefined): string {
 }
 
 export function JobsStats({ stats, isLoading = false, className }: JobsStatsProps) {
+  const { t } = useTranslation()
+
   const items = [
-    { label: 'Pending', value: stats?.pending ?? 0, color: 'text-yellow-500' },
-    { label: 'Processing', value: stats?.processing ?? 0, color: 'text-blue-500' },
-    { label: 'Completed', value: stats?.completed ?? 0, color: 'text-green-500' },
-    { label: 'Failed', value: stats?.failed ?? 0, color: 'text-red-500' },
-    { label: 'Total', value: stats?.total ?? 0, color: '' },
-    { label: 'Success Rate', value: formatPercent(stats?.success_rate), color: 'text-green-500' },
+    { label: t('settingsPage.jobs.statusPending', 'Pending'), value: stats?.pending ?? 0, color: 'text-yellow-500' },
+    { label: t('settingsPage.jobs.statusProcessing', 'Processing'), value: stats?.processing ?? 0, color: 'text-blue-500' },
+    { label: t('settingsPage.jobs.statusCompleted', 'Completed'), value: stats?.completed ?? 0, color: 'text-green-500' },
+    { label: t('settingsPage.jobs.statusFailed', 'Failed'), value: stats?.failed ?? 0, color: 'text-red-500' },
+    { label: t('settingsPage.jobs.total', 'Total'), value: stats?.total ?? 0, color: '' },
+    { label: t('settingsPage.jobs.successRate', 'Success Rate'), value: formatPercent(stats?.success_rate), color: 'text-green-500' },
   ]
 
   // Loading state: show 4 skeleton cards (same as UI version)

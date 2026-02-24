@@ -10,6 +10,7 @@
  */
 import { Outlet, NavLink } from 'react-router-dom'
 import { useAtomValue } from 'jotai'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { hideControlsAtom } from '@/store/app'
 import {
@@ -41,51 +42,52 @@ interface NavGroup {
   hideWhenControlsHidden?: boolean
 }
 
-const navGroups: NavGroup[] = [
-  {
-    title: 'System',
-    items: [
-      { to: '/settings/application', label: 'Application', icon: <Settings className="w-4 h-4" /> },
-      { to: '/settings/mail', label: 'Mail settings', icon: <Mail className="w-4 h-4" /> },
-      { to: '/settings/storage', label: 'Files storage', icon: <HardDrive className="w-4 h-4" /> },
-      { to: '/settings/backups', label: 'Backups', icon: <Database className="w-4 h-4" /> },
-      { to: '/settings/crons', label: 'Crons', icon: <Clock className="w-4 h-4" /> },
-      { to: '/settings/jobs', label: 'Jobs', icon: <Activity className="w-4 h-4" /> },
-      { to: '/settings/secrets', label: 'Secrets', icon: <Key className="w-4 h-4" /> },
-      { to: '/settings/analytics-settings', label: 'Analytics', icon: <BarChart3 className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Security',
-    items: [
-      { to: '/settings/admins', label: 'Admins', icon: <Users className="w-4 h-4" /> },
-      { to: '/settings/tokens', label: 'Tokens', icon: <Coins className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Infrastructure',
-    items: [
-      { to: '/settings/gateway', label: 'Gateway', icon: <Network className="w-4 h-4" /> },
-    ],
-  },
-  {
-    title: 'Sync',
-    hideWhenControlsHidden: true,
-    items: [
-      { to: '/settings/export', label: 'Export collections', icon: <Download className="w-4 h-4" /> },
-      { to: '/settings/import', label: 'Import collections', icon: <Upload className="w-4 h-4" /> },
-    ],
-  },
-]
-
 export function SettingsLayout() {
+  const { t } = useTranslation()
   const hideControls = useAtomValue(hideControlsAtom)
+
+  const navGroups: NavGroup[] = [
+    {
+      title: t('settingsLayout.system'),
+      items: [
+        { to: '/settings/application', label: t('settingsLayout.application'), icon: <Settings className="w-4 h-4" /> },
+        { to: '/settings/mail', label: t('settingsLayout.mailSettings'), icon: <Mail className="w-4 h-4" /> },
+        { to: '/settings/storage', label: t('settingsLayout.filesStorage'), icon: <HardDrive className="w-4 h-4" /> },
+        { to: '/settings/backups', label: t('settingsLayout.backups'), icon: <Database className="w-4 h-4" /> },
+        { to: '/settings/crons', label: t('settingsLayout.crons'), icon: <Clock className="w-4 h-4" /> },
+        { to: '/settings/jobs', label: t('settingsLayout.jobs'), icon: <Activity className="w-4 h-4" /> },
+        { to: '/settings/secrets', label: t('settingsLayout.secrets'), icon: <Key className="w-4 h-4" /> },
+        { to: '/settings/analytics-settings', label: t('settingsLayout.analytics'), icon: <BarChart3 className="w-4 h-4" /> },
+      ],
+    },
+    {
+      title: t('settingsLayout.security'),
+      items: [
+        { to: '/settings/admins', label: t('settingsLayout.admins'), icon: <Users className="w-4 h-4" /> },
+        { to: '/settings/tokens', label: t('settingsLayout.tokens'), icon: <Coins className="w-4 h-4" /> },
+      ],
+    },
+    {
+      title: t('settingsLayout.infrastructure'),
+      items: [
+        { to: '/settings/gateway', label: t('settingsLayout.gateway'), icon: <Network className="w-4 h-4" /> },
+      ],
+    },
+    {
+      title: t('settingsLayout.sync'),
+      hideWhenControlsHidden: true,
+      items: [
+        { to: '/settings/export', label: t('settingsLayout.exportCollections'), icon: <Download className="w-4 h-4" /> },
+        { to: '/settings/import', label: t('settingsLayout.importCollections'), icon: <Upload className="w-4 h-4" /> },
+      ],
+    },
+  ]
 
   return (
     <div className="flex h-full">
       {/* Sidebar */}
       <aside className="w-56 border-r border-slate-200 bg-slate-50/50 p-4 overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-4 text-slate-900">Settings</h2>
+        <h2 className="text-lg font-semibold mb-4 text-slate-900">{t('settingsLayout.title')}</h2>
         <nav className="space-y-5">
           {navGroups.map((group) => {
             // Conditional rendering: hide groups when hideControls is enabled

@@ -20,6 +20,7 @@ interface EmailChangeDocsProps {
 }
 
 function EmailChangeApiRequestDocs({ collection }: { collection: Collection }) {
+  const { t } = useTranslation()
   const [responseTab, setResponseTab] = useState('204')
 
   const responses = [
@@ -70,22 +71,22 @@ function EmailChangeApiRequestDocs({ collection }: { collection: Collection }) {
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Body Parameters</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.bodyParameters')}</h6>
         <div className="border rounded-md overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium">Param</th>
-                <th className="text-left p-2 font-medium">Type</th>
-                <th className="text-left p-2 font-medium w-1/2">Description</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.param')}</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.type')}</th>
+                <th className="text-left p-2 font-medium w-1/2">{t('records.apiDocs.description')}</th>
               </tr>
             </thead>
             <tbody>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                      Required
+<Badge variant="secondary" className="bg-green-100 text-green-800 text-xs whitespace-nowrap">
+                      {t('records.apiDocs.required')}
                     </Badge>
                     <span>newEmail</span>
                   </div>
@@ -94,7 +95,7 @@ function EmailChangeApiRequestDocs({ collection }: { collection: Collection }) {
                   <Badge variant="outline">String</Badge>
                 </td>
                 <td className="p-2 text-muted-foreground">
-                  The new email address to send the change request.
+                  {t('records.apiDocs.auth.newEmailAddress')}
                 </td>
               </tr>
             </tbody>
@@ -103,7 +104,7 @@ function EmailChangeApiRequestDocs({ collection }: { collection: Collection }) {
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Responses</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.responses')}</h6>
         <Tabs value={responseTab} onValueChange={setResponseTab}>
           <TabsList>
             {responses.map((response) => (
@@ -124,6 +125,7 @@ function EmailChangeApiRequestDocs({ collection }: { collection: Collection }) {
 }
 
 function EmailChangeApiConfirmDocs({ collection }: { collection: Collection }) {
+  const { t } = useTranslation()
   const [responseTab, setResponseTab] = useState('204')
 
   const responses = [
@@ -158,22 +160,22 @@ function EmailChangeApiConfirmDocs({ collection }: { collection: Collection }) {
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Body Parameters</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.bodyParameters')}</h6>
         <div className="border rounded-md overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium">Param</th>
-                <th className="text-left p-2 font-medium">Type</th>
-                <th className="text-left p-2 font-medium w-1/2">Description</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.param')}</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.type')}</th>
+                <th className="text-left p-2 font-medium w-1/2">{t('records.apiDocs.description')}</th>
               </tr>
             </thead>
             <tbody>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                      Required
+<Badge variant="secondary" className="bg-green-100 text-green-800 text-xs whitespace-nowrap">
+                      {t('records.apiDocs.required')}
                     </Badge>
                     <span>token</span>
                   </div>
@@ -182,14 +184,14 @@ function EmailChangeApiConfirmDocs({ collection }: { collection: Collection }) {
                   <Badge variant="outline">String</Badge>
                 </td>
                 <td className="p-2 text-muted-foreground">
-                  The token from the change email request email.
+                  {t('records.apiDocs.auth.tokenFromEmail')}
                 </td>
               </tr>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                      Required
+<Badge variant="secondary" className="bg-green-100 text-green-800 text-xs whitespace-nowrap">
+                      {t('records.apiDocs.required')}
                     </Badge>
                     <span>password</span>
                   </div>
@@ -198,7 +200,7 @@ function EmailChangeApiConfirmDocs({ collection }: { collection: Collection }) {
                   <Badge variant="outline">String</Badge>
                 </td>
                 <td className="p-2 text-muted-foreground">
-                  The account password to confirm the email change.
+                  {t('records.apiDocs.auth.accountPassword')}
                 </td>
               </tr>
             </tbody>
@@ -207,7 +209,7 @@ function EmailChangeApiConfirmDocs({ collection }: { collection: Collection }) {
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Responses</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.responses')}</h6>
         <Tabs value={responseTab} onValueChange={setResponseTab}>
           <TabsList>
             {responses.map((response) => (
@@ -277,26 +279,21 @@ await pb.collection('${collection.name}').confirmEmailChange(
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold mb-2">Email change ({collection.name})</h3>
+        <h3 className="text-lg font-semibold mb-2">{t('records.apiDocs.auth.emailChangeTitle', { name: collection.name })}</h3>
         <div className="text-muted-foreground space-y-2">
-          <p>
-            Sends <strong>{collection.name}</strong> email change request.
-          </p>
-          <p>
-            On successful email change all previously issued auth tokens for the specific record
-            will be automatically invalidated.
-          </p>
+          <p dangerouslySetInnerHTML={{ __html: t('records.apiDocs.auth.emailChangeDesc', { name: collection.name }) }} />
+          <p>{t('records.apiDocs.auth.emailChangeNote')}</p>
         </div>
       </div>
 
       <SdkTabs js={jsCode} dart={dartCode} />
 
       <div>
-        <h6 className="font-medium mb-2">API details</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.apiDetails')}</h6>
         <Tabs value={activeApiTab} onValueChange={setActiveApiTab}>
           <UnderlineTabsList>
-            <UnderlineTabsTrigger value="request">Request email change</UnderlineTabsTrigger>
-            <UnderlineTabsTrigger value="confirm">Confirm email change</UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="request">{t('records.apiDocs.auth.requestEmailChange')}</UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="confirm">{t('records.apiDocs.auth.confirmEmailChange')}</UnderlineTabsTrigger>
           </UnderlineTabsList>
           <TabsContent value="request">
             <EmailChangeApiRequestDocs collection={collection} />

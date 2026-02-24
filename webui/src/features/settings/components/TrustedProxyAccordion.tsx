@@ -3,6 +3,7 @@
  * 用于配置用户 IP 代理头
  */
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Route, AlertTriangle, Info, X } from 'lucide-react'
 import {
   Accordion,
@@ -50,6 +51,7 @@ export function TrustedProxyAccordion({
   onChange,
   errors,
 }: TrustedProxyAccordionProps) {
+  const { t } = useTranslation()
   const isEnabled = settings.headers.length > 0
   const hasErrors = errors && Object.keys(errors).length > 0
 
@@ -87,7 +89,7 @@ export function TrustedProxyAccordion({
         <AccordionTrigger className="hover:no-underline">
           <div className="flex items-center gap-2 flex-1">
             <Route className="h-4 w-4" />
-            <span>Trusted Proxy</span>
+            <span>{t('trustedProxy.title', 'Trusted Proxy')}</span>
             {!isEnabled && healthData.possibleProxyHeader && (
               <TooltipProvider>
                 <Tooltip>
@@ -95,8 +97,8 @@ export function TrustedProxyAccordion({
                     <AlertTriangle className="h-4 w-4 text-yellow-500" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Detected proxy header.</p>
-                    <p>It is recommend to list it as trusted.</p>
+                    <p>{t('trustedProxy.detectedHeader', 'Detected proxy header.')}</p>
+                    <p>{t('trustedProxy.recommendTrust', 'It is recommend to list it as trusted.')}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -104,7 +106,7 @@ export function TrustedProxyAccordion({
           </div>
           <div className="flex items-center gap-2 mr-2">
             <Badge variant={isEnabled ? 'default' : 'secondary'}>
-              {isEnabled ? 'Enabled' : 'Disabled'}
+              {isEnabled ? t('common.enabled', 'Enabled') : t('common.disabled', 'Disabled')}
             </Badge>
             {hasErrors && <AlertTriangle className="h-4 w-4 text-destructive" />}
           </div>
@@ -115,11 +117,11 @@ export function TrustedProxyAccordion({
             <AlertDescription>
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span>Resolved user IP:</span>
+                  <span>{t('trustedProxy.resolvedUserIP', 'Resolved user IP')}:</span>
                   <strong>{healthData.realIP || 'N/A'}</strong>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span>Detected proxy header:</span>
+                  <span>{t('trustedProxy.detectedProxyHeader', 'Detected proxy header')}:</span>
                   <strong>{healthData.possibleProxyHeader || 'N/A'}</strong>
                 </div>
               </div>
@@ -128,34 +130,29 @@ export function TrustedProxyAccordion({
 
           <div className="text-sm text-muted-foreground space-y-2">
             <p>
-              When PocketBase is deployed on platforms like Fly or it is accessible through proxies
-              such as NGINX, requests from different users will originate from the same IP address
-              (the IP of the proxy connecting to your PocketBase app).
+              {t('trustedProxy.desc1', 'When PocketBase is deployed on platforms like Fly or it is accessible through proxies such as NGINX, requests from different users will originate from the same IP address (the IP of the proxy connecting to your PocketBase app).')}
             </p>
             <p>
-              In this case to retrieve the actual user IP (used for rate limiting, logging, etc.)
-              you need to properly configure your proxy and list below the trusted headers that
-              PocketBase could use to extract the user IP.
+              {t('trustedProxy.desc2', 'In this case to retrieve the actual user IP (used for rate limiting, logging, etc.) you need to properly configure your proxy and list below the trusted headers that PocketBase could use to extract the user IP.')}
             </p>
             <p className="font-medium">
-              When using such proxy, to avoid spoofing it is recommended to:
+              {t('trustedProxy.desc3', 'When using such proxy, to avoid spoofing it is recommended to:')}
             </p>
             <ul className="list-disc list-inside font-medium">
               <li>
-                use headers that are controlled only by the proxy and cannot be manually set by the
-                users
+                {t('trustedProxy.tip1', 'use headers that are controlled only by the proxy and cannot be manually set by the users')}
               </li>
-              <li>make sure that the PocketBase server can be accessed only through the proxy</li>
+              <li>{t('trustedProxy.tip2', 'make sure that the PocketBase server can be accessed only through the proxy')}</li>
             </ul>
-            <p>You can clear the headers field if PocketBase is not deployed behind a proxy.</p>
+            <p>{t('trustedProxy.clearHint', 'You can clear the headers field if PocketBase is not deployed behind a proxy.')}</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
             <div className="lg:col-span-3 space-y-2">
-              <Label>Trusted IP proxy headers</Label>
+              <Label>{t('trustedProxy.trustedHeaders', 'Trusted IP proxy headers')}</Label>
               <div className="relative">
                 <Input
-                  placeholder="Leave empty to disable"
+                  placeholder={t('trustedProxy.leaveEmpty', 'Leave empty to disable')}
                   value={settings.headers.join(', ')}
                   onChange={(e) => handleHeadersChange(e.target.value)}
                 />
@@ -167,12 +164,12 @@ export function TrustedProxyAccordion({
                     className="absolute right-1 top-1/2 -translate-y-1/2 h-7"
                     onClick={clearHeaders}
                   >
-                    Clear
+                    {t('common.clear', 'Clear')}
                   </Button>
                 )}
               </div>
               <div className="flex flex-wrap gap-1">
-                <span className="text-sm text-muted-foreground">Suggested:</span>
+                <span className="text-sm text-muted-foreground">{t('trustedProxy.suggested', 'Suggested')}:</span>
                 {suggestedProxyHeaders.map((header) => (
                   <Button
                     key={header}
@@ -190,7 +187,7 @@ export function TrustedProxyAccordion({
 
             <div className="space-y-2">
               <Label className="flex items-center gap-1">
-                IP priority selection
+                {t('trustedProxy.ipPriority', 'IP priority selection')}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
@@ -198,9 +195,7 @@ export function TrustedProxyAccordion({
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">
                       <p>
-                        This is in case the proxy returns more than 1 IP as header value. The
-                        rightmost IP is usually considered to be the more trustworthy but this could
-                        vary depending on the proxy.
+                        {t('trustedProxy.ipPriorityTooltip', 'This is in case the proxy returns more than 1 IP as header value. The rightmost IP is usually considered to be the more trustworthy but this could vary depending on the proxy.')}
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -214,8 +209,8 @@ export function TrustedProxyAccordion({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="true">Use leftmost IP</SelectItem>
-                  <SelectItem value="false">Use rightmost IP</SelectItem>
+                  <SelectItem value="true">{t('trustedProxy.useLeftmost', 'Use leftmost IP')}</SelectItem>
+                  <SelectItem value="false">{t('trustedProxy.useRightmost', 'Use rightmost IP')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

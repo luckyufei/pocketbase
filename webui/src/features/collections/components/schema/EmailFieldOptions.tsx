@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Info, X } from 'lucide-react'
 import { useState } from 'react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { useTranslation } from 'react-i18next'
 
 export interface EmailField {
   name: string
@@ -20,6 +21,7 @@ interface EmailFieldOptionsProps {
 }
 
 export function EmailFieldOptions({ field, onChange }: EmailFieldOptionsProps) {
+  const { t } = useTranslation()
   const [onlyInput, setOnlyInput] = useState('')
   const [exceptInput, setExceptInput] = useState('')
 
@@ -63,14 +65,14 @@ export function EmailFieldOptions({ field, onChange }: EmailFieldOptionsProps) {
       {/* Except domains - 左侧 */}
       <div className="space-y-2">
         <div className="flex items-center gap-1">
-          <Label>Except domains</Label>
+          <Label>{t('collections.exceptDomains')}</Label>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>List of domains that are NOT allowed.<br/>This field is disabled if "Only domains" is set.</p>
+                <p dangerouslySetInnerHTML={{ __html: t('collections.exceptDomainsTooltip') }} />
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -97,20 +99,20 @@ export function EmailFieldOptions({ field, onChange }: EmailFieldOptionsProps) {
           onKeyDown={(e) => handleKeyDown(e, 'exceptDomains', exceptInput)}
           onBlur={() => handleAddDomain('exceptDomains', exceptInput)}
         />
-        <p className="text-xs text-muted-foreground">Use comma as separator.</p>
+        <p className="text-xs text-muted-foreground">{t('collections.commaSeparator')}</p>
       </div>
 
       {/* Only domains - 右侧 */}
       <div className="space-y-2">
         <div className="flex items-center gap-1">
-          <Label>Only domains</Label>
+          <Label>{t('collections.onlyDomains')}</Label>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>List of domains that are ONLY allowed.<br/>This field is disabled if "Except domains" is set.</p>
+                <p dangerouslySetInnerHTML={{ __html: t('collections.onlyDomainsTooltip') }} />
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -137,7 +139,7 @@ export function EmailFieldOptions({ field, onChange }: EmailFieldOptionsProps) {
           onKeyDown={(e) => handleKeyDown(e, 'onlyDomains', onlyInput)}
           onBlur={() => handleAddDomain('onlyDomains', onlyInput)}
         />
-        <p className="text-xs text-muted-foreground">Use comma as separator.</p>
+        <p className="text-xs text-muted-foreground">{t('collections.commaSeparator')}</p>
       </div>
     </div>
   )

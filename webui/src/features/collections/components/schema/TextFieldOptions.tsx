@@ -1,4 +1,5 @@
 // T005: Text 字段选项组件
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -21,6 +22,7 @@ interface TextFieldOptionsProps {
 }
 
 export function TextFieldOptions({ field, onChange }: TextFieldOptionsProps) {
+  const { t } = useTranslation()
   const handleChange = (key: keyof TextField, value: unknown) => {
     onChange({ ...field, [key]: value })
   }
@@ -29,14 +31,14 @@ export function TextFieldOptions({ field, onChange }: TextFieldOptionsProps) {
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-2">
         <div className="flex items-center gap-1">
-          <Label htmlFor="text-min">Min length</Label>
+<Label htmlFor="text-min">{t('collections.minLength')}</Label>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>Clear the field or set it to 0 for no limit.</p>
+                <p>{t('collections.minLengthTooltip')}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -45,7 +47,7 @@ export function TextFieldOptions({ field, onChange }: TextFieldOptionsProps) {
           id="text-min"
           type="number"
           min={0}
-          placeholder="No min limit"
+          placeholder={t('collections.noMinLimit')}
           value={field.min || ''}
           onChange={(e) => handleChange('min', parseInt(e.target.value, 10) || 0)}
         />
@@ -53,14 +55,14 @@ export function TextFieldOptions({ field, onChange }: TextFieldOptionsProps) {
 
       <div className="space-y-2">
         <div className="flex items-center gap-1">
-          <Label htmlFor="text-max">Max length</Label>
+<Label htmlFor="text-max">{t('collections.maxLength')}</Label>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>Clear the field or set it to 0 to fallback to the default limit.</p>
+                <p>{t('collections.maxLengthTooltip')}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -69,7 +71,7 @@ export function TextFieldOptions({ field, onChange }: TextFieldOptionsProps) {
           id="text-max"
           type="number"
           min={field.min || 0}
-          placeholder="Default to max 5000 characters"
+          placeholder={t('collections.defaultMax5000Chars')}
           value={field.max || ''}
           onChange={(e) => handleChange('max', parseInt(e.target.value, 10) || 0)}
         />
@@ -77,7 +79,7 @@ export function TextFieldOptions({ field, onChange }: TextFieldOptionsProps) {
 
       <div className="space-y-2">
         <div className="flex items-center gap-1">
-          <Label htmlFor="text-pattern">Validation pattern</Label>
+<Label htmlFor="text-pattern">{t('collections.validationPattern')}</Label>
           {field.primaryKey && (
             <TooltipProvider>
               <Tooltip>
@@ -85,10 +87,7 @@ export function TextFieldOptions({ field, onChange }: TextFieldOptionsProps) {
                   <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>
-                    All record ids have forbidden characters and unique case-insensitive (ASCII)
-                    validations.
-                  </p>
+                  <p>{t('collections.validationPatternTooltip')}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -108,16 +107,14 @@ export function TextFieldOptions({ field, onChange }: TextFieldOptionsProps) {
 
       <div className="space-y-2">
         <div className="flex items-center gap-1">
-          <Label htmlFor="text-autogenerate">Autogenerate pattern</Label>
+<Label htmlFor="text-autogenerate">{t('collections.autogeneratePattern')}</Label>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>
-                  Set and autogenerate text matching the pattern on missing record create value.
-                </p>
+                <p>{t('collections.autogeneratePatternTooltip')}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

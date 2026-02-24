@@ -3,6 +3,7 @@
  * 任务筛选器 - 与 UI 版本对齐
  */
 import { useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,17 +24,19 @@ interface JobsFiltersProps {
   className?: string
 }
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'processing', label: 'Processing' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'failed', label: 'Failed' },
-]
-
 const LIMIT_OPTIONS = [10, 20, 50, 100]
 
 export function JobsFilters({ filter, onChange, onClear, className }: JobsFiltersProps) {
+  const { t } = useTranslation()
+
+  const STATUS_OPTIONS = [
+    { value: 'all', label: t('settingsPage.jobs.statusAll', 'All Statuses') },
+    { value: 'pending', label: t('settingsPage.jobs.statusPending', 'Pending') },
+    { value: 'processing', label: t('settingsPage.jobs.statusProcessing', 'Processing') },
+    { value: 'completed', label: t('settingsPage.jobs.statusCompleted', 'Completed') },
+    { value: 'failed', label: t('settingsPage.jobs.statusFailed', 'Failed') },
+  ]
+
   const handleTopicChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       onChange({ topic: e.target.value })
@@ -56,23 +59,23 @@ export function JobsFilters({ filter, onChange, onClear, className }: JobsFilter
   )
 
   return (
-    <div className={cn('flex flex-wrap items-end gap-2.5', className)}>
-      <div className="space-y-1">
-        <Label htmlFor="filter-topic" className="text-xs font-medium">Topic</Label>
+    <div className={cn('flex flex-wrap items-center gap-4', className)}>
+      <div className="flex items-center gap-2">
+        <Label htmlFor="filter-topic" className="text-sm font-medium whitespace-nowrap">{t('settingsPage.jobs.topic', 'Topic')}</Label>
         <Input
           id="filter-topic"
-          placeholder="Filter by topic..."
+          placeholder={t('settingsPage.jobs.filterByTopic', 'Filter by topic...')}
           value={filter.topic}
           onChange={handleTopicChange}
           className="h-[38px] w-[180px]"
         />
       </div>
 
-      <div className="space-y-1">
-        <Label htmlFor="filter-status" className="text-xs font-medium">Status</Label>
+      <div className="flex items-center gap-2">
+        <Label htmlFor="filter-status" className="text-sm font-medium whitespace-nowrap">{t('settingsPage.jobs.status', 'Status')}</Label>
         <Select value={filter.status || 'all'} onValueChange={handleStatusChange}>
           <SelectTrigger className="h-[38px] w-[140px]">
-            <SelectValue placeholder="All Statuses" />
+            <SelectValue placeholder={t('settingsPage.jobs.statusAll', 'All Statuses')} />
           </SelectTrigger>
           <SelectContent>
             {STATUS_OPTIONS.map((opt) => (
@@ -84,8 +87,8 @@ export function JobsFilters({ filter, onChange, onClear, className }: JobsFilter
         </Select>
       </div>
 
-      <div className="space-y-1">
-        <Label htmlFor="filter-limit" className="text-xs font-medium">Per Page</Label>
+      <div className="flex items-center gap-2">
+        <Label htmlFor="filter-limit" className="text-sm font-medium whitespace-nowrap">{t('settingsPage.jobs.perPage', 'Per Page')}</Label>
         <Select value={String(filter.limit)} onValueChange={handleLimitChange}>
           <SelectTrigger className="h-[38px] w-[80px]">
             <SelectValue />
@@ -100,12 +103,9 @@ export function JobsFilters({ filter, onChange, onClear, className }: JobsFilter
         </Select>
       </div>
 
-      <div className="space-y-1">
-        <Label className="text-xs">&nbsp;</Label>
-        <Button variant="secondary" size="sm" className="h-[38px]" onClick={onClear}>
-          Clear
-        </Button>
-      </div>
+      <Button variant="secondary" size="sm" className="h-[38px]" onClick={onClear}>
+        {t('settingsPage.jobs.clear', 'Clear')}
+      </Button>
     </div>
   )
 }

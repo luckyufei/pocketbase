@@ -7,6 +7,7 @@
  * 对标 ui/src/components/base/Searchbar.svelte 的样式
  */
 import { useCallback, useMemo, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import type { CollectionModel } from 'pocketbase'
 import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror'
@@ -68,6 +69,7 @@ export function FilterAutocompleteInput({
   singleLine = true, // 默认单行模式（搜索框场景）
   extraAutocompleteKeys = [],
 }: FilterAutocompleteInputProps) {
+  const { t } = useTranslation()
   const editorRef = useRef<ReactCodeMirrorRef>(null)
   // 保存提交回调的 ref，避免 extensions 依赖变化
   const onSubmitRef = useRef(onSubmit)
@@ -309,7 +311,7 @@ export function FilterAutocompleteInput({
               'transition-colors'
             )}
           >
-            Search
+            {t('common.search', 'Search')}
           </button>
         )}
 
@@ -325,7 +327,7 @@ export function FilterAutocompleteInput({
               'transition-colors'
             )}
           >
-            Clear
+            {t('common.clear', 'Clear')}
           </button>
         )}
       </div>

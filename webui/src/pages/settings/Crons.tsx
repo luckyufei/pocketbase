@@ -3,6 +3,7 @@
  * Cron 任务管理
  */
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -21,6 +22,7 @@ interface CronJob {
 }
 
 export function Crons() {
+  const { t } = useTranslation()
   const [crons, setCrons] = useState<CronJob[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isRunning, setIsRunning] = useState<Record<string, boolean>>({})
@@ -64,20 +66,20 @@ export function Crons() {
 
   return (
     <div className="p-6 max-w-4xl">
-      {/* 页面标题 */}
+      {/* Page header */}
       <header className="mb-6">
         <nav className="text-sm text-muted-foreground mb-2">
-          <span>Settings</span>
+          <span>{t('settingsPage.breadcrumbSettings')}</span>
           <span className="mx-2">/</span>
-          <span className="text-foreground">Crons</span>
+          <span className="text-foreground">{t('settingsPage.crons.breadcrumb')}</span>
         </nav>
       </header>
 
-      {/* 主面板 */}
+      {/* Main panel */}
       <div className="border rounded-lg bg-card">
-        {/* 标题栏 */}
+        {/* Title bar */}
         <div className="flex items-center gap-2 p-4 pb-2">
-          <span className="text-xl">Registered app cron jobs</span>
+          <span className="text-xl">{t('settingsPage.crons.title')}</span>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -91,15 +93,14 @@ export function Crons() {
                   <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Refresh</TooltipContent>
+              <TooltipContent>{t('settingsPage.crons.refresh')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
 
-        {/* Cron 列表 */}
+        {/* Cron list */}
         <div className="divide-y">
           {isLoading ? (
-            // 加载状态 - skeleton loader
             <>
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="flex items-center gap-3 px-4 py-3">
@@ -108,12 +109,10 @@ export function Crons() {
               ))}
             </>
           ) : crons.length === 0 ? (
-            // 空状态
             <div className="px-4 py-6 text-center text-muted-foreground">
-              No app crons found.
+              {t('settingsPage.crons.noCrons')}
             </div>
           ) : (
-            // Cron 列表
             crons.map((cron) => (
               <div key={cron.id} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/50">
                 <div className="flex-1 min-w-0">
@@ -140,7 +139,7 @@ export function Crons() {
                           )}
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Run</TooltipContent>
+                      <TooltipContent>{t('settingsPage.crons.run')}</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
@@ -149,9 +148,9 @@ export function Crons() {
           )}
         </div>
 
-        {/* 底部提示 */}
+        {/* Bottom hint */}
         <p className="px-4 py-3 text-sm text-muted-foreground border-t">
-          App cron jobs can be registered only programmatically with{' '}
+          {t('settingsPage.crons.hint')}{' '}
           <a
             href="https://pocketbase.io/docs/go-jobs-scheduling/"
             target="_blank"
@@ -160,7 +159,7 @@ export function Crons() {
           >
             Go
           </a>{' '}
-          or{' '}
+          {t('settingsPage.crons.hintOr')}{' '}
           <a
             href="https://pocketbase.io/docs/js-jobs-scheduling/"
             target="_blank"

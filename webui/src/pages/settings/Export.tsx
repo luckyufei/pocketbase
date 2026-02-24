@@ -3,6 +3,7 @@
  * 导出 Collections 配置
  */
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Download, Loader2 } from 'lucide-react'
@@ -61,6 +62,7 @@ function downloadJson(obj: unknown, name: string) {
 }
 
 export function Export() {
+  const { t } = useTranslation()
   const [collections, setCollections] = useState<CollectionData[]>([])
   const [bulkSelected, setBulkSelected] = useState<Record<string, CollectionData>>({})
   const [isLoading, setIsLoading] = useState(false)
@@ -166,12 +168,12 @@ export function Export() {
 
   return (
     <div className="p-6 flex-1 flex flex-col min-h-0">
-      {/* 页面标题 */}
+      {/* Page header */}
       <header className="mb-6">
         <nav className="text-sm text-muted-foreground mb-2">
-          <span>Settings</span>
+          <span>{t('settingsPage.breadcrumbSettings')}</span>
           <span className="mx-2">/</span>
-          <span className="text-foreground">Export collections</span>
+          <span className="text-foreground">{t('settingsPage.exportPage.breadcrumb')}</span>
         </nav>
       </header>
 
@@ -181,15 +183,14 @@ export function Export() {
         </div>
       ) : (
         <>
-          {/* 说明文字 */}
+          {/* Description */}
           <p className="text-base mb-6">
-            Below you'll find your current collections configuration that you could import in another
-            PocketBase environment.
+            {t('settingsPage.exportPage.description')}
           </p>
 
-          {/* 主体区域 - 左右两栏 */}
+          {/* Main area */}
           <div className="flex h-[550px] border rounded-lg overflow-hidden">
-            {/* 左侧选择列表 */}
+            {/* Left selection list */}
             <div className="w-[220px] flex-shrink-0 bg-muted/50 overflow-auto p-3 border-r">
               {/* Select all */}
               <div className="mb-4 pb-3 border-b">
@@ -199,7 +200,7 @@ export function Export() {
                     onCheckedChange={toggleSelectAll}
                     disabled={collections.length === 0}
                   />
-                  <span className="text-sm font-medium">Select all</span>
+                  <span className="text-sm font-medium">{t('settingsPage.exportPage.selectAll')}</span>
                 </label>
               </div>
 
@@ -221,9 +222,9 @@ export function Export() {
               </div>
             </div>
 
-            {/* 右侧预览区域 */}
+            {/* Right preview area */}
             <div className="flex-1 flex flex-col bg-muted/30 overflow-hidden">
-              {/* Copy 按钮 - 只有选中时才显示 */}
+              {/* Copy button */}
               {totalSelected > 0 && (
                 <div className="flex justify-end p-2 pb-0">
                   <Button
@@ -232,7 +233,7 @@ export function Export() {
                     className="text-muted-foreground hover:text-foreground"
                     onClick={handleCopy}
                   >
-                    Copy
+                    {t('settingsPage.exportPage.copy')}
                   </Button>
                 </div>
               )}
@@ -249,11 +250,11 @@ export function Export() {
             </div>
           </div>
 
-          {/* 底部操作区 */}
+          {/* Bottom action area */}
           <div className="flex justify-end mt-4">
             <Button disabled={totalSelected === 0} onClick={handleDownload}>
               <Download className="w-4 h-4 mr-2" />
-              Download as JSON
+              {t('settingsPage.exportPage.downloadAsJson')}
             </Button>
           </div>
         </>

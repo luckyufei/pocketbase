@@ -69,17 +69,14 @@ final result = await pb.collection('${collection.name}').listAuthMethods();`
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold mb-2">List auth methods ({collection.name})</h3>
-        <p className="text-muted-foreground">
-          Returns a public list with all allowed <strong>{collection.name}</strong> authentication
-          methods.
-        </p>
+        <h3 className="text-lg font-semibold mb-2">{t('records.apiDocs.auth.authMethodsTitle', { name: collection.name })}</h3>
+        <p className="text-muted-foreground" dangerouslySetInnerHTML={{ __html: t('records.apiDocs.auth.authMethodsDesc', { name: collection.name }) }} />
       </div>
 
       <SdkTabs js={jsCode} dart={dartCode} />
 
       <div>
-        <h6 className="font-medium mb-2">API details</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.apiDetails', 'API details')}</h6>
         <div className="rounded-md border bg-blue-50 dark:bg-blue-950 p-3">
           <Badge variant="default" className="mr-2">
             GET
@@ -91,14 +88,14 @@ final result = await pb.collection('${collection.name}').listAuthMethods();`
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Query parameters</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.queryParameters', 'Query parameters')}</h6>
         <div className="border rounded-md overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium">Param</th>
-                <th className="text-left p-2 font-medium">Type</th>
-                <th className="text-left p-2 font-medium w-1/2">Description</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.param', 'Param')}</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.type', 'Type')}</th>
+                <th className="text-left p-2 font-medium w-1/2">{t('records.apiDocs.description', 'Description')}</th>
               </tr>
             </thead>
             <tbody>
@@ -109,7 +106,7 @@ final result = await pb.collection('${collection.name}').listAuthMethods();`
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Responses</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.responses', 'Responses')}</h6>
         <Tabs value={responseTab} onValueChange={setResponseTab}>
           <TabsList>
             {responses.map((response) => (

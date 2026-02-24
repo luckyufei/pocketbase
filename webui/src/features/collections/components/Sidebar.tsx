@@ -230,7 +230,7 @@ export function CollectionsSidebar() {
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search collections..."
+            placeholder={t('collections.searchPlaceholder', 'Search collections...')}
             className="h-8 pl-8 text-sm rounded-lg border-slate-200"
           />
         </div>
@@ -239,7 +239,7 @@ export function CollectionsSidebar() {
           size="icon"
           className="h-8 w-8 shrink-0"
           onClick={handleNew}
-          title="New collection"
+          title={t('collections.newCollection', 'New collection')}
         >
           <Plus className="h-4 w-4" />
         </Button>
@@ -254,15 +254,15 @@ export function CollectionsSidebar() {
         ) : filteredCollections.length === 0 ? (
           <div className="text-center text-slate-500 text-sm py-4">
             {searchQuery
-              ? 'No collections found.'
-              : 'No collections yet.'}
+              ? t('collections.noCollectionsFound', 'No collections found.')
+              : t('collections.noCollectionsYet', 'No collections yet.')}
           </div>
         ) : (
           <>
             {/* Pinned Collections */}
             {groupedCollections.pinned.length > 0 && (
               <div>
-                <div className="text-xs font-medium text-slate-400 px-3 py-1">Pinned</div>
+                <div className="text-xs font-medium text-slate-400 px-3 py-1">{t('collections.pinned', 'Pinned')}</div>
                 {groupedCollections.pinned.map((collection) => (
                   <CollectionItem
                     key={collection.id}
@@ -282,7 +282,7 @@ export function CollectionsSidebar() {
             {groupedCollections.others.length > 0 && (
               <div>
                 {groupedCollections.pinned.length > 0 && (
-                  <div className="text-xs font-medium text-slate-400 px-3 py-1">Others</div>
+                  <div className="text-xs font-medium text-slate-400 px-3 py-1">{t('collections.others', 'Others')}</div>
                 )}
                 {groupedCollections.others.map((collection) => (
                   <CollectionItem
@@ -312,7 +312,7 @@ export function CollectionsSidebar() {
                   className="flex items-center gap-1 text-xs font-medium text-slate-400 px-3 py-1 hover:text-slate-600 w-full text-left"
                   disabled={!!searchQuery}
                 >
-                  <span>System</span>
+                  <span>{t('collections.system', 'System')}</span>
                   {/* 有搜索时不显示箭头 */}
                   {!searchQuery && (
                     systemExpanded ? (

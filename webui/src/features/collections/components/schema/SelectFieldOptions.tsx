@@ -1,4 +1,5 @@
 // T012: Select 字段选项组件
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
@@ -27,6 +28,7 @@ interface SelectFieldOptionsProps {
 }
 
 export function SelectFieldOptions({ field, onChange }: SelectFieldOptionsProps) {
+  const { t } = useTranslation()
   const [newValue, setNewValue] = useState('')
   const isSingle = (field.maxSelect || 1) <= 1
 
@@ -64,7 +66,7 @@ export function SelectFieldOptions({ field, onChange }: SelectFieldOptionsProps)
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Add choices *</Label>
+        <Label>{t('collections.addChoices')}</Label>
         <div className="flex flex-wrap gap-1 min-h-[32px] p-2 border rounded-md bg-background">
           {(field.values || []).map((value) => (
             <Badge key={value} variant="secondary" className="gap-1">
@@ -79,12 +81,12 @@ export function SelectFieldOptions({ field, onChange }: SelectFieldOptionsProps)
             </Badge>
           ))}
           {(field.values || []).length === 0 && (
-            <span className="text-muted-foreground text-sm">Add choices *</span>
+            <span className="text-muted-foreground text-sm">{t('collections.addChoices')}</span>
           )}
         </div>
         <div className="flex gap-2">
           <Input
-            placeholder="Enter a choice"
+            placeholder={t('collections.enterChoice')}
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -96,27 +98,27 @@ export function SelectFieldOptions({ field, onChange }: SelectFieldOptionsProps)
       </div>
 
       <div className="space-y-2">
-        <Label>Selection type</Label>
+        <Label>{t('collections.selectionType')}</Label>
         <Select value={isSingle ? 'single' : 'multiple'} onValueChange={handleSingleMultipleChange}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="single">Single</SelectItem>
-            <SelectItem value="multiple">Multiple</SelectItem>
+            <SelectItem value="single">{t('collections.single')}</SelectItem>
+            <SelectItem value="multiple">{t('collections.multiple')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {!isSingle && (
         <div className="space-y-2">
-          <Label htmlFor="select-maxselect">Max select</Label>
+          <Label htmlFor="select-maxselect">{t('collections.maxSelect')}</Label>
           <Input
             id="select-maxselect"
             type="number"
             min={2}
             max={field.values?.length || 999}
-            placeholder="Default to single"
+            placeholder={t('collections.defaultToSingle')}
             value={field.maxSelect || ''}
             onChange={(e) => onChange({ ...field, maxSelect: parseInt(e.target.value, 10) || 2 })}
           />

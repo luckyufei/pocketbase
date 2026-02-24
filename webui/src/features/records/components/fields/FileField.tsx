@@ -4,6 +4,7 @@
  * 支持拖拽上传和缩略图预览
  */
 import { useRef, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/FormField'
 import { FieldLabel } from './FieldLabel'
@@ -142,6 +143,7 @@ function SortableFileItem({
 }
 
 export function FileField({ field, value, onChange, newFiles = [], record }: FileFieldProps) {
+  const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const { pb } = usePocketbase()
@@ -387,17 +389,17 @@ export function FileField({ field, value, onChange, newFiles = [], record }: Fil
             <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               {isDragOver ? (
-                'Drop files here'
+                t('records.dropFilesHere', 'Drop files here')
               ) : (
                 <>
-                  Drag and drop files here, or{' '}
-                  <span className="text-primary underline">browse</span>
+                  {t('records.dragAndDrop', 'Drag and drop files here, or')}{' '}
+                  <span className="text-primary underline">{t('records.browse', 'browse')}</span>
                 </>
               )}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Max size: {formatFileSize(maxSize)}
-              {maxSelect > 0 && ` • Max files: ${maxSelect}`}
+              {t('records.maxSize', 'Max size: {{size}}', { size: formatFileSize(maxSize) })}
+              {maxSelect > 0 && ` • ${t('records.maxFiles', 'Max files: {{count}}', { count: maxSelect })}`}
             </p>
           </div>
         )}

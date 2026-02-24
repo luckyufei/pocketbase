@@ -3,6 +3,7 @@
  * 瀑布图展示 Spans 调用链
  */
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { X, ChevronRight, ChevronDown, Loader2 } from 'lucide-react'
@@ -150,6 +151,7 @@ function SpanRow({
 }
 
 export function TraceDetail({ traceId, spans, isLoading, onClose }: Props) {
+  const { t } = useTranslation()
   const [expandedSpans, setExpandedSpans] = useState<Set<string>>(new Set())
 
   // 构建层级结构
@@ -244,7 +246,7 @@ export function TraceDetail({ traceId, spans, isLoading, onClose }: Props) {
           {/* 头部 */}
           <div className="h-14 px-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80 backdrop-blur-sm flex-shrink-0">
             <div className="min-w-0">
-              <h3 className="text-sm font-medium text-slate-900">Trace 详情</h3>
+              <h3 className="text-sm font-medium text-slate-900">{t('traceDetail.title')}</h3>
               <code className="text-xs text-slate-500 font-mono">{traceId}</code>
             </div>
             <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 p-0 flex-shrink-0">
@@ -257,19 +259,19 @@ export function TraceDetail({ traceId, spans, isLoading, onClose }: Props) {
             {isLoading ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400">
                 <Loader2 className="w-6 h-6 animate-spin mb-2" />
-                <span className="text-sm">加载 Trace 详情中...</span>
+                <span className="text-sm">{t('traceDetail.loading')}</span>
               </div>
             ) : spans.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                <span className="text-sm">此 Trace 没有 Span 数据</span>
+                <span className="text-sm">{t('traceDetail.noSpans')}</span>
               </div>
             ) : (
               <>
                 {/* 瀑布图头部 */}
                 <div className="px-4 py-2 border-b border-slate-100 bg-slate-50/50">
                   <div className="flex justify-between text-xs text-slate-500">
-                    <span>总耗时: {formatDuration(totalDuration)}</span>
-                    <span>Span 数量: {spans.length}</span>
+                    <span>{t('traceDetail.totalDuration')}: {formatDuration(totalDuration)}</span>
+                    <span>{t('traceDetail.spanCount')}: {spans.length}</span>
                   </div>
                   {/* 时间轴 */}
                   <div className="flex justify-between text-[10px] text-slate-400 mt-2 ml-[calc(16px+12rem+0.5rem)] mr-2">

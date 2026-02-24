@@ -1,6 +1,7 @@
 // T059: Records 表格组件 - 与 UI 版本一致，支持 Toggle columns 和行编辑按钮
 // 左侧复选框列和右侧操作列使用 position: sticky 固定
 import { memo, useMemo, useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAtomValue } from 'jotai'
 import type { RecordModel, SchemaField, CollectionModel } from 'pocketbase'
 import {
@@ -74,6 +75,7 @@ export const RecordsTable = memo(function RecordsTable({
   onSelectAll,
   onRowClick,
 }: RecordsTableProps) {
+  const { t } = useTranslation()
   const isAuthCollection = collection?.type === 'auth'
   const isSuperusers = collection?.name === '_superusers'
   const isViewCollection = collection?.type === 'view'
@@ -207,12 +209,12 @@ export const RecordsTable = memo(function RecordsTable({
         )
       case 'file':
         if (Array.isArray(value)) {
-          return value.length > 0 ? `${value.length} 个文件` : '-'
+return value.length > 0 ? t('recordField.filesCount', { count: value.length }) : '-'
         }
         return value
       case 'relation':
         if (Array.isArray(value)) {
-          return value.length > 0 ? `${value.length} 条关联` : '-'
+return value.length > 0 ? t('recordField.relationsCount', { count: value.length }) : '-'
         }
         return value
       case 'select':
@@ -357,7 +359,7 @@ export const RecordsTable = memo(function RecordsTable({
                     <Checkbox
                       checked={selectedIds.has(record.id)}
                       onCheckedChange={() => onSelect(record.id)}
-                      aria-label={`选择 ${record.id}`}
+aria-label={t('recordsTable.selectRecord', { id: record.id })}
                     />
                   </TableCell>
                 )}
@@ -369,14 +371,6 @@ export const RecordsTable = memo(function RecordsTable({
                       'max-w-[200px] truncate whitespace-nowrap',
                       field.name === 'id' && 'font-mono text-xs'
                     )}
-                    onClick={(e) => {
-                      // id 字段点击复制
-                      if (field.name === 'id') {
-                        e.stopPropagation()
-                        navigator.clipboard.writeText(record.id)
-                      }
-                    }}
-                    title={field.name === 'id' ? '点击复制' : undefined}
                   >
                     {renderCellValue(record, field)}
                   </TableCell>

@@ -47,11 +47,11 @@ function TypeIcon({ type }: { type: TopListItem['type'] }) {
   }
 }
 
-export function TopList({ items, showTypeIcon, showPercent, total, emptyText = '暂无数据' }: Props) {
+export function TopList({ items, showTypeIcon, showPercent, total, emptyText }: Props) {
   if (items.length === 0) {
     return (
       <div className="text-center py-8 text-slate-400 text-sm">
-        {emptyText}
+        {emptyText || '-'}
       </div>
     )
   }

@@ -4,6 +4,7 @@
  */
 import { useAtom, useAtomValue, useSetAtom } from 'jotai'
 import { useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getApiClient } from '@/lib/ApiClient'
 import { ClientResponseError } from 'pocketbase'
 import {
@@ -52,6 +53,7 @@ function classifySource(source: string): TopSource['type'] {
  * 分析数据 Hook
  */
 export function useAnalytics() {
+  const { t } = useTranslation()
   const summary = useAtomValue(summaryAtom)
   const dailyData = useAtomValue(dailyDataAtom)
   const topPages = useAtomValue(topPagesAtom)
@@ -203,7 +205,7 @@ export function useAnalytics() {
     } catch (err: any) {
       // 忽略请求取消错误
       if (isAbortError(err)) return
-      setError(err.message || '加载数据失败')
+      setError(err.message || t('analytics.loadError'))
     } finally {
       setIsLoading(false)
     }

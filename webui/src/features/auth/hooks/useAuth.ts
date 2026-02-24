@@ -3,6 +3,7 @@
  * 提供认证相关的操作和状态
  */
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAtom, useSetAtom } from 'jotai'
 import { superuserAtom, authTokenAtom, clearAuth, type Superuser } from '@/store/auth'
 import { getApiClient } from '@/lib/ApiClient'
@@ -28,6 +29,7 @@ interface UseAuthReturn {
  * 认证 Hook
  */
 export function useAuth(): UseAuthReturn {
+  const { t } = useTranslation()
   const [user, setUser] = useAtom(superuserAtom)
   const [token, setToken] = useAtom(authTokenAtom)
   const clearAuthState = useSetAtom(clearAuth)
@@ -63,7 +65,7 @@ export function useAuth(): UseAuthReturn {
         setIsLoading(false)
         return true
       } catch (err) {
-        const message = err instanceof Error ? err.message : '登录失败'
+        const message = err instanceof Error ? err.message : t('auth.loginFailed')
         setError(message)
         setIsLoading(false)
         return false
