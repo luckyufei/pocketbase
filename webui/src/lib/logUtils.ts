@@ -19,10 +19,10 @@ export interface LogLevelDef {
  * 与 UI 版本对齐：使用完整标签名
  */
 export const LOG_LEVELS: LogLevelDef[] = [
-  { level: -4, label: 'DEBUG', color: 'text-slate-500' },
-  { level: 0, label: 'INFO', color: 'text-blue-500' },
-  { level: 4, label: 'WARN', color: 'text-amber-500' },
-  { level: 8, label: 'ERROR', color: 'text-red-500' },
+  { level: -4, label: 'DEBUG', color: 'text-slate-400' },
+  { level: 0, label: 'INFO', color: 'text-slate-600' },
+  { level: 4, label: 'WARN', color: 'text-amber-600' },
+  { level: 8, label: 'ERROR', color: 'text-rose-600' },
 ]
 
 /**

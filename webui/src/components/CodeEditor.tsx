@@ -144,7 +144,7 @@ export function CodeEditor({
       className={cn(
         'overflow-hidden transition-colors',
         !minimal && 'border rounded-md',
-        !minimal && focused && 'ring-2 ring-blue-500 ring-offset-1',
+        !minimal && focused && 'ring-2 ring-ring ring-offset-1',
         minimal && 'bg-transparent',
         className
       )}

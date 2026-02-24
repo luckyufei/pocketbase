@@ -121,9 +121,9 @@ export function LogsChart({
           {
             label: 'Total requests',
             data: [],
-            borderColor: '#e34562',
-            pointBackgroundColor: '#e34562',
-            backgroundColor: 'rgba(239, 69, 101, 0.05)',
+            borderColor: '#8b5cf6',
+            pointBackgroundColor: '#8b5cf6',
+            backgroundColor: 'rgba(139, 92, 246, 0.08)',
             borderWidth: 2,
             pointRadius: 1,
             pointBorderWidth: 0,
@@ -194,7 +194,7 @@ export function LogsChart({
               mode: 'x',
               drag: {
                 enabled: true,
-                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                backgroundColor: 'rgba(139, 92, 246, 0.15)',
                 borderWidth: 0,
                 threshold: 10,
               },

@@ -14,9 +14,8 @@ import {
   BarChart3,
   Search,
   LogOut,
-  Moon,
-  Sun,
   Languages,
+  UserRound,
 } from 'lucide-react'
 import { appNameAtom } from '@/store/app'
 import { superuserAtom } from '@/store/auth'
@@ -27,6 +26,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -43,11 +43,11 @@ function NavItem({ to, icon, label }: NavItemProps) {
       to={to}
       className={({ isActive }) =>
         cn(
-          'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-200',
-          'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+          'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-all duration-200',
+          'outline-none',
           isActive
-            ? 'bg-blue-50 text-blue-600 font-semibold shadow-sm'
-            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            ? 'bg-accent text-foreground font-medium'
+            : 'text-muted-foreground hover:bg-accent hover:text-foreground'
         )
       }
       aria-current={({ isActive }) => (isActive ? 'page' : undefined)}
@@ -64,7 +64,8 @@ export function Sidebar() {
   const appName = useAtomValue(appNameAtom)
   const user = useAtomValue(superuserAtom)
   const { logout } = useAuth()
-  const { isDark, toggleTheme } = useTheme()
+  // TODO: 暂时隐藏深色模式切换，保留 hook 以便后续启用
+  // const { isDark, toggleTheme } = useTheme()
 
   const handleLogout = () => {
     logout()
@@ -78,12 +79,12 @@ export function Sidebar() {
 
   return (
     <aside
-      className="w-56 border-r border-slate-200 bg-white flex flex-col"
+      className="w-56 border-r border-border bg-background flex flex-col"
       role="navigation"
       aria-label={t('nav.main', 'Main navigation')}
     >
       {/* Logo */}
-      <div className="h-14 px-4 border-b border-slate-200 flex items-center">
+      <div className="h-14 px-4 border-b border-border flex items-center">
         <div className="flex items-center gap-2">
           <svg
             width="32"
@@ -132,7 +133,7 @@ export function Sidebar() {
               fill="#16161a"
             />
           </svg>
-          <h1 className="text-base font-bold text-slate-900">{appName}</h1>
+          <h1 className="text-base font-bold text-foreground">{appName}</h1>
         </div>
       </div>
 
@@ -174,12 +175,12 @@ export function Sidebar() {
         />
       </nav>
 
-      {/* 用户信息 - 与原始 PocketBase 一致的交互方式 */}
-      <div className="p-3 border-t border-slate-200">
+      {/* 用户信息 - Vercel 极简风格头像 */}
+      <div className="p-3 border-t border-border">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 text-sm font-semibold hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="w-9 h-9 rounded-full bg-foreground flex items-center justify-center text-background text-sm font-semibold hover:bg-foreground/80 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-foreground focus:ring-offset-2"
               title={user?.email || 'Admin'}
               aria-label={t('nav.userMenu', 'User menu')}
             >
@@ -187,10 +188,25 @@ export function Sidebar() {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" side="top" className="w-48">
+            {/* User email display */}
+            <DropdownMenuLabel className="font-normal text-xs text-muted-foreground truncate">
+              {user?.email || 'Admin'}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {/* Manage superusers */}
+            <DropdownMenuItem 
+              onClick={() => navigate('/collections/_superusers')} 
+              className="cursor-pointer"
+            >
+              <UserRound className="w-4 h-4 mr-2" />
+              {t('nav.manageSuperusers', 'Manage superusers')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={toggleLanguage} className="cursor-pointer">
               <Languages className="w-4 h-4 mr-2" />
               {i18n.language === 'zh' ? 'English' : '中文'}
             </DropdownMenuItem>
+            {/* TODO: 暂时隐藏深色模式切换，默认使用浅色模式
             <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
               {isDark ? (
                 <>
@@ -204,6 +220,7 @@ export function Sidebar() {
                 </>
               )}
             </DropdownMenuItem>
+            */}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600 focus:text-red-600">
               <LogOut className="w-4 h-4 mr-2" />

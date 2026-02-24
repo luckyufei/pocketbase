@@ -108,7 +108,7 @@ export function MultiSelect({
   const dropdownContent = isOpen && !disabled && (
     <div
       ref={dropdownRef}
-      className="fixed z-[99999] rounded-md border border-slate-200 bg-white shadow-lg"
+      className="fixed z-[99999] rounded-md border border-border bg-background shadow-lg"
       style={{
         top: dropdownPosition.top,
         left: dropdownPosition.left,
@@ -122,8 +122,8 @@ export function MultiSelect({
             onClick={() => handleToggleOption(option.value)}
             className={cn(
               'px-2 py-1.5 text-[12px] cursor-pointer transition-colors',
-              'hover:bg-slate-50',
-              safeSelected.includes(option.value) && 'bg-blue-50 text-blue-600'
+              'hover:bg-accent',
+              safeSelected.includes(option.value) && 'bg-accent text-foreground'
             )}
           >
             <div className="flex items-center gap-2">
@@ -131,8 +131,8 @@ export function MultiSelect({
                 className={cn(
                   'h-3.5 w-3.5 rounded border flex items-center justify-center',
                   safeSelected.includes(option.value)
-                    ? 'bg-blue-500 border-blue-500'
-                    : 'border-slate-300'
+                    ? 'bg-foreground border-foreground'
+                    : 'border-border'
                 )}
               >
                 {safeSelected.includes(option.value) && (
@@ -146,7 +146,7 @@ export function MultiSelect({
           </div>
         ))}
         {safeOptions.length === 0 && (
-          <div className="px-2 py-1.5 text-[12px] text-slate-400">No options available</div>
+          <div className="px-2 py-1.5 text-[12px] text-muted-foreground">No options available</div>
         )}
       </div>
     </div>
@@ -159,25 +159,25 @@ export function MultiSelect({
         ref={triggerRef}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={cn(
-          'min-h-[28px] w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-[12px]',
+          'min-h-[28px] w-full rounded-md border border-input bg-background px-2 py-1 text-[12px]',
           'flex flex-wrap items-center gap-1 cursor-pointer',
-          'hover:border-slate-300 transition-colors',
-          disabled && 'opacity-50 cursor-not-allowed bg-slate-50',
-          isOpen && 'border-blue-500 ring-1 ring-blue-500'
+          'hover:border-foreground/30 transition-colors',
+          disabled && 'opacity-50 cursor-not-allowed bg-muted',
+          isOpen && 'border-foreground ring-1 ring-foreground'
         )}
       >
         {safeSelected.length > 0 ? (
           safeSelected.map((value) => (
             <span
               key={value}
-              className="inline-flex items-center gap-0.5 bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[11px]"
+              className="inline-flex items-center gap-0.5 bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded text-[11px]"
             >
               {getLabel(value)}
               {!disabled && (
                 <button
                   type="button"
                   onClick={(e) => handleRemoveOption(e, value)}
-                  className="ml-0.5 hover:text-slate-900 focus:outline-none"
+                  className="ml-0.5 hover:text-foreground focus:outline-none"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -185,11 +185,11 @@ export function MultiSelect({
             </span>
           ))
         ) : (
-          <span className="text-slate-400">{placeholder}</span>
+          <span className="text-muted-foreground">{placeholder}</span>
         )}
         <div className="flex-1" />
         <ChevronDown className={cn(
-          'h-3.5 w-3.5 text-slate-400 transition-transform',
+          'h-3.5 w-3.5 text-muted-foreground transition-transform',
           isOpen && 'rotate-180'
         )} />
       </div>
