@@ -4,6 +4,7 @@
  */
 import { ExternalLink, Copy, Check } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,7 @@ interface RecordFieldValueProps {
 }
 
 export function RecordFieldValue({ record, field, short = false }: RecordFieldValueProps) {
+  const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
   const rawValue = record?.[field.name]
 
@@ -105,7 +107,7 @@ export function RecordFieldValue({ record, field, short = false }: RecordFieldVa
               <ExternalLink className="h-3 w-3" />
             </a>
           </TooltipTrigger>
-          <TooltipContent>在新标签页中打开</TooltipContent>
+                <TooltipContent>{t('recordField.openInNewTab')}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
     )

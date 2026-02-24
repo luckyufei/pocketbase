@@ -3,6 +3,7 @@
  * 用于管理 Collection 的字段定义，支持拖拽排序
  */
 import { useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   DndContext,
   closestCenter,
@@ -90,6 +91,7 @@ interface CollectionFieldsTabProps {
  * Collection 字段编辑 Tab
  */
 export function CollectionFieldsTab({ collection, onChange }: CollectionFieldsTabProps) {
+  const { t } = useTranslation()
   const [expandedField, setExpandedField] = useState<string | null>(null)
 
   // 拖拽传感器配置
@@ -280,9 +282,9 @@ export function CollectionFieldsTab({ collection, onChange }: CollectionFieldsTa
       {/* 新增字段按钮 */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button type="button" variant="outline" className="w-full" aria-label="New field">
+          <Button type="button" variant="outline" className="w-full" aria-label={t('collections.newField', 'New field')}>
             <Plus className="h-4 w-4 mr-2" />
-            New field
+            {t('collections.newField', 'New field')}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="w-full grid grid-cols-4 gap-1 p-2">

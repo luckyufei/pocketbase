@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useTranslation } from 'react-i18next'
 
 // 字段类型定义
 const FIELD_TYPES = [
@@ -47,6 +48,7 @@ interface FieldEditorProps {
 }
 
 export function FieldEditor({ field, onChange }: FieldEditorProps) {
+  const { t } = useTranslation()
   const updateField = (updates: Partial<SchemaField>) => {
     onChange({ ...field, ...updates })
   }
@@ -105,7 +107,7 @@ export function FieldEditor({ field, onChange }: FieldEditorProps) {
             onCheckedChange={(checked) => updateField({ required: checked === true })}
           />
           <Label htmlFor="required" className="text-sm font-normal">
-            Required
+            {t('collections.required')}
           </Label>
         </div>
 
@@ -116,7 +118,7 @@ export function FieldEditor({ field, onChange }: FieldEditorProps) {
             onCheckedChange={(checked) => updateField({ hidden: checked === true })}
           />
           <Label htmlFor="hidden" className="text-sm font-normal">
-            Hidden
+            {t('collections.hidden')}
           </Label>
         </div>
 
@@ -128,7 +130,7 @@ export function FieldEditor({ field, onChange }: FieldEditorProps) {
             disabled={field.hidden}
           />
           <Label htmlFor="presentable" className="text-sm font-normal">
-            Presentable
+            {t('collections.presentable')}
           </Label>
         </div>
       </div>
@@ -136,7 +138,7 @@ export function FieldEditor({ field, onChange }: FieldEditorProps) {
       {/* 系统字段标识 */}
       {field.system && (
         <div className="text-sm text-muted-foreground">
-          This is a system field and cannot be modified.
+          {t('fields.systemFieldNote', 'This is a system field and cannot be modified.')}
         </div>
       )}
     </div>

@@ -3,6 +3,7 @@
  * 与 UI 版本保持一致的标签样式
  */
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import type { CollectionData } from './CollectionFieldsTab'
@@ -55,6 +56,7 @@ function parseIndex(indexStr: string): {
  * 索引列表组件
  */
 export function IndexesList({ collection, indexes, onChange }: IndexesListProps) {
+  const { t } = useTranslation()
   const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [editingIndex, setEditingIndex] = useState<string | undefined>(undefined)
 
@@ -92,7 +94,7 @@ export function IndexesList({ collection, indexes, onChange }: IndexesListProps)
     <div className="space-y-3">
       {/* 标题 - 与 UI 版本一致 */}
       <h3 className="text-sm text-muted-foreground">
-        Unique constraints and indexes ({indexes.length})
+        {t('collections.uniqueConstraints', 'Unique constraints and indexes ({{count}})', { count: indexes.length })}
       </h3>
 
       {/* 索引标签列表 - 与 UI 版本一致的标签样式 */}
@@ -125,7 +127,7 @@ export function IndexesList({ collection, indexes, onChange }: IndexesListProps)
           onClick={handleAdd}
         >
           <Plus className="h-4 w-4 mr-1" />
-          New index
+          {t('collections.newIndex', 'New index')}
         </Button>
       </div>
 

@@ -219,7 +219,7 @@ const { saveCollection, fetchCollections } = useCollections()
 
     confirm({
       title: t('records.deleteConfirmTitle', '确认删除'),
-      message: t('records.deleteConfirmMessage', `确定要删除选中的 ${ids.length} 条记录吗？`),
+message: t('records.deleteConfirmMessage'),
       yesText: t('common.delete', '删除'),
       noText: t('common.cancel', '取消'),
       onConfirm: async () => {
@@ -340,7 +340,7 @@ const { saveCollection, fetchCollections } = useCollections()
         {selectedIds.size > 0 && (
           <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
             <Trash2 className="w-4 h-4 mr-1" />
-            {t('records.deleteSelected', `删除 (${selectedIds.size})`)}
+{t('records.deleteSelected')}
           </Button>
         )}
       </div>
@@ -394,6 +394,22 @@ const { saveCollection, fetchCollections } = useCollections()
         fields={collection.fields || []}
         collection={collection}
         onSave={handleSave}
+        onDelete={editingRecord ? async () => {
+          await destroyRecord(editingRecord.id)
+          toast({ type: 'success', message: t('records.deleteSuccess', '删除成功') })
+          setPanelOpen(false)
+          setEditingRecord(null)
+        } : undefined}
+        onDuplicate={(data) => {
+          // Close current panel and open new panel with duplicated data
+          setPanelOpen(false)
+          setEditingRecord(null)
+          // Re-open panel with the duplicated data as a new record
+          setTimeout(() => {
+            setEditingRecord({ ...data, id: '' } as RecordModel)
+            setPanelOpen(true)
+          }, 100)
+        }}
       />
 
       {/* Collection 编辑面板 */}

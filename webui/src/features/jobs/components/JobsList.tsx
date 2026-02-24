@@ -3,6 +3,7 @@
  * 任务列表 - 与 UI 版本对齐
  */
 import { useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2, RotateCcw, Trash2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -60,6 +61,7 @@ export function JobsList({
   onNextPage,
   className,
 }: JobsListProps) {
+  const { t } = useTranslation()
   const showingFrom = filter.offset + 1
   const showingTo = Math.min(filter.offset + filter.limit, total)
   const canPrev = filter.offset > 0
@@ -72,13 +74,13 @@ export function JobsList({
         <table className="w-full">
           <thead>
             <tr className="border-b">
-              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground w-[120px]">ID</th>
-              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground">Topic</th>
-              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground w-[100px]">Status</th>
-              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground w-[80px]">Retries</th>
-              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground w-[160px]">Run At</th>
-              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground w-[160px]">Created</th>
-              <th className="h-12 px-4 text-right align-middle font-semibold text-muted-foreground w-[100px]">Actions</th>
+              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[120px]">ID</th>
+              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap">{t('settingsPage.jobs.topic', 'Topic')}</th>
+              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[100px]">{t('settingsPage.jobs.status', 'Status')}</th>
+              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[100px]">{t('settingsPage.jobs.retries', 'Retries')}</th>
+              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[160px]">{t('settingsPage.jobs.runAt', 'Run At')}</th>
+              <th className="h-12 px-4 text-left align-middle font-semibold text-muted-foreground whitespace-nowrap w-[160px]">{t('settingsPage.jobs.created', 'Created')}</th>
+              <th className="h-12 px-4 text-right align-middle font-semibold text-muted-foreground whitespace-nowrap w-[100px]">{t('settingsPage.jobs.actions', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -91,7 +93,7 @@ export function JobsList({
             ) : jobs.length === 0 ? (
               <tr>
                 <td colSpan={7} className="h-24 text-center text-muted-foreground">
-                  No jobs found.
+                  {t('settingsPage.jobs.noJobs', 'No jobs found.')}
                 </td>
               </tr>
             ) : (
@@ -113,14 +115,14 @@ export function JobsList({
       {total > 0 && (
         <div className="flex items-center gap-2 mt-3">
           <span className="text-sm text-muted-foreground">
-            Showing {showingFrom} - {showingTo} of {total}
+            {t('settingsPage.jobs.showing', 'Showing {{from}} - {{to}} of {{total}}', { from: showingFrom, to: showingTo, total })}
           </span>
           <div className="flex-1"></div>
           <Button variant="secondary" size="sm" disabled={!canPrev} onClick={onPrevPage}>
-            Previous
+            {t('settingsPage.jobs.previous', 'Previous')}
           </Button>
           <Button variant="secondary" size="sm" disabled={!canNext} onClick={onNextPage}>
-            Next
+            {t('settingsPage.jobs.next', 'Next')}
           </Button>
         </div>
       )}
@@ -137,6 +139,8 @@ interface JobRowProps {
 }
 
 function JobRow({ job, actionLoading, onRequeue, onDelete }: JobRowProps) {
+  const { t } = useTranslation()
+
   const handleRequeue = useCallback(() => {
     onRequeue(job.id)
   }, [job.id, onRequeue])
@@ -199,7 +203,7 @@ function JobRow({ job, actionLoading, onRequeue, onDelete }: JobRowProps) {
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Requeue</TooltipContent>
+                <TooltipContent>{t('settingsPage.jobs.requeue', 'Requeue')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )}
@@ -221,7 +225,7 @@ function JobRow({ job, actionLoading, onRequeue, onDelete }: JobRowProps) {
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Delete</TooltipContent>
+                <TooltipContent>{t('settingsPage.jobs.delete', 'Delete')}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )}

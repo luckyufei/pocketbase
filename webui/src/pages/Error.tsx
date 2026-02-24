@@ -1,5 +1,6 @@
 // T148: 错误页面
 import { useRouteError, isRouteErrorResponse, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { AlertTriangle, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -9,13 +10,14 @@ import { Button } from '@/components/ui/button'
  */
 export function ErrorPage() {
   const error = useRouteError()
+  const { t } = useTranslation()
 
-  let title = '出错了'
-  let message = '发生了意外错误'
+  let title = t('error.title')
+  let message = t('error.description')
 
   if (isRouteErrorResponse(error)) {
     title = `${error.status} ${error.statusText}`
-    message = error.data?.message || '请求处理失败'
+    message = error.data?.message || t('error.description')
   } else if (error instanceof Error) {
     message = error.message
   }
@@ -31,11 +33,11 @@ export function ErrorPage() {
         <Button asChild>
           <Link to="/">
             <Home className="mr-2 h-4 w-4" />
-            返回首页
+            {t('error.goHome')}
           </Link>
         </Button>
         <Button variant="outline" onClick={() => window.location.reload()}>
-          刷新页面
+          {t('error.retry')}
         </Button>
       </div>
     </div>

@@ -3,6 +3,7 @@
  * 与 ui 版本 DatabaseStats.svelte 一致
  */
 import { useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getApiClient } from '@/lib/ApiClient'
 import { MetricsCard } from './MetricsCard'
 import { Loader2 } from 'lucide-react'
@@ -27,6 +28,7 @@ interface DbStats {
 }
 
 export function DatabaseStats({ compact = false, refreshInterval = 30000 }: DatabaseStatsProps) {
+  const { t } = useTranslation()
   const [dbStats, setDbStats] = useState<DbStats | null>(null)
   const [dbType, setDbType] = useState<'sqlite' | 'postgresql'>('sqlite')
   const [isLoading, setIsLoading] = useState(true)
@@ -45,7 +47,7 @@ export function DatabaseStats({ compact = false, refreshInterval = 30000 }: Data
       setDbType(response.type)
     } catch (err: any) {
       if (err.isAbort) return
-      setError(err.message || '加载数据库统计失败')
+      setError(err.message || t('databaseStats.loadError'))
       console.error('Database stats error:', err)
     } finally {
       setIsLoading(false)
@@ -76,10 +78,10 @@ export function DatabaseStats({ compact = false, refreshInterval = 30000 }: Data
   const sqliteStats =
     dbType === 'sqlite'
       ? [
-          { title: 'WAL 大小', value: formatBytes(dbStats?.wal_size), unit: 'MB', icon: 'database' as const },
-          { title: '数据库大小', value: formatBytes(dbStats?.database_size), unit: 'MB', icon: 'database' as const },
-          { title: '活跃连接', value: dbStats?.open_connections?.toString() || '-', icon: 'link' as const },
-          { title: '页面数', value: dbStats?.page_count?.toString() || '-', icon: 'page' as const },
+          { title: t('databaseStats.walSize'), value: formatBytes(dbStats?.wal_size), unit: 'MB', icon: 'database' as const },
+          { title: t('databaseStats.databaseSize'), value: formatBytes(dbStats?.database_size), unit: 'MB', icon: 'database' as const },
+          { title: t('databaseStats.activeConnections'), value: dbStats?.open_connections?.toString() || '-', icon: 'link' as const },
+          { title: t('databaseStats.pageCount'), value: dbStats?.page_count?.toString() || '-', icon: 'page' as const },
         ]
       : []
 
@@ -88,13 +90,13 @@ export function DatabaseStats({ compact = false, refreshInterval = 30000 }: Data
     dbType === 'postgresql'
       ? [
           {
-            title: '活跃连接',
+            title: t('databaseStats.activeConnections'),
             value: `${dbStats?.active_connections || 0}/${dbStats?.max_connections || 100}`,
             icon: 'link' as const,
           },
-          { title: '数据库大小', value: formatBytes(dbStats?.database_size), unit: 'MB', icon: 'database' as const },
-          { title: '缓存命中率', value: formatPercent(dbStats?.cache_hit_ratio), unit: '%', icon: 'cpu' as const },
-          { title: '平均查询时间', value: formatPercent(dbStats?.avg_query_time), unit: 'ms', icon: 'timer' as const },
+          { title: t('databaseStats.databaseSize'), value: formatBytes(dbStats?.database_size), unit: 'MB', icon: 'database' as const },
+          { title: t('databaseStats.cacheHitRatio'), value: formatPercent(dbStats?.cache_hit_ratio), unit: '%', icon: 'cpu' as const },
+          { title: t('databaseStats.avgQueryTime'), value: formatPercent(dbStats?.avg_query_time), unit: 'ms', icon: 'timer' as const },
         ]
       : []
 
@@ -116,7 +118,7 @@ export function DatabaseStats({ compact = false, refreshInterval = 30000 }: Data
         <span>⚠</span>
         <span>{error}</span>
         <Button variant="outline" size="sm" onClick={loadDatabaseStats}>
-          重试
+          {t('databaseStats.retry')}
         </Button>
       </div>
     )
@@ -126,7 +128,7 @@ export function DatabaseStats({ compact = false, refreshInterval = 30000 }: Data
     return (
       <div className="flex items-center justify-center gap-2 py-5 text-slate-500 text-sm">
         <span>🗄️</span>
-        <span>暂无数据库统计数据</span>
+        <span>{t('databaseStats.noData')}</span>
       </div>
     )
   }

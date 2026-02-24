@@ -3,6 +3,7 @@
  * 删除代理确认对话框
  */
 import { Loader2, AlertTriangle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -28,6 +29,7 @@ export function DeleteProxyDialog({
   onConfirm,
   isDeleting,
 }: DeleteProxyDialogProps) {
+  const { t } = useTranslation()
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -36,12 +38,12 @@ export function DeleteProxyDialog({
             <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
               <AlertTriangle className="w-5 h-5 text-red-600" />
             </div>
-            <AlertDialogTitle>确认删除代理</AlertDialogTitle>
+            <AlertDialogTitle>{t('gateway.deleteProxy')}</AlertDialogTitle>
           </div>
           <AlertDialogDescription className="pt-3">
-            您确定要删除代理 <strong className="text-slate-900">{proxyName}</strong> 吗？
+            {t('gateway.deleteConfirmMsg')} <strong className="text-slate-900">{proxyName}</strong>?
             <br />
-            <span className="text-red-600">此操作无法撤销，所有相关配置将被永久删除。</span>
+            <span className="text-red-600">{t('gateway.deleteWarning')}</span>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -50,7 +52,7 @@ export function DeleteProxyDialog({
             onClick={() => onOpenChange(false)}
             disabled={isDeleting}
           >
-            取消
+            {t('gateway.cancel')}
           </Button>
           <Button
             variant="destructive"
@@ -61,10 +63,10 @@ export function DeleteProxyDialog({
             {isDeleting ? (
               <>
                 <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                删除中...
+                {t('gateway.deleting')}
               </>
             ) : (
-              '确认删除'
+              t('gateway.confirmDelete')
             )}
           </Button>
         </AlertDialogFooter>

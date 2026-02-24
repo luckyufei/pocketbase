@@ -19,8 +19,9 @@ function getAllCollectionIdentifiers(
 ): string[] {
   const result: string[] = []
 
-  // 基础字段
+  // 基础字段 - id 是 text 类型，需要 :lower 修饰符
   result.push(prefix + 'id')
+  result.push(prefix + 'id:lower')
   result.push(prefix + 'created')
   result.push(prefix + 'updated')
 
@@ -35,6 +36,8 @@ function getAllCollectionIdentifiers(
   // 用户定义的字段
   const fields = collection.fields || (collection as any).schema || []
   for (const field of fields) {
+    // 跳过 id 字段（已在上面添加）
+    if (field.name === 'id') continue
     result.push(prefix + field.name)
   }
 
@@ -67,6 +70,9 @@ export function getCollectionAutocompleteKeys(
   let result = getAllCollectionIdentifiers(collection, prefix)
 
   for (const field of fields) {
+    // 跳过 id 字段（已在 getAllCollectionIdentifiers 中处理）
+    if (field.name === 'id') continue
+    
     const key = prefix + field.name
 
     // 关联字段 - 递归获取
@@ -202,16 +208,39 @@ export function getAllAutocompleteKeys(
     collectionJoinKeys: [],
   }
 
+  // 将 baseCollection 合并到 collections 中（与 UI 版本一致）
+  // 这样即使是新建集合，也可以获取它的字段
+  let mergedCollections = collections ? [...collections] : []
   if (baseCollection) {
-    result.baseKeys = getCollectionAutocompleteKeys(collections, baseCollection.name)
+    // 如果 baseCollection 已存在于列表中，替换它；否则添加
+    const existingIndex = mergedCollections.findIndex(
+      (c) => (baseCollection.id && c.id === baseCollection.id) || 
+             (baseCollection.name && c.name === baseCollection.name)
+    )
+    if (existingIndex >= 0) {
+      mergedCollections[existingIndex] = baseCollection
+    } else {
+      mergedCollections.push(baseCollection)
+    }
+  }
+
+  if (baseCollection) {
+    // 优先使用 baseCollection.name，如果没有则使用 id
+    const collectionKey = baseCollection.name || baseCollection.id
+    if (collectionKey) {
+      result.baseKeys = getCollectionAutocompleteKeys(mergedCollections, collectionKey)
+    } else {
+      // 如果没有 name 和 id（新建集合），直接从 baseCollection 获取字段
+      result.baseKeys = getAllCollectionIdentifiers(baseCollection, '')
+    }
   }
 
   if (!options.disableRequestKeys) {
-    result.requestKeys = getRequestAutocompleteKeys(collections, baseCollection?.name)
+    result.requestKeys = getRequestAutocompleteKeys(mergedCollections, baseCollection?.name)
   }
 
   if (!options.disableCollectionJoinKeys) {
-    result.collectionJoinKeys = getCollectionJoinAutocompleteKeys(collections)
+    result.collectionJoinKeys = getCollectionJoinAutocompleteKeys(mergedCollections)
   }
 
   // 去重并排序（短的在前）

@@ -3,6 +3,7 @@
  * 用于管理 Collection 的字段定义
  */
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -49,8 +50,8 @@ interface SchemaFieldsProps {
 }
 
 export function SchemaFields({ fields, onChange, collectionType = 'base' }: SchemaFieldsProps) {
-  const [expandedField, setExpandedField] = useState<string | null>(null)
-
+  const { t } = useTranslation()
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null)
   const addField = (type: string = 'text') => {
     const newField: SchemaField = {
       name: getUniqueName('field'),
@@ -210,7 +211,7 @@ export function SchemaFields({ fields, onChange, collectionType = 'base' }: Sche
                         checked={field.hidden || false}
                         onChange={(e) => updateField(index, { hidden: e.target.checked })}
                       />
-                      <span className="text-sm">Hidden</span>
+                      <span className="text-sm">{t('collections.hidden')}</span>
                     </label>
 
                     <label className="flex items-center gap-2">
@@ -220,7 +221,7 @@ export function SchemaFields({ fields, onChange, collectionType = 'base' }: Sche
                         onChange={(e) => updateField(index, { presentable: e.target.checked })}
                         disabled={field.hidden}
                       />
-                      <span className="text-sm">Presentable</span>
+                      <span className="text-sm">{t('collections.presentable')}</span>
                     </label>
                   </div>
 

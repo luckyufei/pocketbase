@@ -3,6 +3,7 @@
  * Update API documentation
  */
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { SdkTabs } from './SdkTabs'
 import { CodeBlock } from './CodeBlock'
 import { ResponseTabs } from './ResponseTabs'
@@ -33,6 +34,7 @@ export function UpdateApiDocs({
   collection,
   baseUrl = 'http://127.0.0.1:8090',
 }: UpdateApiDocsProps) {
+  const { t } = useTranslation()
   const endpoint = getApiEndpoint(collection.name, 'update')
   const superusersOnly = collection.updateRule === null
   const isAuth = collection.type === 'auth'
@@ -132,32 +134,25 @@ final record = await pb.collection('${collection.name}').update('RECORD_ID', bod
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium mb-2">Update ({collection.name})</h3>
-        <p className="text-muted-foreground">
-          Update an existing <strong>{collection.name}</strong> record.
-        </p>
-        <p className="text-sm text-muted-foreground mt-2">
-          Body parameters could be sent as <code className="bg-muted px-1 py-0.5 rounded text-xs">application/json</code> or <code className="bg-muted px-1 py-0.5 rounded text-xs">multipart/form-data</code>.
-        </p>
+        <h3 className="text-lg font-medium mb-2">{t('records.apiDocs.updateTitle', { name: collection.name })}</h3>
+        <p className="text-muted-foreground" dangerouslySetInnerHTML={{ __html: t('records.apiDocs.updateDescription', { name: collection.name }) }} />
+        <p className="text-sm text-muted-foreground mt-2" dangerouslySetInnerHTML={{ __html: t('records.apiDocs.bodyParamsNote') }} />
+        <p className="text-sm text-muted-foreground mt-1" dangerouslySetInnerHTML={{ __html: t('records.apiDocs.fileUploadNote') }} />
         <p className="text-sm text-muted-foreground mt-1">
-          File upload is supported only via <code className="bg-muted px-1 py-0.5 rounded text-xs">multipart/form-data</code>.
-        </p>
-        <p className="text-sm text-muted-foreground mt-1">
-          For more info and examples you could check the detailed{' '}
+          {t('records.apiDocs.forMoreInfo')}{' '}
           <a
             href="https://pocketbase.io/docs/files-handling/"
             target="_blank"
             rel="noopener noreferrer"
             className="text-primary hover:underline"
           >
-            Files upload and handling docs
+            {t('records.apiDocs.filesHandlingDocs')}
           </a>.
         </p>
         {isAuth && (
           <p className="text-sm text-muted-foreground mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
             <em>
-              Note that in case of a password change all previously issued tokens for the current record will be automatically
-              invalidated and if you want your user to remain signed in you need to reauthenticate manually after the update call.
+              {t('records.apiDocs.passwordChangeNote')}
             </em>
           </p>
         )}
@@ -167,30 +162,28 @@ final record = await pb.collection('${collection.name}').update('RECORD_ID', bod
 
       {/* API details */}
       <div>
-        <h4 className="text-sm font-medium mb-2">API details</h4>
+        <h4 className="text-sm font-medium mb-2">{t('records.apiDocs.apiDetails', 'API details')}</h4>
         <div className="flex items-center gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <span className="px-2 py-0.5 rounded text-xs font-bold bg-yellow-100 text-yellow-700">
             PATCH
           </span>
           <span className="font-mono text-sm">{endpoint}</span>
           {superusersOnly && (
-            <span className="ml-auto text-xs text-muted-foreground">
-              Requires superuser <code>Authorization:TOKEN</code> header
-            </span>
+            <span className="ml-auto text-xs text-muted-foreground" dangerouslySetInnerHTML={{ __html: t('records.apiDocs.requiresSuperuser') }} />
           )}
         </div>
       </div>
 
       {/* Path parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">Path parameters</h4>
+        <h4 className="text-sm font-medium mb-2">{t('records.apiDocs.pathParameters', 'Path parameters')}</h4>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-28">Param</th>
-                <th className="text-left p-2 font-medium w-20">Type</th>
-                <th className="text-left p-2 font-medium">Description</th>
+                <th className="text-left p-2 font-medium w-28">{t('records.apiDocs.param', 'Param')}</th>
+                <th className="text-left p-2 font-medium w-20">{t('records.apiDocs.type', 'Type')}</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.description', 'Description')}</th>
               </tr>
             </thead>
             <tbody>
@@ -199,7 +192,7 @@ final record = await pb.collection('${collection.name}').update('RECORD_ID', bod
                 <td className="p-2">
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
-                <td className="p-2 text-muted-foreground">ID of the record to update.</td>
+                <td className="p-2 text-muted-foreground">{t('records.apiDocs.params.idDesc')}</td>
               </tr>
             </tbody>
           </table>
@@ -207,18 +200,18 @@ final record = await pb.collection('${collection.name}').update('RECORD_ID', bod
       </div>
 
       {/* Body parameters */}
-      <BodyParametersTable collection={collection} isAuth={isAuth} />
+      <BodyParametersTable collection={collection} isAuth={isAuth} t={t} />
 
       {/* Query parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">Query parameters</h4>
+        <h4 className="text-sm font-medium mb-2">{t('records.apiDocs.queryParameters', 'Query parameters')}</h4>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-28">Param</th>
-                <th className="text-left p-2 font-medium w-20">Type</th>
-                <th className="text-left p-2 font-medium">Description</th>
+                <th className="text-left p-2 font-medium w-28">{t('records.apiDocs.param', 'Param')}</th>
+                <th className="text-left p-2 font-medium w-20">{t('records.apiDocs.type', 'Type')}</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.description', 'Description')}</th>
               </tr>
             </thead>
             <tbody>
@@ -228,18 +221,17 @@ final record = await pb.collection('${collection.name}').update('RECORD_ID', bod
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
                 <td className="p-2 text-muted-foreground">
-                  <p>Auto expand relations when returning the updated record. Ex.:</p>
+                  <p>{t('records.apiDocs.updateQueryParams.expandDesc', 'Auto expand relations when returning the updated record. Ex.:')}</p>
                   <CodeBlock
                     content="?expand=relField1,relField2.subRelField21"
                     showCopy={false}
                     className="mt-1"
                   />
                   <p className="mt-2">
-                    Supports up to 6-levels depth nested relations expansion.
+                    {t('records.apiDocs.params.expandDetail1', 'Supports up to 6-levels depth nested relations expansion.')}
                     <br />
-                    The expanded relations will be appended to the record under the{' '}
-                    <code>expand</code> property (eg. <code>{`"expand": {"relField1": {...}, ...}`}</code>).{' '}
-                    Only the relations that the user has permissions to <strong>view</strong> will be expanded.
+                    <span dangerouslySetInnerHTML={{ __html: t('records.apiDocs.params.expandDetail2') }} />{' '}
+                    <span dangerouslySetInnerHTML={{ __html: t('records.apiDocs.params.expandDetail3') }} />
                   </p>
                 </td>
               </tr>
@@ -250,21 +242,18 @@ final record = await pb.collection('${collection.name}').update('RECORD_ID', bod
                 </td>
                 <td className="p-2 text-muted-foreground">
                   <p>
-                    Comma separated string of the fields to return in the JSON response{' '}
-                    <em>(by default returns all fields)</em>. Ex.:
+                    <span dangerouslySetInnerHTML={{ __html: t('records.apiDocs.updateQueryParams.fieldsDesc', 'Comma separated string of the fields to return in the JSON response <em>(by default returns all fields)</em>. Ex.:') }} />
                   </p>
                   <CodeBlock content="?fields=*,expand.relField.name" showCopy={false} className="mt-1" />
-                  <p className="mt-2">
-                    <code>*</code> targets all keys from the specific depth level.
-                  </p>
-                  <p className="mt-2">In addition, the following field modifiers are also supported:</p>
+                  <p className="mt-2" dangerouslySetInnerHTML={{ __html: t('records.apiDocs.params.fieldsDetail1') }} />
+                  <p className="mt-2">{t('records.apiDocs.updateQueryParams.fieldsModifiersIntro', 'In addition, the following field modifiers are also supported:')}</p>
                   <ul className="list-disc list-inside mt-1">
                     <li>
                       <code>:excerpt(maxLength, withEllipsis?)</code>
                       <br />
-                      Returns a short plain text version of the field string value.
+                      {t('records.apiDocs.params.fieldsExcerpt', 'Returns a short plain text version of the field string value.')}
                       <br />
-                      Ex.: <code>?fields=*,description:excerpt(200,true)</code>
+                      {t('records.apiDocs.fieldsQueryParam.example', 'Ex.')}: <code>?fields=*,description:excerpt(200,true)</code>
                     </li>
                   </ul>
                 </td>
@@ -284,9 +273,11 @@ final record = await pb.collection('${collection.name}').update('RECORD_ID', bod
 function BodyParametersTable({
   collection,
   isAuth,
+  t,
 }: {
   collection: Collection
   isAuth: boolean
+  t: (key: string, fallback?: string) => string
 }) {
   const fields = useMemo(() => {
     // For auth collections, exclude password-related fields as they are shown separately
@@ -300,14 +291,14 @@ function BodyParametersTable({
 
   return (
     <div>
-      <h4 className="text-sm font-medium mb-2">Body Parameters</h4>
+      <h4 className="text-sm font-medium mb-2">{t('records.apiDocs.bodyParameters', 'Body Parameters')}</h4>
       <div className="border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted">
             <tr>
-              <th className="text-left p-2 font-medium w-36">Param</th>
-              <th className="text-left p-2 font-medium w-20">Type</th>
-              <th className="text-left p-2 font-medium">Description</th>
+              <th className="text-left p-2 font-medium w-36">{t('records.apiDocs.param', 'Param')}</th>
+              <th className="text-left p-2 font-medium w-20">{t('records.apiDocs.type', 'Type')}</th>
+              <th className="text-left p-2 font-medium">{t('records.apiDocs.description', 'Description')}</th>
             </tr>
           </thead>
           <tbody>
@@ -315,14 +306,14 @@ function BodyParametersTable({
               <>
                 <tr className="border-t bg-muted/50">
                   <td colSpan={3} className="p-2 text-xs font-medium">
-                    Auth specific fields
+                    {t('records.apiDocs.updateAuthFields.authSpecificFields')}
                   </td>
                 </tr>
                 <tr className="border-t">
                   <td className="p-2">
                     <div className="flex items-center gap-2">
-                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
-                        Optional
+                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs whitespace-nowrap">
+                        {t('records.apiDocs.optional', 'Optional')}
                       </span>
                       <span className="font-mono text-xs">email</span>
                     </div>
@@ -331,18 +322,18 @@ function BodyParametersTable({
                     <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                   </td>
                   <td className="p-2 text-muted-foreground">
-                    The auth record email address.
+                    {t('records.apiDocs.updateAuthFields.email')}
                     <br />
-                    This field can be updated only by superusers or auth records with "Manage" access.
+                    {t('records.apiDocs.updateAuthFields.emailUpdateNote')}
                     <br />
-                    Regular accounts can update their email by calling "Request email change".
+                    {t('records.apiDocs.updateAuthFields.emailUpdateRegular')}
                   </td>
                 </tr>
                 <tr className="border-t">
                   <td className="p-2">
                     <div className="flex items-center gap-2">
-                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
-                        Optional
+                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs whitespace-nowrap">
+                        {t('records.apiDocs.optional', 'Optional')}
                       </span>
                       <span className="font-mono text-xs">emailVisibility</span>
                     </div>
@@ -350,13 +341,13 @@ function BodyParametersTable({
                   <td className="p-2">
                     <span className="px-1.5 py-0.5 bg-muted rounded text-xs">Boolean</span>
                   </td>
-                  <td className="p-2 text-muted-foreground">Whether to show/hide the auth record email when fetching the record data.</td>
+                  <td className="p-2 text-muted-foreground">{t('records.apiDocs.updateAuthFields.emailVisibility')}</td>
                 </tr>
                 <tr className="border-t">
                   <td className="p-2">
                     <div className="flex items-center gap-2">
-                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
-                        Optional
+                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs whitespace-nowrap">
+                        {t('records.apiDocs.optional', 'Optional')}
                       </span>
                       <span className="font-mono text-xs">oldPassword</span>
                     </div>
@@ -365,16 +356,16 @@ function BodyParametersTable({
                     <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                   </td>
                   <td className="p-2 text-muted-foreground">
-                    Old auth record password.
+                    {t('records.apiDocs.updateAuthFields.oldPassword')}
                     <br />
-                    This field is required only when changing the record password. Superusers and auth records with "Manage" access can skip this field.
+                    {t('records.apiDocs.updateAuthFields.oldPasswordNote')}
                   </td>
                 </tr>
                 <tr className="border-t">
                   <td className="p-2">
                     <div className="flex items-center gap-2">
-                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
-                        Optional
+                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs whitespace-nowrap">
+                        {t('records.apiDocs.optional', 'Optional')}
                       </span>
                       <span className="font-mono text-xs">password</span>
                     </div>
@@ -382,13 +373,13 @@ function BodyParametersTable({
                   <td className="p-2">
                     <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                   </td>
-                  <td className="p-2 text-muted-foreground">New auth record password.</td>
+                  <td className="p-2 text-muted-foreground">{t('records.apiDocs.updateAuthFields.password')}</td>
                 </tr>
                 <tr className="border-t">
                   <td className="p-2">
                     <div className="flex items-center gap-2">
-                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
-                        Optional
+                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs whitespace-nowrap">
+                        {t('records.apiDocs.optional', 'Optional')}
                       </span>
                       <span className="font-mono text-xs">passwordConfirm</span>
                     </div>
@@ -396,13 +387,13 @@ function BodyParametersTable({
                   <td className="p-2">
                     <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                   </td>
-                  <td className="p-2 text-muted-foreground">New auth record password confirmation.</td>
+                  <td className="p-2 text-muted-foreground">{t('records.apiDocs.updateAuthFields.passwordConfirm')}</td>
                 </tr>
                 <tr className="border-t">
                   <td className="p-2">
                     <div className="flex items-center gap-2">
-                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
-                        Optional
+                      <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs whitespace-nowrap">
+                        {t('records.apiDocs.optional', 'Optional')}
                       </span>
                       <span className="font-mono text-xs">verified</span>
                     </div>
@@ -411,24 +402,24 @@ function BodyParametersTable({
                     <span className="px-1.5 py-0.5 bg-muted rounded text-xs">Boolean</span>
                   </td>
                   <td className="p-2 text-muted-foreground">
-                    Indicates whether the auth record is verified or not.
+                    {t('records.apiDocs.updateAuthFields.verified')}
                     <br />
-                    This field can be set only by superusers or auth records with "Manage" access.
+                    {t('records.apiDocs.updateAuthFields.verifiedNote')}
                   </td>
                 </tr>
-                <tr className="border-t bg-muted/50">
-                  <td colSpan={3} className="p-2 text-xs font-medium">
-                    Other fields
-                  </td>
-                </tr>
+            <tr className="border-t bg-muted/50">
+              <td colSpan={3} className="p-2 text-xs font-medium">
+                {t('records.apiDocs.updateAuthFields.otherFields')}
+              </td>
+            </tr>
               </>
             )}
             {fields.map((field) => (
               <tr key={field.name} className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
-                      Optional
+                    <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs whitespace-nowrap">
+                      {t('records.apiDocs.optional', 'Optional')}
                     </span>
                     <span className="font-mono text-xs">{field.name}</span>
                   </div>
@@ -441,12 +432,12 @@ function BodyParametersTable({
                 <td className="p-2 text-muted-foreground">
                   {field.type === 'file' ? (
                     <>
-                      File object.
+                      {t('records.apiDocs.fieldDescriptions.file', 'File object.')}
                       <br />
-                      Set to empty value (<code className="bg-muted px-1 py-0.5 rounded text-xs">null</code>, <code className="bg-muted px-1 py-0.5 rounded text-xs">""</code>, or <code className="bg-muted px-1 py-0.5 rounded text-xs">[]</code>) to delete already uploaded file(s).
+                      <span dangerouslySetInnerHTML={{ __html: t('records.apiDocs.updateAuthFields.deleteFileNote') }} />
                     </>
                   ) : (
-                    getFieldDescription(field)
+                    getFieldDescription(field, t)
                   )}
                 </td>
               </tr>
@@ -484,37 +475,37 @@ function getFieldType(type: string): string {
   }
 }
 
-function getFieldDescription(field: Field): string {
+function getFieldDescription(field: Field, t: (key: string, defaultValue?: string) => string): string {
   // Handle id field specially
   if (field.name === 'id') {
-    return 'Plain text value. It is autogenerated if not set.'
+    return t('records.apiDocs.fieldDescriptions.idDesc', 'Plain text value. It is autogenerated if not set.')
   }
 
   switch (field.type) {
     case 'text':
-      return 'Plain text value.'
+      return t('records.apiDocs.fieldDescriptions.text', 'Plain text value.')
     case 'number':
-      return 'Number value.'
+      return t('records.apiDocs.fieldDescriptions.number', 'Number value.')
     case 'bool':
-      return 'Boolean value.'
+      return t('records.apiDocs.fieldDescriptions.bool', 'Boolean value.')
     case 'email':
-      return 'Email address.'
+      return t('records.apiDocs.fieldDescriptions.email', 'Email address.')
     case 'url':
-      return 'URL value.'
+      return t('records.apiDocs.fieldDescriptions.url', 'URL value.')
     case 'date':
-      return 'Datetime string.'
+      return t('records.apiDocs.fieldDescriptions.date', 'Datetime string.')
     case 'json':
-      return 'JSON array or object.'
+      return t('records.apiDocs.fieldDescriptions.json', 'JSON array or object.')
     case 'file':
-      return 'File object.'
+      return t('records.apiDocs.fieldDescriptions.file', 'File object.')
     case 'relation':
-      return 'Relation record id.'
+      return t('records.apiDocs.fieldDescriptions.relation', 'Relation record id.')
     case 'select':
-      return 'Select value.'
+      return t('records.apiDocs.fieldDescriptions.select', 'Select value.')
     case 'editor':
-      return 'HTML (rich text) value.'
+      return t('records.apiDocs.fieldDescriptions.editor', 'HTML (rich text) value.')
     case 'geoPoint':
-      return 'Geo point object {"lon":x,"lat":y}.'
+      return t('records.apiDocs.fieldDescriptions.geoPoint', 'Geo point object {"lon":x,"lat":y}.')
     default:
       return ''
   }

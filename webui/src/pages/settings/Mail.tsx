@@ -3,6 +3,7 @@
  * 邮件服务设置
  */
 import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSettings } from '@/features/settings'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -35,6 +36,7 @@ const authMethods = [
 ]
 
 export function Mail() {
+  const { t } = useTranslation()
   const {
     settings,
     isLoading,
@@ -125,12 +127,12 @@ export function Mail() {
       {/* 页面标题 */}
       <header className="mb-6">
         <nav className="text-sm text-muted-foreground mb-2">
-          <span>Settings</span>
+          <span>{t('settingsLayout.title', 'Settings')}</span>
           <span className="mx-2">/</span>
-          <span className="text-foreground">Mail settings</span>
+          <span className="text-foreground">{t('mailSettings.breadcrumb', 'Mail settings')}</span>
         </nav>
         <p className="text-muted-foreground">
-          Configure common settings for sending emails.
+          {t('mailSettings.description', 'Configure common settings for sending emails.')}
         </p>
       </header>
 
@@ -139,7 +141,7 @@ export function Mail() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="senderName">
-              Sender name <span className="text-destructive">*</span>
+              {t('mailSettings.senderName', 'Sender name')} <span className="text-destructive">*</span>
             </Label>
             <Input
               id="senderName"
@@ -151,7 +153,7 @@ export function Mail() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="senderAddress">
-              Sender address <span className="text-destructive">*</span>
+              {t('mailSettings.senderAddress', 'Sender address')} <span className="text-destructive">*</span>
             </Label>
             <Input
               id="senderAddress"
@@ -171,7 +173,7 @@ export function Mail() {
             onCheckedChange={(checked) => updateSmtp('enabled', checked)}
           />
           <Label htmlFor="smtpEnabled" className="cursor-pointer flex items-center gap-1">
-            Use SMTP mail server <span className="font-semibold">(recommended)</span>
+            {t('mailSettings.useSmtp', 'Use SMTP mail server')} <span className="font-semibold">({t('mailSettings.recommended', 'recommended')})</span>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -179,7 +181,7 @@ export function Mail() {
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="max-w-xs">
-                    By default PocketBase uses the unix "sendmail" command for sending emails. For better emails deliverability it is recommended to use a SMTP mail server.
+                    {t('mailSettings.smtpTooltip', 'By default PocketBase uses the unix "sendmail" command for sending emails. For better emails deliverability it is recommended to use a SMTP mail server.')}
                   </p>
                 </TooltipContent>
               </Tooltip>
@@ -193,7 +195,7 @@ export function Mail() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="smtpHost">
-                  SMTP server host <span className="text-destructive">*</span>
+                  {t('mailSettings.smtpServerHost', 'SMTP server host')} <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="smtpHost"
@@ -205,7 +207,7 @@ export function Mail() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="smtpPort">
-                  Port <span className="text-destructive">*</span>
+                  {t('mailSettings.port', 'Port')} <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="smtpPort"
@@ -215,7 +217,7 @@ export function Mail() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="smtpUsername">Username</Label>
+                <Label htmlFor="smtpUsername">{t('mailSettings.username', 'Username')}</Label>
                 <Input
                   id="smtpUsername"
                   type="text"
@@ -225,7 +227,7 @@ export function Mail() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="smtpPassword">Password</Label>
+                <Label htmlFor="smtpPassword">{t('mailSettings.password', 'Password')}</Label>
                 <Input
                   id="smtpPassword"
                   type="password"
@@ -242,7 +244,7 @@ export function Mail() {
               className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
               onClick={() => setShowMoreOptions(!showMoreOptions)}
             >
-              {showMoreOptions ? 'Hide more options' : 'Show more options'}
+              {showMoreOptions ? t('mailSettings.hideMoreOptions', 'Hide more options') : t('mailSettings.showMoreOptions', 'Show more options')}
               {showMoreOptions ? (
                 <ChevronUp className="w-4 h-4" />
               ) : (
@@ -254,7 +256,7 @@ export function Mail() {
               <div className="space-y-4 pt-2">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="tlsEncryption">TLS encryption</Label>
+                    <Label htmlFor="tlsEncryption">{t('mailSettings.tlsEncryption', 'TLS encryption')}</Label>
                     <Select
                       value={String(smtp.tls)}
                       onValueChange={(value) => updateSmtp('tls', value === 'true')}
@@ -272,7 +274,7 @@ export function Mail() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="authMethod">AUTH method</Label>
+                    <Label htmlFor="authMethod">{t('mailSettings.authMethod', 'AUTH method')}</Label>
                     <Select
                       value={smtp.authMethod}
                       onValueChange={(value) => updateSmtp('authMethod', value)}
@@ -291,14 +293,14 @@ export function Mail() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="localName" className="flex items-center gap-1">
-                      EHLO/HELO domain
+                      {t('mailSettings.ehloDomain', 'EHLO/HELO domain')}
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Info className="w-4 h-4 text-muted-foreground cursor-help" />
                           </TooltipTrigger>
-                          <TooltipContent>
-                            <p>The domain name used in EHLO/HELO SMTP command.</p>
+                        <TooltipContent>
+                            <p>{t('mailSettings.ehloTooltip', 'The domain name used in EHLO/HELO SMTP command.')}</p>
                           </TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
@@ -308,7 +310,7 @@ export function Mail() {
                       type="text"
                       value={smtp.localName}
                       onChange={(e) => updateSmtp('localName', e.target.value)}
-                      placeholder="Default to localhost"
+                      placeholder={t('mailSettings.defaultToLocalhost', 'Default to localhost')}
                     />
                   </div>
                 </div>
@@ -322,7 +324,7 @@ export function Mail() {
           {hasChanges ? (
             <>
               <Button type="button" variant="ghost" onClick={resetSettings} disabled={isSaving}>
-                Cancel
+                {t('common.cancel', 'Cancel')}
               </Button>
               <Button type="submit" disabled={!hasChanges || isSaving} className="min-w-[140px]">
                 {isSaving ? (
@@ -330,7 +332,7 @@ export function Mail() {
                 ) : (
                   <span className="w-4 h-4 mr-2" />
                 )}
-                Save changes
+                {t('common.saveChanges', 'Save changes')}
               </Button>
             </>
           ) : (
@@ -340,7 +342,7 @@ export function Mail() {
               onClick={handleSendTestEmail}
             >
               <Send className="w-4 h-4 mr-2" />
-              Send test email
+              {t('mailSettings.sendTestEmail', 'Send test email')}
             </Button>
           )}
         </div>

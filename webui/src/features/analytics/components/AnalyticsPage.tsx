@@ -3,20 +3,13 @@
  * Apple Design 风格的流量分析仪表盘
  */
 import { useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAnalytics } from '../hooks/useAnalytics'
 import { AnalyticsCard } from './AnalyticsCard'
 import { AnalyticsChart } from './AnalyticsChart'
 import { TopList } from './TopList'
 import { Button } from '@/components/ui/button'
 import { Loader2, RefreshCw, Eye, Users, Clock, TrendingDown } from 'lucide-react'
-
-// 时间范围选项
-const timeRanges = [
-  { value: '1d', label: '今天' },
-  { value: '7d', label: '7天' },
-  { value: '30d', label: '30天' },
-  { value: '90d', label: '90天' },
-] as const
 
 // Auto refresh interval (60 seconds)
 const REFRESH_INTERVAL = 60000
@@ -51,6 +44,16 @@ function formatDuration(seconds: number | null | undefined): string {
 }
 
 export function AnalyticsPage() {
+  const { t } = useTranslation()
+
+  // Time range options
+  const timeRanges = [
+    { value: '1d' as const, label: t('analyticsPage.timeRanges.1d') },
+    { value: '7d' as const, label: t('analyticsPage.timeRanges.7d') },
+    { value: '30d' as const, label: t('analyticsPage.timeRanges.30d') },
+    { value: '90d' as const, label: t('analyticsPage.timeRanges.90d') },
+  ]
+
   const {
     summary,
     dailyData,
@@ -94,9 +97,9 @@ export function AnalyticsPage() {
 
   return (
     <div className="h-full flex flex-col bg-slate-50/50">
-      {/* 头部 */}
+      {/* Header */}
       <header className="h-14 px-4 border-b border-slate-200 bg-white flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-900">流量分析</h1>
+        <h1 className="text-lg font-semibold text-slate-900">{t('analyticsPage.title')}</h1>
         <div className="flex items-center gap-3">
           {/* 时间范围选择器 */}
           <div className="flex rounded-lg overflow-hidden border border-slate-200 bg-white">
@@ -121,7 +124,7 @@ export function AnalyticsPage() {
         </div>
       </header>
 
-      {/* 内容 */}
+      {/* Content */}
       <div className="flex-1 overflow-auto p-4">
         {error && (
           <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl mb-4 text-sm">
@@ -135,38 +138,38 @@ export function AnalyticsPage() {
           </div>
         ) : (
           <div className="space-y-4 max-w-[1400px] mx-auto">
-            {/* 核心指标卡片 */}
+            {/* Core metric cards */}
             <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
               <AnalyticsCard
-                title="页面浏览量"
+                title={t('analyticsPage.pageViews')}
                 value={formatNumber(summary?.totalPV)}
                 icon={Eye}
                 color="blue"
               />
               <AnalyticsCard
-                title="独立访客"
+                title={t('analyticsPage.uniqueVisitors')}
                 value={formatNumber(summary?.totalUV)}
                 icon={Users}
                 color="green"
               />
               <AnalyticsCard
-                title="跳出率"
+                title={t('analyticsPage.bounceRate')}
                 value={formatPercent(summary?.bounceRate)}
                 icon={TrendingDown}
                 color="orange"
               />
               <AnalyticsCard
-                title="平均停留"
+                title={t('analyticsPage.avgDuration')}
                 value={formatDuration(summary?.avgDur)}
                 icon={Clock}
                 color="purple"
               />
             </div>
 
-            {/* PV/UV 趋势图 */}
+            {/* PV/UV Trend chart */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100">
-                <h2 className="text-sm font-semibold text-slate-900">流量趋势</h2>
+                <h2 className="text-sm font-semibold text-slate-900">{t('analyticsPage.trafficTrend')}</h2>
               </div>
               <div className="p-4">
                 <AnalyticsChart 
@@ -176,12 +179,12 @@ export function AnalyticsPage() {
               </div>
             </div>
 
-            {/* Top 列表 */}
+            {/* Top lists */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {/* 热门页面 */}
+              {/* Top pages */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100">
-                  <h2 className="text-sm font-semibold text-slate-900">热门页面</h2>
+                  <h2 className="text-sm font-semibold text-slate-900">{t('analyticsPage.topPages')}</h2>
                 </div>
                 <div className="p-3">
                   <TopList
@@ -191,43 +194,43 @@ export function AnalyticsPage() {
                       secondary: p.visitors,
                       secondaryLabel: 'UV',
                     }))}
-                    emptyText="暂无数据"
+                    emptyText={t('analyticsPage.noData')}
                   />
                 </div>
               </div>
 
-              {/* 流量来源 */}
+              {/* Traffic sources */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100">
-                  <h2 className="text-sm font-semibold text-slate-900">流量来源</h2>
+                  <h2 className="text-sm font-semibold text-slate-900">{t('analyticsPage.trafficSources')}</h2>
                 </div>
                 <div className="p-3">
                   <TopList
                     items={topSources.map(s => ({
-                      label: s.source || '(直接访问)',
+                      label: s.source || t('analyticsPage.directVisit'),
                       value: s.visitors,
                       type: s.type,
                     }))}
                     showTypeIcon
-                    emptyText="暂无数据"
+                    emptyText={t('analyticsPage.noData')}
                   />
                 </div>
               </div>
 
-              {/* 浏览器分布 */}
+              {/* Browser distribution */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100">
-                  <h2 className="text-sm font-semibold text-slate-900">浏览器分布</h2>
+                  <h2 className="text-sm font-semibold text-slate-900">{t('analyticsPage.browserDistribution')}</h2>
                 </div>
                 <div className="p-3">
                   <TopList
                     items={browsers.map(b => ({
-                      label: b.name || '(未知)',
+                      label: b.name || t('analyticsPage.unknown'),
                       value: b.visitors,
                     }))}
                     showPercent
                     total={summary?.totalPV || 0}
-                    emptyText="暂无数据"
+                    emptyText={t('analyticsPage.noData')}
                   />
                 </div>
               </div>

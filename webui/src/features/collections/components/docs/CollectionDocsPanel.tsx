@@ -3,6 +3,7 @@
  * API documentation panel - integrates all API doc components
  */
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -38,12 +39,13 @@ interface CollectionDocsPanelProps {
 }
 
 export function CollectionDocsPanel({ collection, open, onOpenChange }: CollectionDocsPanelProps) {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState('list')
 
   const tabs = useMemo(() => {
     if (!collection) return []
-    return getCollectionTabs(collection)
-  }, [collection])
+    return getCollectionTabs(collection, t)
+  }, [collection, t])
 
   // Base tabs count (used to add separator in auth collection)
   // BASE_TABS contains: list, view, create, update, delete, realtime, batch = 7
@@ -65,7 +67,7 @@ export function CollectionDocsPanel({ collection, open, onOpenChange }: Collecti
           {/* Left vertical navigation */}
           <aside className="w-44 border-r bg-muted/30 flex flex-col">
             <div className="p-4 border-b">
-              <h2 className="font-semibold text-sm">API Preview</h2>
+              <h2 className="font-semibold text-sm">{t('records.apiPreview', 'API Preview')}</h2>
               <p className="text-xs text-muted-foreground mt-1 truncate">{collection.name}</p>
             </div>
             <ScrollArea className="flex-1">
@@ -92,7 +94,7 @@ export function CollectionDocsPanel({ collection, open, onOpenChange }: Collecti
                             </button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>Not enabled for the collection</p>
+                            <p>{t('records.apiDocs.notEnabledForCollection', 'Not enabled for the collection')}</p>
                           </TooltipContent>
                         </Tooltip>
                       ) : (
@@ -120,7 +122,7 @@ export function CollectionDocsPanel({ collection, open, onOpenChange }: Collecti
           <div className="flex-1 flex flex-col min-w-0">
             <SheetHeader className="p-4 border-b">
               <SheetTitle className="text-base">
-                {tabs.find((t) => t.id === activeTab)?.label || 'API Preview'}
+                {tabs.find((t) => t.id === activeTab)?.label || t('records.apiPreview', 'API Preview')}
               </SheetTitle>
             </SheetHeader>
             <ScrollArea className="flex-1 p-4">

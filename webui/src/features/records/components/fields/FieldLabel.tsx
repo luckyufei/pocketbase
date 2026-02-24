@@ -4,6 +4,7 @@
  */
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
+import { useTranslation } from 'react-i18next'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   HelpCircle,
@@ -36,20 +37,20 @@ interface FieldLabelProps {
 }
 
 const FIELD_TYPE_LABELS: Record<string, string> = {
-  text: '文本',
-  editor: '富文本',
-  number: '数字',
-  bool: '布尔',
-  email: '邮箱',
-  url: '链接',
-  date: '日期',
-  autodate: '自动日期',
-  select: '选择',
-  json: 'JSON',
-  file: '文件',
-  relation: '关联',
-  password: '密码',
-  geoPoint: '地理坐标',
+  text: 'text',
+  editor: 'editor',
+  number: 'number',
+  bool: 'bool',
+  email: 'email',
+  url: 'url',
+  date: 'date',
+  autodate: 'autodate',
+  select: 'select',
+  json: 'json',
+  file: 'file',
+  relation: 'relation',
+  password: 'password',
+  geoPoint: 'geoPoint',
 }
 
 const FIELD_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -84,7 +85,9 @@ export function FieldLabel({
   showRequired = true,
   className = '',
 }: FieldLabelProps) {
-  const typeLabel = FIELD_TYPE_LABELS[field.type] || field.type
+  const { t } = useTranslation()
+  const typeKey = FIELD_TYPE_LABELS[field.type] || field.type
+  const typeLabel = t(`fieldLabel.${typeKey}`, field.type)
   const IconComponent = getFieldTypeIcon(field)
 
   return (
@@ -118,26 +121,26 @@ export function FieldLabel({
             </TooltipTrigger>
             <TooltipContent side="right" className="max-w-xs">
               <div className="text-xs space-y-1">
-                {field.options.min !== undefined && <div>最小值: {field.options.min}</div>}
-                {field.options.max !== undefined && <div>最大值: {field.options.max}</div>}
+                {field.options.min !== undefined && <div>{t('fieldLabel.min', { value: field.options.min })}</div>}
+                {field.options.max !== undefined && <div>{t('fieldLabel.max', { value: field.options.max })}</div>}
                 {field.options.minSelect !== undefined && (
-                  <div>最少选择: {field.options.minSelect}</div>
+                  <div>{t('fieldLabel.minSelect', { value: field.options.minSelect })}</div>
                 )}
                 {field.options.maxSelect !== undefined && (
-                  <div>最多选择: {field.options.maxSelect}</div>
+                  <div>{t('fieldLabel.maxSelect', { value: field.options.maxSelect })}</div>
                 )}
                 {field.options.pattern && (
                   <div>
-                    正则: <code>{field.options.pattern}</code>
+                    {t('fieldLabel.pattern')}: <code>{field.options.pattern}</code>
                   </div>
                 )}
                 {Array.isArray(field.options.values) && (
                   <div>
-                    可选值: {field.options.values.slice(0, 5).join(', ')}
+                    {t('fieldLabel.values')}: {field.options.values.slice(0, 5).join(', ')}
                     {field.options.values.length > 5 && '...'}
                   </div>
                 )}
-                {field.options.collectionId && <div>关联集合: {field.options.collectionId}</div>}
+                {field.options.collectionId && <div>{t('fieldLabel.relatedCollection', { value: field.options.collectionId })}</div>}
               </div>
             </TooltipContent>
           </Tooltip>

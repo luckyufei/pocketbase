@@ -3,6 +3,7 @@
  * 管理员账户管理
  */
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -32,6 +33,7 @@ interface Admin {
 }
 
 export function Admins() {
+  const { t } = useTranslation()
   const [admins, setAdmins] = useState<Admin[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -88,7 +90,7 @@ export function Admins() {
   }
 
   const deleteAdmin = async (admin: Admin) => {
-    if (!confirm(`Are you sure you want to delete admin "${admin.email}"?`)) {
+    if (!confirm(t('settingsPage.admins.deleteConfirm', { email: admin.email }))) {
       return
     }
     try {
@@ -105,38 +107,38 @@ export function Admins() {
 
   return (
     <div className="p-6 max-w-4xl">
-      {/* 页面标题 */}
+      {/* Page header */}
       <header className="mb-6">
         <nav className="text-sm text-muted-foreground mb-2">
-          <span>Settings</span>
+          <span>{t('settingsPage.breadcrumbSettings')}</span>
           <span className="mx-2">/</span>
-          <span className="text-foreground">Admins</span>
+          <span className="text-foreground">{t('settingsPage.admins.breadcrumb')}</span>
         </nav>
       </header>
 
-      {/* 操作按钮 */}
+      {/* Action buttons */}
       <div className="flex gap-2 mb-4">
         <Button onClick={openCreateDialog}>
           <Plus className="w-4 h-4 mr-2" />
-          New admin
+          {t('settingsPage.admins.newAdmin')}
         </Button>
       </div>
 
-      {/* 管理员列表 */}
+      {/* Admin list */}
       {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
         </div>
       ) : admins.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">No admins found.</div>
+        <div className="text-center py-12 text-muted-foreground">{t('settingsPage.admins.noAdmins')}</div>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Updated</TableHead>
-              <TableHead className="w-24">Actions</TableHead>
+              <TableHead>{t('settingsPage.admins.emailColumn')}</TableHead>
+              <TableHead>{t('settingsPage.admins.createdColumn')}</TableHead>
+              <TableHead>{t('settingsPage.admins.updatedColumn')}</TableHead>
+              <TableHead className="w-24">{t('settingsPage.admins.actionsColumn')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -151,7 +153,7 @@ export function Admins() {
                       variant="ghost"
                       size="icon"
                       onClick={() => openEditDialog(admin)}
-                      title="Edit"
+                      title={t('common.edit')}
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
@@ -159,7 +161,7 @@ export function Admins() {
                       variant="ghost"
                       size="icon"
                       onClick={() => deleteAdmin(admin)}
-                      title="Delete"
+                      title={t('common.delete')}
                     >
                       <Trash2 className="w-4 h-4 text-destructive" />
                     </Button>
@@ -171,15 +173,15 @@ export function Admins() {
         </Table>
       )}
 
-      {/* 创建/编辑对话框 */}
+      {/* Create/Edit dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingAdmin ? 'Edit admin' : 'New admin'}</DialogTitle>
+            <DialogTitle>{editingAdmin ? t('settingsPage.admins.editTitle') : t('settingsPage.admins.newTitle')}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('settingsPage.admins.emailLabel')}</Label>
               <Input
                 id="email"
                 type="email"
@@ -190,7 +192,7 @@ export function Admins() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">
-                Password {editingAdmin && '(leave empty to keep current)'}
+                {t('settingsPage.admins.passwordLabel')} {editingAdmin && t('settingsPage.admins.passwordKeepHint')}
               </Label>
               <Input
                 id="password"
@@ -201,7 +203,7 @@ export function Admins() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="passwordConfirm">Confirm password</Label>
+              <Label htmlFor="passwordConfirm">{t('settingsPage.admins.confirmPasswordLabel')}</Label>
               <Input
                 id="passwordConfirm"
                 type="password"
@@ -212,11 +214,11 @@ export function Admins() {
             </div>
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>
-                Cancel
+                {t('settingsPage.admins.cancel')}
               </Button>
               <Button type="submit" disabled={isSaving}>
                 {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {editingAdmin ? 'Save' : 'Create'}
+                {editingAdmin ? t('settingsPage.admins.save') : t('settingsPage.admins.create')}
               </Button>
             </DialogFooter>
           </form>

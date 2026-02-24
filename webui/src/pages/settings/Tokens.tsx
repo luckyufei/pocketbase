@@ -3,6 +3,7 @@
  * API Token 管理
  */
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -33,6 +34,7 @@ interface Token {
 }
 
 export function Tokens() {
+  const { t } = useTranslation()
   const [tokens, setTokens] = useState<Token[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
@@ -79,7 +81,7 @@ export function Tokens() {
   }
 
   const deleteToken = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this token?')) {
+    if (!confirm(t('settingsPage.tokens.deleteConfirm', 'Are you sure you want to delete this token?'))) {
       return
     }
     try {
@@ -111,9 +113,9 @@ export function Tokens() {
       {/* 页面标题 */}
       <header className="mb-6">
         <nav className="text-sm text-muted-foreground mb-2">
-          <span>Settings</span>
+          <span>{t('settingsPage.breadcrumbSettings', 'Settings')}</span>
           <span className="mx-2">/</span>
-          <span className="text-foreground">Tokens</span>
+          <span className="text-foreground">{t('settingsLayout.tokens', 'Tokens')}</span>
         </nav>
       </header>
 
@@ -121,11 +123,11 @@ export function Tokens() {
       <div className="flex gap-2 mb-4">
         <Button onClick={() => setShowDialog(true)}>
           <Plus className="w-4 h-4 mr-2" />
-          Create Token
+          {t('settingsPage.tokens.createToken', 'Create Token')}
         </Button>
         <Button variant="outline" onClick={loadTokens} disabled={isLoading}>
           <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
+          {t('common.refresh', 'Refresh')}
         </Button>
       </div>
 
@@ -136,16 +138,16 @@ export function Tokens() {
         </div>
       ) : tokens.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
-          No API tokens found. Create your first token to get started.
+          {t('settingsPage.tokens.noTokens', 'No API tokens found. Create your first token to get started.')}
         </div>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Last Used</TableHead>
-              <TableHead className="w-24">Actions</TableHead>
+              <TableHead>{t('settingsPage.tokens.name', 'Name')}</TableHead>
+              <TableHead>{t('settingsPage.tokens.created', 'Created')}</TableHead>
+              <TableHead>{t('settingsPage.tokens.lastUsed', 'Last Used')}</TableHead>
+              <TableHead className="w-24">{t('common.actions', 'Actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -156,14 +158,14 @@ export function Tokens() {
                   {formatDate(token.created)}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {token.lastUsed ? formatDate(token.lastUsed) : 'Never'}
+                  {token.lastUsed ? formatDate(token.lastUsed) : t('settingsPage.tokens.never', 'Never')}
                 </TableCell>
                 <TableCell>
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => deleteToken(token.id)}
-                    title="Delete"
+                    title={t('common.delete', 'Delete')}
                   >
                     <Trash2 className="w-4 h-4 text-destructive" />
                   </Button>
@@ -178,13 +180,13 @@ export function Tokens() {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{createdToken ? 'Token Created' : 'Create API Token'}</DialogTitle>
+            <DialogTitle>{createdToken ? t('settingsPage.tokens.tokenCreated', 'Token Created') : t('settingsPage.tokens.createApiToken', 'Create API Token')}</DialogTitle>
           </DialogHeader>
 
           {createdToken ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Copy this token now. You won't be able to see it again.
+                {t('settingsPage.tokens.copyTokenWarning', "Copy this token now. You won't be able to see it again.")}
               </p>
               <div className="flex gap-2">
                 <Input value={createdToken} readOnly className="font-mono text-sm" />
@@ -204,12 +206,12 @@ export function Tokens() {
           ) : (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="tokenName">Token Name</Label>
+                <Label htmlFor="tokenName">{t('settingsPage.tokens.tokenName', 'Token Name')}</Label>
                 <Input
                   id="tokenName"
                   value={newTokenName}
                   onChange={(e) => setNewTokenName(e.target.value)}
-                  placeholder="My API Token"
+                  placeholder={t('settingsPage.tokens.tokenNamePlaceholder', 'My API Token')}
                 />
               </div>
             </div>
@@ -217,15 +219,15 @@ export function Tokens() {
 
           <DialogFooter>
             {createdToken ? (
-              <Button onClick={closeDialog}>Done</Button>
+              <Button onClick={closeDialog}>{t('settingsPage.tokens.done', 'Done')}</Button>
             ) : (
               <>
                 <Button variant="outline" onClick={closeDialog}>
-                  Cancel
+                  {t('common.cancel', 'Cancel')}
                 </Button>
                 <Button onClick={createToken} disabled={isCreating || !newTokenName.trim()}>
                   {isCreating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  Create
+                  {t('common.create', 'Create')}
                 </Button>
               </>
             )}

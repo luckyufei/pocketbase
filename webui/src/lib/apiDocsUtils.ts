@@ -99,7 +99,22 @@ export function getApiEndpoint(collectionName: string, action: string): string {
 }
 
 /**
- * Base tabs
+ * Base tabs - returns tab configuration with translated labels
+ */
+export function getBaseTabs(t: (key: string, fallback?: string) => string): DocTab[] {
+  return [
+    { id: 'list', label: t('records.apiDocs.tabs.listSearch', 'List/Search') },
+    { id: 'view', label: t('records.apiDocs.tabs.view', 'View') },
+    { id: 'create', label: t('records.apiDocs.tabs.create', 'Create') },
+    { id: 'update', label: t('records.apiDocs.tabs.update', 'Update') },
+    { id: 'delete', label: t('records.apiDocs.tabs.delete', 'Delete') },
+    { id: 'realtime', label: t('records.apiDocs.tabs.realtime', 'Realtime') },
+    { id: 'batch', label: t('records.apiDocs.tabs.batch', 'Batch') },
+  ]
+}
+
+/**
+ * Base tabs (deprecated, use getBaseTabs with translation function)
  */
 const BASE_TABS: DocTab[] = [
   { id: 'list', label: 'List/Search' },
@@ -112,43 +127,49 @@ const BASE_TABS: DocTab[] = [
 ]
 
 /**
- * Get collection document tabs
+ * Get collection document tabs with translation support
  */
-export function getCollectionTabs(collection: ApiDocsCollection): DocTab[] {
+export function getCollectionTabs(
+  collection: ApiDocsCollection,
+  t?: (key: string, fallback?: string) => string
+): DocTab[] {
+  // Use translation function if provided, otherwise use default labels
+  const baseTabs = t ? getBaseTabs(t) : BASE_TABS
+
   if (collection.type === 'view') {
     return [
-      { id: 'list', label: 'List/Search' },
-      { id: 'view', label: 'View' },
+      { id: 'list', label: t ? t('records.apiDocs.tabs.listSearch', 'List/Search') : 'List/Search' },
+      { id: 'view', label: t ? t('records.apiDocs.tabs.view', 'View') : 'View' },
     ]
   }
 
   if (collection.type === 'auth') {
     const authTabs: DocTab[] = [
-      { id: 'auth-methods', label: 'List auth methods' },
+      { id: 'auth-methods', label: t ? t('records.apiDocs.tabs.authMethods', 'List auth methods') : 'List auth methods' },
       {
         id: 'auth-with-password',
-        label: 'Auth with password',
+        label: t ? t('records.apiDocs.tabs.authWithPassword', 'Auth with password') : 'Auth with password',
         disabled: !collection.passwordAuth?.enabled,
       },
       {
         id: 'auth-with-oauth2',
-        label: 'Auth with OAuth2',
+        label: t ? t('records.apiDocs.tabs.authWithOAuth2', 'Auth with OAuth2') : 'Auth with OAuth2',
         disabled: !collection.oauth2?.enabled,
       },
       {
         id: 'auth-with-otp',
-        label: 'Auth with OTP',
+        label: t ? t('records.apiDocs.tabs.authWithOtp', 'Auth with OTP') : 'Auth with OTP',
         disabled: !collection.otp?.enabled,
       },
-      { id: 'auth-refresh', label: 'Auth refresh' },
-      { id: 'verification', label: 'Verification' },
-      { id: 'password-reset', label: 'Password reset' },
-      { id: 'email-change', label: 'Email change' },
+      { id: 'auth-refresh', label: t ? t('records.apiDocs.tabs.authRefresh', 'Auth refresh') : 'Auth refresh' },
+      { id: 'verification', label: t ? t('records.apiDocs.tabs.verification', 'Verification') : 'Verification' },
+      { id: 'password-reset', label: t ? t('records.apiDocs.tabs.passwordReset', 'Password reset') : 'Password reset' },
+      { id: 'email-change', label: t ? t('records.apiDocs.tabs.emailChange', 'Email change') : 'Email change' },
     ]
-    return [...BASE_TABS, ...authTabs]
+    return [...baseTabs, ...authTabs]
   }
 
-  return [...BASE_TABS]
+  return [...baseTabs]
 }
 
 /**

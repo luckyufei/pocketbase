@@ -3,6 +3,7 @@
  * View API documentation
  */
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { SdkTabs } from './SdkTabs'
 import { CodeBlock } from './CodeBlock'
 import { ResponseTabs } from './ResponseTabs'
@@ -26,6 +27,7 @@ interface ViewApiDocsProps {
 }
 
 export function ViewApiDocs({ collection, baseUrl = 'http://127.0.0.1:8090' }: ViewApiDocsProps) {
+  const { t } = useTranslation()
   const endpoint = getApiEndpoint(collection.name, 'view')
   const superusersOnly = collection.viewRule === null
 
@@ -85,40 +87,36 @@ final record = await pb.collection('${collection.name}').getOne('RECORD_ID',
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium mb-2">View ({collection.name})</h3>
-        <p className="text-muted-foreground">
-          Fetch a single <strong>{collection.name}</strong> record.
-        </p>
+        <h3 className="text-lg font-medium mb-2">{t('records.apiDocs.viewTitle', { name: collection.name })}</h3>
+        <p className="text-muted-foreground" dangerouslySetInnerHTML={{ __html: t('records.apiDocs.viewDescription', { name: collection.name }) }} />
       </div>
 
       <SdkTabs js={jsCode} dart={dartCode} />
 
       {/* API details */}
       <div>
-        <h4 className="text-sm font-medium mb-2">API details</h4>
+        <h4 className="text-sm font-medium mb-2">{t('records.apiDocs.apiDetails', 'API details')}</h4>
         <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <span className="px-2 py-0.5 rounded text-xs font-bold bg-blue-100 text-blue-700">
             GET
           </span>
           <span className="font-mono text-sm">{endpoint}</span>
           {superusersOnly && (
-            <span className="ml-auto text-xs text-muted-foreground">
-              Requires superuser <code>Authorization:TOKEN</code> header
-            </span>
+            <span className="ml-auto text-xs text-muted-foreground" dangerouslySetInnerHTML={{ __html: t('records.apiDocs.requiresSuperuser') }} />
           )}
         </div>
       </div>
 
       {/* Path parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">Path Parameters</h4>
+        <h4 className="text-sm font-medium mb-2">{t('records.apiDocs.pathParameters', 'Path Parameters')}</h4>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-28">Param</th>
-                <th className="text-left p-2 font-medium w-20">Type</th>
-                <th className="text-left p-2 font-medium">Description</th>
+                <th className="text-left p-2 font-medium w-28">{t('records.apiDocs.param', 'Param')}</th>
+                <th className="text-left p-2 font-medium w-20">{t('records.apiDocs.type', 'Type')}</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.description', 'Description')}</th>
               </tr>
             </thead>
             <tbody>
@@ -127,7 +125,7 @@ final record = await pb.collection('${collection.name}').getOne('RECORD_ID',
                 <td className="p-2">
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
-                <td className="p-2 text-muted-foreground">ID of the record to view.</td>
+                <td className="p-2 text-muted-foreground">{t('records.apiDocs.params.idDesc')}</td>
               </tr>
             </tbody>
           </table>
@@ -136,14 +134,14 @@ final record = await pb.collection('${collection.name}').getOne('RECORD_ID',
 
       {/* Query parameters */}
       <div>
-        <h4 className="text-sm font-medium mb-2">Query parameters</h4>
+        <h4 className="text-sm font-medium mb-2">{t('records.apiDocs.queryParameters', 'Query parameters')}</h4>
         <div className="border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium w-28">Param</th>
-                <th className="text-left p-2 font-medium w-20">Type</th>
-                <th className="text-left p-2 font-medium">Description</th>
+                <th className="text-left p-2 font-medium w-28">{t('records.apiDocs.param', 'Param')}</th>
+                <th className="text-left p-2 font-medium w-20">{t('records.apiDocs.type', 'Type')}</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.description', 'Description')}</th>
               </tr>
             </thead>
             <tbody>
@@ -153,20 +151,17 @@ final record = await pb.collection('${collection.name}').getOne('RECORD_ID',
                   <span className="px-1.5 py-0.5 bg-muted rounded text-xs">String</span>
                 </td>
                 <td className="p-2 text-muted-foreground">
-                  <p>Auto expand record relations. Ex.:</p>
+                  <p>{t('records.apiDocs.params.expandDesc')}</p>
                   <CodeBlock
                     content="?expand=relField1,relField2.subRelField"
                     showCopy={false}
                     className="mt-1"
                   />
-                  <p className="mt-2">
-                    Supports up to 6-levels depth nested relations expansion.
-                    <br />
-                    The expanded relations will be appended to the record under the{' '}
-                    <code>expand</code> property (eg. <code>{`"expand": {"relField1": {...}, ...}`}</code>).
-                    <br />
-                    Only the relations to which the request user has permissions to <strong>view</strong> will be expanded.
-                  </p>
+                  <p className="mt-2" dangerouslySetInnerHTML={{ __html: `
+                    ${t('records.apiDocs.params.expandDetail1')}<br />
+                    ${t('records.apiDocs.params.expandDetail2')}<br />
+                    ${t('records.apiDocs.params.expandDetail3')}
+                  ` }} />
                 </td>
               </tr>
               <tr className="border-t">
@@ -176,24 +171,20 @@ final record = await pb.collection('${collection.name}').getOne('RECORD_ID',
                 </td>
                 <td className="p-2 text-muted-foreground">
                   <p>
-                    Comma separated string of the fields to return in the JSON response{' '}
-                    <em>(by default returns all fields)</em>. Ex.:
+                    <span dangerouslySetInnerHTML={{ __html: t('records.apiDocs.params.fieldsDesc') }} />
                   </p>
                   <CodeBlock content="?fields=*,expand.relField.name" showCopy={false} className="mt-1" />
-                  <p className="mt-2">
-                    <code>*</code> targets all keys from the specific depth level.
-                  </p>
-                  <p className="mt-2">In addition, the following field modifiers are also supported:</p>
+                  <p className="mt-2" dangerouslySetInnerHTML={{ __html: t('records.apiDocs.params.fieldsDetail1') }} />
+                  <p className="mt-2" dangerouslySetInnerHTML={{ __html: t('records.apiDocs.params.fieldsDetail2') }} />
                   <ul className="list-disc list-inside mt-1">
                     <li>
                       <code>:excerpt(maxLength, withEllipsis?)</code>
                       <br />
-                      Returns a short plain text version of the field string value.
+                      {t('records.apiDocs.params.fieldsExcerpt')}
                       <br />
-                      Ex.: <code>?fields=*,description:excerpt(200,true)</code>
+                      {t('records.apiDocs.fieldsQueryParam.example', 'Ex.')}: <code>?fields=*,description:excerpt(200,true)</code>
                     </li>
-                  </ul>
-                </td>
+                  </ul>                </td>
               </tr>
             </tbody>
           </table>

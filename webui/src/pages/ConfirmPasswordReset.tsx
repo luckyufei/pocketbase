@@ -4,6 +4,7 @@
  */
 import { useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Lock, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { getApiClient } from '@/lib/ApiClient'
 
 export default function ConfirmPasswordReset() {
+  const { t } = useTranslation()
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
 
@@ -27,12 +29,12 @@ export default function ConfirmPasswordReset() {
       setError('')
 
       if (password !== passwordConfirm) {
-        setError('两次输入的密码不一致')
+        setError(t('confirmPasswordReset.passwordMismatch'))
         return
       }
 
       if (password.length < 8) {
-        setError('密码长度至少为 8 个字符')
+        setError(t('confirmPasswordReset.passwordTooShort'))
         return
       }
 
@@ -43,13 +45,13 @@ export default function ConfirmPasswordReset() {
         await pb.collection('_superusers').confirmPasswordReset(token!, password, passwordConfirm)
         setSuccess(true)
       } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : '重置密码失败，链接可能已过期'
+        const message = err instanceof Error ? err.message : t('confirmPasswordReset.failedDefault')
         setError(message)
       } finally {
         setLoading(false)
       }
     },
-    [token, password, passwordConfirm]
+    [token, password, passwordConfirm, t]
   )
 
   if (!token) {
@@ -60,14 +62,14 @@ export default function ConfirmPasswordReset() {
             <div className="mx-auto w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
               <AlertCircle className="h-6 w-6 text-red-500" />
             </div>
-            <CardTitle className="text-slate-900">无效的链接</CardTitle>
+            <CardTitle className="text-slate-900">{t('confirmPasswordReset.invalidLinkTitle')}</CardTitle>
             <CardDescription className="text-slate-500">
-              密码重置链接无效或已过期。请重新请求密码重置。
+              {t('confirmPasswordReset.invalidLinkDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Link to="/request-password-reset">
-              <Button className="w-full">请求新的重置链接</Button>
+              <Button className="w-full">{t('confirmPasswordReset.requestNewLink')}</Button>
             </Link>
           </CardContent>
         </Card>
@@ -83,14 +85,14 @@ export default function ConfirmPasswordReset() {
             <div className="mx-auto w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
               <CheckCircle className="h-6 w-6 text-blue-500" />
             </div>
-            <CardTitle className="text-slate-900">密码已重置</CardTitle>
+            <CardTitle className="text-slate-900">{t('confirmPasswordReset.successTitle')}</CardTitle>
             <CardDescription className="text-slate-500">
-              您的密码已成功重置。现在可以使用新密码登录。
+              {t('confirmPasswordReset.successDesc')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button className="w-full" onClick={() => navigate('/login')}>
-              前往登录
+              {t('confirmPasswordReset.goToLogin')}
             </Button>
           </CardContent>
         </Card>
@@ -105,19 +107,19 @@ export default function ConfirmPasswordReset() {
           <div className="mx-auto w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
             <Lock className="h-6 w-6 text-blue-500" />
           </div>
-          <CardTitle className="text-slate-900">设置新密码</CardTitle>
-          <CardDescription className="text-slate-500">请输入您的新密码。</CardDescription>
+          <CardTitle className="text-slate-900">{t('confirmPasswordReset.title')}</CardTitle>
+          <CardDescription className="text-slate-500">{t('confirmPasswordReset.desc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password" className="text-slate-900">
-                新密码
+                {t('confirmPasswordReset.newPassword')}
               </Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="至少 8 个字符"
+                placeholder={t('confirmPasswordReset.newPasswordPlaceholder')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -127,12 +129,12 @@ export default function ConfirmPasswordReset() {
 
             <div className="space-y-2">
               <Label htmlFor="passwordConfirm" className="text-slate-900">
-                确认密码
+                {t('confirmPasswordReset.confirmPassword')}
               </Label>
               <Input
                 id="passwordConfirm"
                 type="password"
-                placeholder="再次输入密码"
+                placeholder={t('confirmPasswordReset.confirmPasswordPlaceholder')}
                 value={passwordConfirm}
                 onChange={(e) => setPasswordConfirm(e.target.value)}
                 required
@@ -146,7 +148,7 @@ export default function ConfirmPasswordReset() {
             )}
 
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? '重置中...' : '重置密码'}
+              {loading ? t('confirmPasswordReset.resetting') : t('confirmPasswordReset.resetBtn')}
             </Button>
 
             <div className="text-center">
@@ -155,7 +157,7 @@ export default function ConfirmPasswordReset() {
                 className="text-sm text-slate-500 hover:text-blue-600 font-medium transition-colors"
               >
                 <ArrowLeft className="h-3 w-3 inline mr-1" />
-                返回登录
+                {t('confirmPasswordReset.backToLogin')}
               </Link>
             </div>
           </form>

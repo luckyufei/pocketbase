@@ -3,6 +3,7 @@
  * 用于配置 API 请求的速率限制规则
  */
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Accordion,
   AccordionContent,
@@ -59,9 +60,9 @@ interface RateLimitAccordionProps {
 }
 
 const AUDIENCE_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: '@guest', label: 'Guest only' },
-  { value: '@auth', label: 'Auth only' },
+  { value: 'all', labelKey: 'rateLimits.audienceAll' },
+  { value: '@guest', labelKey: 'rateLimits.audienceGuest' },
+  { value: '@auth', labelKey: 'rateLimits.audienceAuth' },
 ]
 
 // Convert between UI value and API value
@@ -91,6 +92,7 @@ const BASE_PREDEFINED_TAGS = [
 ]
 
 export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAccordionProps) {
+  const { t } = useTranslation()
   const [showInfoDialog, setShowInfoDialog] = useState(false)
   const { collections } = useCollections()
 
@@ -179,11 +181,11 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2 flex-1">
               <Activity className="h-4 w-4" />
-              <span>Rate Limits</span>
+              <span>{t('rateLimits.title', 'Rate Limits')}</span>
               <div className="flex-1" />
               {hasErrors && <AlertCircle className="h-4 w-4 text-destructive" />}
               <Badge variant={value.enabled ? 'default' : 'secondary'}>
-                {value.enabled ? 'Enabled' : 'Disabled'}
+                {value.enabled ? t('common.enabled', 'Enabled') : t('common.disabled', 'Disabled')}
               </Badge>
             </div>
           </AccordionTrigger>
@@ -195,7 +197,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
                 onCheckedChange={(checked) => onChange({ ...value, enabled: checked })}
               />
               <Label htmlFor="rate-limit-enabled">
-                Enable <span className="text-muted-foreground">(experimental)</span>
+                {t('rateLimits.enable', 'Enable')} <span className="text-muted-foreground">({t('common.experimental', 'experimental')})</span>
               </Label>
             </div>
 
@@ -203,18 +205,18 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Rate limit label</TableHead>
+                    <TableHead>{t('rateLimits.labelColumn', 'Rate limit label')}</TableHead>
                     <TableHead className="w-[120px]">
-                      Max requests
+                      {t('rateLimits.maxRequests', 'Max requests')}
                       <br />
-                      <span className="text-xs text-muted-foreground">(per IP)</span>
+                      <span className="text-xs text-muted-foreground">({t('rateLimits.perIP', 'per IP')})</span>
                     </TableHead>
                     <TableHead className="w-[100px]">
-                      Interval
+                      {t('rateLimits.interval', 'Interval')}
                       <br />
-                      <span className="text-xs text-muted-foreground">(in seconds)</span>
+                      <span className="text-xs text-muted-foreground">({t('rateLimits.inSeconds', 'in seconds')})</span>
                     </TableHead>
-                    <TableHead className="w-[140px]">Targeted users</TableHead>
+                    <TableHead className="w-[140px]">{t('rateLimits.targetedUsers', 'Targeted users')}</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -225,7 +227,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
                         <Input
                           list={`predefined-tags-${index}`}
                           required
-                          placeholder="tag (users:create) or path (/api/)"
+                          placeholder={t('rateLimits.labelPlaceholder', 'tag (users:create) or path (/api/)')}
                           value={rule.label}
                           onChange={(e) => handleRuleChange(index, 'label', e.target.value)}
                           className={
@@ -246,7 +248,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
                           required
                           min={1}
                           step={1}
-                          placeholder="Max requests"
+                          placeholder={t('rateLimits.maxRequests', 'Max requests')}
                           value={rule.maxRequests}
                           onChange={(e) =>
                             handleRuleChange(index, 'maxRequests', parseInt(e.target.value) || 0)
@@ -264,7 +266,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
                           required
                           min={1}
                           step={1}
-                          placeholder="Interval"
+                          placeholder={t('rateLimits.interval', 'Interval')}
                           value={rule.duration}
                           onChange={(e) =>
                             handleRuleChange(index, 'duration', parseInt(e.target.value) || 0)
@@ -287,7 +289,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
                           <SelectContent>
                             {AUDIENCE_OPTIONS.map((option) => (
                               <SelectItem key={option.value} value={option.value}>
-                                {option.label}
+                                {t(option.labelKey, option.value === 'all' ? 'All' : option.value === '@guest' ? 'Guest only' : 'Auth only')}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -312,7 +314,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
             <div className="flex items-center justify-between">
               <Button type="button" variant="secondary" size="sm" onClick={handleAddRule}>
                 <Plus className="h-4 w-4 mr-1" />
-                Add rate limit rule
+                {t('rateLimits.addRule', 'Add rate limit rule')}
               </Button>
 
               <Button
@@ -322,7 +324,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
                 onClick={() => setShowInfoDialog(true)}
               >
                 <HelpCircle className="h-4 w-4 mr-1" />
-                Learn more about the rate limit rules
+                {t('rateLimits.learnMore', 'Learn more about the rate limit rules')}
               </Button>
             </div>
           </AccordionContent>
@@ -332,13 +334,13 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
       <Dialog open={showInfoDialog} onOpenChange={setShowInfoDialog}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Rate limit label format</DialogTitle>
-            <DialogDescription className="sr-only">Rate limit rules description</DialogDescription>
+            <DialogTitle>{t('rateLimits.infoTitle', 'Rate limit label format')}</DialogTitle>
+            <DialogDescription className="sr-only">{t('rateLimits.infoDesc', 'Rate limit rules description')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 text-sm">
             <p>
-              The rate limit rules are resolved in the following order (stops on the first match):
+              {t('rateLimits.infoP1', 'The rate limit rules are resolved in the following order (stops on the first match):')}
             </p>
             <ol className="list-decimal list-inside space-y-1">
               <li>
@@ -362,13 +364,12 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
             </ol>
 
             <p>
-              In case of multiple rules with the same label but different target user audience (e.g.
-              "guest" vs "auth"), only the matching audience rule is taken in consideration.
+              {t('rateLimits.infoP2', 'In case of multiple rules with the same label but different target user audience (e.g. "guest" vs "auth"), only the matching audience rule is taken in consideration.')}
             </p>
 
             <hr />
 
-            <p>The rate limit label could be in one of the following formats:</p>
+            <p>{t('rateLimits.infoP3', 'The rate limit label could be in one of the following formats:')}</p>
             <ul className="space-y-2">
               <li>
                 <code>[METHOD ]/my/path</code> - full exact route match (
@@ -386,7 +387,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
             </ul>
 
             <div>
-              <p className="font-medium mb-2">The predefined collection tags are:</p>
+              <p className="font-medium mb-2">{t('rateLimits.predefinedTags', 'The predefined collection tags are:')}</p>
               <ul className="grid grid-cols-2 gap-1 text-xs">
                 {BASE_PREDEFINED_TAGS.map((tag) => (
                   <li key={tag.value}>
@@ -402,7 +403,7 @@ export function RateLimitAccordion({ value, onChange, errors = {} }: RateLimitAc
 
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setShowInfoDialog(false)}>
-              Close
+              {t('common.close', 'Close')}
             </Button>
           </DialogFooter>
         </DialogContent>

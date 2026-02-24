@@ -4,6 +4,7 @@
  */
 import type { TraceStats as TraceStatsType } from '../store'
 import { Activity, Check, AlertTriangle, Clock } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface Props {
   stats: TraceStatsType | null
@@ -42,6 +43,7 @@ function formatPercentage(value: number | null | undefined): string {
 }
 
 export function TraceStats({ stats }: Props) {
+  const { t } = useTranslation()
   const successRate = stats && stats.total_requests > 0
     ? stats.success_count / stats.total_requests
     : 0
@@ -59,7 +61,7 @@ export function TraceStats({ stats }: Props) {
           <div className="text-sm font-semibold text-slate-900 truncate">
             {formatNumber(stats?.total_requests)}
           </div>
-          <div className="text-xs text-slate-500">总请求</div>
+          <div className="text-xs text-slate-500">{t('traceStats.totalRequests')}</div>
         </div>
       </div>
 
@@ -73,7 +75,7 @@ export function TraceStats({ stats }: Props) {
               {formatPercentage(successRate)}
             </span>
           </div>
-          <div className="text-xs text-slate-500">成功</div>
+          <div className="text-xs text-slate-500">{t('traceStats.success')}</div>
         </div>
       </div>
 
@@ -87,7 +89,7 @@ export function TraceStats({ stats }: Props) {
               {formatPercentage(errorRate)}
             </span>
           </div>
-          <div className="text-xs text-slate-500">错误</div>
+          <div className="text-xs text-slate-500">{t('traceStats.errors')}</div>
         </div>
       </div>
 

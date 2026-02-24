@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Loader2, ChevronLeft, ChevronRight, Check, X, AlertCircle } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import type { Span, SpanStatus } from '../store'
 
 interface Props {
@@ -126,6 +127,8 @@ export function TraceList({
   onTraceSelect,
   onPageChange,
 }: Props) {
+  const { t } = useTranslation()
+
   if (isLoading && traces.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -138,7 +141,7 @@ export function TraceList({
     return (
       <div className="flex flex-col items-center justify-center h-64 text-slate-400">
         <AlertCircle className="w-10 h-10 mb-3 opacity-50" />
-        <p>没有找到符合条件的 Trace 记录</p>
+        <p>{t('traceList.noResults')}</p>
       </div>
     )
   }
@@ -157,10 +160,10 @@ export function TraceList({
         <TableHeader>
           <TableRow className="bg-slate-50/50">
             <TableHead className="w-24 text-xs">Trace ID</TableHead>
-            <TableHead className="text-xs">操作名称</TableHead>
-            <TableHead className="w-20 text-xs">状态</TableHead>
-            <TableHead className="w-32 text-xs">开始时间</TableHead>
-            <TableHead className="w-20 text-xs text-right">耗时</TableHead>
+            <TableHead className="text-xs">{t('traceList.operationName')}</TableHead>
+            <TableHead className="w-20 text-xs">{t('traceList.status')}</TableHead>
+            <TableHead className="w-32 text-xs">{t('traceList.startTime')}</TableHead>
+            <TableHead className="w-20 text-xs text-right">{t('traceList.duration')}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

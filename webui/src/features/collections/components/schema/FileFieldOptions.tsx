@@ -1,4 +1,5 @@
 // T014: File 字段选项组件
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -50,6 +51,7 @@ const MIME_PRESETS = {
 }
 
 export function FileFieldOptions({ field, onChange }: FileFieldOptionsProps) {
+  const { t } = useTranslation()
   const isSingle = (field.maxSelect || 1) <= 1
 
   const handleSingleMultipleChange = (value: string) => {
@@ -72,28 +74,28 @@ export function FileFieldOptions({ field, onChange }: FileFieldOptionsProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Selection type</Label>
+        <Label>{t('collections.selectionType')}</Label>
         <Select value={isSingle ? 'single' : 'multiple'} onValueChange={handleSingleMultipleChange}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="single">Single</SelectItem>
-            <SelectItem value="multiple">Multiple</SelectItem>
+            <SelectItem value="single">{t('collections.single')}</SelectItem>
+            <SelectItem value="multiple">{t('collections.multiple')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center gap-1">
-          <Label>Allowed mime types</Label>
+          <Label>{t('collections.allowedMimeTypes')}</Label>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent>
-                <p>Allow files ONLY with the listed mime types. Leave empty for no restriction.</p>
+                <p>{t('collections.allowedMimeTypesTooltip')}</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -112,27 +114,27 @@ export function FileFieldOptions({ field, onChange }: FileFieldOptionsProps) {
             </Badge>
           ))}
           {(field.mimeTypes || []).length === 0 && (
-            <span className="text-muted-foreground text-sm">No restriction</span>
+            <span className="text-muted-foreground text-sm">{t('collections.noRestriction')}</span>
           )}
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="link" size="sm" className="h-auto p-0">
-              Choose presets <ChevronDown className="h-3 w-3 ml-1" />
+              {t('collections.choosePresets')} <ChevronDown className="h-3 w-3 ml-1" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent>
             <DropdownMenuItem onClick={() => handlePresetClick('images')}>
-              Images (jpg, png, svg, gif, webp)
+              {t('collections.imagesPreset')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handlePresetClick('documents')}>
-              Documents (pdf, doc/docx, xls/xlsx)
+              {t('collections.documentsPreset')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handlePresetClick('videos')}>
-              Videos (mp4, avi, mov, 3gp)
+              {t('collections.videosPreset')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => handlePresetClick('archives')}>
-              Archives (zip, 7zip, rar)
+              {t('collections.archivesPreset')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -140,7 +142,7 @@ export function FileFieldOptions({ field, onChange }: FileFieldOptionsProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="file-thumbs">Thumb sizes</Label>
+          <Label htmlFor="file-thumbs">{t('collections.thumbSizes')}</Label>
           <Input
             id="file-thumbs"
             placeholder="e.g. 50x50, 480x720"
@@ -155,32 +157,32 @@ export function FileFieldOptions({ field, onChange }: FileFieldOptionsProps) {
               })
             }
           />
-          <p className="text-xs text-muted-foreground">Use comma as separator.</p>
+          <p className="text-xs text-muted-foreground">{t('collections.commaSeparator')}</p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="file-maxsize">Max file size</Label>
+          <Label htmlFor="file-maxsize">{t('collections.maxFileSize')}</Label>
           <Input
             id="file-maxsize"
             type="number"
             min={0}
-            placeholder="Default to max ~5MB"
+            placeholder={t('collections.defaultMaxSize5MB')}
             value={field.maxSize || ''}
             onChange={(e) => onChange({ ...field, maxSize: parseInt(e.target.value, 10) || 0 })}
           />
-          <p className="text-xs text-muted-foreground">Must be in bytes.</p>
+          <p className="text-xs text-muted-foreground">{t('collections.mustBeInBytes')}</p>
         </div>
       </div>
 
       {!isSingle && (
         <div className="space-y-2">
-          <Label htmlFor="file-maxselect">Max select</Label>
+          <Label htmlFor="file-maxselect">{t('collections.maxSelect')}</Label>
           <Input
             id="file-maxselect"
             type="number"
             min={2}
             required
-            placeholder="Default to single"
+            placeholder={t('collections.defaultToSingle')}
             value={field.maxSelect || ''}
             onChange={(e) => onChange({ ...field, maxSelect: parseInt(e.target.value, 10) || 2 })}
           />
@@ -195,10 +197,10 @@ export function FileFieldOptions({ field, onChange }: FileFieldOptionsProps) {
         />
         <div className="grid gap-1.5 leading-none">
           <Label htmlFor="file-protected" className="cursor-pointer">
-            Protected
+            {t('collections.protected')}
           </Label>
           <p className="text-xs text-muted-foreground">
-            It will require View API rule permissions and file token to be accessible.
+            {t('collections.protectedTooltip')}
           </p>
         </div>
       </div>

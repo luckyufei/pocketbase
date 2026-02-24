@@ -3,6 +3,7 @@
  * 展示用户关联的 OAuth2 提供商列表，支持解除关联
  */
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSetAtom } from 'jotai'
@@ -26,6 +27,7 @@ interface ExternalAuthsListProps {
 }
 
 export function ExternalAuthsList({ record, onUnlink }: ExternalAuthsListProps) {
+  const { t } = useTranslation()
   const [externalAuths, setExternalAuths] = useState<ExternalAuth[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const addToast = useSetAtom(addToastAtom)
@@ -60,7 +62,7 @@ export function ExternalAuthsList({ record, onUnlink }: ExternalAuthsListProps) 
     } catch (err) {
       addToast({
         type: 'error',
-        message: `加载外部认证失败: ${err instanceof Error ? err.message : '请重试'}`,
+        message: t('externalAuths.loadError', { error: err instanceof Error ? err.message : t('externalAuths.loadErrorRetry') }),
       })
     } finally {
       setIsLoading(false)
@@ -73,23 +75,23 @@ export function ExternalAuthsList({ record, onUnlink }: ExternalAuthsListProps) 
     const providerTitle = getProviderTitle(externalAuth.provider)
 
     confirm({
-      title: '解除关联',
-      message: `确定要解除与 ${providerTitle} 的关联吗？`,
-      confirmText: '解除关联',
+      title: t('externalAuths.unlinkTitle'),
+      message: t('externalAuths.unlinkConfirm', { provider: providerTitle }),
+      confirmText: t('externalAuths.unlinkBtn'),
       isDanger: true,
       onConfirm: async () => {
         try {
           await pb.collection('_externalAuths').delete(externalAuth.id)
           addToast({
             type: 'success',
-            message: `已成功解除与 ${providerTitle} 的关联`,
+            message: t('externalAuths.unlinkSuccess', { provider: providerTitle }),
           })
           onUnlink?.(externalAuth.provider)
           loadExternalAuths()
         } catch (err) {
           addToast({
             type: 'error',
-            message: `解除关联失败: ${err instanceof Error ? err.message : '请重试'}`,
+            message: t('externalAuths.unlinkError', { error: err instanceof Error ? err.message : t('externalAuths.loadErrorRetry') }),
           })
         }
       },
@@ -109,7 +111,7 @@ export function ExternalAuthsList({ record, onUnlink }: ExternalAuthsListProps) 
   }
 
   if (!record?.id || externalAuths.length === 0) {
-    return <p className="text-center text-muted-foreground py-4">未关联任何 OAuth2 提供商</p>
+    return <p className="text-center text-muted-foreground py-4">{t('externalAuths.noProviders')}</p>
   }
 
   return (

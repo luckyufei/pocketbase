@@ -3,6 +3,7 @@
  * 生成用于模拟用户身份的认证令牌
  */
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Copy, Check, RefreshCw } from 'lucide-react'
 import {
   Dialog,
@@ -39,6 +40,7 @@ export function ImpersonatePopup({
   const [token, setToken] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { t } = useTranslation()
 
   const backendAbsUrl = getApiExampleUrl(pb.baseURL)
   const defaultDuration =
@@ -106,8 +108,8 @@ pb.authStore.save(token, null);`
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>模拟认证令牌</DialogTitle>
-          <DialogDescription className="sr-only">生成用于模拟用户身份的认证令牌</DialogDescription>
+          <DialogTitle>{t('impersonate.title')}</DialogTitle>
+          <DialogDescription className="sr-only">{t('impersonate.description')}</DialogDescription>
         </DialogHeader>
 
         {error && (
@@ -147,17 +149,17 @@ pb.authStore.save(token, null);`
         ) : (
           <form id="impersonate-form" onSubmit={handleSubmit} className="space-y-4">
             <p className="text-sm">
-              为 <strong>{displayValue}</strong> 生成一个不可续期的认证令牌：
+              {t('impersonate.generateFor')} <strong>{displayValue}</strong>：
             </p>
 
             <div className="space-y-2">
-              <Label htmlFor="duration">令牌有效期（秒）</Label>
+              <Label htmlFor="duration">{t('impersonate.duration')}</Label>
               <Input
                 id="duration"
                 type="number"
                 min={0}
                 step={1}
-                placeholder={`默认使用集合设置 (${defaultDuration}s)`}
+                placeholder={t('impersonate.durationPlaceholder', { default: defaultDuration })}
                 value={duration || ''}
                 onChange={(e) => setDuration(parseInt(e.target.value) || 0)}
               />
@@ -167,16 +169,16 @@ pb.authStore.save(token, null);`
 
         <DialogFooter>
           <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
-            关闭
+            {t('impersonate.close')}
           </Button>
           {token ? (
             <Button type="button" variant="secondary" onClick={handleReset} disabled={isSubmitting}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              生成新令牌
+              {t('impersonate.generateNew')}
             </Button>
           ) : (
             <Button type="submit" form="impersonate-form" disabled={isSubmitting}>
-              {isSubmitting ? '生成中...' : '生成令牌'}
+              {isSubmitting ? t('impersonate.generating') : t('impersonate.generate')}
             </Button>
           )}
         </DialogFooter>

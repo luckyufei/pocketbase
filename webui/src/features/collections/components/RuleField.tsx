@@ -1,10 +1,13 @@
 // T024: 单个规则编辑器组件
 // 与 UI 版本保持一致的样式：白色背景、标签在上方、按钮在右上角
 import { useState, useMemo, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useAtomValue } from 'jotai'
 import { Lock, Unlock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CollectionModel } from 'pocketbase'
 import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror'
+import { collectionsAtom } from '../store'
 import { 
   EditorView, 
   keymap, 
@@ -73,6 +76,7 @@ export function RuleField({
   helpText,
   afterLabel,
 }: RuleFieldProps) {
+  const { t } = useTranslation()
   const [tempValue, setTempValue] = useState<string>('')
   const editorRef = useRef<ReactCodeMirrorRef>(null)
 
@@ -94,21 +98,27 @@ export function RuleField({
     onChange(null)
   }
 
+  // 获取全局 collections 数据用于自动补全
+  const allCollections = useAtomValue(collectionsAtom)
+
   // 计算自动补全键
   const autocompleteKeys = useMemo(() => {
-    return getAllAutocompleteKeys([], collection as CollectionModel)
-  }, [collection])
+    return getAllAutocompleteKeys(allCollections, collection as CollectionModel)
+  }, [allCollections, collection])
 
-  // 自动补全函数
+  // 自动补全函数 - 与 UI 版本保持一致
   const completions = (context: CompletionContext) => {
+    // 匹配当前输入的单词（包括 @、'、"、.、: 和字母数字下划线）
     const word = context.matchBefore(/[\'\"\@\w\.\:]*/);
+    
+    // 如果没有输入（光标位置相同）且非显式触发，返回 null
     if (word && word.from === word.to && !context.explicit) {
       return null;
     }
 
     const options: Completion[] = [];
 
-    // 添加宏
+    // 添加宏和关键字
     for (const macro of FILTER_MACROS) {
       options.push({
         label: macro.label,
@@ -117,45 +127,56 @@ export function RuleField({
       });
     }
 
-    // 添加基础字段
-    for (const key of autocompleteKeys.baseKeys) {
+    // 添加 @collection.* 入口
+    options.push({
+      label: '@collection.*',
+      apply: '@collection.',
+      type: 'keyword',
+      info: t('ruleField.crossCollectionQuery'),
+    });
+
+    // 根据输入内容决定加载哪些键
+    const inputText = word?.text || '';
+    
+    // 获取所有键（根据输入前缀决定是否加载 @request 和 @collection 键）
+    const keys = getAllKeys(
+      inputText.startsWith('@r'), // 输入 @r 时加载 @request 键
+      inputText.startsWith('@c')  // 输入 @c 时加载 @collection 键
+    );
+
+    for (const key of keys) {
       options.push({
-        label: key,
+        label: key.endsWith('.') ? key + '*' : key,
+        apply: key,
         type: 'property',
+        boost: key.indexOf('_via_') > 0 ? -1 : 0, // 降低 _via_ 键的优先级
       });
-    }
-
-    // @request 键
-    if (word?.text.startsWith('@r')) {
-      for (const key of autocompleteKeys.requestKeys) {
-        options.push({
-          label: key,
-          type: 'property',
-        });
-      }
-    }
-
-    // @collection 键
-    if (word?.text.startsWith('@c')) {
-      options.push({
-        label: '@collection.*',
-        apply: '@collection.',
-        type: 'keyword',
-        info: '跨集合查询',
-      });
-      for (const key of autocompleteKeys.collectionJoinKeys) {
-        options.push({
-          label: key,
-          type: 'property',
-          boost: key.indexOf('_via_') > 0 ? -1 : 0,
-        });
-      }
     }
 
     return {
       from: word?.from ?? context.pos,
       options,
     };
+  }
+
+  // 获取所有自动补全键 - 与 UI 版本一致
+  const getAllKeys = (includeRequestKeys: boolean = true, includeCollectionJoinKeys: boolean = true) => {
+    let result: string[] = [];
+
+    // 添加基础字段
+    result = result.concat(autocompleteKeys.baseKeys || []);
+
+    // 添加 @request.* 键
+    if (includeRequestKeys) {
+      result = result.concat(autocompleteKeys.requestKeys || []);
+    }
+
+    // 添加 @collection.* 键
+    if (includeCollectionJoinKeys) {
+      result = result.concat(autocompleteKeys.collectionJoinKeys || []);
+    }
+
+    return result;
   }
 
   // CodeMirror 扩展配置
@@ -206,7 +227,7 @@ export function RuleField({
           isSuperuserOnly && "text-muted-foreground"
         )}>
           <span>{label}</span>
-          {isSuperuserOnly && <span className="text-muted-foreground">- Superusers only</span>}
+          {isSuperuserOnly && <span className="text-muted-foreground">- {t('apiRules.superusersOnly', 'Superusers only')}</span>}
           {afterLabel}
         </label>
 
@@ -224,7 +245,7 @@ export function RuleField({
             onClick={lock}
           >
             <Lock className="h-3 w-3" />
-            <span>Set Superusers only</span>
+            <span>{t('apiRules.setSuperusersOnly', 'Set Superusers only')}</span>
           </button>
         )}
 
@@ -252,7 +273,7 @@ export function RuleField({
               onClick={unlock}
             >
               <span className="text-xs text-transparent group-hover:text-green-600 transition-colors">
-                Unlock and set custom rule
+                {t('apiRules.unlockAndSetCustomRule', 'Unlock and set custom rule')}
               </span>
               <Unlock className="h-4 w-4 text-green-600" />
             </button>

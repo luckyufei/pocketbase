@@ -4,6 +4,7 @@
  * 与 UI 版本对齐
  */
 import { useMemo, useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Download, Copy, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ interface LogViewPanelProps {
 }
 
 export function LogViewPanel({ log, onClose }: LogViewPanelProps) {
+  const { t } = useTranslation()
   const isRequest = log?.data?.type === 'request'
   const dataKeys = useMemo(() => (log?.data ? extractSortedDataKeys(log.data) : []), [log?.data])
 
@@ -38,7 +40,7 @@ export function LogViewPanel({ log, onClose }: LogViewPanelProps) {
           {/* 面板头部 */}
           <div className="h-14 px-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/80 backdrop-blur-sm shrink-0">
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-slate-900">Log Details</span>
+              <span className="text-sm font-medium text-slate-900">{t('logs.logDetails', 'Log Details')}</span>
               <LogLevel level={log.level} />
             </div>
             <div className="flex items-center gap-1">

@@ -3,6 +3,7 @@
  * 数据库备份管理 - 与 UI 版本保持一致
  */
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -78,6 +79,7 @@ interface BackupsSettings {
 }
 
 export function Backups() {
+  const { t } = useTranslation()
   const pb = getApiClient()
   
   // Backup list state
@@ -420,16 +422,16 @@ export function Backups() {
       {/* 页面标题 */}
       <header className="mb-6">
         <nav className="text-sm text-muted-foreground mb-2">
-          <span>Settings</span>
+          <span>{t('settingsPage.breadcrumbSettings')}</span>
           <span className="mx-2">/</span>
-          <span className="text-foreground">Backups</span>
+          <span className="text-foreground">{t('settingsPage.backups.breadcrumb')}</span>
         </nav>
       </header>
 
       <div className="space-y-4">
         {/* 标题行 */}
         <div className="flex items-center gap-2">
-          <span className="text-base">Backup and restore your PocketBase data</span>
+          <span className="text-base">{t('settingsPage.backups.description')}</span>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -437,7 +439,7 @@ export function Backups() {
                   <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Refresh</TooltipContent>
+              <TooltipContent>{t('settingsPage.backups.refresh')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           <TooltipProvider>
@@ -447,7 +449,7 @@ export function Backups() {
                   {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Upload backup</TooltipContent>
+              <TooltipContent>{t('settingsPage.backups.uploadBackup')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
           <input
@@ -468,7 +470,7 @@ export function Backups() {
               </div>
             ) : backups.length === 0 ? (
               <div className="p-4 text-center text-muted-foreground">
-                No backups yet.
+                {t('settingsPage.backups.noBackups')}
               </div>
             ) : (
               backups.map((backup) => (
@@ -500,7 +502,7 @@ export function Backups() {
                             )}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Download</TooltipContent>
+                        <TooltipContent>{t('settingsPage.backups.download')}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                     <TooltipProvider>
@@ -516,7 +518,7 @@ export function Backups() {
                             <RotateCcw className="h-4 w-4" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Restore</TooltipContent>
+                        <TooltipContent>{t('settingsPage.backups.restore')}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                     <TooltipProvider>
@@ -536,7 +538,7 @@ export function Backups() {
                             )}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Delete</TooltipContent>
+                        <TooltipContent>{t('settingsPage.backups.delete')}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </div>
@@ -559,12 +561,12 @@ export function Backups() {
               {canBackup ? (
                 <>
                   <Play className="h-4 w-4" />
-                  <span>Initialize new backup</span>
+                  <span>{t('settingsPage.backups.initializeNewBackup')}</span>
                 </>
               ) : (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Backup/restore operation is in process</span>
+                  <span>{t('settingsPage.backups.backupInProcess')}</span>
                 </>
               )}
             </button>
@@ -579,7 +581,7 @@ export function Backups() {
           onClick={() => setShowBackupsOptions(!showBackupsOptions)}
           disabled={isLoading}
         >
-          <span>Backups options</span>
+          <span>{t('settingsPage.backups.backupsOptions')}</span>
           {showBackupsOptions ? (
             <ChevronUp className="h-4 w-4 ml-2" />
           ) : (
@@ -597,14 +599,14 @@ export function Backups() {
                 checked={enableAutoBackups}
                 onCheckedChange={(checked) => setEnableAutoBackups(checked as boolean)}
               />
-              <Label htmlFor="enableAutoBackups">Enable auto backups</Label>
+              <Label htmlFor="enableAutoBackups">{t('settingsPage.backups.enableAutoBackups')}</Label>
             </div>
 
             {/* Auto backup settings */}
             {enableAutoBackups && (
               <div className="grid grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-150">
                 <div className="space-y-2">
-                  <Label htmlFor="cron">Cron expression <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="cron">{t('settingsPage.backups.cronExpression')} <span className="text-destructive">*</span></Label>
                   <div className="flex gap-2">
                     <Input
                       id="cron"
@@ -617,32 +619,32 @@ export function Backups() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" size="sm">
-                          Presets
+                          {t('settingsPage.backups.presets')}
                           <ChevronDown className="h-4 w-4 ml-1" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
                         <DropdownMenuItem onClick={() => setSettings(prev => ({ ...prev, cron: '0 0 * * *' }))}>
-                          Every day at 00:00h
+                          {t('settingsPage.backups.everyDay')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setSettings(prev => ({ ...prev, cron: '0 0 * * 0' }))}>
-                          Every sunday at 00:00h
+                          {t('settingsPage.backups.everySunday')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setSettings(prev => ({ ...prev, cron: '0 0 * * 1,3' }))}>
-                          Every Mon and Wed at 00:00h
+                          {t('settingsPage.backups.everyMonWed')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => setSettings(prev => ({ ...prev, cron: '0 0 1 * *' }))}>
-                          Every first day of the month at 00:00h
+                          {t('settingsPage.backups.everyFirstDay')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Supports numeric list, steps, ranges or{' '}
+                    {t('settingsPage.backups.cronHint')}{' '}
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="text-primary cursor-help">macros</span>
+                          <span className="text-primary cursor-help">{t('settingsPage.backups.macros')}</span>
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="whitespace-pre">@yearly{'\n'}@annually{'\n'}@monthly{'\n'}@weekly{'\n'}@daily{'\n'}@midnight{'\n'}@hourly</p>
@@ -650,11 +652,11 @@ export function Backups() {
                       </Tooltip>
                     </TooltipProvider>.
                     <br />
-                    The timezone is in UTC.
+                    {t('settingsPage.backups.timezoneHint')}
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="cronMaxKeep">Max @auto backups to keep <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="cronMaxKeep">{t('settingsPage.backups.maxAutoBackups')} <span className="text-destructive">*</span></Label>
                   <Input
                     id="cronMaxKeep"
                     type="number"
@@ -678,13 +680,13 @@ export function Backups() {
                   s3: { ...prev.s3, enabled: checked as boolean }
                 }))}
               />
-              <Label htmlFor="s3Enabled">Store backups in S3 storage</Label>
+              <Label htmlFor="s3Enabled">{t('settingsPage.backups.storeInS3')}</Label>
             </div>
 
             {settings.s3.enabled && (
               <div className="grid grid-cols-1 md:grid-cols-6 gap-4 animate-in slide-in-from-top-2 duration-150">
                 <div className="md:col-span-3 space-y-2">
-                  <Label htmlFor="s3Endpoint">Endpoint <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="s3Endpoint">{t('settingsPage.backups.endpoint')} <span className="text-destructive">*</span></Label>
                   <Input
                     id="s3Endpoint"
                     value={settings.s3.endpoint}
@@ -696,7 +698,7 @@ export function Backups() {
                   />
                 </div>
                 <div className="md:col-span-2 space-y-2">
-                  <Label htmlFor="s3Bucket">Bucket <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="s3Bucket">{t('settingsPage.backups.bucket')} <span className="text-destructive">*</span></Label>
                   <Input
                     id="s3Bucket"
                     value={settings.s3.bucket}
@@ -708,7 +710,7 @@ export function Backups() {
                   />
                 </div>
                 <div className="md:col-span-1 space-y-2">
-                  <Label htmlFor="s3Region">Region <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="s3Region">{t('settingsPage.backups.region')} <span className="text-destructive">*</span></Label>
                   <Input
                     id="s3Region"
                     value={settings.s3.region}
@@ -720,7 +722,7 @@ export function Backups() {
                   />
                 </div>
                 <div className="md:col-span-3 space-y-2">
-                  <Label htmlFor="s3AccessKey">Access key <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="s3AccessKey">{t('settingsPage.backups.accessKey')} <span className="text-destructive">*</span></Label>
                   <Input
                     id="s3AccessKey"
                     value={settings.s3.accessKey}
@@ -732,7 +734,7 @@ export function Backups() {
                   />
                 </div>
                 <div className="md:col-span-3 space-y-2">
-                  <Label htmlFor="s3Secret">Secret <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="s3Secret">{t('settingsPage.backups.secret')} <span className="text-destructive">*</span></Label>
                   <Input
                     id="s3Secret"
                     type="password"
@@ -754,14 +756,14 @@ export function Backups() {
                     }))}
                   />
                   <Label htmlFor="s3ForcePathStyle" className="flex items-center gap-1">
-                    <span>Force path-style addressing</span>
+                    <span>{t('settingsPage.backups.forcePathStyle')}</span>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger>
                           <Info className="h-4 w-4 text-muted-foreground" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
-                          Forces the request to use path-style addressing, eg. "https://s3.amazonaws.com/BUCKET/KEY" instead of the default "https://BUCKET.s3.amazonaws.com/KEY".
+                          {t('settingsPage.backups.forcePathStyleHint')}
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
@@ -774,7 +776,7 @@ export function Backups() {
             <div className="flex items-center justify-end gap-2 pt-4 border-t">
               {hasChanges && (
                 <Button type="button" variant="ghost" onClick={resetSettings} disabled={isSaving}>
-                  Reset
+                  {t('settingsPage.backups.reset')}
                 </Button>
               )}
 
@@ -784,7 +786,7 @@ export function Backups() {
                   {isTesting ? (
                     <span className="flex items-center gap-2 text-sm text-muted-foreground">
                       <Loader2 className="h-4 w-4 animate-spin" />
-                      Testing connection...
+                      {t('settingsPage.backups.testingConnection')}
                     </span>
                   ) : testError ? (
                     <TooltipProvider>
@@ -792,7 +794,7 @@ export function Backups() {
                         <TooltipTrigger asChild>
                           <span className="flex items-center gap-2 text-sm text-yellow-600 cursor-help">
                             <AlertTriangle className="h-4 w-4" />
-                            Failed to establish S3 connection
+                            {t('settingsPage.backups.s3ConnectionFailed')}
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-sm">
@@ -803,7 +805,7 @@ export function Backups() {
                   ) : testSuccess ? (
                     <span className="flex items-center gap-2 text-sm text-green-600">
                       <CheckCircle2 className="h-4 w-4" />
-                      S3 connected successfully
+                      {t('settingsPage.backups.s3ConnectedSuccess')}
                     </span>
                   ) : null}
                 </>
@@ -811,7 +813,7 @@ export function Backups() {
 
               <Button onClick={saveSettings} disabled={!hasChanges || isSaving}>
                 {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                Save changes
+                {t('settingsPage.backups.saveChanges')}
               </Button>
             </div>
           </div>
@@ -822,7 +824,7 @@ export function Backups() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-center">Initialize new backup</DialogTitle>
+            <DialogTitle className="text-center">{t('settingsPage.backups.createDialogTitle')}</DialogTitle>
           </DialogHeader>
           
           <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 text-sm">
@@ -830,36 +832,34 @@ export function Backups() {
               <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div className="space-y-2">
                 <p>
-                  Please note that during the backup other concurrent write requests may fail since the
-                  database will be temporary "locked" (this usually happens only during the ZIP generation).
+                  {t('settingsPage.backups.createDialogNote')}
                 </p>
                 <p className="font-semibold">
-                  If you are using S3 storage for the collections file upload, you'll have to backup them
-                  separately since they are not locally stored and will not be included in the final backup!
+                  {t('settingsPage.backups.createDialogS3Note')}
                 </p>
               </div>
             </div>
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="backupName">Backup name</Label>
+            <Label htmlFor="backupName">{t('settingsPage.backups.backupName')}</Label>
             <Input
               id="backupName"
               value={newBackupName}
               onChange={(e) => setNewBackupName(e.target.value)}
-              placeholder="Leave empty to autogenerate"
+              placeholder={t('settingsPage.backups.backupNamePlaceholder')}
               pattern="^[a-z0-9_-]+\.zip$"
             />
-            <p className="text-xs text-muted-foreground">Must be in the format [a-z0-9_-].zip</p>
+            <p className="text-xs text-muted-foreground">{t('settingsPage.backups.backupNameHint')}</p>
           </div>
           
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCreateDialogOpen(false)} disabled={isCreating}>
-              Cancel
+              {t('settingsPage.backups.cancel')}
             </Button>
             <Button onClick={createBackup} disabled={isCreating}>
               {isCreating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Start backup
+              {t('settingsPage.backups.startBackup')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -870,7 +870,7 @@ export function Backups() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Restore <strong>{selectedBackup}</strong>
+              {t('settingsPage.backups.restoreTitle')} <strong>{selectedBackup}</strong>
             </DialogTitle>
           </DialogHeader>
           
@@ -878,25 +878,23 @@ export function Backups() {
             <div className="flex gap-3">
               <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
               <div className="space-y-2">
-                <p className="font-semibold">Please proceed with caution and use it only with trusted backups!</p>
-                <p>Backup restore is experimental and works only on UNIX based systems.</p>
+                <p className="font-semibold">{t('settingsPage.backups.restoreWarning')}</p>
+                <p>{t('settingsPage.backups.restoreExperimental')}</p>
                 <p>
-                  The restore operation will attempt to replace your existing <code className="bg-muted px-1 rounded">pb_data</code> with the one from
-                  the backup and will restart the application process.
+                  {t('settingsPage.backups.restoreReplaceNote')} <code className="bg-muted px-1 rounded">pb_data</code> {t('settingsPage.backups.restoreReplaceNote2')}
                 </p>
                 <p>
-                  This means that on success all of your data (including app settings, users, superusers, etc.)
-                  will be replaced with the ones from the backup.
+                  {t('settingsPage.backups.restoreDataNote')}
                 </p>
                 <p>
-                  Nothing will happen if the backup is invalid (ex. missing <code className="bg-muted px-1 rounded">data.db</code> file).
+                  {t('settingsPage.backups.restoreInvalidNote')} <code className="bg-muted px-1 rounded">data.db</code> {t('settingsPage.backups.restoreInvalidNote2')}
                 </p>
-                <p>Below is an oversimplified version of the restore flow:</p>
+                <p>{t('settingsPage.backups.restoreFlowTitle')}</p>
                 <ol className="list-decimal list-inside space-y-1 ml-2">
-                  <li>Replaces the current <code className="bg-muted px-1 rounded">pb_data</code> with the content from the backup</li>
-                  <li>Triggers app restart</li>
-                  <li>Applies all migrations that are missing in the restored <code className="bg-muted px-1 rounded">pb_data</code></li>
-                  <li>Initializes the app server as usual</li>
+                  <li>{t('settingsPage.backups.restoreStep1')} <code className="bg-muted px-1 rounded">pb_data</code> {t('settingsPage.backups.restoreStep1b')}</li>
+                  <li>{t('settingsPage.backups.restoreStep2')}</li>
+                  <li>{t('settingsPage.backups.restoreStep3')} <code className="bg-muted px-1 rounded">pb_data</code></li>
+                  <li>{t('settingsPage.backups.restoreStep4')}</li>
                 </ol>
               </div>
             </div>
@@ -904,17 +902,17 @@ export function Backups() {
           
           <div className="space-y-2">
             <p className="text-sm">
-              Type the backup name{' '}
+              {t('settingsPage.backups.typeBackupName')}{' '}
               <span className="inline-flex items-center gap-1 bg-muted px-2 py-0.5 rounded text-sm font-mono">
                 {selectedBackup}
                 <button onClick={copyBackupName} className="hover:text-primary">
                   {copiedName ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                 </button>
               </span>
-              {' '}to confirm:
+              {' '}{t('settingsPage.backups.toConfirm')}
             </p>
             <div className="space-y-1">
-              <Label htmlFor="restoreConfirm">Backup name <span className="text-destructive">*</span></Label>
+              <Label htmlFor="restoreConfirm">{t('settingsPage.backups.backupNameRequired')} <span className="text-destructive">*</span></Label>
               <Input
                 id="restoreConfirm"
                 value={restoreConfirmName}
@@ -926,14 +924,14 @@ export function Backups() {
           
           <DialogFooter>
             <Button variant="ghost" onClick={() => setRestoreDialogOpen(false)} disabled={isRestoring}>
-              Cancel
+              {t('settingsPage.backups.cancel')}
             </Button>
             <Button
               onClick={restoreBackup}
               disabled={isRestoring || restoreConfirmName !== selectedBackup}
             >
               {isRestoring && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Restore backup
+              {t('settingsPage.backups.restoreBackup')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -943,22 +941,22 @@ export function Backups() {
       <AlertDialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Upload backup</AlertDialogTitle>
+            <AlertDialogTitle>{t('settingsPage.backups.uploadDialogTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Note that we don't perform validations for the uploaded backup files. Proceed with caution and only if you trust the source.
+              {t('settingsPage.backups.uploadDialogDesc')}
               <br /><br />
-              Do you really want to upload "{selectedBackup}"?
+              {t('settingsPage.backups.uploadConfirm', { name: selectedBackup })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isUploading} onClick={() => {
               if (fileInputRef.current) fileInputRef.current.value = ''
             }}>
-              Cancel
+              {t('settingsPage.backups.cancel')}
             </AlertDialogCancel>
             <AlertDialogAction onClick={uploadBackup} disabled={isUploading}>
               {isUploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Upload
+              {t('settingsPage.backups.upload')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -968,14 +966,14 @@ export function Backups() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete backup</AlertDialogTitle>
+            <AlertDialogTitle>{t('settingsPage.backups.deleteDialogTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Do you really want to delete {selectedBackup}?
+              {t('settingsPage.backups.deleteConfirm', { name: selectedBackup })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={deleteBackup}>Delete</AlertDialogAction>
+            <AlertDialogCancel>{t('settingsPage.backups.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteBackup}>{t('settingsPage.backups.delete')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

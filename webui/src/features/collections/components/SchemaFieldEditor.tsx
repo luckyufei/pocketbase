@@ -3,6 +3,7 @@
  * 支持展开/折叠、拖拽排序
  */
 import { useRef, useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Button } from '@/components/ui/button'
@@ -147,6 +148,7 @@ export function SchemaFieldEditor({
   onDuplicate,
   onRename,
 }: SchemaFieldEditorProps) {
+  const { t } = useTranslation()
   // 名称输入框引用
   const nameInputRef = useRef<HTMLInputElement>(null)
   
@@ -175,7 +177,7 @@ export function SchemaFieldEditor({
   const isInteractive = !isDeleted
   const isAuthCollection = collectionType === 'auth'
 
-  const requiredLabel = REQUIRED_LABELS[field.type] || 'Nonempty'
+  const requiredLabel = t(`collections.${(REQUIRED_LABELS[field.type] || 'nonempty').toLowerCase()}`, REQUIRED_LABELS[field.type] || 'Nonempty')
   const FieldIcon = FIELD_TYPE_ICONS[field.type] || HelpCircle
 
   // Auth 集合中的选项显示控制
@@ -282,7 +284,7 @@ export function SchemaFieldEditor({
               )}
               {field.hidden && (
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-red-50 text-red-500">
-                  Hidden
+                  {t('collections.hidden')}
                 </span>
               )}
             </div>
@@ -375,7 +377,7 @@ export function SchemaFieldEditor({
                     }}
                     className="rounded"
                   />
-                  <span className="text-sm">Hidden</span>
+                  <span className="text-sm">{t('collections.hidden')}</span>
                 </label>
               )}
 
@@ -390,7 +392,7 @@ export function SchemaFieldEditor({
                     className="rounded"
                   />
                   <span className={cn('text-sm', field.hidden && 'text-muted-foreground')}>
-                    Presentable
+                    {t('collections.presentable')}
                   </span>
                 </label>
               )}
@@ -407,12 +409,12 @@ export function SchemaFieldEditor({
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={onDuplicate}>
                     <Copy className="h-4 w-4 mr-2" />
-                    Duplicate
+                    {t('collections.duplicate')}
                   </DropdownMenuItem>
                   {!isSystem && (
                     <DropdownMenuItem onClick={onRemove} className="text-destructive">
                       <Trash2 className="h-4 w-4 mr-2" />
-                      Remove
+                      {t('collections.remove')}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>

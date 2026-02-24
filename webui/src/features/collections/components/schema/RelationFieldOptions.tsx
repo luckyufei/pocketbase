@@ -1,4 +1,5 @@
 // T015: Relation 字段选项组件
+import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -38,6 +39,7 @@ export function RelationFieldOptions({
   onChange,
   collections = [],
 }: RelationFieldOptionsProps) {
+  const { t } = useTranslation()
   const isSingle = (field.maxSelect || 1) <= 1
   const selectableCollections = collections.filter((c) => c.type !== 'view')
   const selectedCollection = collections.find((c) => c.id === field.collectionId)
@@ -53,14 +55,14 @@ export function RelationFieldOptions({
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label>Select collection *</Label>
+        <Label>{t('collections.selectCollection')}</Label>
         <Select
           value={field.collectionId || ''}
           onValueChange={(value) => onChange({ ...field, collectionId: value })}
-          disabled={!!field.id} // 已保存的字段不能修改关联集合
+          disabled={!!field.id}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Select collection *" />
+            <SelectValue placeholder={t('collections.selectCollectionPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
             {selectableCollections.map((col) => (
@@ -73,14 +75,14 @@ export function RelationFieldOptions({
       </div>
 
       <div className="space-y-2">
-        <Label>Selection type</Label>
+        <Label>{t('collections.selectionType')}</Label>
         <Select value={isSingle ? 'single' : 'multiple'} onValueChange={handleSingleMultipleChange}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="single">Single</SelectItem>
-            <SelectItem value="multiple">Multiple</SelectItem>
+            <SelectItem value="single">{t('collections.single')}</SelectItem>
+            <SelectItem value="multiple">{t('collections.multiple')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -88,24 +90,24 @@ export function RelationFieldOptions({
       {!isSingle && (
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="relation-minselect">Min select</Label>
+            <Label htmlFor="relation-minselect">{t('collections.minSelect')}</Label>
             <Input
               id="relation-minselect"
               type="number"
               min={0}
-              placeholder="No min limit"
+              placeholder={t('collections.noMinLimit')}
               value={field.minSelect || ''}
               onChange={(e) => onChange({ ...field, minSelect: parseInt(e.target.value, 10) || 0 })}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="relation-maxselect">Max select</Label>
+            <Label htmlFor="relation-maxselect">{t('collections.maxSelect')}</Label>
             <Input
               id="relation-maxselect"
               type="number"
               min={field.minSelect || 1}
-              placeholder="Default to single"
+              placeholder={t('collections.defaultToSingle')}
               value={field.maxSelect || ''}
               onChange={(e) => onChange({ ...field, maxSelect: parseInt(e.target.value, 10) || 1 })}
             />
@@ -115,7 +117,7 @@ export function RelationFieldOptions({
 
       <div className="space-y-2">
         <div className="flex items-center gap-1">
-          <Label>Cascade delete</Label>
+          <Label>{t('collections.cascadeDelete')}</Label>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -123,14 +125,11 @@ export function RelationFieldOptions({
               </TooltipTrigger>
               <TooltipContent className="max-w-xs">
                 <p>
-                  Whether on {selectedCollection?.name || 'relation'} record deletion to delete also
-                  the current corresponding collection record(s).
+                  {t('collections.cascadeDeleteTooltip', { collection: selectedCollection?.name || 'relation' })}
                 </p>
                 {!isSingle && (
                   <p className="mt-2">
-                    For "Multiple" relation fields the cascade delete is triggered only when all{' '}
-                    {selectedCollection?.name || 'relation'} ids are removed from the corresponding
-                    record.
+                    {t('collections.cascadeDeleteMultiTooltip', { collection: selectedCollection?.name || 'relation' })}
                   </p>
                 )}
               </TooltipContent>
@@ -145,8 +144,8 @@ export function RelationFieldOptions({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="false">False</SelectItem>
-            <SelectItem value="true">True</SelectItem>
+            <SelectItem value="false">{t('collections.false')}</SelectItem>
+            <SelectItem value="true">{t('collections.true')}</SelectItem>
           </SelectContent>
         </Select>
       </div>

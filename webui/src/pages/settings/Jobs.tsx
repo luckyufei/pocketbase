@@ -3,6 +3,7 @@
  * 任务队列管理 - 与 UI 版本对齐
  */
 import { useEffect, useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { JobsStats, JobsFilters, JobsList, useJobs } from '@/features/jobs'
@@ -24,6 +25,7 @@ import {
 } from '@/components/ui/tooltip'
 
 export default function JobsPage() {
+  const { t } = useTranslation()
   const {
     jobs,
     stats,
@@ -65,11 +67,11 @@ export default function JobsPage() {
 
   return (
     <div className="p-6 space-y-5">
-      {/* 面包屑导航 - 与 UI 版本对齐 */}
+      {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-lg">
-        <span className="text-muted-foreground">Settings</span>
+        <span className="text-muted-foreground">{t('settingsPage.breadcrumbSettings')}</span>
         <span className="text-muted-foreground">/</span>
-        <span className="font-medium">Jobs</span>
+        <span className="font-medium">{t('settingsPage.jobs.breadcrumb')}</span>
       </div>
 
       {/* 统计卡片 */}
@@ -77,9 +79,9 @@ export default function JobsPage() {
 
       {/* 任务列表面板 - 使用 panel 样式，与 UI 版本一致 */}
       <div className="panel">
-        {/* 标题栏 */}
+        {/* Title bar */}
         <div className="flex items-center gap-2 mb-4">
-          <span className="text-xl font-medium">Job Queue</span>
+          <span className="text-xl font-medium">{t('settingsPage.jobs.jobQueue')}</span>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -92,7 +94,7 @@ export default function JobsPage() {
                   <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Refresh</TooltipContent>
+              <TooltipContent>{t('settingsPage.jobs.refresh')}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
@@ -114,18 +116,18 @@ export default function JobsPage() {
         />
       </div>
 
-      {/* 删除确认对话框 */}
+      {/* Delete confirm dialog */}
       <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Delete</AlertDialogTitle>
+            <AlertDialogTitle>{t('settingsPage.jobs.confirmDeleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete job "{deleteConfirm}"?
+              {t('settingsPage.jobs.confirmDeleteDesc', { jobId: deleteConfirm })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>Delete</AlertDialogAction>
+            <AlertDialogCancel>{t('settingsPage.jobs.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>{t('settingsPage.jobs.delete')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

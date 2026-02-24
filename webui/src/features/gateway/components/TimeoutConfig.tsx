@@ -4,6 +4,7 @@
  */
 import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -27,6 +28,7 @@ export function TimeoutConfig({
   defaultExpanded = false,
 }: TimeoutConfigProps) {
   const [expanded, setExpanded] = useState(defaultExpanded)
+  const { t } = useTranslation()
   const config = value || defaultConfig
 
   const handleFieldChange = (field: keyof TimeoutConfigType, fieldValue: number) => {
@@ -50,11 +52,11 @@ export function TimeoutConfig({
         )}
         onClick={() => setExpanded(!expanded)}
       >
-        <span className="font-medium text-slate-700">高级超时配置</span>
+        <span className="font-medium text-slate-700">{t('gateway.advancedTimeout')}</span>
         <div className="flex items-center gap-2">
           {isCustom && (
             <span className="text-xs text-slate-500 bg-slate-200 px-2 py-0.5 rounded">
-              已自定义
+              {t('gateway.customized')}
             </span>
           )}
           {expanded ? (
@@ -70,7 +72,7 @@ export function TimeoutConfig({
         <div className="p-4 space-y-4">
           {/* 建连超时 */}
           <div className="space-y-2">
-            <Label htmlFor="timeout-dial">建连超时（秒）</Label>
+            <Label htmlFor="timeout-dial">{t('gateway.dialTimeout')}</Label>
             <Input
               id="timeout-dial"
               type="number"
@@ -79,12 +81,12 @@ export function TimeoutConfig({
               value={config.dial}
               onChange={(e) => handleFieldChange('dial', parseInt(e.target.value, 10) || 2)}
             />
-            <p className="text-xs text-slate-400">默认 2s</p>
+            <p className="text-xs text-slate-400">{t('gateway.dialTimeoutDefault')}</p>
           </div>
 
           {/* 首字节超时 */}
           <div className="space-y-2">
-            <Label htmlFor="timeout-response">首字节超时（秒）</Label>
+            <Label htmlFor="timeout-response">{t('gateway.responseTimeout')}</Label>
             <Input
               id="timeout-response"
               type="number"
@@ -95,12 +97,12 @@ export function TimeoutConfig({
                 handleFieldChange('responseHeader', parseInt(e.target.value, 10) || 0)
               }
             />
-            <p className="text-xs text-slate-400">0 = 无限（AI 推理场景）</p>
+            <p className="text-xs text-slate-400">{t('gateway.responseTimeoutDefault')}</p>
           </div>
 
           {/* 空闲超时 */}
           <div className="space-y-2">
-            <Label htmlFor="timeout-idle">空闲超时（秒）</Label>
+            <Label htmlFor="timeout-idle">{t('gateway.idleTimeout')}</Label>
             <Input
               id="timeout-idle"
               type="number"
@@ -109,7 +111,7 @@ export function TimeoutConfig({
               value={config.idle}
               onChange={(e) => handleFieldChange('idle', parseInt(e.target.value, 10) || 90)}
             />
-            <p className="text-xs text-slate-400">默认 90s</p>
+            <p className="text-xs text-slate-400">{t('gateway.idleTimeoutDefault')}</p>
           </div>
         </div>
       )}

@@ -3,6 +3,7 @@
  * 分析数据收集和保留设置
  */
 import { useEffect, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -25,6 +26,7 @@ interface AnalyticsConfig {
 }
 
 export function AnalyticsSettings() {
+  const { t } = useTranslation()
   const [config, setConfig] = useState<AnalyticsConfig>({
     enabled: true,
     retention: 90,
@@ -148,20 +150,20 @@ export function AnalyticsSettings() {
 
   return (
     <div className="p-6 max-w-2xl">
-      {/* 页面标题 */}
+      {/* Page header */}
       <header className="mb-6">
         <nav className="text-sm text-muted-foreground mb-2">
-          <span>Settings</span>
+          <span>{t('settingsPage.breadcrumbSettings')}</span>
           <span className="mx-2">/</span>
-          <span className="text-foreground">Analytics</span>
+          <span className="text-foreground">{t('settingsPage.analyticsSettings.breadcrumb')}</span>
         </nav>
         <p className="text-sm text-muted-foreground">
-          Configure analytics data collection and retention settings.
+          {t('settingsPage.analyticsSettings.description')}
         </p>
       </header>
 
       <div className="space-y-6">
-        {/* 启用开关 */}
+        {/* Enable switch */}
         <div className="flex items-center space-x-2">
           <Switch
             id="enabled"
@@ -169,15 +171,14 @@ export function AnalyticsSettings() {
             onCheckedChange={(checked) => setConfig((prev) => ({ ...prev, enabled: checked }))}
           />
           <Label htmlFor="enabled" className="flex items-center gap-1">
-            Enable analytics
+            {t('settingsPage.analyticsSettings.enableAnalytics')}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Info className="w-4 h-4 text-muted-foreground cursor-help" />
                 </TooltipTrigger>
                 <TooltipContent side="right" className="max-w-xs">
-                  When enabled, the system will collect page views, events, and other analytics data.
-                  Disabling this will stop all data collection.
+                  {t('settingsPage.analyticsSettings.enableTooltip')}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -189,15 +190,14 @@ export function AnalyticsSettings() {
             {/* Data retention (days) */}
             <div className="space-y-2">
               <Label htmlFor="retention" className="flex items-center gap-1">
-                Data retention (days)
+                {t('settingsPage.analyticsSettings.dataRetention')}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Info className="w-4 h-4 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent side="right" className="max-w-xs">
-                      Number of days to keep analytics data. Data older than this will be
-                      automatically deleted. Minimum is 1 day.
+                      {t('settingsPage.analyticsSettings.dataRetentionTooltip')}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -221,15 +221,14 @@ export function AnalyticsSettings() {
             {/* S3 Bucket */}
             <div className="space-y-2">
               <Label htmlFor="s3Bucket" className="flex items-center gap-1">
-                S3 Bucket (optional)
+                {t('settingsPage.analyticsSettings.s3Bucket')}
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Info className="w-4 h-4 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent side="right" className="max-w-xs">
-                      Optional S3 bucket for storing raw analytics logs. Required for PostgreSQL
-                      mode if you want to preserve raw event data.
+                      {t('settingsPage.analyticsSettings.s3BucketTooltip')}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -238,22 +237,22 @@ export function AnalyticsSettings() {
                 id="s3Bucket"
                 value={config.s3Bucket}
                 onChange={(e) => setConfig((prev) => ({ ...prev, s3Bucket: e.target.value }))}
-                placeholder="my-analytics-bucket"
+                placeholder={t('settingsPage.analyticsSettings.s3BucketPlaceholder')}
               />
             </div>
           </div>
         )}
 
-        {/* 操作按钮 */}
+        {/* Action buttons */}
         <div className="flex justify-end gap-2 pt-4">
           {hasChanges && (
             <Button variant="ghost" onClick={resetConfig} disabled={isSaving}>
-              Cancel
+              {t('settingsPage.analyticsSettings.cancel')}
             </Button>
           )}
           <Button onClick={saveConfig} disabled={!hasChanges || isSaving}>
             {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Save changes
+            {t('settingsPage.analyticsSettings.saveChanges')}
           </Button>
         </div>
       </div>

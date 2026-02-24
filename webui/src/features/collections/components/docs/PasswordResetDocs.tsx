@@ -20,6 +20,7 @@ interface PasswordResetDocsProps {
 }
 
 function PasswordResetApiRequestDocs({ collection }: { collection: Collection }) {
+  const { t } = useTranslation()
   const [responseTab, setResponseTab] = useState('204')
 
   const responses = [
@@ -54,22 +55,22 @@ function PasswordResetApiRequestDocs({ collection }: { collection: Collection })
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Body Parameters</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.bodyParameters')}</h6>
         <div className="border rounded-md overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium">Param</th>
-                <th className="text-left p-2 font-medium">Type</th>
-                <th className="text-left p-2 font-medium w-1/2">Description</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.param')}</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.type')}</th>
+                <th className="text-left p-2 font-medium w-1/2">{t('records.apiDocs.description')}</th>
               </tr>
             </thead>
             <tbody>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                      Required
+<Badge variant="secondary" className="bg-green-100 text-green-800 text-xs whitespace-nowrap">
+                      {t('records.apiDocs.required')}
                     </Badge>
                     <span>email</span>
                   </div>
@@ -78,7 +79,7 @@ function PasswordResetApiRequestDocs({ collection }: { collection: Collection })
                   <Badge variant="outline">String</Badge>
                 </td>
                 <td className="p-2 text-muted-foreground">
-                  The auth record email address to send the password reset request (if exists).
+                  {t('records.apiDocs.auth.emailForRequest')}
                 </td>
               </tr>
             </tbody>
@@ -87,7 +88,7 @@ function PasswordResetApiRequestDocs({ collection }: { collection: Collection })
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Responses</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.responses')}</h6>
         <Tabs value={responseTab} onValueChange={setResponseTab}>
           <TabsList>
             {responses.map((response) => (
@@ -108,6 +109,7 @@ function PasswordResetApiRequestDocs({ collection }: { collection: Collection })
 }
 
 function PasswordResetApiConfirmDocs({ collection }: { collection: Collection }) {
+  const { t } = useTranslation()
   const [responseTab, setResponseTab] = useState('204')
 
   const responses = [
@@ -142,22 +144,22 @@ function PasswordResetApiConfirmDocs({ collection }: { collection: Collection })
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Body Parameters</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.bodyParameters')}</h6>
         <div className="border rounded-md overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted">
               <tr>
-                <th className="text-left p-2 font-medium">Param</th>
-                <th className="text-left p-2 font-medium">Type</th>
-                <th className="text-left p-2 font-medium w-1/2">Description</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.param')}</th>
+                <th className="text-left p-2 font-medium">{t('records.apiDocs.type')}</th>
+                <th className="text-left p-2 font-medium w-1/2">{t('records.apiDocs.description')}</th>
               </tr>
             </thead>
             <tbody>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                      Required
+<Badge variant="secondary" className="bg-green-100 text-green-800 text-xs whitespace-nowrap">
+                      {t('records.apiDocs.required')}
                     </Badge>
                     <span>token</span>
                   </div>
@@ -166,14 +168,14 @@ function PasswordResetApiConfirmDocs({ collection }: { collection: Collection })
                   <Badge variant="outline">String</Badge>
                 </td>
                 <td className="p-2 text-muted-foreground">
-                  The token from the password reset request email.
+                  {t('records.apiDocs.auth.tokenFromEmail')}
                 </td>
               </tr>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                      Required
+<Badge variant="secondary" className="bg-green-100 text-green-800 text-xs whitespace-nowrap">
+                      {t('records.apiDocs.required')}
                     </Badge>
                     <span>password</span>
                   </div>
@@ -181,13 +183,13 @@ function PasswordResetApiConfirmDocs({ collection }: { collection: Collection })
                 <td className="p-2">
                   <Badge variant="outline">String</Badge>
                 </td>
-                <td className="p-2 text-muted-foreground">The new password to set.</td>
+                <td className="p-2 text-muted-foreground">{t('records.apiDocs.auth.newPassword')}</td>
               </tr>
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                      Required
+<Badge variant="secondary" className="bg-green-100 text-green-800 text-xs whitespace-nowrap">
+                      {t('records.apiDocs.required')}
                     </Badge>
                     <span>passwordConfirm</span>
                   </div>
@@ -195,7 +197,7 @@ function PasswordResetApiConfirmDocs({ collection }: { collection: Collection })
                 <td className="p-2">
                   <Badge variant="outline">String</Badge>
                 </td>
-                <td className="p-2 text-muted-foreground">The new password confirmation.</td>
+                <td className="p-2 text-muted-foreground">{t('records.apiDocs.auth.newPasswordConfirm')}</td>
               </tr>
             </tbody>
           </table>
@@ -203,7 +205,7 @@ function PasswordResetApiConfirmDocs({ collection }: { collection: Collection })
       </div>
 
       <div>
-        <h6 className="font-medium mb-2">Responses</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.responses')}</h6>
         <Tabs value={responseTab} onValueChange={setResponseTab}>
           <TabsList>
             {responses.map((response) => (
@@ -269,26 +271,21 @@ await pb.collection('${collection.name}').confirmPasswordReset(
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold mb-2">Password reset ({collection.name})</h3>
+        <h3 className="text-lg font-semibold mb-2">{t('records.apiDocs.auth.passwordResetTitle', { name: collection.name })}</h3>
         <div className="text-muted-foreground space-y-2">
-          <p>
-            Sends <strong>{collection.name}</strong> password reset email request.
-          </p>
-          <p>
-            On successful password reset all previously issued auth tokens for the specific record
-            will be automatically invalidated.
-          </p>
+          <p dangerouslySetInnerHTML={{ __html: t('records.apiDocs.auth.passwordResetDesc', { name: collection.name }) }} />
+          <p>{t('records.apiDocs.auth.passwordResetNote')}</p>
         </div>
       </div>
 
       <SdkTabs js={jsCode} dart={dartCode} />
 
       <div>
-        <h6 className="font-medium mb-2">API details</h6>
+        <h6 className="font-medium mb-2">{t('records.apiDocs.apiDetails')}</h6>
         <Tabs value={activeApiTab} onValueChange={setActiveApiTab}>
           <UnderlineTabsList>
-            <UnderlineTabsTrigger value="request">Request password reset</UnderlineTabsTrigger>
-            <UnderlineTabsTrigger value="confirm">Confirm password reset</UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="request">{t('records.apiDocs.auth.requestPasswordReset')}</UnderlineTabsTrigger>
+            <UnderlineTabsTrigger value="confirm">{t('records.apiDocs.auth.confirmPasswordReset')}</UnderlineTabsTrigger>
           </UnderlineTabsList>
           <TabsContent value="request">
             <PasswordResetApiRequestDocs collection={collection} />

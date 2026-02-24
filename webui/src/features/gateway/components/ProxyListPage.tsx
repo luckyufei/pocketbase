@@ -4,6 +4,7 @@
  */
 import { useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Search, Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +25,7 @@ import type { ProxyStatus } from '../types'
 const POLLING_INTERVAL = 5000
 
 export function ProxyListPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const {
     filteredProxies,
@@ -84,13 +86,13 @@ export function ProxyListPage() {
     <div className="h-full flex flex-col">
       {/* 页面头部 */}
       <div className="h-14 px-4 border-b border-slate-200 flex items-center justify-between shrink-0">
-        <h1 className="text-lg font-semibold text-slate-900">Gateway Proxies</h1>
+        <h1 className="text-lg font-semibold text-slate-900">{t('gateway.pageTitle')}</h1>
         <Button
           onClick={handleCreateClick}
           className="bg-blue-500 hover:bg-blue-600 text-white shadow-md shadow-blue-200/50"
         >
           <Plus className="w-4 h-4 mr-1" />
-          新建代理
+          {t('gateway.newProxy')}
         </Button>
       </div>
 
@@ -100,7 +102,7 @@ export function ProxyListPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
-            placeholder="搜索代理..."
+            placeholder={t('gateway.searchPlaceholder')}
             value={filter.search}
             onChange={handleSearchChange}
             className="pl-9"
@@ -110,13 +112,13 @@ export function ProxyListPage() {
         {/* 状态筛选 */}
         <Select value={filter.status} onValueChange={handleStatusChange}>
           <SelectTrigger className="w-32">
-            <SelectValue placeholder="状态" />
+            <SelectValue placeholder={t('gateway.statusPlaceholder')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">全部 ({stats.total})</SelectItem>
-            <SelectItem value="normal">正常 ({stats.normal})</SelectItem>
-            <SelectItem value="circuit-open">熔断 ({stats.circuitOpen})</SelectItem>
-            <SelectItem value="disabled">禁用 ({stats.disabled})</SelectItem>
+            <SelectItem value="all">{t('gateway.all')} ({stats.total})</SelectItem>
+            <SelectItem value="normal">{t('gateway.normal')} ({stats.normal})</SelectItem>
+            <SelectItem value="circuit-open">{t('gateway.circuitOpen')} ({stats.circuitOpen})</SelectItem>
+            <SelectItem value="disabled">{t('gateway.disabled')} ({stats.disabled})</SelectItem>
           </SelectContent>
         </Select>
 
@@ -135,13 +137,13 @@ export function ProxyListPage() {
       <div className="flex-1 overflow-auto p-4">
         {isLoading && filteredProxies.length === 0 ? (
           <div className="flex items-center justify-center h-full text-slate-400">
-            加载中...
+            {t('gateway.loading')}
           </div>
         ) : filteredProxies.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-slate-400">
-            <p className="mb-2">暂无代理配置</p>
+            <p className="mb-2">{t('gateway.noProxies')}</p>
             <Button variant="link" onClick={handleCreateClick} className="text-blue-600">
-              创建第一个代理
+              {t('gateway.createFirst')}
             </Button>
           </div>
         ) : (

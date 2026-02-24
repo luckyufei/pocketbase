@@ -151,7 +151,7 @@ export function AuthFields({ record, onChange, collection, isNew }: AuthFieldsPr
               )}
               onClick={() => onChange('emailVisibility', !record.emailVisibility)}
             >
-              Public: {record.emailVisibility ? 'On' : 'Off'}
+              {record.emailVisibility ? t('records.publicOn', 'Public: On') : t('records.publicOff', 'Public: Off')}
             </Button>
           )}
         </div>
@@ -196,7 +196,7 @@ export function AuthFields({ record, onChange, collection, isNew }: AuthFieldsPr
             <FormField name="password">
               <Label data-field-label="" htmlFor="password">
                 <Lock className="inline h-3 w-3 mr-1" />
-                Password
+                {t('records.password', 'Password')}
                 <span className="text-destructive ml-1">*</span>
               </Label>
               {/* 与 UI 版本一致，闪光图标在输入框右侧内部 */}
@@ -265,7 +265,7 @@ export function AuthFields({ record, onChange, collection, isNew }: AuthFieldsPr
             <FormField name="passwordConfirm">
               <Label data-field-label="" htmlFor="passwordConfirm">
                 <Lock className="inline h-3 w-3 mr-1" />
-                Password confirm
+                {t('records.passwordConfirm', 'Password confirm')}
                 <span className="text-destructive ml-1">*</span>
               </Label>
               {/* 与 UI 版本一致，密码确认输入框不显示眼睛图标 */}
@@ -291,7 +291,7 @@ export function AuthFields({ record, onChange, collection, isNew }: AuthFieldsPr
             onCheckedChange={(checked) => handleVerifiedChange(!!checked)}
           />
           <Label htmlFor="verified" className="text-sm font-normal cursor-pointer">
-            Verified
+            {t('records.verified', 'Verified')}
           </Label>
         </div>
       )}

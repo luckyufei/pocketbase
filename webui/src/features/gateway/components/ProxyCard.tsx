@@ -3,6 +3,7 @@
  * 代理配置卡片展示
  */
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 import type { Proxy, ProxyMetrics, ProxyStatus } from '../types'
 
@@ -32,6 +33,7 @@ const statusLabels: Record<ProxyStatus, string> = {
 }
 
 export function ProxyCard({ proxy, metrics, status, onClick }: ProxyCardProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   const handleClick = () => {
@@ -64,7 +66,7 @@ export function ProxyCard({ proxy, metrics, status, onClick }: ProxyCardProps) {
               status === 'disabled' && 'text-slate-400'
             )}
           >
-            {statusLabels[status]}
+            {t(`gateway.status${status === 'normal' ? 'Normal' : status === 'circuit-open' ? 'CircuitOpen' : 'Disabled'}`)}
           </span>
         </span>
       </div>
@@ -75,24 +77,24 @@ export function ProxyCard({ proxy, metrics, status, onClick }: ProxyCardProps) {
       {/* 配置摘要 */}
       <div className="flex items-center gap-3 text-xs text-slate-500">
         <span>
-          并发: {proxy.maxConcurrent === 0 || !proxy.maxConcurrent ? '不限' : proxy.maxConcurrent}
+          {t('gateway.concurrent')}: {proxy.maxConcurrent === 0 || !proxy.maxConcurrent ? t('gateway.noLimit') : proxy.maxConcurrent}
         </span>
         <span className="text-slate-300">|</span>
         <span>
-          熔断: {proxy.circuitBreaker?.enabled ? '开启' : '关闭'}
+          {t('gateway.cbLabel')}: {proxy.circuitBreaker?.enabled ? t('gateway.cbOn') : t('gateway.cbOff')}
         </span>
         <span className="text-slate-300">|</span>
         <span>
-          超时: {proxy.timeoutConfig?.responseHeader || proxy.timeout || 30}s
+          {t('gateway.timeoutLabel')}: {proxy.timeoutConfig?.responseHeader || proxy.timeout || 30}s
         </span>
       </div>
 
       {/* 实时指标（如果有） */}
       {metrics && (
         <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-4 text-xs text-slate-400">
-          <span>连接: {metrics.activeConnections}</span>
-          <span>请求: {metrics.requestsTotal}</span>
-          <span>错误: {metrics.errorsTotal}</span>
+          <span>{t('gateway.connections')}: {metrics.activeConnections}</span>
+          <span>{t('gateway.requests')}: {metrics.requestsTotal}</span>
+          <span>{t('gateway.errors')}: {metrics.errorsTotal}</span>
         </div>
       )}
     </div>

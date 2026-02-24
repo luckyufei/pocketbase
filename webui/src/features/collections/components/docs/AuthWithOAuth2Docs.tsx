@@ -2,6 +2,7 @@
  * AuthWithOAuth2Docs component
  * OAuth2 auth API documentation
  */
+import { useTranslation } from 'react-i18next'
 import { SdkTabs } from './SdkTabs'
 import { CodeBlock } from './CodeBlock'
 import { ResponseTabs } from './ResponseTabs'
@@ -22,6 +23,7 @@ export function AuthWithOAuth2Docs({
   collection,
   baseUrl = 'http://127.0.0.1:8090',
 }: AuthWithOAuth2DocsProps) {
+  const { t } = useTranslation()
   const endpoint = getApiEndpoint(collection.name, 'auth-with-oauth2')
 
   const responses = [
@@ -116,7 +118,7 @@ pb.authStore.clear();`
 
       {/* API details */}
       <div>
-        <h4 className="text-sm font-medium mb-2">API details</h4>
+        <h4 className="text-sm font-medium mb-2">{t('records.apiDocs.apiDetails', 'API details')}</h4>
         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
           <span className="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-700">
             POST
@@ -141,7 +143,7 @@ pb.authStore.clear();`
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs whitespace-nowrap">
                       Required
                     </span>
                     <span className="font-mono text-xs">provider</span>
@@ -157,7 +159,7 @@ pb.authStore.clear();`
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs whitespace-nowrap">
                       Required
                     </span>
                     <span className="font-mono text-xs">code</span>
@@ -171,7 +173,7 @@ pb.authStore.clear();`
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs whitespace-nowrap">
                       Required
                     </span>
                     <span className="font-mono text-xs">codeVerifier</span>
@@ -185,7 +187,7 @@ pb.authStore.clear();`
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs">
+                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-xs whitespace-nowrap">
                       Required
                     </span>
                     <span className="font-mono text-xs">redirectURL</span>
@@ -201,7 +203,7 @@ pb.authStore.clear();`
               <tr className="border-t">
                 <td className="p-2">
                   <div className="flex items-center gap-2">
-                    <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs">
+                    <span className="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded text-xs whitespace-nowrap">
                       Optional
                     </span>
                     <span className="font-mono text-xs">createData</span>

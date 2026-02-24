@@ -3,6 +3,7 @@
  * 应用基本设置 - 与 UI 版本 1:1 对齐
  */
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSettings } from '@/features/settings'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -15,6 +16,7 @@ import {
 import { Database, FileText, Loader2 } from 'lucide-react'
 
 export function Application() {
+  const { t } = useTranslation()
   const {
     settings,
     isLoading,
@@ -47,24 +49,24 @@ export function Application() {
 
   return (
     <div className="p-6 max-w-4xl">
-      {/* 页面标题 */}
+      {/* Page header */}
       <header className="mb-6">
         <nav className="text-sm text-muted-foreground mb-2">
-          <span>Settings</span>
+          <span>{t('settingsPage.breadcrumbSettings')}</span>
           <span className="mx-2">/</span>
-          <span className="text-foreground">Application</span>
+          <span className="text-foreground">{t('settingsPage.application.breadcrumb')}</span>
         </nav>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* 基本设置 - Application name 和 Application URL */}
+        {/* Basic settings */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label
               htmlFor="appName"
               className="after:content-['*'] after:text-destructive after:ml-0.5"
             >
-              Application name
+              {t('settingsPage.application.appName')}
             </Label>
             <Input
               id="appName"
@@ -80,7 +82,7 @@ export function Application() {
               htmlFor="appURL"
               className="after:content-['*'] after:text-destructive after:ml-0.5"
             >
-              Application URL
+              {t('settingsPage.application.appURL')}
             </Label>
             <Input
               id="appURL"
@@ -92,11 +94,11 @@ export function Application() {
           </div>
         </div>
 
-        {/* 数据库信息 */}
+        {/* Database info */}
         <div className="bg-muted/50 border rounded-lg p-4">
-          <h3 className="font-medium mb-3 text-sm">数据库信息</h3>
+          <h3 className="font-medium mb-3 text-sm">{t('settingsPage.application.dbInfo')}</h3>
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">数据库类型:</span>
+            <span className="text-muted-foreground">{t('settingsPage.application.dbType')}</span>
             {healthData.databaseType ? (
               <span className="flex items-center gap-1.5 font-medium">
                 {healthData.databaseType === 'PostgreSQL' ? (
@@ -107,7 +109,7 @@ export function Application() {
                 {healthData.databaseType}
               </span>
             ) : (
-              <span className="text-muted-foreground">未知</span>
+              <span className="text-muted-foreground">{t('settingsPage.application.dbUnknown')}</span>
             )}
           </div>
         </div>
@@ -136,16 +138,16 @@ export function Application() {
           />
         </div>
 
-        {/* 操作按钮 */}
+        {/* Action buttons */}
         <div className="flex justify-end gap-2 pt-4 border-t">
           {hasChanges && (
             <Button type="button" variant="ghost" onClick={resetSettings} disabled={isSaving}>
-              Cancel
+              {t('settingsPage.application.cancel')}
             </Button>
           )}
           <Button type="submit" disabled={!hasChanges || isSaving} className="min-w-[120px]">
             {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Save changes
+            {t('settingsPage.application.saveChanges')}
           </Button>
         </div>
       </form>

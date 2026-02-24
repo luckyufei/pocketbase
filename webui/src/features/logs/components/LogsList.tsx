@@ -3,6 +3,7 @@
  * 日志列表，支持分页、过滤、批量选择
  */
 import { useState, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ArrowRight, Loader2, Download, X, Bookmark, FileText, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -28,6 +29,7 @@ interface LogsListProps {
 }
 
 export function LogsList({ onSelect, className }: LogsListProps) {
+  const { t } = useTranslation()
   const { logs, isLoading, hasMore, filter, loadMore, setFilter } = useLogs()
 
   // 批量选择状态
@@ -152,10 +154,10 @@ export function LogsList({ onSelect, className }: LogsListProps) {
               <TableRow>
                 <TableCell colSpan={5} className="h-24 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <span className="text-muted-foreground">暂无日志</span>
+                    <span className="text-muted-foreground">{t('logs.noLogs')}</span>
                     {filter && (
                       <Button variant="outline" size="sm" onClick={clearFilter}>
-                        清除过滤器
+                        {t('logs.clearFilter')}
                       </Button>
                     )}
                   </div>
@@ -180,7 +182,7 @@ export function LogsList({ onSelect, className }: LogsListProps) {
         <div className="flex justify-center py-4">
           <Button variant="secondary" size="lg" onClick={loadMore} disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            加载更多
+            {t('logs.loadMore')}
           </Button>
         </div>
       )}
@@ -189,16 +191,16 @@ export function LogsList({ onSelect, className }: LogsListProps) {
       {totalBulkSelected > 0 && (
         <div className="sticky bottom-4 mx-4 flex items-center gap-4 rounded-lg bg-muted p-4 shadow-lg">
           <span className="text-sm">
-            已选择 <strong>{totalBulkSelected}</strong> 条日志
+            {t('logs.selected')} <strong>{totalBulkSelected}</strong> {t('logs.logsUnit')}
           </span>
           <Button variant="ghost" size="sm" onClick={deselectAll}>
             <X className="mr-1 h-4 w-4" />
-            取消
+            {t('logs.cancel')}
           </Button>
           <div className="flex-1" />
           <Button size="sm" onClick={downloadSelected}>
             <Download className="mr-1 h-4 w-4" />
-            下载 JSON
+            {t('logs.downloadJson')}
           </Button>
         </div>
       )}

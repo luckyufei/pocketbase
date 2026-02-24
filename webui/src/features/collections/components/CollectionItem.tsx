@@ -1,5 +1,6 @@
 // T046: Collection 列表项组件
 import { memo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Database, Users, Eye, MoreVertical, Pencil, Trash2, Pin, PinOff } from 'lucide-react'
 import type { CollectionModel } from 'pocketbase'
 import { cn } from '@/lib/utils'
@@ -48,6 +49,7 @@ export const CollectionItem = memo(function CollectionItem({
   onDelete,
   onTogglePin,
 }: CollectionItemProps) {
+  const { t } = useTranslation()
   const Icon = typeIcons[collection.type as keyof typeof typeIcons] || Database
   const colorClass = typeColors[collection.type as keyof typeof typeColors] || 'text-slate-500'
 
@@ -65,7 +67,7 @@ export const CollectionItem = memo(function CollectionItem({
       <TextTooltip text={collection.name} className="flex-1 text-sm" side="right" />
 
       {/* Pin 按钮 */}
-      <IconTooltip content={isPinned ? 'Unpin collection' : 'Pin collection'} side="right">
+      <IconTooltip content={isPinned ? t('collections.unpinCollection', 'Unpin collection') : t('collections.pinCollection', 'Pin collection')} side="right">
         <Button
           variant="ghost"
           size="icon"
@@ -99,11 +101,11 @@ export const CollectionItem = memo(function CollectionItem({
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={onEdit}>
             <Pencil className="mr-2 h-4 w-4" />
-            Edit
+            {t('common.edit', 'Edit')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete
+            {t('common.delete', 'Delete')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

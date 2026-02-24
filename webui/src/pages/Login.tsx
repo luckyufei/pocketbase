@@ -36,7 +36,7 @@ export function Login() {
         <div className="text-center mb-8">
           <img src="/_/images/logo.svg" alt="PocketBase" className="w-16 h-16 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-slate-900">PocketBase</h1>
-          <p className="text-slate-500 mt-2">{t('login.subtitle', '管理后台')}</p>
+          <p className="text-slate-500 mt-2">{t('login.subtitle')}</p>
         </div>
 
         {/* 登录表单 */}
@@ -51,14 +51,14 @@ export function Login() {
           {/* 邮箱 */}
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium text-slate-900">
-              {t('login.email', '邮箱')}
+              {t('login.email')}
             </label>
             <input
               id="email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder={t('login.emailPlaceholder', '请输入邮箱')}
+              placeholder={t('login.emailPlaceholder')}
               required
               autoComplete="email"
               className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
@@ -68,14 +68,14 @@ export function Login() {
           {/* 密码 */}
           <div className="space-y-2">
             <label htmlFor="password" className="text-sm font-medium text-slate-900">
-              {t('login.password', '密码')}
+              {t('login.password')}
             </label>
             <input
               id="password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder={t('login.passwordPlaceholder', '请输入密码')}
+              placeholder={t('login.passwordPlaceholder')}
               required
               autoComplete="current-password"
               className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
@@ -84,7 +84,7 @@ export function Login() {
 
           {/* 提交按钮 */}
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? t('login.loading', '登录中...') : t('login.submit', '登录')}
+            {isLoading ? t('login.loading') : t('login.submit')}
           </Button>
         </form>
       </div>

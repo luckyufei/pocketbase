@@ -1,5 +1,6 @@
 // T061: Record 创建/编辑面板
 import { useState, useEffect, useCallback, useMemo, useRef, useId } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { RecordModel, CollectionField, CollectionModel } from 'pocketbase'
 import { useSetAtom, useAtomValue } from 'jotai'
 import { OverlayPanel } from '@/components/OverlayPanel'
@@ -96,6 +97,7 @@ export function UpsertPanel({
   onDuplicate,
   zIndex,
 }: UpsertPanelProps) {
+  const { t } = useTranslation()
   // 为每个 UpsertPanel 实例生成唯一的表单 ID，避免嵌套时 ID 冲突
   const uniqueId = useId()
   const formId = `upsert-record-form-${uniqueId}`
@@ -642,29 +644,29 @@ const { pb } = usePocketbase()
           {isAuthCollection && !record?.verified && record?.email && (
             <DropdownMenuItem onClick={handleSendVerificationEmail}>
               <Mail className="mr-2 h-4 w-4" />
-              Send verification email
+              {t('records.sendVerificationEmail', 'Send verification email')}
             </DropdownMenuItem>
           )}
           {isAuthCollection && record?.email && (
             <DropdownMenuItem onClick={handleSendPasswordResetEmail}>
-              <Lock className="mr-2 h-4 w-4" />
-              Send password reset email
+          <Lock className="mr-2 h-4 w-4" />
+              {t('records.sendPasswordReset', 'Send password reset email')}
             </DropdownMenuItem>
           )}
           {isAuthCollection && (
             <DropdownMenuItem onClick={handleImpersonate}>
               <UserCheck className="mr-2 h-4 w-4" />
-              Impersonate
+              {t('records.impersonate', 'Impersonate')}
             </DropdownMenuItem>
           )}
           <DropdownMenuItem onClick={handleCopyJSON}>
             <Braces className="mr-2 h-4 w-4" />
-            Copy raw JSON
+            {t('collections.copyRawJson', 'Copy raw JSON')}
           </DropdownMenuItem>
           {onDuplicate && (
             <DropdownMenuItem onClick={handleDuplicate}>
               <Copy className="mr-2 h-4 w-4" />
-              Duplicate
+              {t('collections.duplicate', 'Duplicate')}
             </DropdownMenuItem>
           )}
           {onDelete && (
@@ -672,7 +674,7 @@ const { pb } = usePocketbase()
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleDelete} className="text-destructive">
                 <Trash className="mr-2 h-4 w-4" />
-                Delete
+                {t('common.delete', 'Delete')}
               </DropdownMenuItem>
             </>
           )}
@@ -684,8 +686,8 @@ const { pb } = usePocketbase()
   // Footer actions
   const footerContent = (
     <>
-      <Button type="button" variant="outline" onClick={handleClose}>
-        Cancel
+      <Button type="button" variant="ghost" onClick={handleClose}>
+        {t('common.cancel', 'Cancel')}
       </Button>
       <div className="flex">
         <Button
@@ -694,7 +696,7 @@ const { pb } = usePocketbase()
           disabled={!canSave}
           className={isEdit ? 'rounded-r-none' : ''}
         >
-          {saving ? 'Saving...' : isEdit ? 'Save changes' : 'Create'}
+          {saving ? t('common.saving', 'Saving...') : isEdit ? t('common.saveChanges', 'Save changes') : t('common.create', 'Create')}
         </Button>
         {isEdit && (
           <DropdownMenu>
@@ -709,7 +711,7 @@ const { pb } = usePocketbase()
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => handleSave(false)}>
-                Save and continue
+                {t('records.saveAndContinue', 'Save and continue')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -724,7 +726,7 @@ const { pb } = usePocketbase()
     <OverlayPanel
       open={open}
       onClose={handleClose}
-      title={`${isEdit ? 'Edit' : 'New'} ${collection?.name || ''} record`}
+      title={isEdit ? t('records.editRecord', 'Edit {{name}} record', { name: collection?.name || '' }) : t('records.newRecord', 'New {{name}} record', { name: collection?.name || '' })}
       width={hasEditorField ? 'xl' : 'lg'}
       headerExtra={renderMoreActions()}
       escClose={!saving}
@@ -742,14 +744,14 @@ const { pb } = usePocketbase()
         {!draftRestored && hasDraft && !hasChanges && (
           <Alert variant="info" className="mb-0">
             <AlertDescription className="flex items-center gap-2">
-              <span>The record has previous unsaved changes.</span>
+              <span>{t('records.draftAvailable', 'The record has previous unsaved changes.')}</span>
               <Button
                 type="button"
                 size="sm"
                 variant="secondary"
                 onClick={handleRestoreDraft}
               >
-                Restore draft
+                {t('records.restoreDraft', 'Restore draft')}
               </Button>
             </AlertDescription>
           </Alert>
@@ -771,7 +773,7 @@ const { pb } = usePocketbase()
             disabled={isEdit}
             placeholder={
               isNew && idField?.autogeneratePattern
-                ? 'Leave empty to auto generate...'
+                ? t('records.idPlaceholder', 'Leave empty to auto generate...')
                 : ''
             }
             minLength={idField?.min}
@@ -785,8 +787,8 @@ const { pb } = usePocketbase()
         {showTabs ? (
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'form' | 'providers')}>
             <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="form">Account</TabsTrigger>
-              <TabsTrigger value="providers">Authorized providers</TabsTrigger>
+              <TabsTrigger value="form">{t('records.accountTab', 'Account')}</TabsTrigger>
+              <TabsTrigger value="providers">{t('records.providersTab', 'Authorized providers')}</TabsTrigger>
             </TabsList>
             <TabsContent value="form" className="space-y-4">
               {/* Auth Fields */}
@@ -827,7 +829,7 @@ const { pb } = usePocketbase()
 
             {/* 普通字段 */}
             {editableFields.length === 0 && !isAuthCollection ? (
-              <div className="text-muted-foreground text-center py-4">No editable fields</div>
+              <div className="text-muted-foreground text-center py-4">{t('records.noEditableFields', 'No editable fields')}</div>
             ) : (
               editableFields.map((field) => (
                 <div key={field.name}>

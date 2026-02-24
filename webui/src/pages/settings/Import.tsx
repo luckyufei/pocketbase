@@ -3,6 +3,7 @@
  * 导入 Collections 配置 - 与UI版本保持一致
  */
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Loader2, AlertTriangle, ArrowRight } from 'lucide-react'
@@ -122,6 +123,7 @@ interface CollectionsDiffTableProps {
 }
 
 function CollectionsDiffTable({ collectionA, collectionB, deleteMissing }: CollectionsDiffTableProps) {
+  const { t } = useTranslation()
   const isDeleteDiff = !collectionB?.id && !collectionB?.name
   const isCreateDiff = !isDeleteDiff && !collectionA?.id
 
@@ -161,18 +163,18 @@ function CollectionsDiffTable({ collectionA, collectionB, deleteMissing }: Colle
       <div className="flex items-center gap-2 mb-2">
         {!collectionA?.id ? (
           <>
-            <span className="px-2 py-0.5 text-xs font-medium bg-green-600 text-white rounded">Added</span>
+          <span className="px-2 py-0.5 text-xs font-medium bg-green-600 text-white rounded">{t('settingsPage.importPage.added')}</span>
             <strong>{collectionB?.name}</strong>
           </>
         ) : !collectionB?.id ? (
           <>
-            <span className="px-2 py-0.5 text-xs font-medium bg-destructive text-destructive-foreground rounded">Deleted</span>
+          <span className="px-2 py-0.5 text-xs font-medium bg-destructive text-destructive-foreground rounded">{t('settingsPage.importPage.deleted')}</span>
             <strong>{collectionA?.name}</strong>
           </>
         ) : (
           <>
             {hasAnyChange && (
-              <span className="px-2 py-0.5 text-xs font-medium bg-yellow-500 text-white rounded">Changed</span>
+              <span className="px-2 py-0.5 text-xs font-medium bg-yellow-500 text-white rounded">{t('settingsPage.importPage.changed')}</span>
             )}
             {collectionA.name !== collectionB.name && (
               <>
@@ -189,9 +191,9 @@ function CollectionsDiffTable({ collectionA, collectionB, deleteMissing }: Colle
       <table className="w-full border-2 border-primary text-sm">
         <thead>
           <tr className="bg-primary text-primary-foreground">
-            <th className="px-4 py-2 text-left font-medium">Props</th>
-            <th className="px-4 py-2 text-left font-medium w-[40%]">Old</th>
-            <th className="px-4 py-2 text-left font-medium w-[40%]">New</th>
+            <th className="px-4 py-2 text-left font-medium">{t('settingsPage.importPage.props')}</th>
+            <th className="px-4 py-2 text-left font-medium w-[40%]">{t('settingsPage.importPage.old')}</th>
+            <th className="px-4 py-2 text-left font-medium w-[40%]">{t('settingsPage.importPage.new')}</th>
           </tr>
         </thead>
         <tbody className="text-muted-foreground">
@@ -227,9 +229,9 @@ function CollectionsDiffTable({ collectionA, collectionB, deleteMissing }: Colle
               <React.Fragment key={`removed-${field.id}`}>
                 <tr>
                   <th colSpan={3} className="px-4 py-2 text-left bg-muted/50 border-b">
-                    <span>field: {field.name}</span>
+                    <span>{t('settingsPage.importPage.field')}: {field.name}</span>
                     <span className="ml-2 px-2 py-0.5 text-xs font-normal bg-destructive text-destructive-foreground rounded">
-                      Deleted - <small>All stored data related to <strong>{field.name}</strong> will be deleted!</small>
+                      {t('settingsPage.importPage.deleted')} - <small>{t('settingsPage.importPage.deletedFieldWarning')} <strong>{field.name}</strong> {t('settingsPage.importPage.deletedFieldWarning2')}</small>
                     </span>
                   </th>
                 </tr>
@@ -253,10 +255,10 @@ function CollectionsDiffTable({ collectionA, collectionB, deleteMissing }: Colle
               <React.Fragment key={`shared-${field.id}`}>
                 <tr>
                   <th colSpan={3} className="px-4 py-2 text-left bg-muted/50 border-b">
-                    <span>field: {field.name}</span>
+                    <span>{t('settingsPage.importPage.field')}: {field.name}</span>
                     {fieldChanged && (
                       <span className="ml-2 px-2 py-0.5 text-xs font-normal bg-yellow-500 text-white rounded">
-                        Changed
+                        {t('settingsPage.importPage.changed')}
                       </span>
                     )}
                   </th>
@@ -285,10 +287,10 @@ function CollectionsDiffTable({ collectionA, collectionB, deleteMissing }: Colle
             <React.Fragment key={`added-${field.id}`}>
               <tr>
                 <th colSpan={3} className="px-4 py-2 text-left bg-muted/50 border-b">
-                  <span>field: {field.name}</span>
-                  <span className="ml-2 px-2 py-0.5 text-xs font-normal bg-green-600 text-white rounded">
-                    Added
-                  </span>
+                    <span>{t('settingsPage.importPage.field')}: {field.name}</span>
+                    <span className="ml-2 px-2 py-0.5 text-xs font-normal bg-green-600 text-white rounded">
+                      {t('settingsPage.importPage.added')}
+                    </span>
                 </th>
               </tr>
               {Object.entries(field).map(([key, value]) => (
@@ -309,6 +311,7 @@ function CollectionsDiffTable({ collectionA, collectionB, deleteMissing }: Colle
 }
 
 export function Import() {
+  const { t } = useTranslation()
   const [schemas, setSchemas] = useState('')
   const [isLoadingFile, setIsLoadingFile] = useState(false)
   const [isLoadingOldCollections, setIsLoadingOldCollections] = useState(true)
@@ -569,9 +572,9 @@ export function Import() {
       {/* Page header */}
       <header className="mb-6">
         <nav className="text-sm text-muted-foreground mb-2">
-          <span>Settings</span>
+          <span>{t('settingsPage.breadcrumbSettings')}</span>
           <span className="mx-2">/</span>
-          <span className="text-foreground">Import collections</span>
+          <span className="text-foreground">{t('settingsPage.importPage.breadcrumb')}</span>
         </nav>
       </header>
 
@@ -596,7 +599,7 @@ export function Import() {
 
           {/* Description with load button */}
           <div className="text-base">
-            Paste below the collections configuration you want to import or{' '}
+            {t('settingsPage.importPage.description')}{' '}
             <Button
               variant="outline"
               size="sm"
@@ -605,13 +608,13 @@ export function Import() {
               disabled={isLoadingFile}
             >
               {isLoadingFile && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Load from JSON file
+              {t('settingsPage.importPage.loadFromJson')}
             </Button>
           </div>
 
           {/* Collections textarea */}
           <div className="space-y-2">
-            <Label htmlFor="collections">Collections</Label>
+            <Label htmlFor="collections">{t('settingsPage.importPage.collectionsLabel')}</Label>
             <textarea
               id="collections"
               className={`w-full min-h-[320px] px-3 py-2 border rounded-md bg-background font-mono text-sm ${
@@ -622,7 +625,7 @@ export function Import() {
               onChange={(e) => setSchemas(e.target.value)}
             />
             {schemas && !isValid && (
-              <p className="text-sm text-destructive">Invalid collections configuration.</p>
+              <p className="text-sm text-destructive">{t('settingsPage.importPage.invalidConfig')}</p>
             )}
           </div>
 
@@ -636,7 +639,7 @@ export function Import() {
                 disabled={!isValid}
               />
               <Label htmlFor="merge" className="cursor-pointer">
-                Merge with the existing collections
+                {t('settingsPage.importPage.mergeWithExisting')}
               </Label>
             </div>
           )}
@@ -645,7 +648,7 @@ export function Import() {
           {isValid && newCollections.length > 0 && !hasChanges && (
             <Alert>
               <AlertDescription>
-                <strong>Your collections configuration is already up-to-date!</strong>
+                <strong>{t('settingsPage.importPage.upToDate')}</strong>
               </AlertDescription>
             </Alert>
           )}
@@ -653,13 +656,13 @@ export function Import() {
           {/* Detected changes */}
           {isValid && newCollections.length > 0 && hasChanges && (
             <div>
-              <h5 className="text-sm font-medium mb-3">Detected changes</h5>
+              <h5 className="text-sm font-medium mb-3">{t('settingsPage.importPage.detectedChanges')}</h5>
               <div className="border rounded-md divide-y">
                 {/* Deleted */}
                 {collectionsToDelete.map((collection) => (
                   <div key={collection.id} className="flex items-center gap-3 px-4 py-2">
                     <span className="px-2 py-0.5 text-xs font-medium bg-destructive text-destructive-foreground rounded min-w-[65px] text-center">
-                      Deleted
+                      {t('settingsPage.importPage.deleted')}
                     </span>
                     <div className="flex items-center gap-2">
                       <strong>{collection.name}</strong>
@@ -674,7 +677,7 @@ export function Import() {
                 {collectionsToUpdate.map((pair) => (
                   <div key={`${pair.old?.id}-${pair.new?.id}`} className="flex items-center gap-3 px-4 py-2">
                     <span className="px-2 py-0.5 text-xs font-medium bg-yellow-500 text-white rounded min-w-[65px] text-center">
-                      Changed
+                      {t('settingsPage.importPage.changed')}
                     </span>
                     <div className="flex items-center gap-2">
                       {pair.old?.name !== pair.new?.name && (
@@ -697,7 +700,7 @@ export function Import() {
                 {collectionsToAdd.map((collection) => (
                   <div key={collection.id} className="flex items-center gap-3 px-4 py-2">
                     <span className="px-2 py-0.5 text-xs font-medium bg-green-600 text-white rounded min-w-[65px] text-center">
-                      Added
+                      {t('settingsPage.importPage.added')}
                     </span>
                     <div className="flex items-center gap-2">
                       <strong>{collection.name}</strong>
@@ -717,8 +720,7 @@ export function Import() {
               <AlertTriangle className="h-4 w-4 text-yellow-600" />
               <AlertDescription className="flex items-center justify-between">
                 <span className="text-yellow-800">
-                  Some of the imported collections share the same name and/or fields but are
-                  imported with different IDs. You can replace them in the import if you want to.
+                  {t('settingsPage.importPage.idReplacementWarning')}
                 </span>
                 <Button
                   variant="outline"
@@ -726,7 +728,7 @@ export function Import() {
                   className="ml-4 border-yellow-400 text-yellow-700 hover:bg-yellow-100"
                   onClick={replaceIds}
                 >
-                  Replace with original ids
+                  {t('settingsPage.importPage.replaceWithOriginalIds')}
                 </Button>
               </AlertDescription>
             </Alert>
@@ -736,7 +738,7 @@ export function Import() {
           <div className="flex items-center">
             {schemas && (
               <Button variant="ghost" className="text-muted-foreground" onClick={clear}>
-                Clear
+                {t('settingsPage.importPage.clear')}
               </Button>
             )}
             <div className="flex-1" />
@@ -746,7 +748,7 @@ export function Import() {
               disabled={!canImport}
               onClick={handleReview}
             >
-              Review
+              {t('settingsPage.importPage.review')}
             </Button>
           </div>
         </div>
@@ -756,7 +758,7 @@ export function Import() {
       <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
         <DialogContent className="max-w-5xl h-[85vh] p-0 flex flex-col">
           <DialogHeader className="p-6 pb-4 flex-shrink-0">
-            <DialogTitle className="text-center text-lg">Side-by-side diff</DialogTitle>
+            <DialogTitle className="text-center text-lg">{t('settingsPage.importPage.diffTitle')}</DialogTitle>
           </DialogHeader>
 
           <div className="px-6 pb-6 space-y-6 overflow-y-auto flex-grow min-h-0">
@@ -772,11 +774,11 @@ export function Import() {
 
           <DialogFooter className="p-6 pt-4 border-t flex-shrink-0 bg-background">
             <Button variant="ghost" onClick={() => setShowReviewDialog(false)} disabled={isImporting}>
-              Close
+              {t('settingsPage.importPage.close')}
             </Button>
             <Button onClick={handleImport} disabled={isImporting}>
               {isImporting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Confirm and import
+              {t('settingsPage.importPage.confirmAndImport')}
             </Button>
           </DialogFooter>
         </DialogContent>
