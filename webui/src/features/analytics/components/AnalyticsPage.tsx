@@ -96,21 +96,21 @@ export function AnalyticsPage() {
   }, [refresh])
 
   return (
-    <div className="h-full flex flex-col bg-slate-50/50">
+    <div className="h-full flex flex-col bg-background">
       {/* Header */}
-      <header className="h-14 px-4 border-b border-slate-200 bg-white flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-slate-900">{t('analyticsPage.title')}</h1>
+      <header className="h-14 px-4 border-b border-border bg-background flex items-center justify-between">
+        <h1 className="text-lg font-semibold text-foreground">{t('analyticsPage.title')}</h1>
         <div className="flex items-center gap-3">
           {/* 时间范围选择器 */}
-          <div className="flex rounded-lg overflow-hidden border border-slate-200 bg-white">
+          <div className="flex rounded-md overflow-hidden border border-border bg-background">
             {timeRanges.map((range) => (
               <button
                 key={range.value}
                 type="button"
                 className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                   selectedRange === range.value
-                    ? 'bg-blue-500 text-white'
-                    : 'text-slate-600 hover:bg-slate-50'
+                    ? 'bg-foreground text-background'
+                    : 'text-muted-foreground hover:bg-accent'
                 }`}
                 onClick={() => changeRange(range.value)}
               >
@@ -127,14 +127,14 @@ export function AnalyticsPage() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-4">
         {error && (
-          <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl mb-4 text-sm">
+          <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md mb-4 text-sm">
             {error}
           </div>
         )}
 
         {isLoading && !summary ? (
           <div className="flex items-center justify-center h-64">
-            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
           <div className="space-y-4 max-w-[1400px] mx-auto">
@@ -167,9 +167,9 @@ export function AnalyticsPage() {
             </div>
 
             {/* PV/UV Trend chart */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="px-4 py-3 border-b border-slate-100">
-                <h2 className="text-sm font-semibold text-slate-900">{t('analyticsPage.trafficTrend')}</h2>
+            <div className="bg-card rounded-lg border border-border overflow-hidden">
+              <div className="px-4 py-3 border-b border-border">
+                <h2 className="text-sm font-semibold text-foreground">{t('analyticsPage.trafficTrend')}</h2>
               </div>
               <div className="p-4">
                 <AnalyticsChart 
@@ -182,9 +182,9 @@ export function AnalyticsPage() {
             {/* Top lists */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {/* Top pages */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <h2 className="text-sm font-semibold text-slate-900">{t('analyticsPage.topPages')}</h2>
+              <div className="bg-card rounded-lg border border-border overflow-hidden">
+                <div className="px-4 py-3 border-b border-border">
+                  <h2 className="text-sm font-semibold text-foreground">{t('analyticsPage.topPages')}</h2>
                 </div>
                 <div className="p-3">
                   <TopList
@@ -200,9 +200,9 @@ export function AnalyticsPage() {
               </div>
 
               {/* Traffic sources */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <h2 className="text-sm font-semibold text-slate-900">{t('analyticsPage.trafficSources')}</h2>
+              <div className="bg-card rounded-lg border border-border overflow-hidden">
+                <div className="px-4 py-3 border-b border-border">
+                  <h2 className="text-sm font-semibold text-foreground">{t('analyticsPage.trafficSources')}</h2>
                 </div>
                 <div className="p-3">
                   <TopList
@@ -218,9 +218,9 @@ export function AnalyticsPage() {
               </div>
 
               {/* Browser distribution */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <h2 className="text-sm font-semibold text-slate-900">{t('analyticsPage.browserDistribution')}</h2>
+              <div className="bg-card rounded-lg border border-border overflow-hidden">
+                <div className="px-4 py-3 border-b border-border">
+                  <h2 className="text-sm font-semibold text-foreground">{t('analyticsPage.browserDistribution')}</h2>
                 </div>
                 <div className="p-3">
                   <TopList

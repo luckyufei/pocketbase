@@ -10,7 +10,8 @@
     "analytics": "Analytics",
     "settings": "Settings",
     "logout": "Logout",
-    "userMenu": "User menu"
+    "userMenu": "User menu",
+    "manageSuperusers": "Manage superusers"
   },
   "theme": {
     "light": "Light mode",
@@ -81,6 +82,11 @@
     "deleteError": "Delete failed",
     "newField": "New field",
     "newIndex": "New index",
+    "createIndex": "Create index",
+    "updateIndex": "Update index",
+    "setIndex": "Set index",
+    "unique": "Unique",
+    "presets": "Presets",
     "uniqueConstraints": "Unique constraints and indexes ({{count}})",
     "nonempty": "Nonempty",
     "minLength": "Min length",

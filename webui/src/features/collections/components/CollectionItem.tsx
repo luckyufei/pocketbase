@@ -29,11 +29,11 @@ const typeIcons = {
   view: Eye,
 }
 
-// 统一使用 slate 灰色系，不再区分类型颜色
+// 统一使用 Vercel 极简风格：纯黑白灰
 const typeColors = {
-  base: 'text-slate-500',
-  auth: 'text-slate-500',
-  view: 'text-slate-500',
+  base: 'text-muted-foreground',
+  auth: 'text-muted-foreground',
+  view: 'text-muted-foreground',
 }
 
 /**
@@ -56,14 +56,14 @@ export const CollectionItem = memo(function CollectionItem({
   return (
     <div
       className={cn(
-        'group flex items-center gap-2 rounded-xl px-3 py-2.5 cursor-pointer transition-all duration-200',
+        'group flex items-center gap-2 rounded-md px-3 py-2.5 cursor-pointer transition-all duration-200',
         isActive
-          ? 'bg-blue-50 text-blue-600 font-semibold shadow-sm'
-          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+          ? 'bg-accent text-foreground font-medium'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
       )}
       onClick={onClick}
     >
-      <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-blue-500' : colorClass)} />
+      <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-foreground' : colorClass)} />
       <TextTooltip text={collection.name} className="flex-1 text-sm" side="right" />
 
       {/* Pin 按钮 */}
@@ -73,7 +73,7 @@ export const CollectionItem = memo(function CollectionItem({
           size="icon"
           className={cn(
             'h-6 w-6 opacity-0 group-hover:opacity-40 hover:!opacity-100',
-            isActive && 'text-blue-600 hover:bg-blue-100'
+            isActive && 'text-foreground hover:bg-accent'
           )}
           onClick={(e) => {
             e.stopPropagation()
@@ -91,7 +91,7 @@ export const CollectionItem = memo(function CollectionItem({
             size="icon"
             className={cn(
               'h-6 w-6 opacity-0 group-hover:opacity-100',
-              isActive && 'text-blue-600 hover:bg-blue-100'
+              isActive && 'text-foreground hover:bg-accent'
             )}
             onClick={(e) => e.stopPropagation()}
           >

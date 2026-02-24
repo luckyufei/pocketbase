@@ -62,7 +62,7 @@ function LogCheckbox({
       className={`
         relative inline-flex items-center justify-center w-5 h-5 cursor-pointer
         rounded-[3px] border-2 transition-all
-        ${checked ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-300 hover:border-slate-400'}
+        ${checked ? 'bg-foreground border-foreground' : 'bg-white border-slate-300 hover:border-slate-400'}
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
       `}
       onClick={handleClick}
@@ -133,8 +133,8 @@ function LogPreviewBadges({ log }: { log: LogEntry }) {
         <span
           key={idx}
           className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded ${
-            badge.isError
-              ? 'bg-red-50 text-red-600'
+          badge.isError
+              ? 'bg-rose-50 text-rose-600'
               : badge.isWarning
                 ? 'bg-amber-50 text-amber-600'
                 : 'bg-slate-100 text-slate-500'
@@ -440,8 +440,8 @@ export function LogsPage() {
                   <TableRow
                     key={log.id}
                     className={`cursor-pointer transition-colors ${
-                      activeLog?.id === log.id
-                        ? 'bg-blue-50 hover:bg-blue-50'
+                    activeLog?.id === log.id
+                        ? 'bg-accent hover:bg-accent'
                         : 'hover:bg-slate-50'
                     }`}
                     onClick={() => setActiveLog(log)}

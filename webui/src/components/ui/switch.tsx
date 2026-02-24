@@ -13,7 +13,7 @@ const Switch = React.forwardRef<
       className
     )}
     style={{
-      backgroundColor: checked ? '#22c55e' : '#e2e8f0', // green-500 : slate-200
+      backgroundColor: checked ? '#171717' : '#e5e5e5', // neutral-900 : neutral-200 (Vercel black/gray)
     }}
     checked={checked}
     {...props}

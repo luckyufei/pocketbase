@@ -55,15 +55,15 @@ export function TraceFilters({ filters, timeRange, onFiltersChange, onTimeRangeC
   return (
     <div className="flex flex-wrap items-center gap-3">
       {/* 时间范围 */}
-      <div className="flex rounded-lg overflow-hidden border border-slate-200">
+      <div className="flex rounded-md overflow-hidden border border-border">
         {timeRanges.map((range) => (
           <button
             key={range.value}
             type="button"
             className={`px-3 py-1.5 text-xs font-medium transition-colors ${
               timeRange === range.value
-                ? 'bg-blue-500 text-white'
-                : 'bg-white text-slate-600 hover:bg-slate-50'
+                ? 'bg-foreground text-background'
+                : 'bg-background text-muted-foreground hover:bg-accent'
             }`}
             onClick={() => onTimeRangeChange(range.value)}
           >

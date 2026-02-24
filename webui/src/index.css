@@ -11,69 +11,70 @@
 
 @layer base {
   :root {
-    /* 苹果式黑白灰审美 + 蓝色点缀 */
+    /* Vercel 极简风格 - 纯净黑白配色 */
     --background: 0 0% 100%;
-    --foreground: 215 25% 9%; /* slate-900 */
+    --foreground: 0 0% 9%; /* 纯黑 */
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 9%;
+    --card-foreground: 0 0% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 9%;
+    --popover-foreground: 0 0% 9%;
 
-    /* 主色调：苹果蓝 (blue-500) */
-    --primary: 217 91% 60%;
+    /* 主色调：纯黑 (Vercel 风格) */
+    --primary: 0 0% 9%;
     --primary-foreground: 0 0% 100%;
 
-    /* 次要色：浅灰 */
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 215 25% 27%;
+    /* 次要色：极淡灰 */
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 9%;
 
     /* 静音色 */
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%; /* slate-500 */
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%; /* 中灰 */
 
-    /* 强调色 */
-    --accent: 214 100% 97%; /* blue-50 */
-    --accent-foreground: 217 91% 60%; /* blue-500 */
+    /* 强调色：极淡灰悬停 */
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 9%;
 
-    /* 错误色 */
-    --destructive: 0 84% 60%;
+    /* 错误色：Vercel 红 */
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    /* 边框 */
-    --border: 214 32% 91%; /* slate-200 */
-    --input: 214 32% 91%;
-    --ring: 217 91% 60%; /* blue-500 */
-    --radius: 0.75rem; /* 大圆角 */
+    /* 边框：极细、极淡 */
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 0 0% 9%; /* 黑色聚焦环 */
+    --radius: 0.5rem; /* Vercel 风格：较小圆角 */
 
     /* 焦点环颜色 */
-    --focus-ring: 217 91% 60%;
+    --focus-ring: 0 0% 9%;
   }
 
   .dark {
-    --background: 222 47% 11%;
-    --foreground: 210 40% 98%;
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 98%;
+    /* Vercel 深色模式 - 纯黑背景 */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 93%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 93%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 93%;
 
-    /* 主色调：苹果蓝 */
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
+    /* 主色调：白色按钮 */
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
 
-    --secondary: 217 33% 17%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 33% 17%;
-    --accent-foreground: 217 91% 70%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 217 91% 60%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 93%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 0 0% 100%;
 
-    --focus-ring: 217 91% 60%;
+    --focus-ring: 0 0% 100%;
   }
 
   /* 高对比度模式 - 用于辅助功能 */
@@ -296,25 +297,25 @@
     @apply bg-accent/50;
   }
 
-  /* 语法高亮颜色 */
+  /* 语法高亮颜色 - Vercel 风格：纯黑白灰 */
   .searchbar-container .cm-string {
-    @apply text-green-600;
+    @apply text-foreground;
   }
 
   .searchbar-container .cm-number {
-    @apply text-blue-600;
+    @apply text-foreground font-medium;
   }
 
   .searchbar-container .cm-keyword {
-    @apply text-purple-600 font-medium;
+    @apply text-foreground font-semibold;
   }
 
   .searchbar-container .cm-operator {
-    @apply text-orange-600;
+    @apply text-foreground;
   }
 
   .searchbar-container .cm-atom {
-    @apply text-red-600;
+    @apply text-foreground;
   }
 
   .searchbar-container .cm-comment {
@@ -325,25 +326,25 @@
     @apply text-foreground;
   }
 
-  /* 暗色模式语法高亮 */
+  /* 暗色模式语法高亮 - Vercel 风格 */
   .dark .searchbar-container .cm-string {
-    @apply text-green-400;
+    @apply text-foreground;
   }
 
   .dark .searchbar-container .cm-number {
-    @apply text-blue-400;
+    @apply text-foreground font-medium;
   }
 
   .dark .searchbar-container .cm-keyword {
-    @apply text-purple-400;
+    @apply text-foreground font-semibold;
   }
 
   .dark .searchbar-container .cm-operator {
-    @apply text-orange-400;
+    @apply text-foreground;
   }
 
   .dark .searchbar-container .cm-atom {
-    @apply text-red-400;
+    @apply text-foreground;
   }
 }
 
@@ -351,9 +352,10 @@
  * Panel 和 Table 样式 - 与 UI 版本对齐
  */
 @layer components {
-  /* Panel 容器 - 对标 ui/_base.scss .panel */
+  /* Panel 容器 - Vercel 风格：极细边框、微妙阴影 */
   .panel {
-    @apply bg-card rounded-xl p-4 shadow-sm;
+    @apply bg-card rounded-lg p-4 border border-border;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03);
   }
 
   /* Table wrapper - 对标 ui/_table.scss .table-wrapper */

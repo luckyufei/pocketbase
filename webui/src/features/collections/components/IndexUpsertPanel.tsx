@@ -1,5 +1,6 @@
 // T020: 索引编辑面板
 import { useState, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
@@ -168,6 +169,7 @@ export function IndexUpsertPanel({
   onSubmit,
   onRemove,
 }: IndexUpsertPanelProps) {
+  const { t } = useTranslation()
   const [indexValue, setIndexValue] = useState('')
   const isEdit = !!originalIndex
 
@@ -254,7 +256,7 @@ export function IndexUpsertPanel({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg overflow-hidden">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Update' : 'Create'} index</DialogTitle>
+          <DialogTitle>{isEdit ? t('collections.updateIndex') : t('collections.createIndex')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 overflow-hidden">
@@ -266,7 +268,7 @@ export function IndexUpsertPanel({
               onCheckedChange={toggleUnique}
             />
             <Label htmlFor="index-unique" className="cursor-pointer">
-              Unique
+              {t('collections.unique')}
             </Label>
           </div>
 
@@ -281,10 +283,10 @@ export function IndexUpsertPanel({
             />
           </div>
 
-          {/* 预设列 - 与 UI 版本一致的标签样式 */}
+          {/* 预设列 - 优化后的精致标签样式 */}
           {presetColumns.length > 0 && (
-            <div className="flex items-start gap-x-2.5 gap-y-2 flex-wrap w-full">
-              <span className="text-muted-foreground text-sm py-1 shrink-0">Presets</span>
+            <div className="flex items-start gap-x-2 gap-y-2 flex-wrap w-full">
+              <span className="text-muted-foreground text-sm py-1 shrink-0">{t('collections.presets')}</span>
               {presetColumns.map((column) => {
                 const isSelected = selectedColumns.includes(column.toLowerCase())
                 return (
@@ -292,13 +294,18 @@ export function IndexUpsertPanel({
                     key={column}
                     type="button"
                     className={cn(
-                      "text-sm px-3 py-1 rounded-full transition-all shrink-0",
+                      "inline-flex items-center text-sm px-3 py-1 rounded-md transition-all duration-200 shrink-0 border font-mono",
                       isSelected
-                        ? "bg-blue-100 text-slate-700"
-                        : "bg-slate-100 text-blue-600 hover:bg-slate-200"
+                        ? "bg-primary/10 text-primary border-primary/30 shadow-sm"
+                        : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
                     )}
                     onClick={() => toggleColumn(column)}
                   >
+                    {isSelected && (
+                      <svg className="w-3.5 h-3.5 mr-1.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
                     {column}
                   </button>
                 )
@@ -318,10 +325,10 @@ export function IndexUpsertPanel({
           </div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="button" onClick={handleSubmit} disabled={selectedColumns.length === 0}>
-              Set index
+              {t('collections.setIndex')}
             </Button>
           </div>
         </DialogFooter>

@@ -4,7 +4,6 @@
  */
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button } from '@/components/ui/button'
 import { Plus } from 'lucide-react'
 import type { CollectionData } from './CollectionFieldsTab'
 import { IndexUpsertPanel } from './IndexUpsertPanel'
@@ -97,7 +96,7 @@ export function IndexesList({ collection, indexes, onChange }: IndexesListProps)
         {t('collections.uniqueConstraints', 'Unique constraints and indexes ({{count}})', { count: indexes.length })}
       </h3>
 
-      {/* 索引标签列表 - 与 UI 版本一致的标签样式 */}
+      {/* 索引标签列表 - 优化后的精致标签样式 */}
       <div className="flex items-center gap-2 flex-wrap">
         {indexes.map((indexStr, index) => {
           const parsed = parseIndex(indexStr)
@@ -108,27 +107,26 @@ export function IndexesList({ collection, indexes, onChange }: IndexesListProps)
             <button
               key={index}
               type="button"
-              className="px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 rounded-full transition-colors text-blue-600"
+              className="inline-flex items-center px-3 py-2 text-sm rounded-md transition-all duration-200 text-gray-700 bg-gray-200 border border-transparent"
               onClick={() => handleEdit(indexStr)}
             >
-              {/* 与 UI 版本保持一致：UNIQUE 索引显示加粗的 "Unique:" 前缀 */}
-              {parsed.unique && <strong className="mr-1">Unique:</strong>}
-              <span>{displayText}</span>
+              {parsed.unique && (
+                <span className="font-medium mr-1.5">Unique</span>
+              )}
+              <span className="font-mono text-xs">{displayText}</span>
             </button>
           )
         })}
 
-        {/* 新增按钮 - 与 UI 版本一致 */}
-        <Button
+        {/* 新增按钮 - 与索引按钮大小一致 */}
+        <button
           type="button"
-          variant="outline"
-          size="sm"
-          className="rounded-full"
+          className="inline-flex items-center px-3 py-1.5 text-sm rounded-md transition-all duration-200 text-gray-900 bg-white hover:bg-slate-50 border border-gray-900"
           onClick={handleAdd}
         >
           <Plus className="h-4 w-4 mr-1" />
           {t('collections.newIndex', 'New index')}
-        </Button>
+        </button>
       </div>
 
       {/* 索引编辑面板 */}

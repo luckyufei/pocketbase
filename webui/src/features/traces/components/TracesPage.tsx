@@ -59,20 +59,20 @@ export function TracesPage() {
       {/* 左侧：主内容 */}
       <div className={`flex-1 flex flex-col transition-all duration-300 ${activeTraceId ? 'mr-[500px]' : ''}`}>
         {/* 头部 */}
-        <header className="h-14 px-4 border-b border-slate-200 flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-slate-900">Traces</h1>
+        <header className="h-14 px-4 border-b border-border flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-foreground">Traces</h1>
           <Button variant="ghost" size="sm" onClick={refresh} disabled={isLoading}>
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
         </header>
 
         {/* 统计卡片 */}
-        <div className="px-4 py-3 border-b border-slate-100">
+        <div className="px-4 py-3 border-b border-border">
           <TraceStats stats={stats} />
         </div>
 
         {/* 过滤器 */}
-        <div className="px-4 py-3 border-b border-slate-100">
+        <div className="px-4 py-3 border-b border-border">
           <TraceFilters
             filters={filters}
             timeRange={timeRange}

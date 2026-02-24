@@ -19,11 +19,11 @@ function getLevelDotColor(level: number): string {
     case -4:
       return 'bg-slate-400' // DEBUG
     case 0:
-      return 'bg-blue-500' // INFO
+      return 'bg-slate-500' // INFO
     case 4:
       return 'bg-amber-500' // WARN
     case 8:
-      return 'bg-red-500' // ERROR
+      return 'bg-rose-500' // ERROR - use rose for a softer red
     default:
       return 'bg-slate-400'
   }

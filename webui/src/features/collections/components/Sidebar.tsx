@@ -78,6 +78,19 @@ export function CollectionsSidebar() {
     }
   }, [collectionId, collections, setActiveCollection])
 
+  // 默认选中第一个 collection（当没有指定 collectionId 时）
+  useEffect(() => {
+    if (!collectionId && !loading && collections.length > 0) {
+      // 优先选择 pinned collection，否则选择第一个非系统 collection，最后选择第一个 collection
+      const pinnedCollection = collections.find((c) => pinnedIds.includes(c.id))
+      const nonSystemCollection = collections.find((c) => !c.system)
+      const firstCollection = pinnedCollection || nonSystemCollection || collections[0]
+      if (firstCollection) {
+        navigate(`/collections/${firstCollection.name}`, { replace: true })
+      }
+    }
+  }, [collectionId, loading, collections, pinnedIds, navigate])
+
   // 处理点击
   const handleClick = useCallback(
     (collection: CollectionModel) => {

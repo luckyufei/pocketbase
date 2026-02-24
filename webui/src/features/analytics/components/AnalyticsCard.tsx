@@ -13,26 +13,27 @@ interface Props {
   invertTrend?: boolean
 }
 
+// Vercel 极简风格：统一使用黑白灰
 const colorStyles = {
   blue: {
-    bg: 'bg-blue-500',
-    iconBg: 'bg-blue-100',
-    iconText: 'text-blue-600',
+    bg: 'bg-foreground',
+    iconBg: 'bg-secondary',
+    iconText: 'text-foreground',
   },
   green: {
-    bg: 'bg-emerald-500',
-    iconBg: 'bg-emerald-100',
-    iconText: 'text-emerald-600',
+    bg: 'bg-foreground',
+    iconBg: 'bg-secondary',
+    iconText: 'text-foreground',
   },
   orange: {
-    bg: 'bg-orange-500',
-    iconBg: 'bg-orange-100',
-    iconText: 'text-orange-600',
+    bg: 'bg-foreground',
+    iconBg: 'bg-secondary',
+    iconText: 'text-foreground',
   },
   purple: {
-    bg: 'bg-violet-500',
-    iconBg: 'bg-violet-100',
-    iconText: 'text-violet-600',
+    bg: 'bg-foreground',
+    iconBg: 'bg-secondary',
+    iconText: 'text-foreground',
   },
 }
 
@@ -54,16 +55,16 @@ export function AnalyticsCard({ title, value, icon: Icon, color = 'blue', trend,
   const trendStyle = getTrendStyle()
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex items-start gap-3 hover:shadow-md hover:border-blue-200 transition-all">
+    <div className="bg-card rounded-lg border border-border p-4 flex items-start gap-3 hover:border-foreground/20 transition-all">
       {/* 图标 */}
-      <div className={`w-10 h-10 rounded-xl ${styles.iconBg} flex items-center justify-center flex-shrink-0`}>
+      <div className={`w-10 h-10 rounded-md ${styles.iconBg} flex items-center justify-center flex-shrink-0`}>
         <Icon className={`w-5 h-5 ${styles.iconText}`} />
       </div>
 
       {/* 内容 */}
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-slate-500 mb-0.5">{title}</p>
-        <p className="text-xl font-bold text-slate-900">{value}</p>
+        <p className="text-xs text-muted-foreground mb-0.5">{title}</p>
+        <p className="text-xl font-bold text-foreground">{value}</p>
         {trendStyle && (
           <p className={`text-xs ${trendStyle.text} flex items-center gap-0.5 mt-0.5`}>
             <span>{trendStyle.icon}</span>

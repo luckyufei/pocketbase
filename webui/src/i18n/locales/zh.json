@@ -10,7 +10,8 @@
     "analytics": "分析",
     "settings": "设置",
     "logout": "退出登录",
-    "userMenu": "用户菜单"
+    "userMenu": "用户菜单",
+    "manageSuperusers": "管理超级用户"
   },
   "theme": {
     "light": "浅色模式",
@@ -81,6 +82,11 @@
     "deleteError": "删除失败",
     "newField": "新字段",
     "newIndex": "新索引",
+    "createIndex": "创建索引",
+    "updateIndex": "更新索引",
+    "setIndex": "设置索引",
+    "unique": "唯一",
+    "presets": "预设",
     "uniqueConstraints": "唯一约束和索引 ({{count}})",
     "nonempty": "非空",
     "minLength": "最小长度",

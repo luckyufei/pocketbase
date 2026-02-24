@@ -30,27 +30,27 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="w-full max-w-md p-8">
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-full max-w-md p-8 bg-card rounded-lg border border-border">
         {/* Logo */}
         <div className="text-center mb-8">
-          <img src="/_/images/logo.svg" alt="PocketBase" className="w-16 h-16 mx-auto mb-4" />
-          <h1 className="text-3xl font-bold text-slate-900">PocketBase</h1>
-          <p className="text-slate-500 mt-2">{t('login.subtitle')}</p>
+<img src="/images/logo.svg" alt="PocketBase" className="w-16 h-16 mx-auto mb-4" />
+          <h1 className="text-3xl font-bold text-foreground">PocketBase</h1>
+          <p className="text-muted-foreground mt-2">{t('login.subtitle')}</p>
         </div>
 
         {/* 登录表单 */}
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* 错误提示 */}
           {error && (
-            <div className="p-3 rounded-xl bg-red-50 text-red-600 text-sm border border-red-200">
+            <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm border border-destructive/20">
               {error}
             </div>
           )}
 
           {/* 邮箱 */}
           <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium text-slate-900">
+            <label htmlFor="email" className="text-sm font-medium text-foreground">
               {t('login.email')}
             </label>
             <input
@@ -61,13 +61,13 @@ export function Login() {
               placeholder={t('login.emailPlaceholder')}
               required
               autoComplete="email"
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="w-full px-4 py-2.5 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
             />
           </div>
 
           {/* 密码 */}
           <div className="space-y-2">
-            <label htmlFor="password" className="text-sm font-medium text-slate-900">
+            <label htmlFor="password" className="text-sm font-medium text-foreground">
               {t('login.password')}
             </label>
             <input
@@ -78,7 +78,7 @@ export function Login() {
               placeholder={t('login.passwordPlaceholder')}
               required
               autoComplete="current-password"
-              className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              className="w-full px-4 py-2.5 border border-input rounded-md bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
             />
           </div>
 
