@@ -2,7 +2,9 @@
  * CollectionAuthOptionsTab - Auth Collection 认证选项配置
  * 用于配置 Auth 类型 Collection 的认证方式
  */
-import { useMemo, useCallback, useState } from 'react'
+import { useMemo, useCallback, useState, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useAtomValue, useSetAtom } from 'jotai'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -14,6 +16,8 @@ import { TokenOptionsAccordion } from './auth/TokenOptionsAccordion'
 import { MailTemplatesSection } from './auth/MailTemplatesSection'
 import { OAuth2ProvidersListPanel } from './auth/OAuth2ProvidersListPanel'
 import { OAuth2ProviderPanel } from './auth/OAuth2ProviderPanel'
+import { EmailTestPopup, type EmailTestPopupRef } from '@/components/settings/EmailTestPopup'
+import { formErrorsAtom, getNestedError, hasErrorsInPaths, removeFormErrorAtom } from '@/store/formErrors'
 import type { ProviderConfig } from '@/lib/providers'
 
 interface AuthCollection {
@@ -84,7 +88,30 @@ interface CollectionAuthOptionsTabProps {
 }
 
 export function CollectionAuthOptionsTab({ collection, onChange }: CollectionAuthOptionsTabProps) {
+  const { t } = useTranslation()
   const isSuperusers = collection.system && collection.name === '_superusers'
+
+  // Email test popup ref
+  const emailTestPopupRef = useRef<EmailTestPopupRef>(null)
+
+  // Task 14: 获取 formErrors 以便提取 oauth2.providers 错误
+  const formErrors = useAtomValue(formErrorsAtom)
+  
+  // Task 14: 检查 OAuth2 是否有错误
+  const oauth2HasErrors = hasErrorsInPaths(formErrors, ['oauth2'])
+  
+  // Task 14: 提取每个 provider 的错误信息
+  const oauth2ProviderErrors = useMemo(() => {
+    const oauth2Error = getNestedError(formErrors, 'oauth2')
+    if (!oauth2Error || !oauth2Error.providers) {
+      return {}
+    }
+    const providers = oauth2Error.providers as Record<number, unknown>
+    return providers
+  }, [formErrors])
+
+  // Task 15: 用于清除错误
+  const removeFormError = useSetAtom(removeFormErrorAtom)
 
   // OAuth2 面板状态
   const [showProvidersListPanel, setShowProvidersListPanel] = useState(false)
@@ -150,6 +177,19 @@ export function CollectionAuthOptionsTab({ collection, onChange }: CollectionAut
     },
     [onChange]
   )
+  
+  // Task 12: OTP 联动 MFA（用于 Superusers）
+  const handleMfaEnabledFromOTP = useCallback(
+    (enabled: boolean) => {
+      onChange({
+        mfa: {
+          ...collection.mfa,
+          enabled,
+        },
+      })
+    },
+    [collection.mfa, onChange]
+  )
 
   // 处理 MFA 变更
   const handleMFAChange = useCallback(
@@ -182,8 +222,13 @@ export function CollectionAuthOptionsTab({ collection, onChange }: CollectionAut
           enabled,
         },
       })
+      
+      // Task 15: 禁用时清除 emailTemplate 错误
+      if (!enabled) {
+        removeFormError('authAlert.emailTemplate')
+      }
     },
-    [collection.authAlert, onChange]
+    [collection.authAlert, onChange, removeFormError]
   )
 
   // OAuth2 提供商相关处理
@@ -291,7 +336,7 @@ export function CollectionAuthOptionsTab({ collection, onChange }: CollectionAut
       <div>
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Auth methods
+            {t('collections.authOptions.authMethods', 'Auth methods')}
           </h4>
           <div className="flex items-center gap-1.5">
             <Switch
@@ -300,7 +345,7 @@ export function CollectionAuthOptionsTab({ collection, onChange }: CollectionAut
               onCheckedChange={handleAuthAlertChange}
             />
             <Label htmlFor="auth-alert-enabled" className="text-[11px] text-muted-foreground cursor-pointer">
-              Send email alert for new logins
+              {t('collections.authOptions.sendEmailAlertForNewLogins', 'Send email alert for new logins')}
             </Label>
           </div>
         </div>
@@ -321,12 +366,28 @@ export function CollectionAuthOptionsTab({ collection, onChange }: CollectionAut
               fields={collection.fields}
               onAddProvider={handleAddProvider}
               onEditProvider={handleEditProvider}
+              hasErrors={oauth2HasErrors}
+              providerErrors={oauth2ProviderErrors}
             />
           )}
 
-          <OTPAccordion otp={collection.otp} onChange={handleOTPChange} />
+          <OTPAccordion 
+            otp={collection.otp} 
+            onChange={handleOTPChange}
+            isSuperusers={isSuperusers}
+            onMfaEnabledChange={handleMfaEnabledFromOTP}
+          />
 
-          <MFAAccordion mfa={collection.mfa} onChange={handleMFAChange} />
+          <MFAAccordion 
+            mfa={collection.mfa} 
+            onChange={handleMFAChange}
+            collection={{
+              name: collection.name,
+              type: collection.type,
+              system: collection.system,
+              fields: collection.fields,
+            }}
+          />
         </div>
       </div>
 
@@ -334,10 +395,15 @@ export function CollectionAuthOptionsTab({ collection, onChange }: CollectionAut
       <div>
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Mail templates
+            {t('collections.authOptions.mailTemplates', 'Mail templates')}
           </h4>
-          <Button variant="ghost" size="sm" className="h-6 text-[11px] text-muted-foreground hover:text-foreground">
-            Send test email
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 text-[11px] text-muted-foreground hover:text-foreground"
+            onClick={() => emailTestPopupRef.current?.show(collection.id)}
+          >
+            {t('collections.authOptions.sendTestEmail', 'Send test email')}
           </Button>
         </div>
 
@@ -347,7 +413,7 @@ export function CollectionAuthOptionsTab({ collection, onChange }: CollectionAut
       {/* Other Section */}
       <div>
         <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-          Other
+          {t('collections.authOptions.other', 'Other')}
         </h4>
 
         <TokenOptionsAccordion
@@ -380,6 +446,9 @@ export function CollectionAuthOptionsTab({ collection, onChange }: CollectionAut
         onDelete={handleDeleteProvider}
         onBack={handleBackFromProvider}
       />
+
+      {/* Email Test Popup */}
+      <EmailTestPopup ref={emailTestPopupRef} />
     </div>
   )
 }

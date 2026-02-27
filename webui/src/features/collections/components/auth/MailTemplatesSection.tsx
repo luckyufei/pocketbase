@@ -5,6 +5,7 @@
  * 默认模板内容参考 core/collection_model_auth_templates.go
  */
 import { useCallback, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Accordion,
   AccordionContent,
@@ -158,6 +159,7 @@ function EmailTemplateAccordion({
   defaultBody: string
   onChange: (config: EmailTemplate) => void
 }) {
+  const { t } = useTranslation()
   // 使用默认值填充空值
   const subject = config.subject || defaultSubject
   const body = config.body || defaultBody
@@ -192,19 +194,19 @@ function EmailTemplateAccordion({
           {/* Subject 输入框 */}
           <div className="space-y-1.5">
             <Label htmlFor={`${templateKey}-subject`} className="text-[12px] font-medium">
-              Subject <span className="text-red-500">*</span>
+              {t('collections.authOptions.emailSubject', 'Subject')} <span className="text-red-500">*</span>
             </Label>
             <Input
               id={`${templateKey}-subject`}
               value={subject}
               onChange={handleSubjectChange}
-              placeholder="Enter email subject..."
+              placeholder={t('collections.authOptions.emailSubjectPlaceholder', 'Enter email subject...')}
               className="h-9 text-[13px]"
               spellCheck={false}
             />
             {/* Placeholder 提示 */}
             <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-1">
-              <span>Available placeholder parameters:</span>
+              <span>{t('collections.authOptions.availablePlaceholders', 'Available placeholder parameters:')}</span>
               {placeholders.map((p) => (
                 <PlaceholderButton key={p} placeholder={p} />
               ))}
@@ -214,7 +216,7 @@ function EmailTemplateAccordion({
           {/* Body HTML 编辑器 */}
           <div className="space-y-1.5">
             <Label htmlFor={`${templateKey}-body`} className="text-[12px] font-medium">
-              Body (HTML) <span className="text-red-500">*</span>
+              {t('collections.authOptions.emailBody', 'Body (HTML)')} <span className="text-red-500">*</span>
             </Label>
             <div className="border rounded-md overflow-hidden">
               <CodeEditor
@@ -223,12 +225,12 @@ function EmailTemplateAccordion({
                 onChange={handleBodyChange}
                 language="html"
                 height="200px"
-                placeholder="Enter HTML email body..."
+                placeholder={t('collections.authOptions.emailBodyPlaceholder', 'Enter HTML email body...')}
               />
             </div>
             {/* Placeholder 提示 */}
             <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-1">
-              <span>Available placeholder parameters:</span>
+              <span>{t('collections.authOptions.availablePlaceholders', 'Available placeholder parameters:')}</span>
               {placeholders.map((p) => (
                 <PlaceholderButton key={p} placeholder={p} />
               ))}
@@ -245,26 +247,28 @@ export function MailTemplatesSection({
   onChange,
   isSuperusers = false,
 }: MailTemplatesSectionProps) {
+  const { t } = useTranslation()
+  
   // 根据是否是 superusers 确定显示的模板列表
   const templates: MailTemplate[] = isSuperusers
     ? [
         {
           key: 'resetPasswordTemplate',
-          label: 'Default Password reset email template',
+          label: t('collections.authOptions.defaultPasswordResetEmailTemplate', 'Default Password reset email template'),
           placeholders: ['APP_NAME', 'APP_URL', 'RECORD:*', 'TOKEN'],
           defaultSubject: DEFAULT_TEMPLATES.resetPassword.subject,
           defaultBody: DEFAULT_TEMPLATES.resetPassword.body,
         },
         {
           key: 'otp.emailTemplate',
-          label: 'Default OTP email template',
+          label: t('collections.authOptions.defaultOtpEmailTemplate', 'Default OTP email template'),
           placeholders: ['APP_NAME', 'APP_URL', 'RECORD:*', 'OTP', 'OTP_ID'],
           defaultSubject: DEFAULT_TEMPLATES.otp.subject,
           defaultBody: DEFAULT_TEMPLATES.otp.body,
         },
         {
           key: 'authAlert.emailTemplate',
-          label: 'Default Login alert email template',
+          label: t('collections.authOptions.defaultLoginAlertEmailTemplate', 'Default Login alert email template'),
           placeholders: ['APP_NAME', 'APP_URL', 'RECORD:*', 'ALERT_INFO'],
           defaultSubject: DEFAULT_TEMPLATES.authAlert.subject,
           defaultBody: DEFAULT_TEMPLATES.authAlert.body,
@@ -273,35 +277,35 @@ export function MailTemplatesSection({
     : [
         {
           key: 'verificationTemplate',
-          label: 'Default Verification email template',
+          label: t('collections.authOptions.defaultVerificationEmailTemplate', 'Default Verification email template'),
           placeholders: ['APP_NAME', 'APP_URL', 'RECORD:*', 'TOKEN'],
           defaultSubject: DEFAULT_TEMPLATES.verification.subject,
           defaultBody: DEFAULT_TEMPLATES.verification.body,
         },
         {
           key: 'resetPasswordTemplate',
-          label: 'Default Password reset email template',
+          label: t('collections.authOptions.defaultPasswordResetEmailTemplate', 'Default Password reset email template'),
           placeholders: ['APP_NAME', 'APP_URL', 'RECORD:*', 'TOKEN'],
           defaultSubject: DEFAULT_TEMPLATES.resetPassword.subject,
           defaultBody: DEFAULT_TEMPLATES.resetPassword.body,
         },
         {
           key: 'confirmEmailChangeTemplate',
-          label: 'Default Confirm email change email template',
+          label: t('collections.authOptions.defaultConfirmEmailChangeTemplate', 'Default Confirm email change email template'),
           placeholders: ['APP_NAME', 'APP_URL', 'RECORD:*', 'TOKEN'],
           defaultSubject: DEFAULT_TEMPLATES.confirmEmailChange.subject,
           defaultBody: DEFAULT_TEMPLATES.confirmEmailChange.body,
         },
         {
           key: 'otp.emailTemplate',
-          label: 'Default OTP email template',
+          label: t('collections.authOptions.defaultOtpEmailTemplate', 'Default OTP email template'),
           placeholders: ['APP_NAME', 'APP_URL', 'RECORD:*', 'OTP', 'OTP_ID'],
           defaultSubject: DEFAULT_TEMPLATES.otp.subject,
           defaultBody: DEFAULT_TEMPLATES.otp.body,
         },
         {
           key: 'authAlert.emailTemplate',
-          label: 'Default Login alert email template',
+          label: t('collections.authOptions.defaultLoginAlertEmailTemplate', 'Default Login alert email template'),
           placeholders: ['APP_NAME', 'APP_URL', 'RECORD:*', 'ALERT_INFO'],
           defaultSubject: DEFAULT_TEMPLATES.authAlert.subject,
           defaultBody: DEFAULT_TEMPLATES.authAlert.body,

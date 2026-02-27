@@ -1,7 +1,9 @@
 /**
  * OAuth2Accordion - OAuth2 authentication configuration component
+ * Task 4: 添加错误图标支持
  */
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Accordion,
   AccordionContent,
@@ -24,7 +26,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
-import { Users, Plus, ChevronDown, ChevronUp } from 'lucide-react'
+import { AlertTriangle, Users, Plus, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getProviderByName } from '@/lib/providers'
 
@@ -61,6 +63,9 @@ interface OAuth2AccordionProps {
   fields?: CollectionField[]
   onAddProvider?: () => void
   onEditProvider?: (providerName: string) => void
+  hasErrors?: boolean
+  /** Task 14: 每个 provider 的错误信息，key 为 provider 索引 */
+  providerErrors?: Record<number, unknown>
 }
 
 // 排除的系统字段
@@ -77,7 +82,10 @@ export function OAuth2Accordion({
   fields = [],
   onAddProvider,
   onEditProvider,
+  hasErrors = false,
+  providerErrors = {},
 }: OAuth2AccordionProps) {
+  const { t } = useTranslation()
   const [showMappedFields, setShowMappedFields] = useState(false)
 
   const handleEnabledChange = (checked: boolean) => {
@@ -124,10 +132,14 @@ export function OAuth2Accordion({
           <div className="flex items-center gap-2 flex-1">
             <Users className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-[12px]">OAuth2</span>
+            {/* Task 4: 错误图标 */}
+            {hasErrors && (
+              <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+            )}
             <div className="flex-1" />
             {oauth2.enabled && oauth2.providers.length > 0 && (
               <Badge variant="secondary" className="mr-1.5 text-[10px] px-1.5 py-0 h-5">
-                {oauth2.providers.length} {oauth2.providers.length === 1 ? 'provider' : 'providers'}
+                {oauth2.providers.length} {oauth2.providers.length === 1 ? t('collections.authOptions.provider', 'provider') : t('collections.authOptions.providers', 'providers')}
               </Badge>
             )}
             <Badge 
@@ -138,7 +150,7 @@ export function OAuth2Accordion({
                   : 'bg-slate-100 text-slate-500 hover:bg-slate-100'
               }`}
             >
-              {oauth2.enabled ? 'Enabled' : 'Disabled'}
+              {oauth2.enabled ? t('common.enabled', 'Enabled') : t('common.disabled', 'Disabled')}
             </Badge>
           </div>
         </AccordionTrigger>
@@ -150,7 +162,7 @@ export function OAuth2Accordion({
               onCheckedChange={handleEnabledChange}
               className="scale-75 origin-left"
             />
-            <Label htmlFor="oauth2-enabled" className="text-[12px]">Enable</Label>
+            <Label htmlFor="oauth2-enabled" className="text-[12px]">{t('common.enable', 'Enable')}</Label>
           </div>
 
           {oauth2.enabled && (
@@ -160,11 +172,15 @@ export function OAuth2Accordion({
                 <div className="grid grid-cols-2 gap-1.5">
                   {oauth2.providers.map((provider, index) => {
                     const providerInfo = getProviderByName(provider.name)
+                    const hasProviderError = providerErrors[index] != null && Object.keys(providerErrors[index] as object).length > 0
                     return (
                       <button
                         key={index}
                         type="button"
-                        className="flex items-center gap-2 p-2 border rounded-md hover:bg-muted/50 transition-colors text-left"
+                        className={cn(
+                          "flex items-center gap-2 p-2 border rounded-md hover:bg-muted/50 transition-colors text-left",
+                          hasProviderError && "border-destructive bg-destructive/5"
+                        )}
                         onClick={() => onEditProvider?.(provider.name)}
                       >
                         <div className="w-6 h-6 rounded bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
@@ -194,7 +210,7 @@ export function OAuth2Accordion({
                     onClick={onAddProvider}
                   >
                     <Plus className="h-3.5 w-3.5" />
-                    <span className="text-[11px]">Add provider</span>
+                    <span className="text-[11px]">{t('collections.authOptions.addProvider', 'Add provider')}</span>
                   </button>
                 </div>
               </div>
@@ -208,7 +224,7 @@ export function OAuth2Accordion({
                     className="w-full justify-between mt-2 h-7 text-[11px]"
                   >
                     <span className="font-medium">
-                      Optional {collectionName} create fields map
+                      {t('collections.authOptions.optionalFieldsMap', 'Optional {{collection}} create fields map', { collection: collectionName })}
                     </span>
                     {showMappedFields ? (
                       <ChevronUp className="h-3.5 w-3.5" />
@@ -222,18 +238,18 @@ export function OAuth2Accordion({
                     {/* OAuth2 full name */}
                     <div className="space-y-1">
                       <Label htmlFor="mapped-name" className="text-[11px] text-muted-foreground">
-                        OAuth2 full name
+                        {t('collections.authOptions.oauth2FullName', 'OAuth2 full name')}
                       </Label>
                       <Select
                         value={oauth2.mappedFields?.name || '__none__'}
                         onValueChange={(value) => handleMappedFieldChange('name', value)}
                       >
                         <SelectTrigger id="mapped-name" className="h-7 text-[11px]">
-                          <SelectValue placeholder="Select field" />
+                          <SelectValue placeholder={t('collections.authOptions.selectField', 'Select field')} />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">
-                            <span className="text-muted-foreground">Select field</span>
+                            <span className="text-muted-foreground">{t('collections.authOptions.selectField', 'Select field')}</span>
                           </SelectItem>
                           {textFieldOptions.map((field) => (
                             <SelectItem key={field} value={field}>
@@ -247,18 +263,18 @@ export function OAuth2Accordion({
                     {/* OAuth2 avatar */}
                     <div className="space-y-1">
                       <Label htmlFor="mapped-avatar" className="text-[11px] text-muted-foreground">
-                        OAuth2 avatar
+                        {t('collections.authOptions.oauth2Avatar', 'OAuth2 avatar')}
                       </Label>
                       <Select
                         value={oauth2.mappedFields?.avatarURL || '__none__'}
                         onValueChange={(value) => handleMappedFieldChange('avatarURL', value)}
                       >
                         <SelectTrigger id="mapped-avatar" className="h-7 text-[11px]">
-                          <SelectValue placeholder="Select field" />
+                          <SelectValue placeholder={t('collections.authOptions.selectField', 'Select field')} />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">
-                            <span className="text-muted-foreground">Select field</span>
+                            <span className="text-muted-foreground">{t('collections.authOptions.selectField', 'Select field')}</span>
                           </SelectItem>
                           {textAndFileFieldOptions.map((field) => (
                             <SelectItem key={field} value={field}>
@@ -272,18 +288,18 @@ export function OAuth2Accordion({
                     {/* OAuth2 id */}
                     <div className="space-y-1">
                       <Label htmlFor="mapped-id" className="text-[11px] text-muted-foreground">
-                        OAuth2 id
+                        {t('collections.authOptions.oauth2Id', 'OAuth2 id')}
                       </Label>
                       <Select
                         value={oauth2.mappedFields?.id || '__none__'}
                         onValueChange={(value) => handleMappedFieldChange('id', value)}
                       >
                         <SelectTrigger id="mapped-id" className="h-7 text-[11px]">
-                          <SelectValue placeholder="Select field" />
+                          <SelectValue placeholder={t('collections.authOptions.selectField', 'Select field')} />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">
-                            <span className="text-muted-foreground">Select field</span>
+                            <span className="text-muted-foreground">{t('collections.authOptions.selectField', 'Select field')}</span>
                           </SelectItem>
                           {textFieldOptions.map((field) => (
                             <SelectItem key={field} value={field}>
@@ -297,18 +313,18 @@ export function OAuth2Accordion({
                     {/* OAuth2 username */}
                     <div className="space-y-1">
                       <Label htmlFor="mapped-username" className="text-[11px] text-muted-foreground">
-                        OAuth2 username
+                        {t('collections.authOptions.oauth2Username', 'OAuth2 username')}
                       </Label>
                       <Select
                         value={oauth2.mappedFields?.username || '__none__'}
                         onValueChange={(value) => handleMappedFieldChange('username', value)}
                       >
                         <SelectTrigger id="mapped-username" className="h-7 text-[11px]">
-                          <SelectValue placeholder="Select field" />
+                          <SelectValue placeholder={t('collections.authOptions.selectField', 'Select field')} />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">
-                            <span className="text-muted-foreground">Select field</span>
+                            <span className="text-muted-foreground">{t('collections.authOptions.selectField', 'Select field')}</span>
                           </SelectItem>
                           {textFieldOptions.map((field) => (
                             <SelectItem key={field} value={field}>

@@ -314,10 +314,10 @@ const { pb } = usePocketbase()
   const handleClose = useCallback(() => {
     if (hasChanges) {
       showConfirm({
-        title: 'Unsaved Changes',
-        message: 'You have unsaved changes. Do you really want to close the panel?',
-        confirmText: 'Discard',
-        cancelText: 'Cancel',
+        title: t('records.unsavedChangesTitle', 'Unsaved Changes'),
+        message: t('records.unsavedChangesMessage', 'You have unsaved changes. Do you really want to close the panel?'),
+        confirmText: t('common.discard', 'Discard'),
+        cancelText: t('common.cancel', 'Cancel'),
         isDanger: true,
         onConfirm: () => {
           deleteDraft()
@@ -328,7 +328,7 @@ const { pb } = usePocketbase()
       deleteDraft()
       onClose()
     }
-  }, [hasChanges, deleteDraft, onClose, showConfirm])
+  }, [hasChanges, deleteDraft, onClose, showConfirm, t])
 
   // Handle draft restoration
   const handleRestoreDraft = useCallback(() => {
@@ -362,52 +362,52 @@ const { pb } = usePocketbase()
     if (!collection?.id || !record?.email) return
 
     showConfirm({
-      title: 'Send Verification Email',
-      message: `Do you really want to send a verification email to ${record.email}?`,
-      confirmText: 'Send',
-      cancelText: 'Cancel',
+      title: t('records.sendVerificationEmailTitle', 'Send Verification Email'),
+      message: t('records.sendVerificationEmailConfirm', 'Do you really want to send a verification email to {{email}}?', { email: record.email }),
+      confirmText: t('common.send', 'Send'),
+      cancelText: t('common.cancel', 'Cancel'),
       onConfirm: async () => {
         try {
           await pb.collection(collection.id).requestVerification(record.email as string)
           toast({
             type: 'success',
-            message: `Successfully sent verification email to ${record.email}.`,
+            message: t('records.sendVerificationEmailSuccess', 'Successfully sent verification email to {{email}}.', { email: record.email }),
           })
         } catch (err) {
           toast({
             type: 'error',
-            message: `Failed to send verification email: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            message: t('records.sendVerificationEmailError', 'Failed to send verification email: {{error}}', { error: err instanceof Error ? err.message : 'Unknown error' }),
           })
         }
       },
     })
-  }, [collection?.id, record?.email, pb, showConfirm, toast])
+  }, [collection?.id, record?.email, pb, showConfirm, toast, t])
 
   // Send password reset email
   const handleSendPasswordResetEmail = useCallback(() => {
     if (!collection?.id || !record?.email) return
 
     showConfirm({
-      title: 'Send Password Reset Email',
-      message: `Do you really want to send a password reset email to ${record.email}?`,
-      confirmText: 'Send',
-      cancelText: 'Cancel',
+      title: t('records.sendPasswordResetTitle', 'Send Password Reset Email'),
+      message: t('records.sendPasswordResetConfirm', 'Do you really want to send a password reset email to {{email}}?', { email: record.email }),
+      confirmText: t('common.send', 'Send'),
+      cancelText: t('common.cancel', 'Cancel'),
       onConfirm: async () => {
         try {
           await pb.collection(collection.id).requestPasswordReset(record.email as string)
           toast({
             type: 'success',
-            message: `Successfully sent password reset email to ${record.email}.`,
+            message: t('records.sendPasswordResetSuccess', 'Successfully sent password reset email to {{email}}.', { email: record.email }),
           })
         } catch (err) {
           toast({
             type: 'error',
-            message: `Failed to send password reset email: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            message: t('records.sendPasswordResetError', 'Failed to send password reset email: {{error}}', { error: err instanceof Error ? err.message : 'Unknown error' }),
           })
         }
       },
     })
-  }, [collection?.id, record?.email, pb, showConfirm, toast])
+  }, [collection?.id, record?.email, pb, showConfirm, toast, t])
 
   // Copy raw JSON
   const handleCopyJSON = useCallback(() => {
@@ -757,31 +757,33 @@ const { pb } = usePocketbase()
           </Alert>
         )}
 
-        {/* ID 字段 */}
-        <div className={`form-field ${isEdit ? 'readonly' : ''}`}>
-          <div data-field-label="" className="flex items-center justify-between w-full">
-            <Label htmlFor="id" className="flex items-center gap-1.5">
-              <Key className="h-3.5 w-3.5" />
-              id
-            </Label>
-            {isEdit && record && <AutodateIcon record={record} />}
+        {/* ID 字段 - 仅在非 Tab 模式下显示（Tab 模式下 ID 在 Account 标签页内） */}
+        {!showTabs && (
+          <div className={`form-field ${isEdit ? 'readonly' : ''}`}>
+            <div data-field-label="" className="flex items-center justify-between w-full">
+              <Label htmlFor="id" className="flex items-center gap-1.5">
+                <Key className="h-3.5 w-3.5" />
+                id
+              </Label>
+              {isEdit && record && <AutodateIcon record={record} />}
+            </div>
+            <Input
+              id="id"
+              value={isEdit ? (record?.id || '') : ((formData.id as string) || '')}
+              readOnly={isEdit}
+              disabled={isEdit}
+              placeholder={
+                isNew && idField?.autogeneratePattern
+                  ? t('records.idPlaceholder', 'Leave empty to auto generate...')
+                  : ''
+              }
+              minLength={idField?.min}
+              maxLength={idField?.max}
+              onChange={isNew ? (e) => handleFieldChange('id', e.target.value) : undefined}
+              className="font-mono text-sm"
+            />
           </div>
-          <Input
-            id="id"
-            value={isEdit ? (record?.id || '') : ((formData.id as string) || '')}
-            readOnly={isEdit}
-            disabled={isEdit}
-            placeholder={
-              isNew && idField?.autogeneratePattern
-                ? t('records.idPlaceholder', 'Leave empty to auto generate...')
-                : ''
-            }
-            minLength={idField?.min}
-            maxLength={idField?.max}
-            onChange={isNew ? (e) => handleFieldChange('id', e.target.value) : undefined}
-            className="font-mono text-sm"
-          />
-        </div>
+        )}
 
         {/* Auth Collection with Tabs (Edit mode, non-superusers) */}
         {showTabs ? (
@@ -791,6 +793,23 @@ const { pb } = usePocketbase()
               <TabsTrigger value="providers">{t('records.providersTab', 'Authorized providers')}</TabsTrigger>
             </TabsList>
             <TabsContent value="form" className="space-y-4">
+              {/* ID 字段 - 在 Account 标签页内显示 */}
+              <div className="form-field readonly">
+                <div data-field-label="" className="flex items-center justify-between w-full">
+                  <Label htmlFor="id-account" className="flex items-center gap-1.5">
+                    <Key className="h-3.5 w-3.5" />
+                    id
+                  </Label>
+                  {record && <AutodateIcon record={record} />}
+                </div>
+                <Input
+                  id="id-account"
+                  value={record?.id || ''}
+                  readOnly
+                  disabled
+                  className="font-mono text-sm"
+                />
+              </div>
               {/* Auth Fields */}
               {collection && (
                 <AuthFields

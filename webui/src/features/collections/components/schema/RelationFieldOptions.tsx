@@ -2,15 +2,17 @@
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectSeparator,
 } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Info } from 'lucide-react'
+import { Info, Plus } from 'lucide-react'
 
 export interface RelationField {
   name: string
@@ -32,12 +34,15 @@ interface RelationFieldOptionsProps {
   field: RelationField
   onChange: (field: RelationField) => void
   collections?: Collection[]
+  /** Task 10: 点击 "New collection" 按钮的回调 */
+  onNewCollection?: () => void
 }
 
 export function RelationFieldOptions({
   field,
   onChange,
   collections = [],
+  onNewCollection,
 }: RelationFieldOptionsProps) {
   const { t } = useTranslation()
   const isSingle = (field.maxSelect || 1) <= 1
@@ -56,22 +61,42 @@ export function RelationFieldOptions({
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>{t('collections.selectCollection')}</Label>
-        <Select
-          value={field.collectionId || ''}
-          onValueChange={(value) => onChange({ ...field, collectionId: value })}
-          disabled={!!field.id}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={t('collections.selectCollectionPlaceholder')} />
-          </SelectTrigger>
-          <SelectContent>
-            {selectableCollections.map((col) => (
-              <SelectItem key={col.id} value={col.id}>
-                {col.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select
+            value={field.collectionId || ''}
+            onValueChange={(value) => onChange({ ...field, collectionId: value })}
+            disabled={!!field.id}
+          >
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder={t('collections.selectCollectionPlaceholder')} />
+            </SelectTrigger>
+            <SelectContent>
+              {selectableCollections.map((col) => (
+                <SelectItem key={col.id} value={col.id}>
+                  {col.name}
+                </SelectItem>
+              ))}
+              {/* Task 10: New collection 按钮 */}
+              {onNewCollection && !field.id && (
+                <>
+                  <SelectSeparator />
+                  <button
+                    type="button"
+                    className="relative flex w-full cursor-pointer select-none items-center rounded-sm py-1.5 px-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      onNewCollection()
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t('collections.newCollection')}
+                  </button>
+                </>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="space-y-2">
