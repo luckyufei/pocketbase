@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { ChevronDown, ChevronUp, Info } from 'lucide-react'
 import { RuleField } from './RuleField'
 
@@ -178,6 +179,20 @@ export function CollectionRulesTab({ collection, onChange }: CollectionRulesTabP
               rule={collection.createRule}
               onChange={(rule) => onChange({ createRule: rule })}
               collection={collection}
+              afterLabel={
+                collection.createRule !== null && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <p>{t('apiRules.createRuleTooltip', 'The main record fields hold the values that are going to be inserted in the database.')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )
+              }
             />
 
             <RuleField
@@ -186,6 +201,20 @@ export function CollectionRulesTab({ collection, onChange }: CollectionRulesTabP
               rule={collection.updateRule}
               onChange={(rule) => onChange({ updateRule: rule })}
               collection={collection}
+              afterLabel={
+                collection.updateRule !== null && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3.5 w-3.5 text-slate-400 hover:text-slate-600 cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs">
+                        <p className="whitespace-pre-line">{t('apiRules.updateRuleTooltip', 'The main record fields represent the old/existing record field values.\nTo target the newly submitted ones you can use @request.body.*')}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )
+              }
             />
 
             <RuleField

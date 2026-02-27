@@ -36,6 +36,7 @@ import {
 import { SchemaFieldEditor } from './SchemaFieldEditor'
 import { IndexesList } from './IndexesList'
 import { updateIndexFieldName } from '../utils/indexRename'  // Phase 5: 索引重命名工具
+import { useCollections } from '../hooks/useCollections'  // Task 10: 获取 collections 数据
 
 // 字段类型定义（与 UI 版本保持一致，不包含 Password）
 export const FIELD_TYPES: { value: string; label: string; icon: LucideIcon }[] = [
@@ -85,14 +86,26 @@ export interface CollectionData {
 interface CollectionFieldsTabProps {
   collection: CollectionData
   onChange: (collection: CollectionData) => void
+  /** Task 10: 点击 "New collection" 按钮的回调 */
+  onNewCollection?: () => void
 }
 
 /**
  * Collection 字段编辑 Tab
  */
-export function CollectionFieldsTab({ collection, onChange }: CollectionFieldsTabProps) {
+export function CollectionFieldsTab({ collection, onChange, onNewCollection }: CollectionFieldsTabProps) {
   const { t } = useTranslation()
   const [expandedField, setExpandedField] = useState<string | null>(null)
+  
+  // Task 10: 获取所有 collections 用于 Relation 字段选择
+  const { collections } = useCollections()
+  
+  // 转换为 Relation 字段需要的格式
+  const collectionsForRelation = collections.map(c => ({
+    id: c.id,
+    name: c.name,
+    type: c.type,
+  }))
 
   // 拖拽传感器配置
   const sensors = useSensors(
@@ -132,6 +145,10 @@ export function CollectionFieldsTab({ collection, onChange }: CollectionFieldsTa
         required: false,
         options: {},
         _focusNameOnMount: true, // 标记需要聚焦名称输入框
+        // Task 11: Secret 字段默认隐藏
+        ...(type === 'secret' && { hidden: true }),
+        // Task 19: Password 字段默认 cost = 11（与 UI 版本一致）
+        ...(type === 'password' && { cost: 11 }),
       }
 
       // 如果有 autodate 字段，在其前面插入
@@ -273,6 +290,8 @@ export function CollectionFieldsTab({ collection, onChange }: CollectionFieldsTa
                 onRestore={() => restoreField(index)}
                 onDuplicate={() => duplicateField(index)}
                 onRename={(oldName, newName) => handleFieldRename(index, oldName, newName)}
+                collections={collectionsForRelation}
+                onNewCollection={onNewCollection}
               />
             ))}
           </div>

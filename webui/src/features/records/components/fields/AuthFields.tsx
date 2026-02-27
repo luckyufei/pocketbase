@@ -7,7 +7,6 @@ import { useTranslation } from 'react-i18next'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Switch } from '@/components/ui/switch'
 import { FormField } from '@/components/ui/FormField'
 import { Lock, RefreshCw, Copy, Check, Sparkles } from 'lucide-react'
@@ -89,20 +88,29 @@ export function AuthFields({ record, onChange, collection, isNew }: AuthFieldsPr
   const emailField = collection?.fields?.find((f) => f.name === 'email')
   const emailRequired = emailField?.required ?? true
 
-  // Handle verified toggle with confirmation
+  // Handle verified toggle with confirmation - 与 UI 版本保持一致
+  // 编辑模式下，无论开启还是关闭，都先更新状态，然后显示确认对话框
   const handleVerifiedChange = useCallback((checked: boolean) => {
-    if (!isNew && record.verified && !checked) {
-      // Unverifying - show confirmation
-      confirm({
-        title: t('records.confirmUnverify', 'Confirm Unverify'),
-        message: t('records.confirmUnverifyMessage', 'Are you sure you want to mark this user as unverified?'),
-        onConfirm: () => onChange('verified', false),
-        isDanger: true
-      })
-    } else {
+    if (isNew) {
+      // 新建模式不需要确认
       onChange('verified', checked)
+    } else {
+      // 编辑模式：先更新状态（乐观更新）
+      onChange('verified', checked)
+      // 然后显示确认对话框
+      confirm({
+        title: t('records.confirmVerifiedChange', 'Confirm Change'),
+        message: t('records.confirmVerifiedChangeMessage', 'Do you really want to manually change the verified account state?'),
+        onConfirm: () => {
+          // 用户确认，保持新状态（已经更新了，无需操作）
+        },
+        onCancel: () => {
+          // 用户取消，恢复原状态
+          onChange('verified', !checked)
+        },
+      })
     }
-  }, [isNew, record.verified, confirm, onChange, t])
+  }, [isNew, confirm, onChange, t])
 
   // Generate password - 刷新密码
   const handleGeneratePassword = useCallback(() => {
@@ -167,10 +175,10 @@ export function AuthFields({ record, onChange, collection, isNew }: AuthFieldsPr
         />
       </FormField>
 
-      {/* Change Password Toggle (Edit mode) */}
+      {/* Change Password Toggle (Edit mode) - 与 UI 版本一致，使用 Switch */}
       {!isNew && (
         <div className="flex items-center space-x-2">
-          <Checkbox
+          <Switch
             id="change-password"
             checked={changePasswordToggle}
             onCheckedChange={(checked) => {

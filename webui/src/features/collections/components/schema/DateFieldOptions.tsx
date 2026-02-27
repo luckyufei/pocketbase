@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Info } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Info, X } from 'lucide-react'
 
 export interface DateField {
   name: string
@@ -24,6 +25,10 @@ export function DateFieldOptions({ field, onChange }: DateFieldOptionsProps) {
     onChange({ ...field, [key]: value })
   }
 
+  const handleClear = (key: 'min' | 'max') => {
+    onChange({ ...field, [key]: '' })
+  }
+
   return (
     <div className="grid grid-cols-2 gap-4">
       <div className="space-y-2">
@@ -40,12 +45,35 @@ export function DateFieldOptions({ field, onChange }: DateFieldOptionsProps) {
             </Tooltip>
           </TooltipProvider>
         </div>
-        <Input
-          id="date-min"
-          type="datetime-local"
-          value={field.min || ''}
-          onChange={(e) => handleChange('min', e.target.value)}
-        />
+        <div className="relative">
+          <Input
+            id="date-min"
+            type="datetime-local"
+            value={field.min || ''}
+            onChange={(e) => handleChange('min', e.target.value)}
+            className="pr-8"
+          />
+          {field.min && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground hover:text-foreground"
+                    onClick={() => handleClear('min')}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t('common.clear')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -62,12 +90,35 @@ export function DateFieldOptions({ field, onChange }: DateFieldOptionsProps) {
             </Tooltip>
           </TooltipProvider>
         </div>
-        <Input
-          id="date-max"
-          type="datetime-local"
-          value={field.max || ''}
-          onChange={(e) => handleChange('max', e.target.value)}
-        />
+        <div className="relative">
+          <Input
+            id="date-max"
+            type="datetime-local"
+            value={field.max || ''}
+            onChange={(e) => handleChange('max', e.target.value)}
+            className="pr-8"
+          />
+          {field.max && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground hover:text-foreground"
+                    onClick={() => handleClear('max')}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t('common.clear')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </div>
     </div>
   )

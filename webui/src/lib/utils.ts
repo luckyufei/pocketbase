@@ -162,3 +162,69 @@ export function formatFileSize(bytes: number): string {
   
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + units[i]
 }
+
+/**
+ * Task 6: Slugify 函数 - 与 UI 版本 CommonHelper.slugify 保持一致
+ * 支持国际字符转换
+ * 
+ * @param str 输入字符串
+ * @param delimiter 分隔符（默认 _）
+ * @param preserved 保留的特殊字符
+ */
+export function slugify(str: string, delimiter = '_', preserved = ['.', '=', '-']): string {
+  if (str === '') {
+    return ''
+  }
+
+  // 特殊字符映射表 - 与 UI 版本保持一致
+  const specialCharsMap: Record<string, RegExp> = {
+    'a': /а|à|á|å|â/gi,
+    'b': /б/gi,
+    'c': /ц|ç/gi,
+    'd': /д/gi,
+    'e': /е|è|é|ê|ẽ|ë/gi,
+    'f': /ф/gi,
+    'g': /г/gi,
+    'h': /х/gi,
+    'i': /й|и|ì|í|î/gi,
+    'j': /ж/gi,
+    'k': /к/gi,
+    'l': /л/gi,
+    'm': /м/gi,
+    'n': /н|ñ/gi,
+    'o': /о|ò|ó|ô|ø/gi,
+    'p': /п/gi,
+    'q': /я/gi,
+    'r': /р/gi,
+    's': /с/gi,
+    't': /т/gi,
+    'u': /ю|ù|ú|ů|û/gi,
+    'v': /в/gi,
+    'w': /в/gi,
+    'x': /ь/gi,
+    'y': /ъ/gi,
+    'z': /з/gi,
+    'ae': /ä|æ/gi,
+    'oe': /ö/gi,
+    'ue': /ü/gi,
+    'Ae': /Ä/gi,
+    'Ue': /Ü/gi,
+    'Oe': /Ö/gi,
+    'ss': /ß/gi,
+    'and': /&/gi,
+  }
+
+  // 替换特殊字符
+  for (const k in specialCharsMap) {
+    str = str.replace(specialCharsMap[k], k)
+  }
+
+  // 构建保留字符的正则表达式
+  const preservedRegex = new RegExp('[' + preserved.map(c => '\\' + c).join('') + ']', 'g')
+
+  return str
+    .replace(preservedRegex, ' ')     // 将保留字符替换为空格
+    .replace(/[^\w ]/gi, '')          // 移除所有非字母数字字符（保留空格）
+    .replace(/\s+/g, delimiter)       // 将空格合并并替换为分隔符
+    .toLowerCase()                     // 转换为小写
+}

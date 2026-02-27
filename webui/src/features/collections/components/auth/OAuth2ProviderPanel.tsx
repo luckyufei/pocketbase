@@ -3,8 +3,8 @@
  * OAuth2 provider configuration panel
  */
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Save, Trash2, Eye, EyeOff, Copy, Check } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -50,6 +50,7 @@ export function OAuth2ProviderPanel({
   onDelete,
   onBack,
 }: OAuth2ProviderPanelProps) {
+  const { t } = useTranslation()
   const [formData, setFormData] = useState<ProviderConfig>({})
   const [showSecret, setShowSecret] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -119,8 +120,8 @@ export function OAuth2ProviderPanel({
             {/* Enable toggle */}
             <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
               <div>
-                <Label className="text-base">Enable</Label>
-                <p className="text-sm text-muted-foreground">Enable this OAuth2 provider</p>
+                <Label className="text-base">{t('common.enable', 'Enable')}</Label>
+                <p className="text-sm text-muted-foreground">{t('collections.authOptions.enableOAuth2Provider', 'Enable this OAuth2 provider')}</p>
               </div>
               <Switch
                 checked={formData.enabled}
@@ -130,7 +131,7 @@ export function OAuth2ProviderPanel({
 
             {/* Redirect URI */}
             <div className="space-y-2">
-              <Label>Redirect URI</Label>
+              <Label>{t('collections.authOptions.redirectUri', 'Redirect URI')}</Label>
               <div className="flex gap-2">
                 <Input value={redirectUri} readOnly className="font-mono text-xs" />
                 <Button variant="outline" size="icon" onClick={handleCopyRedirectUri}>
@@ -142,20 +143,20 @@ export function OAuth2ProviderPanel({
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Add this URI to your OAuth2 provider's app settings
+                {t('collections.authOptions.redirectUriHint', "Add this URI to your OAuth2 provider's app settings")}
               </p>
             </div>
 
             {/* Client ID */}
             <div className="space-y-2">
               <Label htmlFor="clientId">
-                Client ID <span className="text-red-500">*</span>
+                {t('collections.authOptions.clientId', 'Client ID')} <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="clientId"
                 value={formData.clientId || ''}
                 onChange={(e) => handleChange('clientId', e.target.value)}
-                placeholder="Enter Client ID"
+                placeholder={t('collections.authOptions.enterClientId', 'Enter Client ID')}
               />
             </div>
 
@@ -163,7 +164,7 @@ export function OAuth2ProviderPanel({
             {providerName !== 'apple' && (
               <div className="space-y-2">
                 <Label htmlFor="clientSecret">
-                  Client Secret <span className="text-red-500">*</span>
+                  {t('collections.authOptions.clientSecret', 'Client Secret')} <span className="text-red-500">*</span>
                 </Label>
                 <div className="flex gap-2">
                   <Input
@@ -171,7 +172,7 @@ export function OAuth2ProviderPanel({
                     type={showSecret ? 'text' : 'password'}
                     value={formData.clientSecret || ''}
                     onChange={(e) => handleChange('clientSecret', e.target.value)}
-                    placeholder="Enter Client Secret"
+                    placeholder={t('collections.authOptions.enterClientSecret', 'Enter Client Secret')}
                   />
                   <Button variant="outline" size="icon" onClick={() => setShowSecret(!showSecret)}>
                     {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -185,7 +186,7 @@ export function OAuth2ProviderPanel({
               <>
                 <div className="space-y-2">
                   <Label htmlFor="authUrl">
-                    Auth URL <span className="text-red-500">*</span>
+                    {t('collections.authOptions.authUrl', 'Auth URL')} <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="authUrl"
@@ -197,7 +198,7 @@ export function OAuth2ProviderPanel({
 
                 <div className="space-y-2">
                   <Label htmlFor="tokenUrl">
-                    Token URL <span className="text-red-500">*</span>
+                    {t('collections.authOptions.tokenUrl', 'Token URL')} <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="tokenUrl"
@@ -208,7 +209,7 @@ export function OAuth2ProviderPanel({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="userApiUrl">User API URL</Label>
+                  <Label htmlFor="userApiUrl">{t('collections.authOptions.userApiUrl', 'User API URL')}</Label>
                   <Input
                     id="userApiUrl"
                     value={formData.userApiUrl || ''}
@@ -221,14 +222,14 @@ export function OAuth2ProviderPanel({
 
             {/* Display name */}
             <div className="space-y-2">
-              <Label htmlFor="displayName">Display name</Label>
+              <Label htmlFor="displayName">{t('collections.authOptions.displayName', 'Display name')}</Label>
               <Input
                 id="displayName"
                 value={formData.displayName || ''}
                 onChange={(e) => handleChange('displayName', e.target.value)}
                 placeholder={getProviderDisplayName(providerName)}
               />
-              <p className="text-xs text-muted-foreground">Custom name to display on the login button</p>
+              <p className="text-xs text-muted-foreground">{t('collections.authOptions.displayNameHint', 'Custom name to display on the login button')}</p>
             </div>
 
             {/* Error messages */}
@@ -246,7 +247,7 @@ export function OAuth2ProviderPanel({
             <div className="flex gap-2 pt-4">
               <Button onClick={handleSave} className="flex-1">
                 <Save className="h-4 w-4 mr-2" />
-                Save
+                {t('common.save', 'Save')}
               </Button>
 
               {config.clientId && (
@@ -258,14 +259,14 @@ export function OAuth2ProviderPanel({
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Confirm delete</AlertDialogTitle>
+                      <AlertDialogTitle>{t('collections.authOptions.confirmDelete', 'Confirm delete')}</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Are you sure you want to delete the {getProviderDisplayName(providerName)} configuration? This action cannot be undone.
+                        {t('collections.authOptions.deleteProviderConfirm', 'Are you sure you want to delete the {{provider}} configuration? This action cannot be undone.', { provider: getProviderDisplayName(providerName) })}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={onDelete}>Delete</AlertDialogAction>
+                      <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+                      <AlertDialogAction onClick={onDelete}>{t('common.delete', 'Delete')}</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>

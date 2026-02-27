@@ -1,4 +1,5 @@
 // T014: File 字段选项组件
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,8 +19,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Info, X, ChevronDown } from 'lucide-react'
+import { Info, X, ChevronDown, ExternalLink } from 'lucide-react'
 
 export interface FileField {
   name: string
@@ -53,6 +59,7 @@ const MIME_PRESETS = {
 export function FileFieldOptions({ field, onChange }: FileFieldOptionsProps) {
   const { t } = useTranslation()
   const isSingle = (field.maxSelect || 1) <= 1
+  const [thumbFormatsOpen, setThumbFormatsOpen] = useState(false)
 
   const handleSingleMultipleChange = (value: string) => {
     if (value === 'single') {
@@ -142,7 +149,19 @@ export function FileFieldOptions({ field, onChange }: FileFieldOptionsProps) {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="file-thumbs">{t('collections.thumbSizes')}</Label>
+          <div className="flex items-center gap-1">
+            <Label htmlFor="file-thumbs">{t('collections.thumbSizes')}</Label>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t('collections.thumbSizesTooltip')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <Input
             id="file-thumbs"
             placeholder="e.g. 50x50, 480x720"
@@ -157,7 +176,40 @@ export function FileFieldOptions({ field, onChange }: FileFieldOptionsProps) {
               })
             }
           />
-          <p className="text-xs text-muted-foreground">{t('collections.commaSeparator')}</p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>{t('collections.commaSeparator')}</span>
+            {/* Task 9: Thumb 格式说明下拉 */}
+            <Popover open={thumbFormatsOpen} onOpenChange={setThumbFormatsOpen}>
+              <PopoverTrigger asChild>
+                <button type="button" className="text-blue-600 hover:underline flex items-center gap-0.5">
+                  {t('collections.supportedFormats')}
+                  <ChevronDown className="h-3 w-3" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80" align="start">
+                <ul className="space-y-1.5 text-sm">
+                  <li>
+                    <strong>WxH</strong> (e.g. 100x50) - {t('collections.thumbFormatCropCenter')}
+                  </li>
+                  <li>
+                    <strong>WxHt</strong> (e.g. 100x50t) - {t('collections.thumbFormatCropTop')}
+                  </li>
+                  <li>
+                    <strong>WxHb</strong> (e.g. 100x50b) - {t('collections.thumbFormatCropBottom')}
+                  </li>
+                  <li>
+                    <strong>WxHf</strong> (e.g. 100x50f) - {t('collections.thumbFormatFit')}
+                  </li>
+                  <li>
+                    <strong>0xH</strong> (e.g. 0x50) - {t('collections.thumbFormatHeight')}
+                  </li>
+                  <li>
+                    <strong>Wx0</strong> (e.g. 100x0) - {t('collections.thumbFormatWidth')}
+                  </li>
+                </ul>
+              </PopoverContent>
+            </Popover>
+          </div>
         </div>
 
         <div className="space-y-2">
@@ -189,6 +241,7 @@ export function FileFieldOptions({ field, onChange }: FileFieldOptionsProps) {
         </div>
       )}
 
+      {/* Task 17: Protected Learn more 链接 */}
       <div className="flex items-start space-x-2">
         <Checkbox
           id="file-protected"
@@ -200,7 +253,16 @@ export function FileFieldOptions({ field, onChange }: FileFieldOptionsProps) {
             {t('collections.protected')}
           </Label>
           <p className="text-xs text-muted-foreground">
-            {t('collections.protectedTooltip')}
+            {t('collections.protectedTooltip')}{' '}
+            <a
+              href="https://pocketbase.io/docs/files-handling/#protected-files"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline inline-flex items-center gap-0.5"
+            >
+              ({t('common.learnMore')})
+              <ExternalLink className="h-3 w-3" />
+            </a>
           </p>
         </div>
       </div>

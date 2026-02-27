@@ -4,7 +4,7 @@ import type { CollectionModel } from 'pocketbase'
 import { useNavigate } from 'react-router-dom'
 import { useSetAtom, useAtomValue } from 'jotai'
 import { useTranslation } from 'react-i18next'
-import { MoreHorizontal, Copy, Files, Eraser, Trash2, ChevronDown, Database, Users, Eye, X, Loader2 } from 'lucide-react'
+import { MoreHorizontal, Copy, Files, Eraser, Trash2, ChevronDown, Database, Users, Eye, X, Loader2, Save, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { CollectionFieldsTab, type CollectionData } from './CollectionFieldsTab'
 import { CollectionQueryTab } from './CollectionQueryTab'
 import { CollectionRulesTab } from './CollectionRulesTab'
@@ -27,7 +28,8 @@ import { useScaffolds, parseIndexName } from '../hooks/useScaffolds'
 import { useHasChanges } from '../hooks/useHasChanges'
 import { useCtrlS } from '@/hooks/useCtrlS'
 import { updateIndexTableName } from '../utils/indexRename'  // Phase 5: 索引重命名工具
-import { cn } from '@/lib/utils'
+import { cn, slugify } from '@/lib/utils'
+import { CollectionUpdateConfirm, shouldShowConfirmDialog } from './CollectionUpdateConfirm'
 
 interface UpsertPanelProps {
   open: boolean
@@ -408,22 +410,24 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
     }
   }, [handleClose])
 
-  const handleSubmit = useCallback(async (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    if (saving) return
-    
-    // 前端必填校验
-    if (!formData.name || formData.name.trim() === '') {
-      setFormErrors({ name: { code: 'validation_required', message: 'Name is required.' } })
-      return
-    }
-    
+  // Task 1 & 2: 保存前确认对话框状态
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [hideAfterSave, setHideAfterSave] = useState(true)
+  const [isLoadingConfirmation, setIsLoadingConfirmation] = useState(false)
+
+  // 实际保存逻辑
+  const doSave = useCallback(async (shouldHideAfterSave: boolean) => {
     setSaving(true)
     clearFormErrors()
     
     try {
       await onSave(formData)
-      onClose()
+      if (shouldHideAfterSave) {
+        onClose()
+      } else {
+        // Save and continue: 重新加载数据，保持面板打开
+        // 刷新后 collection prop 会更新，触发 formData 重新初始化
+      }
     } catch (error: any) {
       console.error('Save collection failed:', error)
       // 映射字段级错误
@@ -433,10 +437,57 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
     } finally {
       setSaving(false)
     }
-  }, [saving, formData, onSave, onClose, clearFormErrors, setFormErrors])
+  }, [formData, onSave, onClose, clearFormErrors, setFormErrors])
+
+  // 保存前确认（编辑模式）
+  const saveConfirm = useCallback(async (shouldHideAfterSave = true) => {
+    if (saving || isLoadingConfirmation) return
+    
+    // 前端必填校验
+    if (!formData.name || formData.name.trim() === '') {
+      setFormErrors({ name: { code: 'validation_required', message: 'Name is required.' } })
+      return
+    }
+    
+    setHideAfterSave(shouldHideAfterSave)
+    
+    // 新建模式直接保存
+    if (!collection?.id) {
+      await doSave(shouldHideAfterSave)
+      return
+    }
+    
+    // 编辑模式：检查是否需要显示确认对话框
+    setIsLoadingConfirmation(true)
+    try {
+      if (shouldShowConfirmDialog(collection, formData)) {
+        setShowConfirmDialog(true)
+      } else {
+        // 无需确认，直接保存
+        await doSave(shouldHideAfterSave)
+      }
+    } finally {
+      setIsLoadingConfirmation(false)
+    }
+  }, [saving, isLoadingConfirmation, formData, collection, doSave, setFormErrors])
+
+  // 确认对话框确认回调
+  const handleConfirmSave = useCallback(async () => {
+    await doSave(hideAfterSave)
+  }, [doSave, hideAfterSave])
+
+  // 确认对话框取消回调
+  const handleCancelSave = useCallback(() => {
+    // 什么都不做，关闭对话框即可
+  }, [])
+
+  const handleSubmit = useCallback(async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    await saveConfirm(true)
+  }, [saveConfirm])
   
   // Ctrl+S 快捷键
-  useCtrlS(handleSubmit, { enabled: !saving && open })
+  useCtrlS(handleSubmit, { enabled: !saving && !isLoadingConfirmation && open })
   
   // T0017: Escape 键保护机制
   useEffect(() => {
@@ -659,6 +710,29 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
   const schemaTabHasErrors = hasErrorsInPaths(formErrors, ['fields', 'indexes', 'viewQuery'])
   const rulesTabHasErrors = hasErrorsInPaths(formErrors, ['listRule', 'viewRule', 'createRule', 'updateRule', 'deleteRule', 'authRule', 'manageRule'])
   const optionsTabHasErrors = hasErrorsInPaths(formErrors, ['passwordAuth', 'oauth2', 'otp', 'mfa', 'authAlert'])
+  
+  // Task 8: 获取 Tab 错误信息用于 Tooltip 显示
+  const getTabErrorMessage = useMemo(() => {
+    // Schema tab 错误信息
+    const getSchemaTabError = () => {
+      const fieldError = getNestedError(formErrors, 'fields')
+      if (fieldError?.message) return fieldError.message
+      
+      const viewQueryError = getNestedError(formErrors, 'viewQuery')
+      if (viewQueryError?.message) return viewQueryError.message
+      
+      const indexesError = getNestedError(formErrors, 'indexes')
+      if (indexesError?.message) return indexesError.message
+      
+      return t('collections.hasErrors', 'Has errors')
+    }
+    
+    return {
+      schema: schemaTabHasErrors ? getSchemaTabError() : '',
+      rules: rulesTabHasErrors ? t('collections.hasErrors', 'Has errors') : '',
+      options: optionsTabHasErrors ? t('collections.hasErrors', 'Has errors') : '',
+    }
+  }, [formErrors, schemaTabHasErrors, rulesTabHasErrors, optionsTabHasErrors, t])
 
   if (!open) return null
 
@@ -741,8 +815,8 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
                   <Input
                     value={formData.name || ''}
                     onChange={(e) => {
-                      // slugify: 只允许字母、数字、下划线
-                      const value = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_')
+                      // Task 6: 使用完整的 slugify 函数，支持国际字符
+                      const value = slugify(e.target.value)
                       const oldName = formData.name
                       
                       // Phase 5: Collection 重命名时自动更新索引中的表名
@@ -812,54 +886,90 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
 
           {/* Tabs Header */}
           <div className="flex border-t border-slate-200">
-            <button
-              type="button"
-              className={cn(
-                'relative flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors',
-                activeTab === TAB_SCHEMA
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-900'
-              )}
-              onClick={() => setActiveTab(TAB_SCHEMA)}
-            >
-              {isViewCollection ? t('collections.queryTab', 'Query') : t('collections.fieldsTab', 'Fields')}
-              {schemaTabHasErrors && (
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive" />
-              )}
-            </button>
+            {/* Task 8: Schema/Query Tab 带错误 Tooltip */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(
+                      'relative flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-1.5',
+                      activeTab === TAB_SCHEMA
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-slate-500 hover:text-slate-900'
+                    )}
+                    onClick={() => setActiveTab(TAB_SCHEMA)}
+                  >
+                    {isViewCollection ? t('collections.queryTab', 'Query') : t('collections.fieldsTab', 'Fields')}
+                    {schemaTabHasErrors && (
+                      <AlertTriangle className="h-4 w-4 text-destructive" />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {schemaTabHasErrors && (
+                  <TooltipContent>
+                    <p>{getTabErrorMessage.schema}</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+            
             {!isSuperusers && (
-              <button
-                type="button"
-                className={cn(
-                  'relative flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors',
-                  activeTab === TAB_RULES
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-900'
-                )}
-              onClick={() => setActiveTab(TAB_RULES)}
-            >
-              {t('collections.apiRulesTab', 'API Rules')}
-                {rulesTabHasErrors && (
-                  <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive" />
-                )}
-              </button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        'relative flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-1.5',
+                        activeTab === TAB_RULES
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-slate-500 hover:text-slate-900'
+                      )}
+                    onClick={() => setActiveTab(TAB_RULES)}
+                  >
+                    {t('collections.apiRulesTab', 'API Rules')}
+                      {rulesTabHasErrors && (
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                      )}
+                    </button>
+                  </TooltipTrigger>
+                  {rulesTabHasErrors && (
+                    <TooltipContent>
+                      <p>{getTabErrorMessage.rules}</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
             )}
+            
             {formData.type === 'auth' && (
-              <button
-                type="button"
-                className={cn(
-                  'relative flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors',
-                  activeTab === TAB_OPTIONS
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-900'
-                )}
-              onClick={() => setActiveTab(TAB_OPTIONS)}
-            >
-              {t('collections.optionsTab', 'Options')}
-                {optionsTabHasErrors && (
-                  <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive" />
-                )}
-              </button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className={cn(
+                        'relative flex-1 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-1.5',
+                        activeTab === TAB_OPTIONS
+                          ? 'border-blue-500 text-blue-600'
+                          : 'border-transparent text-slate-500 hover:text-slate-900'
+                      )}
+                    onClick={() => setActiveTab(TAB_OPTIONS)}
+                  >
+                    {t('collections.optionsTab', 'Options')}
+                      {optionsTabHasErrors && (
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                      )}
+                    </button>
+                  </TooltipTrigger>
+                  {optionsTabHasErrors && (
+                    <TooltipContent>
+                      <p>{getTabErrorMessage.options}</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
         </div>
@@ -942,14 +1052,54 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
 
         {/* Footer 区域 */}
         <div className="h-14 px-4 border-t flex items-center justify-end gap-2 bg-background">
-          <Button type="button" variant="ghost" onClick={handleClose} disabled={saving}>
+          <Button type="button" variant="ghost" onClick={handleClose} disabled={saving || isLoadingConfirmation}>
             {t('common.cancel', 'Cancel')}
           </Button>
-          <Button onClick={handleSubmit} disabled={saving}>
-            {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {saving ? t('common.saving', 'Saving...') : isEdit ? t('common.saveChanges', 'Save changes') : t('common.create', 'Create')}
-          </Button>
+          
+          {/* Task 2: Save 按钮组 - 编辑模式显示下拉菜单 */}
+          <div className="flex">
+            <Button 
+              onClick={handleSubmit} 
+              disabled={saving || isLoadingConfirmation || !hasUnsavedChanges}
+              className={cn(isEdit && 'rounded-r-none')}
+            >
+              {(saving || isLoadingConfirmation) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              {saving ? t('common.saving', 'Saving...') : isEdit ? t('common.saveChanges', 'Save changes') : t('common.create', 'Create')}
+            </Button>
+            
+            {/* Save and continue 下拉按钮 - 仅编辑模式 */}
+            {isEdit && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="default"
+                    size="icon"
+                    className="rounded-l-none border-l border-primary-foreground/20 px-2"
+                    disabled={saving || isLoadingConfirmation || !hasUnsavedChanges}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="top" className="mb-1">
+                  <DropdownMenuItem onClick={() => saveConfirm(false)}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {t('collections.saveAndContinue', 'Save and continue')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
+
+        {/* Task 1: 保存前确认对话框 */}
+        <CollectionUpdateConfirm
+          open={showConfirmDialog}
+          onOpenChange={setShowConfirmDialog}
+          oldCollection={collection || null}
+          newCollection={formData}
+          onConfirm={handleConfirmSave}
+          onCancel={handleCancelSave}
+        />
       </div>
     </div>
   )

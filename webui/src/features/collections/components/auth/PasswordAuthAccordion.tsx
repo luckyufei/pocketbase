@@ -1,7 +1,9 @@
 /**
  * PasswordAuthAccordion - 密码认证配置组件
  * 参考 UI 版本 PasswordAuthAccordion.svelte 实现
+ * Task 4: 添加错误图标支持
  */
+import { useTranslation } from 'react-i18next'
 import {
   Accordion,
   AccordionContent,
@@ -12,7 +14,7 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { MultiSelect } from '@/components/ui/multi-select'
-import { KeyRound, Info } from 'lucide-react'
+import { AlertTriangle, KeyRound, Info } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 interface PasswordAuthConfig {
@@ -25,6 +27,7 @@ interface PasswordAuthAccordionProps {
   onChange: (config: PasswordAuthConfig) => void
   isSuperusers?: boolean
   availableIdentityFields?: string[]
+  hasErrors?: boolean
 }
 
 export function PasswordAuthAccordion({
@@ -32,7 +35,10 @@ export function PasswordAuthAccordion({
   onChange,
   isSuperusers = false,
   availableIdentityFields = ['email'],
+  hasErrors = false,
 }: PasswordAuthAccordionProps) {
+  const { t } = useTranslation()
+  
   // 确保 identityFields 始终是数组
   const currentIdentityFields = passwordAuth?.identityFields || ['email']
   
@@ -65,7 +71,11 @@ export function PasswordAuthAccordion({
         <AccordionTrigger className="px-3 py-2 hover:no-underline">
           <div className="flex items-center gap-2 flex-1">
             <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[12px]">Identity/Password</span>
+            <span className="text-[12px]">{t('collections.authOptions.identityPassword', 'Identity/Password')}</span>
+            {/* Task 4: 错误图标 */}
+            {hasErrors && (
+              <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+            )}
             <div className="flex-1" />
             <Badge 
               variant="secondary"
@@ -75,7 +85,7 @@ export function PasswordAuthAccordion({
                   : 'bg-slate-100 text-slate-500 hover:bg-slate-100'
               }`}
             >
-              {passwordAuth.enabled ? 'Enabled' : 'Disabled'}
+              {passwordAuth.enabled ? t('common.enabled', 'Enabled') : t('common.disabled', 'Disabled')}
             </Badge>
           </div>
         </AccordionTrigger>
@@ -88,7 +98,7 @@ export function PasswordAuthAccordion({
               onCheckedChange={handleEnabledChange}
               disabled={isSuperusers}
             />
-            <Label htmlFor="password-auth-enabled" className="text-[12px]">Enable</Label>
+            <Label htmlFor="password-auth-enabled" className="text-[12px]">{t('common.enable', 'Enable')}</Label>
             {isSuperusers && (
               <TooltipProvider>
                 <Tooltip>
@@ -96,7 +106,7 @@ export function PasswordAuthAccordion({
                     <Info className="h-3.5 w-3.5 text-muted-foreground" />
                   </TooltipTrigger>
                   <TooltipContent>
-                    Superusers are required to have password auth enabled.
+                    {t('collections.authOptions.superusersPasswordRequired', 'Superusers are required to have password auth enabled.')}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -105,12 +115,12 @@ export function PasswordAuthAccordion({
 
           {/* Unique identity fields - 使用 MultiSelect 代替 Checkbox 列表，与 UI 版本一致 */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] text-muted-foreground">Unique identity fields</Label>
+            <Label className="text-[11px] text-muted-foreground">{t('collections.authOptions.uniqueIdentityFields', 'Unique identity fields')}</Label>
             <MultiSelect
               options={identityFieldOptions}
               selected={currentIdentityFields}
               onChange={handleIdentityFieldsChange}
-              placeholder="- Select -"
+              placeholder={t('common.select', '- Select -')}
             />
           </div>
         </AccordionContent>

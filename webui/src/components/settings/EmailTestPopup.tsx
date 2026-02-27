@@ -1,8 +1,10 @@
 /**
  * Email Test Popup 组件
  * 用于发送测试邮件
+ * 与 UI 版本 EmailTestPopup.svelte 行为对齐
  */
 import { useEffect, useState, forwardRef, useImperativeHandle } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Dialog,
   DialogContent,
@@ -27,14 +29,6 @@ import { toast } from 'sonner'
 
 const EMAIL_STORAGE_KEY = 'last_email_test'
 
-const templateOptions = [
-  { label: 'Verification', value: 'verification' },
-  { label: 'Password reset', value: 'password-reset' },
-  { label: 'Confirm email change', value: 'email-change' },
-  { label: 'OTP', value: 'otp' },
-  { label: 'Login alert', value: 'login-alert' },
-]
-
 interface AuthCollection {
   id: string
   name: string
@@ -51,6 +45,17 @@ interface EmailTestPopupProps {
 
 export const EmailTestPopup = forwardRef<EmailTestPopupRef, EmailTestPopupProps>(
   ({ onSubmit }, ref) => {
+    const { t } = useTranslation()
+    
+    // 模板选项，使用 i18n
+    const templateOptions = [
+      { label: t('emailTest.verification', 'Verification'), value: 'verification' },
+      { label: t('emailTest.passwordReset', 'Password reset'), value: 'password-reset' },
+      { label: t('emailTest.confirmEmailChange', 'Confirm email change'), value: 'email-change' },
+      { label: t('emailTest.otp', 'OTP'), value: 'otp' },
+      { label: t('emailTest.loginAlert', 'Login alert'), value: 'login-alert' },
+    ]
+    
     const [open, setOpen] = useState(false)
     const [template, setTemplate] = useState(templateOptions[0].value)
     const [email, setEmail] = useState('')
@@ -58,20 +63,25 @@ export const EmailTestPopup = forwardRef<EmailTestPopupRef, EmailTestPopupProps>
     const [authCollections, setAuthCollections] = useState<AuthCollection[]>([])
     const [isLoadingCollections, setIsLoadingCollections] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    // 与 UI 版本对齐：只有在未传入 collection 时才显示选择器
+    const [showAuthCollections, setShowAuthCollections] = useState(false)
 
     const canSubmit = !!email && !!template && !!collectionId
 
     // Debug: log current state
     useEffect(() => {
-      console.log('EmailTestPopup state:', { open, canSubmit, email, template, collectionId, authCollections })
-    }, [open, canSubmit, email, template, collectionId, authCollections])
+      console.log('EmailTestPopup state:', { open, canSubmit, email, template, collectionId, authCollections, showAuthCollections })
+    }, [open, canSubmit, email, template, collectionId, authCollections, showAuthCollections])
 
     useImperativeHandle(ref, () => ({
       show: (collectionArg = '', emailArg = '', templateArg = '') => {
+        // 与 UI 版本对齐：重置 showAuthCollections
+        setShowAuthCollections(false)
         setCollectionId(collectionArg)
         setEmail(emailArg || localStorage.getItem(EMAIL_STORAGE_KEY) || '')
         setTemplate(templateArg || templateOptions[0].value)
         
+        // 只有在未传入 collection 时才加载并显示选择器
         if (!collectionArg) {
           loadAuthCollections()
         }
@@ -84,6 +94,7 @@ export const EmailTestPopup = forwardRef<EmailTestPopupRef, EmailTestPopupProps>
     }))
 
     const loadAuthCollections = async () => {
+      setShowAuthCollections(true)
       setIsLoadingCollections(true)
       try {
         const collections = await pb.collections.getFullList({
@@ -96,7 +107,7 @@ export const EmailTestPopup = forwardRef<EmailTestPopupRef, EmailTestPopupProps>
         }
       } catch (err) {
         console.error('Failed to load auth collections:', err)
-        toast.error('Failed to load auth collections')
+        toast.error(t('emailTest.failedToLoadCollections', 'Failed to load auth collections'))
       } finally {
         setIsLoadingCollections(false)
       }
@@ -117,7 +128,7 @@ export const EmailTestPopup = forwardRef<EmailTestPopupRef, EmailTestPopupProps>
 
       // Create timeout for auto-cancel after 30 seconds
       const timeoutId = setTimeout(() => {
-        toast.error('Test email send timeout.')
+        toast.error(t('emailTest.sendTimeout', 'Test email send timeout.'))
         setIsSubmitting(false)
       }, 30000)
 
@@ -125,7 +136,7 @@ export const EmailTestPopup = forwardRef<EmailTestPopupRef, EmailTestPopupProps>
         await pb.settings.testEmail(collectionId, email, template)
         
         clearTimeout(timeoutId)
-        toast.success('Successfully sent test email.')
+        toast.success(t('emailTest.sendSuccess', 'Successfully sent test email.'))
         onSubmit?.()
         setOpen(false)
       } catch (err: any) {
@@ -133,7 +144,7 @@ export const EmailTestPopup = forwardRef<EmailTestPopupRef, EmailTestPopupProps>
         console.error('Failed to send test email:', err)
         // Extract detailed error message from PocketBase response
         // PocketBase SDK stores the error in response.data.message or response.message
-        let errorMessage = 'Failed to send test email'
+        let errorMessage = t('emailTest.sendFailed', 'Failed to send test email')
         if (err?.response?.data?.message) {
           errorMessage = err.response.data.message
         } else if (err?.response?.message) {
@@ -154,7 +165,9 @@ export const EmailTestPopup = forwardRef<EmailTestPopupRef, EmailTestPopupProps>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-center">Send test email</DialogTitle>
+            <DialogTitle className="text-center">
+              {t('emailTest.title', 'Send test email')}
+            </DialogTitle>
           </DialogHeader>
           
           <form id="email-test-form" onSubmit={handleSubmit} className="space-y-6 py-2">
@@ -172,15 +185,18 @@ export const EmailTestPopup = forwardRef<EmailTestPopupRef, EmailTestPopupProps>
               </RadioGroup>
             </div>
 
-            {/* Auth Collection Selection - Always show */}
-            <div className="space-y-3">
+            {/* Auth Collection Selection - 只在未传入 collection 时显示 */}
+            {showAuthCollections && (
+              <div className="space-y-3">
                 <Label htmlFor="authCollection">
-                  Auth collection <span className="text-destructive">*</span>
+                  {t('emailTest.authCollection', 'Auth collection')} <span className="text-destructive">*</span>
                 </Label>
                 <Select value={collectionId} onValueChange={setCollectionId}>
                   <SelectTrigger id="authCollection">
                     <SelectValue 
-                      placeholder={isLoadingCollections ? 'Loading auth collections...' : 'Select auth collection'} 
+                      placeholder={isLoadingCollections 
+                        ? t('emailTest.loadingCollections', 'Loading auth collections...') 
+                        : t('emailTest.selectCollection', 'Select auth collection')} 
                     />
                   </SelectTrigger>
                   <SelectContent>
@@ -192,18 +208,19 @@ export const EmailTestPopup = forwardRef<EmailTestPopupRef, EmailTestPopupProps>
                   </SelectContent>
                 </Select>
               </div>
+            )}
 
             {/* Email Input */}
             <div className="space-y-3">
               <Label htmlFor="testEmail">
-                To email address <span className="text-destructive">*</span>
+                {t('emailTest.toEmailAddress', 'To email address')} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="testEmail"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter email address"
+                placeholder={t('emailTest.emailPlaceholder', 'Enter email address')}
                 required
                 autoFocus
               />
@@ -217,7 +234,7 @@ export const EmailTestPopup = forwardRef<EmailTestPopupRef, EmailTestPopupProps>
               onClick={() => setOpen(false)}
               disabled={isSubmitting}
             >
-              Close
+              {t('common.close', 'Close')}
             </Button>
             <Button
               type="button"
@@ -229,7 +246,7 @@ export const EmailTestPopup = forwardRef<EmailTestPopupRef, EmailTestPopupProps>
               ) : (
                 <Send className="w-4 h-4 mr-2" />
               )}
-              Send
+              {t('common.send', 'Send')}
             </Button>
           </DialogFooter>
         </DialogContent>

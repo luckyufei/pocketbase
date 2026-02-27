@@ -2,10 +2,12 @@
  * SchemaFieldEditor - 单个字段编辑器
  * 支持展开/折叠、拖拽排序
  */
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useAtomValue, useSetAtom } from 'jotai'
+import { formErrorsAtom, getNestedError, removeFormErrorAtom } from '@/store/formErrors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -48,6 +50,7 @@ import { PasswordFieldOptions } from './schema/PasswordFieldOptions'
 import { AutodateFieldOptions } from './schema/AutodateFieldOptions'
 import { GeoPointFieldOptions } from './schema/GeoPointFieldOptions'
 import { SecretFieldOptions } from './schema/SecretFieldOptions'  // Phase 2: Secret 字段类型
+import { SelectValuesPopover } from './schema/SelectValuesPopover'  // Select 字段选项值弹窗
 import type { LucideIcon } from 'lucide-react'
 
 // 字段类型图标映射
@@ -131,6 +134,10 @@ interface SchemaFieldEditorProps {
   onRestore: () => void
   onDuplicate: () => void
   onRename: (oldName: string, newName: string) => void
+  /** Task 10: 所有集合列表（用于 Relation 字段选择） */
+  collections?: Array<{ id: string; name: string; type: string }>
+  /** Task 10: 点击 "New collection" 按钮的回调 */
+  onNewCollection?: () => void
 }
 
 /**
@@ -147,8 +154,61 @@ export function SchemaFieldEditor({
   onRestore,
   onDuplicate,
   onRename,
+  collections = [],
+  onNewCollection,
 }: SchemaFieldEditorProps) {
   const { t } = useTranslation()
+  
+  // 获取表单错误状态
+  const formErrors = useAtomValue(formErrorsAtom)
+  const removeFormError = useSetAtom(removeFormErrorAtom)
+  
+  // 清除当前字段的错误
+  const clearFieldError = useCallback((subField?: string) => {
+    if (subField) {
+      // 清除特定子字段的错误，如 "fields.0.values"
+      removeFormError(`fields.${index}.${subField}`)
+    } else {
+      // 清除整个字段的所有错误
+      removeFormError(`fields.${index}`)
+    }
+  }, [removeFormError, index])
+  
+  // 检测当前字段是否有错误
+  const fieldErrors = useMemo(() => {
+    // 获取当前字段的所有错误（如 fields.0.values, fields.0.name 等）
+    const fieldError = getNestedError(formErrors, `fields.${index}`)
+    return fieldError
+  }, [formErrors, index])
+  
+  // 是否有字段级错误
+  const hasErrors = useMemo(() => {
+    if (!fieldErrors) return false
+    if (typeof fieldErrors === 'object') return Object.keys(fieldErrors).length > 0
+    return !!fieldErrors
+  }, [fieldErrors])
+  
+  // 获取具体的错误信息（用于 tooltip 或展开显示）
+  const errorMessages = useMemo(() => {
+    if (!fieldErrors) return []
+    const messages: string[] = []
+    
+    if (typeof fieldErrors === 'object') {
+      // 遍历所有子字段错误
+      Object.entries(fieldErrors).forEach(([key, value]: [string, any]) => {
+        if (value?.message) {
+          messages.push(`${key}: ${value.message}`)
+        } else if (typeof value === 'string') {
+          messages.push(`${key}: ${value}`)
+        }
+      })
+    } else if (typeof fieldErrors === 'string') {
+      messages.push(fieldErrors)
+    }
+    
+    return messages
+  }, [fieldErrors])
+  
   // 名称输入框引用
   const nameInputRef = useRef<HTMLInputElement>(null)
   
@@ -198,7 +258,9 @@ export function SchemaFieldEditor({
   const handleNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newName = normalizeFieldName(e.target.value)
     setLocalName(newName)
-  }, [normalizeFieldName])
+    // 输入时清除 name 字段的错误
+    clearFieldError('name')
+  }, [normalizeFieldName, clearFieldError])
   
   // 处理名称输入框失焦 - 此时才提交更新到父组件
   const handleNameBlur = useCallback(() => {
@@ -220,30 +282,56 @@ export function SchemaFieldEditor({
     }
   }, [])
   
-  // 挂载时聚焦名称输入框
+  // 组件容器引用，用于滚动到视图
+  const containerRef = useRef<HTMLDivElement>(null)
+  
+  // 用于跟踪是否需要聚焦（只在首次挂载时检查）
+  const shouldFocusRef = useRef(field._focusNameOnMount === true)
+
+  // 挂载时聚焦名称输入框并滚动到视图
   useEffect(() => {
-    if (field._focusNameOnMount && nameInputRef.current) {
-      // 延迟执行以确保 DOM 已渲染
-      requestAnimationFrame(() => {
+    if (shouldFocusRef.current) {
+      // 标记已处理，防止重复执行
+      shouldFocusRef.current = false
+      
+      // 延迟执行，等待 DropdownMenu 完全关闭（它会设置 aria-hidden）
+      // Radix UI 的 DropdownMenu 关闭动画大约需要 150-200ms
+      setTimeout(() => {
         if (nameInputRef.current) {
+          // 先滚动到新字段位置
+          if (containerRef.current) {
+            containerRef.current.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center',
+            })
+          }
+          // 聚焦并选中输入框
           nameInputRef.current.focus()
           nameInputRef.current.select()
         }
-      })
-      // 清除标记
-      onUpdate({ _focusNameOnMount: false })
+      }, 200)
     }
-  }, [field._focusNameOnMount, onUpdate])
+  }, []) // 空依赖数组，只在挂载时执行一次
+
+  // 合并两个 ref：containerRef（用于滚动）和 setNodeRef（用于拖拽排序）
+  const mergedRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      setNodeRef(node)
+      ;(containerRef as React.MutableRefObject<HTMLDivElement | null>).current = node
+    },
+    [setNodeRef]
+  )
 
   return (
     <div
-      ref={setNodeRef}
+      ref={mergedRef}
       style={style}
       className={cn(
         'border rounded-lg transition-all',
         isDeleted && 'opacity-50 bg-muted',
         isDragging && 'opacity-50 shadow-lg',
-        isExpanded && 'ring-2 ring-primary'
+        isExpanded && 'ring-2 ring-primary',
+        hasErrors && !isDeleted && 'border-destructive'
       )}
     >
       <Collapsible open={isExpanded && isInteractive} onOpenChange={onToggle}>
@@ -321,6 +409,46 @@ export function SchemaFieldEditor({
             </Select>
           )}
 
+          {/* Select 字段的选项值和 Single/Multiple - 显示在字段行中 */}
+          {field.type === 'select' && isInteractive && (
+            <>
+              {/* 选项值弹窗 */}
+              <SelectValuesPopover
+                values={(field as any).values || []}
+                onChange={(values) => {
+                  onUpdate({ values } as any)
+                  // 当用户修改选项值时，清除 values 错误
+                  clearFieldError('values')
+                }}
+                disabled={isSystem}
+                placeholder={t('collections.addChoices', 'Add choices *')}
+                hasError={!!getNestedError(formErrors, `fields.${index}.values`)}
+              />
+              {/* Single/Multiple 切换 */}
+              <Select
+                value={((field as any).maxSelect || 1) <= 1 ? 'single' : 'multiple'}
+                onValueChange={(value) => {
+                  if (value === 'single') {
+                    onUpdate({ maxSelect: 1 } as any)
+                  } else {
+                    onUpdate({ maxSelect: ((field as any).values?.length || 2) } as any)
+                  }
+                  // 清除 maxSelect 相关错误
+                  clearFieldError('maxSelect')
+                }}
+                disabled={isSystem}
+              >
+                <SelectTrigger className="w-[100px] h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="single">{t('collections.single', 'Single')}</SelectItem>
+                  <SelectItem value="multiple">{t('collections.multiple', 'Multiple')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </>
+          )}
+
           {/* 操作按钮 */}
           {isDeleted ? (
             <Button
@@ -335,8 +463,22 @@ export function SchemaFieldEditor({
             </Button>
           ) : (
             <CollapsibleTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" aria-label="Settings">
+              <Button 
+                type="button" 
+                variant={hasErrors ? 'destructive' : 'ghost'}
+                size="sm" 
+                aria-label="Settings"
+                className={cn(
+                  'relative',
+                  hasErrors && 'hover:bg-destructive/90'
+                )}
+                title={hasErrors ? errorMessages.join('\n') : undefined}
+              >
                 <Settings className="h-4 w-4" />
+                {/* 错误指示器红点 */}
+                {hasErrors && (
+                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-white border border-destructive" />
+                )}
               </Button>
             </CollapsibleTrigger>
           )}
@@ -345,8 +487,17 @@ export function SchemaFieldEditor({
         {/* 字段选项 */}
         <CollapsibleContent>
           <div className="p-3 border-t space-y-4 mt-1">
+            {/* 错误消息显示 */}
+            {hasErrors && errorMessages.length > 0 && (
+              <div className="px-3 py-2 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-sm">
+                {errorMessages.map((msg, idx) => (
+                  <div key={idx}>{msg}</div>
+                ))}
+              </div>
+            )}
+            
             {/* 字段特定选项 - 根据类型渲染 */}
-            <FieldTypeOptions field={field} onUpdate={onUpdate} />
+            <FieldTypeOptions field={field} onUpdate={onUpdate} collections={collections} onNewCollection={onNewCollection} />
 
             {/* 通用选项 - 根据 Auth 集合规则显示 */}
             <div className="flex flex-wrap items-center gap-4">
@@ -433,9 +584,13 @@ export function SchemaFieldEditor({
 function FieldTypeOptions({
   field,
   onUpdate,
+  collections = [],
+  onNewCollection,
 }: {
   field: SchemaField
   onUpdate: (updates: Partial<SchemaField>) => void
+  collections?: Array<{ id: string; name: string; type: string }>
+  onNewCollection?: () => void
 }) {
   const handleChange = (updatedField: any) => {
     onUpdate(updatedField)
@@ -463,7 +618,7 @@ function FieldTypeOptions({
     case 'file':
       return <FileFieldOptions field={field as any} onChange={handleChange} />
     case 'relation':
-      return <RelationFieldOptions field={field as any} onChange={handleChange} collections={[]} />
+      return <RelationFieldOptions field={field as any} onChange={handleChange} collections={collections} onNewCollection={onNewCollection} />
     case 'password':
       return <PasswordFieldOptions field={field as any} onChange={handleChange} />
     case 'autodate':
