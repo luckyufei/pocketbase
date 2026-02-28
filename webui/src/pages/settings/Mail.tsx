@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/tooltip'
 import { Loader2, ChevronDown, ChevronUp, Info, Send } from 'lucide-react'
 import { EmailTestPopup, type EmailTestPopupRef } from '@/components/settings/EmailTestPopup'
+import { toast } from 'sonner'
 
 const tlsOptions = [
   { label: 'Auto (StartTLS)', value: 'false' },
@@ -58,7 +59,13 @@ export function Mail() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await saveSettings()
+    try {
+      await saveSettings()
+      toast.success(t('mailSettings.saveSuccess', 'Settings saved successfully'))
+    } catch (err: any) {
+      const message = err?.message || t('mailSettings.saveError', 'Failed to save settings')
+      toast.error(message)
+    }
   }
 
   // 安全获取 smtp 和 meta 设置

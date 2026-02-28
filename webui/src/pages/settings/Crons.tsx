@@ -49,11 +49,11 @@ export function Crons() {
     setIsRunning(prev => ({ ...prev, [jobId]: true }))
     try {
       await pb.send(`/api/crons/${encodeURIComponent(jobId)}`, { method: 'POST' })
-      toast.success(`Successfully triggered ${jobId}.`)
+      toast.success(t('settingsPage.crons.triggerSuccess', { jobId }))
     } catch (err: any) {
       if (!err?.isAbort) {
         console.error('Failed to run cron:', err)
-        toast.error(`Failed to trigger ${jobId}.`)
+        toast.error(t('settingsPage.crons.triggerError', { jobId }))
       }
     } finally {
       setIsRunning(prev => ({ ...prev, [jobId]: false }))

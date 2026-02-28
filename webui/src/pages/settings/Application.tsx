@@ -14,6 +14,7 @@ import {
   BatchAccordion,
 } from '@/features/settings/components'
 import { Database, FileText, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 export function Application() {
   const { t } = useTranslation()
@@ -36,7 +37,13 @@ export function Application() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await saveSettings()
+    try {
+      await saveSettings()
+      toast.success(t('settingsPage.application.saveSuccess', 'Settings saved successfully'))
+    } catch (err: any) {
+      const message = err?.message || t('settingsPage.application.saveError', 'Failed to save settings')
+      toast.error(message)
+    }
   }
 
   if (isLoading) {

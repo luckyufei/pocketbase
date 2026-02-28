@@ -707,7 +707,10 @@ export function UpsertPanel({ open, onClose, collection, onSave, onDelete, onTru
   }
   
   // Tab 错误检测
-  const schemaTabHasErrors = hasErrorsInPaths(formErrors, ['fields', 'indexes', 'viewQuery'])
+  // 检查 schema/fields 相关错误（包括 schema 字段错误和 viewQuery 错误）
+  const schemaTabHasErrors = hasErrorsInPaths(formErrors, ['fields', 'indexes', 'viewQuery']) || 
+    hasErrorsInPaths(formErrors, ['schema']) ||
+    Object.keys(formErrors).some(key => key.startsWith('schema.'))
   const rulesTabHasErrors = hasErrorsInPaths(formErrors, ['listRule', 'viewRule', 'createRule', 'updateRule', 'deleteRule', 'authRule', 'manageRule'])
   const optionsTabHasErrors = hasErrorsInPaths(formErrors, ['passwordAuth', 'oauth2', 'otp', 'mfa', 'authAlert'])
   

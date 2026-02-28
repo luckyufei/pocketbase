@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Loader2, AlertTriangle, CheckCircle2, Info } from 'lucide-react'
+import { toast } from 'sonner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Tooltip,
@@ -35,11 +36,11 @@ export function Storage() {
 
   const [s3Settings, setS3Settings] = useState({
     enabled: false,
-    bucket: '',
-    region: '',
-    endpoint: '',
-    accessKey: '',
-    secret: '',
+    bucket: 'mybucket-1250000000',  // 格式：bucket名称-APPID，如 mybucket-1250000000
+    region: 'ap-beijing',  // 地域，如 ap-beijing, ap-shanghai, ap-guangzhou
+    endpoint: 'https://cos.ap-beijing.myqcloud.com',  // 腾讯云COS格式：https://cos.{region}.myqcloud.com
+    accessKey: '',  // SecretId，从腾讯云控制台获取
+    secret: '',  // SecretKey，从腾讯云控制台获取
     forcePathStyle: false,
   })
 
@@ -128,9 +129,44 @@ export function Storage() {
     }
   }
 
+  // 处理加密占位符值 - 在保存前将占位符设为空，让后端保留原值
+  const prepareS3SettingsForSave = () => {
+    const prepared = { ...s3Settings }
+    // 如果字段是占位符，设为空让后端保留原值
+    const isPlaceholder = (value: string) => value === '••••••••' || value === '******' || value === ''
+    
+    if (isPlaceholder(prepared.secret)) {
+      prepared.secret = ''
+    }
+    if (isPlaceholder(prepared.accessKey)) {
+      prepared.accessKey = ''
+    }
+    if (isPlaceholder(prepared.bucket)) {
+      prepared.bucket = ''
+    }
+    if (isPlaceholder(prepared.endpoint)) {
+      prepared.endpoint = ''
+    }
+    if (isPlaceholder(prepared.region)) {
+      prepared.region = ''
+    }
+    return prepared
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await saveSettings()
+    try {
+      // 保存前处理加密占位符
+      const preparedS3 = prepareS3SettingsForSave()
+      updateSettings({ s3: preparedS3 })
+      // 等待状态更新后再保存
+      await new Promise(resolve => setTimeout(resolve, 0))
+      await saveSettings()
+      toast.success(t('storageSettings.saveSuccess', 'Settings saved successfully'))
+    } catch (err: any) {
+      const message = err?.message || t('storageSettings.saveError', 'Failed to save settings')
+      toast.error(message)
+    }
   }
 
   const updateS3 = (field: string, value: any) => {
@@ -218,40 +254,40 @@ export function Storage() {
         {s3Settings.enabled && (
           <div className="space-y-4 pl-6 border-l-2 border-muted">
             {/* Endpoint */}
-            <div className="space-y-2">
-              <Label htmlFor="endpoint">{t('storageSettings.endpoint', 'Endpoint')} <span className="text-destructive">*</span></Label>
-              <Input
-                id="endpoint"
-                type="text"
-                value={s3Settings.endpoint}
-                onChange={(e) => updateS3('endpoint', e.target.value)}
-                placeholder="https://s3.amazonaws.com"
-                required
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="endpoint">{t('storageSettings.endpoint', 'Endpoint')} {!originalS3Enabled && <span className="text-destructive">*</span>}</Label>
+                <Input
+                  id="endpoint"
+                  type="text"
+                  value={s3Settings.endpoint}
+                  onChange={(e) => updateS3('endpoint', e.target.value)}
+                  placeholder="https://cos.ap-beijing.myqcloud.com"
+                  required={!originalS3Enabled}
+                />
+              </div>
 
             {/* Bucket 和 Region */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="bucket">{t('storageSettings.bucket', 'Bucket')} <span className="text-destructive">*</span></Label>
+                <Label htmlFor="bucket">{t('storageSettings.bucket', 'Bucket')} {!originalS3Enabled && <span className="text-destructive">*</span>}</Label>
                 <Input
                   id="bucket"
                   type="text"
                   value={s3Settings.bucket}
                   onChange={(e) => updateS3('bucket', e.target.value)}
-                  placeholder="my-bucket"
-                  required
+                  placeholder="mybucket-1250000000"
+                  required={!originalS3Enabled}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="region">{t('storageSettings.region', 'Region')} <span className="text-destructive">*</span></Label>
+                <Label htmlFor="region">{t('storageSettings.region', 'Region')} {!originalS3Enabled && <span className="text-destructive">*</span>}</Label>
                 <Input
                   id="region"
                   type="text"
                   value={s3Settings.region}
                   onChange={(e) => updateS3('region', e.target.value)}
-                  placeholder="us-east-1"
-                  required
+                  placeholder="ap-beijing"
+                  required={!originalS3Enabled}
                 />
               </div>
             </div>
@@ -259,26 +295,31 @@ export function Storage() {
             {/* Access Key 和 Secret */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="accessKey">{t('storageSettings.accessKey', 'Access key')} <span className="text-destructive">*</span></Label>
+                <Label htmlFor="accessKey">{t('storageSettings.accessKey', 'Access key')} {!originalS3Enabled && <span className="text-destructive">*</span>}</Label>
                 <Input
                   id="accessKey"
                   type="text"
                   value={s3Settings.accessKey}
                   onChange={(e) => updateS3('accessKey', e.target.value)}
                   autoComplete="off"
-                  required
+                  placeholder="Your access key"
+                  required={!originalS3Enabled}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="secret">{t('storageSettings.secret', 'Secret')} <span className="text-destructive">*</span></Label>
+                <Label htmlFor="secret">{t('storageSettings.secret', 'Secret')} {!originalS3Enabled && <span className="text-destructive">*</span>}</Label>
                 <Input
                   id="secret"
                   type="password"
                   value={s3Settings.secret}
                   onChange={(e) => updateS3('secret', e.target.value)}
                   autoComplete="new-password"
-                  required
+                  placeholder={originalS3Enabled ? '••••••••' : ''}
+                  required={!originalS3Enabled}
                 />
+                {originalS3Enabled && (
+                  <p className="text-xs text-muted-foreground">{t('storageSettings.secretHint', 'Leave empty to keep the existing secret')}</p>
+                )}
               </div>
             </div>
 
@@ -313,8 +354,7 @@ export function Storage() {
               {t('common.reset', 'Reset')}
             </Button>
           )}
-
-          {/* S3 连接状态 - 紧挨着按钮 */}
+          {/* S3 连接状态 */}
           {s3Settings.enabled && !hasChanges && !isSaving && (
             <>
               {isTesting ? (
