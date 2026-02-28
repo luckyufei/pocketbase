@@ -1034,6 +1034,18 @@
       "deleteDialogTitle": "Delete backup",
       "deleteConfirm": "Do you really want to delete {{name}}?"
     },
+    "application": {
+      "breadcrumb": "Application",
+      "appName": "Application name",
+      "appURL": "Application URL",
+      "dbInfo": "Database Info",
+      "dbType": "Database type:",
+      "dbUnknown": "Unknown",
+      "cancel": "Cancel",
+      "saveChanges": "Save changes",
+      "saveSuccess": "Application settings saved successfully",
+      "saveError": "Failed to save application settings"
+    },
     "crons": {
       "breadcrumb": "Crons",
       "title": "Registered app cron jobs",
@@ -1041,7 +1053,9 @@
       "noCrons": "No app crons found.",
       "run": "Run",
       "hint": "App cron jobs can be registered only programmatically with",
-      "hintOr": "or"
+      "hintOr": "or",
+      "triggerSuccess": "Successfully triggered {{jobId}}.",
+      "triggerError": "Failed to trigger {{jobId}}."
     },
     "exportPage": {
       "breadcrumb": "Export collections",
@@ -1087,17 +1101,10 @@
       "s3BucketTooltip": "Optional S3 bucket for storing raw analytics logs. Required for PostgreSQL mode if you want to preserve raw event data.",
       "s3BucketPlaceholder": "my-analytics-bucket",
       "cancel": "Cancel",
-      "saveChanges": "Save changes"
-    },
-    "application": {
-      "breadcrumb": "Application",
-      "appName": "Application name",
-      "appURL": "Application URL",
-      "dbInfo": "Database Info",
-      "dbType": "Database type:",
-      "dbUnknown": "Unknown",
-      "cancel": "Cancel",
-      "saveChanges": "Save changes"
+      "saveChanges": "Save changes",
+      "saveSuccess": "Analytics settings saved successfully",
+      "saveError": "Failed to save analytics settings",
+      "loadError": "Failed to load analytics settings"
     },
     "jobs": {
       "breadcrumb": "Jobs",
@@ -1297,7 +1304,9 @@
     "ehloDomain": "EHLO/HELO domain",
     "ehloTooltip": "The domain name used in EHLO/HELO SMTP command.",
     "defaultToLocalhost": "Default to localhost",
-    "sendTestEmail": "Send test email"
+    "sendTestEmail": "Send test email",
+    "saveSuccess": "Mail settings saved successfully",
+    "saveError": "Failed to save mail settings"
   },
   "storageSettings": {
     "breadcrumb": "Files storage",
@@ -1314,11 +1323,15 @@
     "region": "Region",
     "accessKey": "Access key",
     "secret": "Secret",
+    "secretHint": "Leave empty to keep the existing secret",
     "forcePathStyle": "Force path-style addressing",
     "forcePathStyleTooltip": "Forces the request to use path-style addressing, eg. \"https://s3.amazonaws.com/BUCKET/KEY\" instead of the default \"https://BUCKET.s3.amazonaws.com/KEY\".",
     "testingConnection": "Testing connection...",
     "s3ConnectionFailed": "Failed to establish S3 connection",
-    "s3ConnectedSuccess": "S3 connected successfully"
+    "s3ConnectedSuccess": "S3 connected successfully",
+    "saveSuccess": "Settings saved successfully",
+    "saveError": "Failed to save settings",
+    "clearTestData": "Clear test data"
   },
   "settingsLayout": {
     "title": "Settings",

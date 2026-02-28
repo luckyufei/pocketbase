@@ -96,7 +96,7 @@ export function AnalyticsSettings() {
         }
         
         console.error('Failed to load analytics config:', err)
-        toast.error('Failed to load analytics settings')
+        toast.error(t('settingsPage.analyticsSettings.loadError'))
       } finally {
         if (isMountedRef.current) {
           setIsLoading(false)
@@ -127,10 +127,10 @@ export function AnalyticsSettings() {
       const analyticsConfig = settings?.analytics || config
       setConfig(analyticsConfig)
       setOriginalConfig(analyticsConfig)
-      toast.success('Successfully saved analytics settings.')
+      toast.success(t('settingsPage.analyticsSettings.saveSuccess'))
     } catch (err) {
       console.error('Failed to save analytics config:', err)
-      toast.error('Failed to save analytics settings')
+      toast.error(t('settingsPage.analyticsSettings.saveError'))
     } finally {
       setIsSaving(false)
     }
