@@ -1,0 +1,38 @@
+{
+  "name": "pocketless",
+  "version": "0.1.0",
+  "description": "Bun.js implementation of PocketBase — 100% API/DB/SDK compatible",
+  "type": "module",
+  "main": "./src/pocketless.ts",
+  "bin": {
+    "pocketless": "./src/pocketless.ts"
+  },
+  "scripts": {
+    "dev": "bun run --watch src/pocketless.ts serve",
+    "start": "bun run src/pocketless.ts serve",
+    "test": "bun test",
+    "build": "bun build --compile --minify src/pocketless.ts --outfile pocketless",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.7.0",
+    "kysely": "^0.27.5",
+    "jose": "^6.0.0",
+    "arctic": "^3.5.0",
+    "croner": "^9.0.0",
+    "commander": "^13.1.0",
+    "zod": "^3.24.0",
+    "nodemailer": "^6.10.0",
+    "@aws-sdk/client-s3": "^3.750.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.2.0",
+    "@types/nodemailer": "^6.4.17",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "bun": ">=1.2.0"
+  },
+  "license": "MIT"
+}
