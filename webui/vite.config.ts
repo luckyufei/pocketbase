@@ -21,13 +21,12 @@ export default defineConfig(({ command }) => ({
     alias: {
       '@': path.resolve(__dirname, './src'),
       // 强制使用项目的 node_modules，避免多实例冲突
-      // 注意：bun 使用根目录 node_modules
-      'react': path.resolve(__dirname, '../node_modules/react'),
-      'react-dom': path.resolve(__dirname, '../node_modules/react-dom'),
+      'react': path.resolve(__dirname, './node_modules/react'),
+      'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
       // 强制使用同一个 @codemirror/state 实例，避免多实例冲突
-      '@codemirror/state': path.resolve(__dirname, '../node_modules/@codemirror/state'),
-      '@codemirror/view': path.resolve(__dirname, '../node_modules/@codemirror/view'),
-      '@codemirror/language': path.resolve(__dirname, '../node_modules/@codemirror/language'),
+      '@codemirror/state': path.resolve(__dirname, './node_modules/@codemirror/state'),
+      '@codemirror/view': path.resolve(__dirname, './node_modules/@codemirror/view'),
+      '@codemirror/language': path.resolve(__dirname, './node_modules/@codemirror/language'),
     },
   },
   build: {
