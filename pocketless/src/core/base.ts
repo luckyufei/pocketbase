@@ -367,6 +367,73 @@ export class BaseApp {
     return record;
   }
 
+  /**
+   * Find auth record by JWT token (auth, file, verification, passwordReset, emailChange types).
+   * Aligns with Go version's FindAuthRecordByToken.
+   */
+  async findAuthRecordByToken(token: string, ...validTypes: string[]): Promise<RecordModel | null> {
+    if (!token) return null;
+
+    // Decode without verification first to extract claims
+    const { decodeToken, verifyToken, buildSigningKey } = await import("../tools/security/jwt");
+
+    let claims;
+    try {
+      claims = decodeToken(token);
+    } catch {
+      return null;
+    }
+
+    const { id, collectionId, type: tokenType } = claims;
+    if (!id || !collectionId || !tokenType) return null;
+
+    // Check token type if validTypes are specified
+    if (validTypes.length > 0 && !validTypes.includes(tokenType)) return null;
+
+    // Find the record by collectionId + record id
+    const col = await this.findCollectionByNameOrId(collectionId);
+    if (!col || !col.isAuth()) return null;
+
+    const row = this._adapter!.queryOne(`SELECT * FROM ${col.name} WHERE id = ?`, id);
+    if (!row) return null;
+
+    const record = new RecordModel(col);
+    record.load(row as Record<string, unknown>);
+
+    // Resolve the base token secret based on token type
+    let baseTokenSecret = "";
+    const options = col.options as Record<string, any>;
+    switch (tokenType) {
+      case "auth":
+        baseTokenSecret = options?.authToken?.secret ?? "";
+        break;
+      case "file":
+        baseTokenSecret = options?.fileToken?.secret ?? "";
+        break;
+      case "verification":
+        baseTokenSecret = options?.verificationToken?.secret ?? "";
+        break;
+      case "passwordReset":
+        baseTokenSecret = options?.passwordResetToken?.secret ?? "";
+        break;
+      case "emailChange":
+        baseTokenSecret = options?.emailChangeToken?.secret ?? "";
+        break;
+      default:
+        return null;
+    }
+
+    // Verify the token signature with record.tokenKey + collection token secret
+    const signingKey = buildSigningKey(record.getTokenKey(), baseTokenSecret);
+    try {
+      await verifyToken(token, signingKey);
+    } catch {
+      return null;
+    }
+
+    return record;
+  }
+
   /** 通过 email 查找 Auth Record */
   async findAuthRecordByEmail(collectionNameOrId: string, email: string): Promise<RecordModel | null> {
     const col = await this.findCollectionByNameOrId(collectionNameOrId);
@@ -387,8 +454,10 @@ export class BaseApp {
     field: string,
     value: unknown,
   ): Promise<RecordModel | null> {
+    // SQLite 标识符转义：双引号内的双引号需要加倍
+    const escapedField = `"${field.replace(/"/g, '""')}"`;
     const row = this._adapter!.queryOne(
-      `SELECT * FROM ${collection.name} WHERE [[${field}]] = ? LIMIT 1`,
+      `SELECT * FROM ${collection.name} WHERE ${escapedField} = ? LIMIT 1`,
       value,
     );
     if (!row) return null;

@@ -79,6 +79,11 @@ export class RecordModel extends BaseModel {
     return this._data.get(key) !== this._originalData.get(key);
   }
 
+  /** Whether this record belongs to the _superusers collection */
+  isSuperuser(): boolean {
+    return this._collection.name === "_superusers";
+  }
+
   // ─── Auth 专用方法 ───
 
   /** 获取邮箱（Auth 集合专用） */

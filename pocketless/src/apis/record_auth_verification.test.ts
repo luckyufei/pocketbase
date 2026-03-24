@@ -15,7 +15,8 @@ import type { BaseApp } from "../core/base";
 import { registerVerificationRoutes } from "./record_auth_verification";
 import { toApiError } from "./errors";
 import { hashPassword } from "../tools/security/password";
-import { newVerificationToken } from "../core/tokens";
+import { newVerificationToken, TOKEN_TYPE_PASSWORD_RESET } from "../core/tokens";
+import { signToken, buildSigningKey } from "../tools/security/jwt";
 
 // ─── Mock ───
 
@@ -107,6 +108,34 @@ describe("POST /api/collections/:collection/request-verification", () => {
     expect(res.status).toBe(404);
   });
 
+  test("empty data → 400 with validation_required", async () => {
+    const col = createAuthCollection();
+    const { app: mockApp } = createMockApp([col], []);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/users/request-verification", {
+      method: "POST",
+      body: JSON.stringify({}),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json() as any;
+    expect(data.data?.email?.code).toBe("validation_required");
+  });
+
+  test("invalid JSON body → 400", async () => {
+    const col = createAuthCollection();
+    const { app: mockApp } = createMockApp([col], []);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/users/request-verification", {
+      method: "POST",
+      body: `{"invalid json`,
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+  });
+
   test("empty email → 400", async () => {
     const col = createAuthCollection();
     const { app: mockApp } = createMockApp([col], []);
@@ -120,7 +149,7 @@ describe("POST /api/collections/:collection/request-verification", () => {
     expect(res.status).toBe(400);
   });
 
-  test("invalid email → 400", async () => {
+  test("invalid email format → 400", async () => {
     const col = createAuthCollection();
     const { app: mockApp } = createMockApp([col], []);
     const app = createApp(mockApp);
@@ -133,22 +162,36 @@ describe("POST /api/collections/:collection/request-verification", () => {
     expect(res.status).toBe(400);
   });
 
-  test("non-existing email → 204 (anti-enumeration)", async () => {
+  test("missing auth record → 204 (anti-enumeration, no email sent)", async () => {
     const col = createAuthCollection();
     const { app: mockApp } = createMockApp([col], []);
     const app = createApp(mockApp);
 
     const res = await app.request("/api/collections/users/request-verification", {
       method: "POST",
-      body: JSON.stringify({ email: "nobody@example.com" }),
+      body: JSON.stringify({ email: "missing@example.com" }),
       headers: jsonHeaders,
     });
     expect(res.status).toBe(204);
   });
 
-  test("valid email → 204", async () => {
+  test("already verified auth record → 204 (no email sent)", async () => {
     const col = createAuthCollection();
-    const user = await createTestUser(col);
+    const user = await createTestUser(col, true); // 已验证
+    const { app: mockApp } = createMockApp([col], [user]);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/users/request-verification", {
+      method: "POST",
+      body: JSON.stringify({ email: "test@example.com" }),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(204);
+  });
+
+  test("existing unverified auth record → 204 (email would be sent)", async () => {
+    const col = createAuthCollection();
+    const user = await createTestUser(col, false); // 未验证
     const { app: mockApp } = createMockApp([col], [user]);
     const app = createApp(mockApp);
 
@@ -164,6 +207,34 @@ describe("POST /api/collections/:collection/request-verification", () => {
 // ─── confirm-verification ───
 
 describe("POST /api/collections/:collection/confirm-verification", () => {
+  test("empty data → 400 with validation_required on token", async () => {
+    const col = createAuthCollection();
+    const { app: mockApp } = createMockApp([col], []);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/users/confirm-verification", {
+      method: "POST",
+      body: JSON.stringify({}),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json() as any;
+    expect(data.data?.token?.code).toBe("validation_required");
+  });
+
+  test("invalid JSON body → 400", async () => {
+    const col = createAuthCollection();
+    const { app: mockApp } = createMockApp([col], []);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/users/confirm-verification", {
+      method: "POST",
+      body: `{"invalid json`,
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+  });
+
   test("empty token → 400", async () => {
     const col = createAuthCollection();
     const { app: mockApp } = createMockApp([col], []);
@@ -177,17 +248,110 @@ describe("POST /api/collections/:collection/confirm-verification", () => {
     expect(res.status).toBe(400);
   });
 
-  test("invalid token → 400", async () => {
+  test("expired token → 400 with validation_invalid_token", async () => {
     const col = createAuthCollection();
-    const { app: mockApp } = createMockApp([col], []);
+    const user = await createTestUser(col);
+    const { app: mockApp } = createMockApp([col], [user]);
     const app = createApp(mockApp);
+
+    // 生成过期 token (exp in past)
+    const expiredClaims = {
+      type: "verification",
+      id: user.id,
+      collectionId: col.id,
+      email: user.getEmail(),
+      exp: Math.floor(Date.now() / 1000) - 3600,
+    };
+    const tokenConfig = col.options.verificationToken as { secret: string };
+    const signingKey = buildSigningKey(user.getTokenKey(), tokenConfig.secret);
+    const expiredToken = await signToken(expiredClaims, signingKey, 0);
 
     const res = await app.request("/api/collections/users/confirm-verification", {
       method: "POST",
-      body: JSON.stringify({ token: "invalid.jwt.token" }),
+      body: JSON.stringify({ token: expiredToken }),
       headers: jsonHeaders,
     });
     expect(res.status).toBe(400);
+    const data = await res.json() as any;
+    expect(data.data?.token?.code).toBe("validation_invalid_token");
+  });
+
+  test("non-verification token type → 400 with validation_invalid_token", async () => {
+    const col = createAuthCollection();
+    const user = await createTestUser(col);
+    const { app: mockApp } = createMockApp([col], [user]);
+    const app = createApp(mockApp);
+
+    // 生成 password reset token 而不是 verification token
+    const wrongClaims = {
+      type: TOKEN_TYPE_PASSWORD_RESET,
+      id: user.id,
+      collectionId: col.id,
+      email: user.getEmail(),
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    };
+    const tokenConfig = col.options.passwordResetToken as { secret: string };
+    const signingKey = buildSigningKey(user.getTokenKey(), tokenConfig.secret);
+    const wrongToken = await signToken(wrongClaims, signingKey, 0);
+
+    const res = await app.request("/api/collections/users/confirm-verification", {
+      method: "POST",
+      body: JSON.stringify({ token: wrongToken }),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json() as any;
+    expect(data.data?.token?.code).toBe("validation_invalid_token");
+  });
+
+  test("non-auth collection → 404", async () => {
+    const col = new CollectionModel();
+    col.name = "demo1";
+    col.type = COLLECTION_TYPE_BASE;
+    const { app: mockApp } = createMockApp([col], []);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/demo1/confirm-verification", {
+      method: "POST",
+      body: JSON.stringify({ token: "any.jwt.token" }),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(404);
+  });
+
+  test("token from different auth collection → 400 with validation_invalid_token (record not found)", async () => {
+    const col = createAuthCollection();
+    const col2 = new CollectionModel();
+    col2.id = "col_other_456";
+    col2.name = "clients";
+    col2.type = COLLECTION_TYPE_AUTH;
+    col2.options = col.options; // 共享 token config
+    col2.fields = col.fields;
+
+    const user = await createTestUser(col);
+    const { app: mockApp } = createMockApp([col, col2], [user]);
+    const app = createApp(mockApp);
+
+    // 生成针对 col2 但 id 指向 col user 的 token
+    const wrongCollClaims = {
+      type: "verification",
+      id: user.id,
+      collectionId: col2.id, // 不同的集合
+      email: user.getEmail(),
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    };
+    const tokenConfig = col.options.verificationToken as { secret: string };
+    const signingKey = buildSigningKey(user.getTokenKey(), tokenConfig.secret);
+    const wrongCollToken = await signToken(wrongCollClaims, signingKey, 0);
+
+    const res = await app.request("/api/collections/users/confirm-verification", {
+      method: "POST",
+      body: JSON.stringify({ token: wrongCollToken }),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json() as any;
+    expect(data.data?.token?.code).toBe("validation_invalid_token");
   });
 
   test("valid token → 204, sets verified=true", async () => {
@@ -209,5 +373,80 @@ describe("POST /api/collections/:collection/confirm-verification", () => {
     // 应调用 save
     expect(savedRecords.length).toBe(1);
     expect(savedRecords[0].get("verified")).toBe(true);
+  });
+
+  test("valid token (already verified) → 204, no update (already true)", async () => {
+    const col = createAuthCollection();
+    const user = await createTestUser(col, true); // 已验证
+    const { app: mockApp, savedRecords } = createMockApp([col], [user]);
+    const app = createApp(mockApp);
+
+    // 生成有效的 verification token
+    const token = await newVerificationToken(user);
+
+    const res = await app.request("/api/collections/users/confirm-verification", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(204);
+
+    // 即使已验证，仍调用 save（设置 verified=true）
+    expect(savedRecords.length).toBe(1);
+  });
+
+  test("invalid token signature → 400 with validation_invalid_token", async () => {
+    const col = createAuthCollection();
+    const user = await createTestUser(col);
+    const { app: mockApp } = createMockApp([col], [user]);
+    const app = createApp(mockApp);
+
+    // 生成使用错误的签名密钥的 token
+    const badClaims = {
+      type: "verification",
+      id: user.id,
+      collectionId: col.id,
+      email: user.getEmail(),
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    };
+    const badSigningKey = buildSigningKey("wrongTokenKey", "wrongSecret");
+    const badToken = await signToken(badClaims, badSigningKey, 0);
+
+    const res = await app.request("/api/collections/users/confirm-verification", {
+      method: "POST",
+      body: JSON.stringify({ token: badToken }),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json() as any;
+    expect(data.data?.token?.code).toBe("validation_invalid_token");
+  });
+
+  test("email mismatch in token → 400 with validation_invalid_token", async () => {
+    const col = createAuthCollection();
+    const user = await createTestUser(col);
+    const { app: mockApp } = createMockApp([col], [user]);
+    const app = createApp(mockApp);
+
+    // 生成带有不同 email 的 token
+    const wrongEmailClaims = {
+      type: "verification",
+      id: user.id,
+      collectionId: col.id,
+      email: "different@example.com", // 与 record 不匹配
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    };
+    const tokenConfig = col.options.verificationToken as { secret: string };
+    const signingKey = buildSigningKey(user.getTokenKey(), tokenConfig.secret);
+    const wrongEmailToken = await signToken(wrongEmailClaims, signingKey, 0);
+
+    const res = await app.request("/api/collections/users/confirm-verification", {
+      method: "POST",
+      body: JSON.stringify({ token: wrongEmailToken }),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json() as any;
+    expect(data.data?.token?.code).toBe("validation_invalid_token");
   });
 });

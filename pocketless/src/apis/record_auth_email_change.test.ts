@@ -1,6 +1,6 @@
 /**
  * Email Change 测试
- * 对照 Go 版 apis/record_auth_email_change_request.go + _confirm.go
+ * 对照 Go 版 apis/record_auth_email_change_request_test.go + _confirm_test.go
  */
 
 import { describe, test, expect } from "bun:test";
@@ -8,6 +8,7 @@ import { Hono } from "hono";
 import {
   CollectionModel,
   COLLECTION_TYPE_AUTH,
+  COLLECTION_TYPE_BASE,
 } from "../core/collection_model";
 import { RecordModel } from "../core/record_model";
 import type { BaseApp } from "../core/base";
@@ -108,6 +109,81 @@ describe("POST /api/collections/:collection/request-email-change", () => {
     expect(res.status).toBe(401);
   });
 
+  test("not an auth collection → 401 (no auth context)", async () => {
+    const col = new CollectionModel();
+    col.name = "demo1";
+    col.type = COLLECTION_TYPE_BASE;
+    const { app: mockApp } = createMockApp([col], [], null);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/demo1/request-email-change", {
+      method: "POST",
+      body: JSON.stringify({ newEmail: "new@example.com" }),
+      headers: jsonHeaders,
+    });
+    // Go returns 401 since no auth token present
+    expect(res.status).toBe(401);
+  });
+
+  test("auth user from different collection → 403", async () => {
+    const col = createAuthCollection();
+
+    // Create user from a different collection
+    const otherCol = new CollectionModel();
+    otherCol.id = "other_col_456";
+    otherCol.name = "clients";
+    otherCol.type = COLLECTION_TYPE_AUTH;
+    otherCol.options = col.options;
+    otherCol.fields = col.fields;
+
+    const otherUser = new RecordModel(otherCol);
+    otherUser.id = "rec_other_user";
+    otherUser.set("email", "other@example.com");
+    otherUser.set("tokenKey", "otherTokenKey");
+    // collectionId is derived from _collection.id — already "other_col_456" ≠ col.id ("col_test_123")
+
+    const { app: mockApp } = createMockApp([col, otherCol], [otherUser], otherUser);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/users/request-email-change", {
+      method: "POST",
+      body: JSON.stringify({ newEmail: "new@example.com" }),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test("invalid JSON body → 400", async () => {
+    const col = createAuthCollection();
+    const user = await createTestUser(col);
+    const { app: mockApp } = createMockApp([col], [user], user);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/users/request-email-change", {
+      method: "POST",
+      body: `{"newEmail`,
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+  });
+
+  test("empty body → 400 with validation_required", async () => {
+    const col = createAuthCollection();
+    const user = await createTestUser(col);
+    const { app: mockApp } = createMockApp([col], [user], user);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/users/request-email-change", {
+      method: "POST",
+      body: ``,
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    const data = body.data as Record<string, unknown>;
+    expect((data?.newEmail as Record<string, string>)?.code).toBe("validation_required");
+  });
+
   test("empty newEmail → 400", async () => {
     const col = createAuthCollection();
     const user = await createTestUser(col);
@@ -122,7 +198,7 @@ describe("POST /api/collections/:collection/request-email-change", () => {
     expect(res.status).toBe(400);
   });
 
-  test("same email → 400", async () => {
+  test("same email as current → 400", async () => {
     const col = createAuthCollection();
     const user = await createTestUser(col);
     const { app: mockApp } = createMockApp([col], [user], user);
@@ -134,6 +210,30 @@ describe("POST /api/collections/:collection/request-email-change", () => {
       headers: jsonHeaders,
     });
     expect(res.status).toBe(400);
+  });
+
+  test("newEmail already taken → 400 with validation_invalid_new_email", async () => {
+    const col = createAuthCollection();
+    const user = await createTestUser(col);
+
+    // Create another user with the target email
+    const otherUser = new RecordModel(col);
+    otherUser.id = "rec_other";
+    otherUser.set("email", "taken@example.com");
+    otherUser.set("tokenKey", "otherKey");
+
+    const { app: mockApp } = createMockApp([col], [user, otherUser], user);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/users/request-email-change", {
+      method: "POST",
+      body: JSON.stringify({ newEmail: "taken@example.com" }),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    const data = body.data as Record<string, unknown>;
+    expect((data?.newEmail as Record<string, string>)?.code).toBe("validation_invalid_new_email");
   });
 
   test("valid newEmail → 204", async () => {
@@ -154,6 +254,51 @@ describe("POST /api/collections/:collection/request-email-change", () => {
 // ─── confirm-email-change ───
 
 describe("POST /api/collections/:collection/confirm-email-change", () => {
+  test("not an auth collection → 404", async () => {
+    const col = new CollectionModel();
+    col.name = "demo1";
+    col.type = COLLECTION_TYPE_BASE;
+    const { app: mockApp } = createMockApp([col], []);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/demo1/confirm-email-change", {
+      method: "POST",
+      body: JSON.stringify({ token: "any", password: "Test123456" }),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(404);
+  });
+
+  test("empty body → 400 with token + password required", async () => {
+    const col = createAuthCollection();
+    const { app: mockApp } = createMockApp([col], []);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/users/confirm-email-change", {
+      method: "POST",
+      body: ``,
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    const data = body.data as Record<string, unknown>;
+    expect(data?.token).toBeDefined();
+    expect(data?.password).toBeDefined();
+  });
+
+  test("invalid JSON body → 400", async () => {
+    const col = createAuthCollection();
+    const { app: mockApp } = createMockApp([col], []);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/users/confirm-email-change", {
+      method: "POST",
+      body: `{"token`,
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+  });
+
   test("empty token → 400", async () => {
     const col = createAuthCollection();
     const { app: mockApp } = createMockApp([col], []);
@@ -165,6 +310,27 @@ describe("POST /api/collections/:collection/confirm-email-change", () => {
       headers: jsonHeaders,
     });
     expect(res.status).toBe(400);
+  });
+
+  test("non-email-change token type → 400 with validation_invalid_token_payload", async () => {
+    const col = createAuthCollection();
+    const user = await createTestUser(col);
+    const { app: mockApp } = createMockApp([col], [user]);
+    const app = createApp(mockApp);
+
+    // Use a password-reset token (wrong type)
+    const { newPasswordResetToken } = await import("../core/tokens");
+    const wrongTypeToken = await newPasswordResetToken(user);
+
+    const res = await app.request("/api/collections/users/confirm-email-change", {
+      method: "POST",
+      body: JSON.stringify({ token: wrongTypeToken, password: "Test123456" }),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    const data = body.data as Record<string, unknown>;
+    expect((data?.token as Record<string, string>)?.code).toBe("validation_invalid_token_payload");
   });
 
   test("valid token + correct password → 204, updates email", async () => {
@@ -186,7 +352,7 @@ describe("POST /api/collections/:collection/confirm-email-change", () => {
     expect(savedRecords[0].get("verified")).toBe(true);
   });
 
-  test("valid token + wrong password → 400", async () => {
+  test("valid token + wrong password → 400 with validation_invalid_password", async () => {
     const col = createAuthCollection();
     const user = await createTestUser(col);
     const { app: mockApp } = createMockApp([col], [user]);
@@ -199,5 +365,42 @@ describe("POST /api/collections/:collection/confirm-email-change", () => {
       headers: jsonHeaders,
     });
     expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    const data = body.data as Record<string, unknown>;
+    expect((data?.password as Record<string, string>)?.code).toBe("validation_invalid_password");
+  });
+
+  test("token for different collection → 400 with validation_token_collection_mismatch", async () => {
+    const col = createAuthCollection();
+
+    // Token claims collectionId = "clients_col"
+    const otherCol = new CollectionModel();
+    otherCol.id = "clients_col";
+    otherCol.name = "clients";
+    otherCol.type = COLLECTION_TYPE_AUTH;
+    otherCol.options = col.options;
+    otherCol.fields = col.fields;
+
+    const otherUser = new RecordModel(otherCol);
+    otherUser.id = "rec_user_ec";
+    otherUser.set("email", "old@example.com");
+    otherUser.set("tokenKey", "testTokenKey123");
+    otherUser.set("password", await hashPassword("Test123456"));
+
+    const token = await newEmailChangeToken(otherUser, "new@example.com");
+
+    // Request to "users" collection but token has collectionId="clients_col"
+    const { app: mockApp } = createMockApp([col, otherCol], [otherUser]);
+    const app = createApp(mockApp);
+
+    const res = await app.request("/api/collections/users/confirm-email-change", {
+      method: "POST",
+      body: JSON.stringify({ token, password: "Test123456" }),
+      headers: jsonHeaders,
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as Record<string, unknown>;
+    const data = body.data as Record<string, unknown>;
+    expect((data?.token as Record<string, string>)?.code).toBe("validation_token_collection_mismatch");
   });
 });

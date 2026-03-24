@@ -27,7 +27,19 @@ interface PasswordAuthConfig {
 /** 从 collection.options 获取 PasswordAuth 配置 */
 function getPasswordAuthConfig(collection: CollectionModel): PasswordAuthConfig {
   const config = collection.options.passwordAuth as PasswordAuthConfig | undefined;
-  return config ?? { enabled: false, identityFields: ["email"] };
+  const defaults = { enabled: false, identityFields: ["email"] };
+  
+  if (!config) return defaults;
+  
+  // 确保 identityFields 不为空
+  const identityFields = Array.isArray(config.identityFields) && config.identityFields.length > 0
+    ? config.identityFields
+    : defaults.identityFields;
+  
+  return {
+    enabled: config.enabled ?? false,
+    identityFields,
+  };
 }
 
 /** 查找 Auth 集合（from URL path param） */

@@ -19,6 +19,8 @@ import { checkPermissionRule, buildPermissionFilter } from "../core/permission_r
 import type { CollectionModel } from "../core/collection_model";
 import { COLLECTION_TYPE_VIEW } from "../core/collection_model";
 import { pick } from "../tools/picker/pick";
+import { createFieldFromConfig } from "../core/field";
+import "../core/fields_init"; // 导入所有字段类型
 
 /** 从 Hono 上下文提取 RequestInfo（用于权限规则解析） */
 function extractRequestInfo(c: any): RequestInfo {
@@ -31,6 +33,12 @@ function extractRequestInfo(c: any): RequestInfo {
     body: {},
     auth,
   };
+}
+
+/** Check if the current request has superuser authentication */
+function hasSuperuserAuth(c: any): boolean {
+  const authRecord = c.get?.("authRecord") ?? c.get?.("auth") ?? null;
+  return authRecord != null && typeof authRecord.isSuperuser === "function" && authRecord.isSuperuser();
 }
 
 /** 从查询参数提取 fields 并应用 pick 过滤 */
@@ -61,20 +69,23 @@ export function registerRecordRoutes(app: Hono, baseApp: BaseApp): void {
     const col = await baseApp.findCollectionByNameOrId(c.req.param("collection"));
     if (!col) throw notFoundError();
 
-    // T015: listRule 检查
-    if (col.listRule === null) {
+    // T015: listRule 检查 — superuser bypasses all API rules
+    const isSuperuserList = hasSuperuserAuth(c);
+    if (col.listRule === null && !isSuperuserList) {
       throw forbiddenError();
     }
 
     const reqInfo = extractRequestInfo(c);
     const fieldResolver = new RecordFieldResolver(baseApp, col, reqInfo);
 
-    // 如果 listRule 非空，注入 WHERE 条件
-    let extraFilter: string | undefined;
-    if (col.listRule) {
+    // 如果 listRule 非空，解析为 extraWhere + extraParams 注入到 execSearch
+    let extraWhere: string | undefined;
+    let extraParams: Record<string, unknown> | undefined;
+    if (!isSuperuserList && col.listRule) {
       const permFilter = buildPermissionFilter(baseApp, col, col.listRule, reqInfo);
       if (permFilter) {
-        extraFilter = permFilter.where;
+        extraWhere = permFilter.where;
+        extraParams = permFilter.params;
       }
     }
 
@@ -84,6 +95,8 @@ export function registerRecordRoutes(app: Hono, baseApp: BaseApp): void {
         dbAdapter: baseApp.dbAdapter(),
         tableName: col.name,
         defaultSort: "-created",
+        extraWhere,
+        extraParams,
       },
       {
         page: c.req.query("page"),
@@ -114,24 +127,29 @@ export function registerRecordRoutes(app: Hono, baseApp: BaseApp): void {
     const col = await baseApp.findCollectionByNameOrId(c.req.param("collection"));
     if (!col) throw notFoundError();
 
-    // T016: viewRule 检查
-    if (col.viewRule === null) {
+    // T016: viewRule 检查 — superuser bypasses all API rules
+    const isSuperuserView = hasSuperuserAuth(c);
+    if (col.viewRule === null && !isSuperuserView) {
       throw forbiddenError();
     }
 
     const row = baseApp.dbAdapter().queryOne(`SELECT * FROM ${col.name} WHERE id = ?`, c.req.param("id"));
     if (!row) throw notFoundError();
 
-    // 非空 viewRule: 检查记录是否满足规则
-    if (col.viewRule) {
+    // 非空 viewRule: 检查记录是否满足规则 (skip for superuser)
+    if (col.viewRule && !isSuperuserView) {
       const reqInfo = extractRequestInfo(c);
-      await checkPermissionRule({
-        app: baseApp,
-        collection: col,
-        rule: col.viewRule,
-        requestInfo: reqInfo,
-        recordId: c.req.param("id"),
-      });
+      try {
+        await checkPermissionRule({
+          app: baseApp,
+          collection: col,
+          rule: col.viewRule,
+          requestInfo: reqInfo,
+          recordId: c.req.param("id"),
+        });
+      } catch {
+        throw forbiddenError();
+      }
     }
 
     const record = new RecordModel(col);
@@ -149,23 +167,28 @@ export function registerRecordRoutes(app: Hono, baseApp: BaseApp): void {
       throw badRequestError("View collections are read-only.");
     }
 
-    // T017: createRule 检查
-    if (col.createRule === null) {
+    // T017: createRule 检查 — superuser bypasses all API rules
+    const isSuperuserCreate = hasSuperuserAuth(c);
+    if (col.createRule === null && !isSuperuserCreate) {
       throw forbiddenError();
     }
 
     const body = await c.req.json().catch(() => ({}));
 
-    // 非空 createRule: 先用 requestInfo 检查权限（不需要记录 ID）
-    if (col.createRule) {
+    // 非空 createRule: 先用 requestInfo 检查权限 (skip for superuser)
+    if (col.createRule && !isSuperuserCreate) {
       const reqInfo = extractRequestInfo(c);
       reqInfo.body = body;
-      await checkPermissionRule({
-        app: baseApp,
-        collection: col,
-        rule: col.createRule,
-        requestInfo: reqInfo,
-      });
+      try {
+        await checkPermissionRule({
+          app: baseApp,
+          collection: col,
+          rule: col.createRule,
+          requestInfo: reqInfo,
+        });
+      } catch {
+        throw forbiddenError();
+      }
     }
 
     const record = new RecordModel(col);
@@ -174,13 +197,47 @@ export function registerRecordRoutes(app: Hono, baseApp: BaseApp): void {
       record.id = body.id;
     }
 
+    const validationErrors: Record<string, { code: string; message: string }> = {};
+
     for (const [key, value] of Object.entries(body)) {
       if (key === "id") continue;
       if (key.endsWith("+") || key.startsWith("+") || key.endsWith("-")) {
         record.applyModifier(key, value);
       } else {
         record.set(key, value);
+        
+        // 字段验证
+        const fieldConfig = col.fields.find(f => f.name === key);
+        if (fieldConfig) {
+          const field = createFieldFromConfig(fieldConfig);
+          if (field) {
+            const error = field.validateValue(value, record);
+            if (error) {
+              validationErrors[key] = {
+                code: "validation_invalid",
+                message: error,
+              };
+            }
+          }
+        }
       }
+    }
+
+    // 验证必填字段
+    for (const fieldConfig of col.fields) {
+      if (fieldConfig.required && !record.get(fieldConfig.name) && fieldConfig.name !== "id") {
+        validationErrors[fieldConfig.name] = {
+          code: "validation_required",
+          message: "Cannot be blank.",
+        };
+      }
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      throw badRequestError(
+        "An error occurred while validating the submitted data.",
+        validationErrors,
+      );
     }
 
     await baseApp.save(record);
@@ -198,23 +255,28 @@ export function registerRecordRoutes(app: Hono, baseApp: BaseApp): void {
       throw badRequestError("View collections are read-only.");
     }
 
-    // T018: updateRule 检查
-    if (col.updateRule === null) {
+    // T018: updateRule 检查 — superuser bypasses all API rules
+    const isSuperuserUpdate = hasSuperuserAuth(c);
+    if (col.updateRule === null && !isSuperuserUpdate) {
       throw forbiddenError();
     }
 
     const row = baseApp.dbAdapter().queryOne(`SELECT * FROM ${col.name} WHERE id = ?`, c.req.param("id"));
     if (!row) throw notFoundError();
 
-    if (col.updateRule) {
+    if (col.updateRule && !isSuperuserUpdate) {
       const reqInfo = extractRequestInfo(c);
-      await checkPermissionRule({
-        app: baseApp,
-        collection: col,
-        rule: col.updateRule,
-        requestInfo: reqInfo,
-        recordId: c.req.param("id"),
-      });
+      try {
+        await checkPermissionRule({
+          app: baseApp,
+          collection: col,
+          rule: col.updateRule,
+          requestInfo: reqInfo,
+          recordId: c.req.param("id"),
+        });
+      } catch {
+        throw forbiddenError();
+      }
     }
 
     const record = new RecordModel(col);
@@ -222,13 +284,48 @@ export function registerRecordRoutes(app: Hono, baseApp: BaseApp): void {
 
     const body = await c.req.json().catch(() => ({}));
 
+    const validationErrors: Record<string, { code: string; message: string }> = {};
+
     for (const [key, value] of Object.entries(body)) {
       if (key === "id") continue;
       if (key.endsWith("+") || key.startsWith("+") || key.endsWith("-")) {
         record.applyModifier(key, value);
       } else {
         record.set(key, value);
+        
+        // 字段验证
+        const fieldConfig = col.fields.find(f => f.name === key);
+        if (fieldConfig) {
+          const field = createFieldFromConfig(fieldConfig);
+          if (field) {
+            const error = field.validateValue(value, record);
+            if (error) {
+              validationErrors[key] = {
+                code: "validation_invalid",
+                message: error,
+              };
+            }
+          }
+        }
       }
+    }
+
+    // 验证必填字段（仅对新值的字段或必填字段检查）
+    for (const fieldConfig of col.fields) {
+      const currentValue = record.get(fieldConfig.name);
+      if (fieldConfig.required && !currentValue && fieldConfig.name !== "id") {
+        validationErrors[fieldConfig.name] = {
+          code: "validation_required",
+          message: "Cannot be blank.",
+        };
+      }
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      throw badRequestError(
+        "An error occurred while validating the submitted data.",
+        validationErrors,
+      );
     }
 
     await baseApp.save(record);
@@ -246,30 +343,59 @@ export function registerRecordRoutes(app: Hono, baseApp: BaseApp): void {
       throw badRequestError("View collections are read-only.");
     }
 
-    // T018: deleteRule 检查
-    if (col.deleteRule === null) {
+    // T018: deleteRule 检查 — superuser bypasses all API rules
+    const isSuperuserDelete = hasSuperuserAuth(c);
+    if (col.deleteRule === null && !isSuperuserDelete) {
       throw forbiddenError();
     }
 
     const row = baseApp.dbAdapter().queryOne(`SELECT * FROM ${col.name} WHERE id = ?`, c.req.param("id"));
     if (!row) throw notFoundError();
 
-    if (col.deleteRule) {
+    if (col.deleteRule && !isSuperuserDelete) {
       const reqInfo = extractRequestInfo(c);
-      await checkPermissionRule({
-        app: baseApp,
-        collection: col,
-        rule: col.deleteRule,
-        requestInfo: reqInfo,
-        recordId: c.req.param("id"),
-      });
+      try {
+        await checkPermissionRule({
+          app: baseApp,
+          collection: col,
+          rule: col.deleteRule,
+          requestInfo: reqInfo,
+          recordId: c.req.param("id"),
+        });
+      } catch {
+        throw forbiddenError();
+      }
     }
 
     const record = new RecordModel(col);
     record.load(row as Record<string, unknown>);
 
+    // 特殊规则：_superusers 集合不能删除最后一个 superuser
+    if (col.name === "_superusers") {
+      const count = baseApp.dbAdapter().queryOne<{ cnt: number }>(
+        `SELECT COUNT(*) as cnt FROM "${col.name}"`,
+      );
+      if (count && count.cnt === 1) {
+        throw badRequestError("You can't delete the only existing superuser.", {});
+      }
+    }
+
     await baseApp.delete(record);
 
     return c.body(null, 204);
   });
+
+  // ─── Hooks for Special Collection Rules ───
+
+  // 创建 _superusers 时强制 verified=true
+  baseApp.onRecordCreateExecute("_superusers").bindFunc(async (event) => {
+    event.record.set("verified", true);
+    await event.next();
+  }, -99);
+
+  // 更新 _superusers 时强制 verified=true
+  baseApp.onRecordUpdateExecute("_superusers").bindFunc(async (event) => {
+    event.record.set("verified", true);
+    await event.next();
+  }, -99);
 }

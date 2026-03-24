@@ -16,7 +16,31 @@ export default defineConfig(({ command }) => ({
   envPrefix: 'PB',
   // 开发模式用 '/'，生产模式用 '/_/'（嵌入 PocketBase）
   base: command === 'serve' ? '/' : '/_/',
-  plugins: [react()],
+  plugins: [
+    // Dev mode: redirect /_/* requests so browser URL matches React Router basename
+    {
+      name: 'dev-rewrite-admin-prefix',
+      configureServer(server) {
+        server.middlewares.use((req, res, next) => {
+          if (req.url?.startsWith('/_/')) {
+            const accept = req.headers.accept || ''
+            if (accept.includes('text/html')) {
+              // Browser navigation: 302 redirect to strip /_/ prefix
+              // so that window.location matches React Router basename "/"
+              const newUrl = req.url.slice(2) // "/_/foo" → "/foo"
+              res.writeHead(302, { Location: newUrl })
+              res.end()
+              return
+            }
+            // Non-HTML requests (assets, etc.): silent rewrite
+            req.url = req.url.slice(2)
+          }
+          next()
+        })
+      },
+    },
+    react(),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

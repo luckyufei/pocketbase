@@ -1,0 +1,137 @@
+================================================================================
+PocketBase 单测对齐分析 - 缺失测试模块清单
+================================================================================
+
+【高优先级补充】TS 版本需要补充的 Go 版本核心测试
+
+┌─ APIs 模块 ─────────────────────────────────────────────────────────────┐
+│                                                                          │
+│  1. record_crud_external_auth (5 tests)
+│     - 目标：管理记录关联的外部认证（如 Google、GitHub 登录）
+│     - 路径应在：/Users/yufei/workspace/pocketbase-main/pocketless/src/apis/
+│     - 对应 Go 文件：record_crud_external_auth_test.go
+│
+│  2. record_crud_auth_origin (5 tests)
+│     - 目标：管理 OAuth 认证源配置（提供商、客户端 ID 等）
+│     - 路径应在：/Users/yufei/workspace/pocketbase-main/pocketless/src/apis/
+│     - 对应 Go 文件：record_crud_auth_origin_test.go
+│
+│  3. record_crud_secret (4 tests)
+│     - 目标：测试 Secret 字段类型的 CRUD 操作
+│     - 路径应在：/Users/yufei/workspace/pocketbase-main/pocketless/src/apis/
+│     - 对应 Go 文件：record_crud_secret_test.go
+│
+│  4. record_crud_superuser (5 tests)
+│     - 目标：测试超级用户权限管理和操作限制
+│     - 路径应在：/Users/yufei/workspace/pocketbase-main/pocketless/src/apis/
+│     - 对应 Go 文件：record_crud_superuser_test.go
+│
+│  5. collection_import (1 test)
+│     - 目标：测试 CSV/JSON 集合导入功能
+│     - 路径应在：/Users/yufei/workspace/pocketbase-main/pocketless/src/apis/
+│     - 对应 Go 文件：collection_import_test.go
+│
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌─ Core 模块（PostgreSQL 特定功能）───────────────────────────────────────┐
+│                                                                          │
+│  1. PostgreSQL 适配器完整性测试
+│     - db_adapter_postgres 已有 34 个测试，但缺少：
+│       * JSONB 数据类型边界条件
+│       * 并发连接处理
+│       * 连接池管理
+│
+│  2. field_types_postgres (2 tests)
+│     - 目标：测试 PostgreSQL 特定的字段类型支持
+│     - 包括：Vector、JSONB、Array 等
+│     - 优先级：中等（TS 目前采用 SQLite）
+│
+│  3. db_rls (10 tests)
+│     - 目标：行级安全策略（Row Level Security）
+│     - 优先级：中等（安全特性，仅 PostgreSQL）
+│
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌─ Tools 模块 ────────────────────────────────────────────────────────────┐
+│                                                                          │
+│  1. router/unmarshal_request_data (2 tests)
+│     - 目标：HTTP 请求数据反序列化和验证
+│     - 优先级：低（已通过其他集成测试覆盖）
+│
+│  2. OS 工具函数 (3 tests)
+│     - osutils/cmd_test.go、dir_test.go、run_test.go
+│     - 优先级：低（TS 版主要是 REST API，不涉及 OS 操作）
+│
+│  3. 模板渲染 (6 tests)
+│     - template/registry_test.go、renderer_test.go
+│     - 优先级：低（用于邮件模板，Go 特定功能）
+│
+│  4. 分词器/单词变形 (11 tests)
+│     - tokenizer_test.go、inflector/singularize_test.go 等
+│     - 优先级：低（Go 特定的文本处理）
+│
+└──────────────────────────────────────────────────────────────────────────┘
+
+【中优先级补充】Go 版本需要补充的 TS 版本额外测试
+
+┌─ APIs 模块 ─────────────────────────────────────────────────────────────┐
+│                                                                          │
+│  1. record_auth_mfa_test.go (✅ 补充建议)
+│     - TS 版有 10 个完整 MFA 流程测试
+│     - Go 版仅有 record_crud_mfa（5 tests，针对 MFA 记录管理）
+│     - 缺少：完整的 MFA 认证流程验证
+│     - 建议：新增 record_auth_mfa_test.go，补充 10-15 个场景
+│
+│  2. record_file_upload_test.go (✅ 补充建议)
+│     - TS 版有 6 个文件上传流程测试
+│     - Go 版 file_test.go (3 tests) 不够全面
+│     - 缺少：多文件上传、文件验证、错误处理
+│     - 建议：新增 record_file_upload_test.go
+│
+└──────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+【GO 特定功能（TS 版无法对齐，正常）】
+
+Core 模块（数据库高级特性）:
+  ✅ db_wal_* (6 个文件，44 tests)        - SQLite WAL 日志复制
+  ✅ db_backup_pg (7 tests)                - PostgreSQL 备份
+  ✅ db_bootstrap_pg (7 tests)             - PostgreSQL 初始化
+  ✅ db_distributed_hook (4 tests)         - 分布式 Hook
+  ✅ db_pubsub (6 tests)                   - PostgreSQL PubSub
+  ✅ db_tx_isolation (4 tests)             - 事务隔离级别
+  ✅ collection_model_auth_options (15)    - Auth 选项配置
+  ✅ record_model_superusers (1 test)      - Superuser 模型
+
+Plugins 模块（Go 专有）:
+  ✅ jsvm/* (67 tests)                     - JavaScript VM 插件
+  ✅ tofauth (24 tests)                    - TOF 认证（腾讯）
+  ✅ gateway/* (~80 tests)                 - API 网关
+  ✅ processman/* (~60 tests)              - 进程管理
+
+【TS 专有测试（Go 版无需对齐）】
+
+APIs 模块:
+  ✅ record_auth_mfa (10)                  - 完整 MFA 流程
+  ✅ admin_ui (10)                         - Admin UI 路由
+  ✅ record_file_upload (6)                - 文件上传流程
+  ✅ backup_restore (7)                    - 备份恢复流程
+  ✅ realtime_broadcast (12)               - 实时广播
+  ✅ settings_forms (26)                   - 设置表单验证
+
+================================================================================
+【补充计划】
+
+第一阶段（高优先级，建议立即补充）:
+  ✓ TS record_crud_external_auth.test.ts (参考 Go 版本的 5 个 test)
+  ✓ TS record_crud_auth_origin.test.ts (参考 Go 版本的 5 个 test)
+  ✓ TS record_crud_secret.test.ts (参考 Go 版本的 4 个 test)
+  ✓ Go record_auth_mfa_test.go (补充 10-15 个 MFA 流程场景)
+  ✓ Go record_file_upload_test.go (补充完整的文件上传测试)
+
+第二阶段（中优先级，可根据需要补充）:
+  - TS PostgreSQL 适配器特定测试
+  - Go 分布式 Hook、事务隔离、行级安全性测试补强
+  - 两个版本共同补充：并发测试、性能基准、端到端集成测试
+
+================================================================================

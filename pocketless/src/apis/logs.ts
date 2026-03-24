@@ -11,10 +11,13 @@ import type { Hono } from "hono";
 import type { BaseApp } from "../core/base";
 import { notFoundError, badRequestError } from "./errors";
 import { LogQueryHelper, type Log, type LogsStatsItem } from "../core/log_query";
+import { requireSuperuserMiddleware } from "./middlewares";
 
 export function registerLogsRoutes(app: Hono, baseApp: BaseApp): void {
+  const requireSuperuser = requireSuperuserMiddleware();
+
   // 日志列表
-  app.get("/api/logs", async (c) => {
+  app.get("/api/logs", requireSuperuser, async (c) => {
     const page = parseInt(c.req.query("page") || "1", 10);
     const perPage = parseInt(c.req.query("perPage") || "30", 10);
     const filter = c.req.query("filter") || "";
@@ -27,7 +30,7 @@ export function registerLogsRoutes(app: Hono, baseApp: BaseApp): void {
   });
 
   // 日志统计
-  app.get("/api/logs/stats", async (c) => {
+  app.get("/api/logs/stats", requireSuperuser, async (c) => {
     const filter = c.req.query("filter") || "";
     const helper = getLogHelper(baseApp);
     const stats = helper.stats(filter || undefined);
@@ -35,7 +38,7 @@ export function registerLogsRoutes(app: Hono, baseApp: BaseApp): void {
   });
 
   // 日志详情
-  app.get("/api/logs/:id", async (c) => {
+  app.get("/api/logs/:id", requireSuperuser, async (c) => {
     const id = c.req.param("id");
     if (!id) throw notFoundError();
 

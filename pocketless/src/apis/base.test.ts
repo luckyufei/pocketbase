@@ -71,16 +71,15 @@ describe("createRouter", () => {
   test("collections route is registered", async () => {
     const router = createRouter(baseApp);
     const res = await router.request("/api/collections");
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toHaveProperty("items");
-    expect(body).toHaveProperty("page");
+    // route is registered — requires auth (401), not missing (404)
+    expect(res.status).not.toBe(404);
+    expect(res.status).toBe(401);
   });
 
   test("error handler converts ApiError to JSON", async () => {
     const router = createRouter(baseApp);
-    // 请求一个会抛 notFoundError 的路由
-    const res = await router.request("/api/collections/nonexistent");
+    // 请求一个会抛 notFoundError 的路由（不需要 auth，直接返回 404）
+    const res = await router.request("/nonexistent-api-route");
     expect(res.status).toBe(404);
     const body = await res.json();
     expect(body.status).toBe(404);

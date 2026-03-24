@@ -77,17 +77,23 @@ export function registerVerificationRoutes(app: Hono, baseApp: BaseApp): void {
     try {
       claims = decodeToken(token);
     } catch {
-      throw badRequestError("Invalid or expired token.", {});
+      throw badRequestError("Invalid or expired token.", {
+        token: { code: "validation_invalid_token", message: "Invalid or expired token." },
+      });
     }
 
     if (claims.type !== TOKEN_TYPE_VERIFICATION) {
-      throw badRequestError("Invalid or expired token.", {});
+      throw badRequestError("Invalid or expired token.", {
+        token: { code: "validation_invalid_token", message: "Invalid or expired token." },
+      });
     }
 
     // 查找 record
     const record = await (baseApp as any).findRecordById?.(collection.name, claims.id);
     if (!record) {
-      throw badRequestError("Invalid or expired token.", {});
+      throw badRequestError("Invalid or expired token.", {
+        token: { code: "validation_invalid_token", message: "Invalid or expired token." },
+      });
     }
 
     // 验证 JWT 签名
@@ -97,12 +103,16 @@ export function registerVerificationRoutes(app: Hono, baseApp: BaseApp): void {
     try {
       await verifyToken(token, signingKey);
     } catch {
-      throw badRequestError("Invalid or expired token.", {});
+      throw badRequestError("Invalid or expired token.", {
+        token: { code: "validation_invalid_token", message: "Invalid or expired token." },
+      });
     }
 
     // 检查 email 匹配
     if (claims[CLAIM_EMAIL] !== record.getEmail()) {
-      throw badRequestError("Invalid or expired token.", {});
+      throw badRequestError("Invalid or expired token.", {
+        token: { code: "validation_invalid_token", message: "Invalid or expired token." },
+      });
     }
 
     // 设置 verified = true

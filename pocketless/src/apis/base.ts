@@ -9,7 +9,12 @@ import { registerCollectionRoutes } from "./collection";
 import { registerRecordRoutes } from "./record_crud";
 import { registerRecordAuthRoutes } from "./record_auth_password";
 import { registerBatchRoutes } from "./batch";
+import { registerSettingsRoutes } from "./settings";
+import { registerLogsRoutes } from "./logs";
+import { registerAdminUIRoutes } from "./admin_ui";
 import { toApiError } from "./errors";
+import { authLoadingMiddleware } from "./middlewares";
+import { join } from "node:path";
 
 export function createRouter(baseApp: BaseApp): Hono {
   const app = new Hono();
@@ -20,7 +25,23 @@ export function createRouter(baseApp: BaseApp): Hono {
     return c.json(apiErr.toJSON(), apiErr.status as any);
   });
 
-  // 404 处理
+  // Global middleware: auth loading (aligns with Go version)
+  app.use("*", authLoadingMiddleware(baseApp));
+
+  // 注册路由
+  registerHealthRoutes(app, baseApp);
+  registerSettingsRoutes(app, baseApp);
+  registerLogsRoutes(app, baseApp);
+  registerCollectionRoutes(app, baseApp);
+  registerRecordRoutes(app, baseApp);
+  registerRecordAuthRoutes(app, baseApp);
+  registerBatchRoutes(app, baseApp);
+
+  // 注册 Admin UI 路由（必须在 notFound 前）
+  const distDir = join(import.meta.dir, "../../../webui/dist");
+  registerAdminUIRoutes(app, distDir);
+
+  // 404 处理（最后注册）
   app.notFound((c) => {
     return c.json(
       {
@@ -31,13 +52,6 @@ export function createRouter(baseApp: BaseApp): Hono {
       404,
     );
   });
-
-  // 注册路由
-  registerHealthRoutes(app, baseApp);
-  registerCollectionRoutes(app, baseApp);
-  registerRecordRoutes(app, baseApp);
-  registerRecordAuthRoutes(app, baseApp);
-  registerBatchRoutes(app, baseApp);
 
   return app;
 }

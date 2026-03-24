@@ -133,15 +133,26 @@ export function rateLimitMiddleware(config: RateLimitConfig): MiddlewareHandler 
 
 // ─── T081: Auth Loading Middleware ───
 
-export function authLoadingMiddleware(): MiddlewareHandler {
+export function authLoadingMiddleware(baseApp?: any): MiddlewareHandler {
   return async (c, next) => {
     const authHeader = c.req.header("Authorization") ?? "";
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
 
     if (token) {
       c.set("authToken", token);
-      // 在真实实现中，这里会验证 token 并设置 c.set("auth", record)
-      // 这里仅提取 token，验证逻辑在 BaseApp.findAuthRecordByToken 中
+
+      // Verify token and resolve auth record (aligns with Go version)
+      if (baseApp) {
+        try {
+          const record = await baseApp.findAuthRecordByToken(token, "auth");
+          if (record) {
+            c.set("auth", record);
+            c.set("authRecord", record);
+          }
+        } catch {
+          // Invalid/expired token — silently ignore (Go version does the same)
+        }
+      }
     }
 
     await next();

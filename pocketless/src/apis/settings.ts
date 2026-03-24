@@ -13,10 +13,13 @@ import type { Hono } from "hono";
 import type { BaseApp } from "../core/base";
 import { Settings, newDefaultSettings } from "../core/settings_model";
 import { badRequestError, forbiddenError } from "./errors";
+import { requireSuperuserMiddleware } from "./middlewares";
 
 export function registerSettingsRoutes(app: Hono, baseApp: BaseApp): void {
+  const requireSuperuser = requireSuperuserMiddleware();
+
   // 获取 Settings
-  app.get("/api/settings", async (c) => {
+  app.get("/api/settings", requireSuperuser, async (c) => {
     const settings = getSettings(baseApp);
     const settingsJSON = settings.toJSON();
 
@@ -33,7 +36,7 @@ export function registerSettingsRoutes(app: Hono, baseApp: BaseApp): void {
   });
 
   // 更新 Settings
-  app.patch("/api/settings", async (c) => {
+  app.patch("/api/settings", requireSuperuser, async (c) => {
     const settings = getSettings(baseApp);
     const oldSettingsJSON = settings.toJSON();
     const body = await c.req.json().catch(() => ({}));
@@ -60,7 +63,7 @@ export function registerSettingsRoutes(app: Hono, baseApp: BaseApp): void {
   });
 
   // 测试 S3 连接
-  app.post("/api/settings/test/s3", async (c) => {
+  app.post("/api/settings/test/s3", requireSuperuser, async (c) => {
     const body = await c.req.json().catch(() => ({}));
     const filesystem = (body as Record<string, unknown>).filesystem as string;
 
@@ -79,7 +82,7 @@ export function registerSettingsRoutes(app: Hono, baseApp: BaseApp): void {
   });
 
   // 测试邮件发送
-  app.post("/api/settings/test/email", async (c) => {
+  app.post("/api/settings/test/email", requireSuperuser, async (c) => {
     const body = await c.req.json().catch(() => ({}));
     const { email, template } = body as { email?: string; template?: string };
 
@@ -101,7 +104,7 @@ export function registerSettingsRoutes(app: Hono, baseApp: BaseApp): void {
   });
 
   // Apple 客户端密钥生成
-  app.post("/api/settings/apple/generate-client-secret", async (c) => {
+  app.post("/api/settings/apple/generate-client-secret", requireSuperuser, async (c) => {
     const body = await c.req.json().catch(() => ({}));
     const { clientId, teamId, keyId, privateKey, duration } = body as {
       clientId?: string;

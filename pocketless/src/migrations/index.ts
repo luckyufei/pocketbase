@@ -125,8 +125,8 @@ export function getSystemMigrations(): Migration[] {
           { id: generateId(), name: "avatar", type: "file", required: false, options: { maxSelect: 1 } },
         ]);
         adapter.exec(
-          `INSERT OR IGNORE INTO _collections (id, type, name, system, fields, created, updated) VALUES (?, 'auth', 'users', 0, ?, ?, ?)`,
-          id, fields, now, now,
+          `INSERT OR IGNORE INTO _collections (id, type, name, system, fields, created, updated, listRule) VALUES (?, 'auth', 'users', 0, ?, ?, ?, ?)`,
+          id, fields, now, now, "id = @request.auth.id",
         );
       },
     },

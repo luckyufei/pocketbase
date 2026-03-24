@@ -403,6 +403,34 @@ describe("auth-with-password auto identity field detection", () => {
     );
     expect(res.status).toBe(400);
   });
+
+  // GitHub Issue #7256: username 字段的值是邮箱格式
+  // identity="username_as_email@example.com" 应该在 username 字段中找到，不应在 email 字段
+  test("email-formatted value in non-email field (Issue #7256)", async () => {
+    const col = createTestAuthCollection({ identityFields: ["email", "username"] });
+    const user = await createTestUserRecord(col, {
+      email: "real@example.com",
+      username: "username_as_email@example.com", // 邮箱格式但在 username 字段
+    });
+    const baseApp = createMockApp({ collections: [col], records: [user] });
+    const app = createApp(baseApp);
+
+    // 这个邮箱格式的 identity 应该首先尝试 email 字段（失败），然后尝试 username 字段（成功）
+    const res = await app.request(
+      "/api/collections/users/auth-with-password",
+      {
+        method: "POST",
+        body: JSON.stringify({ identity: "username_as_email@example.com", password: "Test123456" }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    const record = body.record as Record<string, unknown>;
+    // 应该返回正确的用户
+    expect(record.email).toBe("real@example.com");
+    expect(record.username).toBe("username_as_email@example.com");
+  });
 });
 
 // ─── Auth Response 格式测试 ───
@@ -436,5 +464,62 @@ describe("auth response format", () => {
     expect(record).toHaveProperty("email");
     expect(record).toHaveProperty("created");
     expect(record).toHaveProperty("updated");
+  });
+
+  test("invalid JSON body → 400", async () => {
+    const col = createTestAuthCollection();
+    const baseApp = createMockApp({ collections: [col] });
+    const app = createApp(baseApp);
+
+    const res = await app.request(
+      "/api/collections/users/auth-with-password",
+      {
+        method: "POST",
+        body: `{"identity":"test@example.com","password":`, // 无效 JSON（缺少闭合）
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    expect(res.status).toBe(400);
+  });
+
+  test("case sensitivity: password is case-sensitive", async () => {
+    const col = createTestAuthCollection();
+    const user = await createTestUserRecord(col, { password: "Test123456" });
+    const baseApp = createMockApp({ collections: [col], records: [user] });
+    const app = createApp(baseApp);
+
+    // 大小写不同的密码应失败
+    const res = await app.request(
+      "/api/collections/users/auth-with-password",
+      {
+        method: "POST",
+        body: JSON.stringify({ identity: "test@example.com", password: "test123456" }), // 小写 t
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    expect(res.status).toBe(400);
+  });
+
+  test("response record is sanitized (no password/tokenKey)", async () => {
+    const col = createTestAuthCollection();
+    const user = await createTestUserRecord(col);
+    const baseApp = createMockApp({ collections: [col], records: [user] });
+    const app = createApp(baseApp);
+
+    const res = await app.request(
+      "/api/collections/users/auth-with-password",
+      {
+        method: "POST",
+        body: JSON.stringify({ identity: "test@example.com", password: "Test123456" }),
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    const responseText = JSON.stringify(body);
+
+    // 确保敏感字段不在响应中
+    expect(responseText).not.toContain("password");
+    expect(responseText).not.toContain("tokenKey");
   });
 });

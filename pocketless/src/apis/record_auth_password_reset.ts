@@ -24,8 +24,28 @@ export function registerPasswordResetRoutes(app: Hono, baseApp: BaseApp): void {
       throw notFoundError("Missing or invalid auth collection context.");
     }
 
-    const body = await c.req.json().catch(() => ({}));
-    const email = body.email ?? "";
+    // 检查密码认证是否启用（在 body 验证之前）
+    const passwordAuth = collection.options.passwordAuth as { enabled?: boolean } | undefined;
+    if (!passwordAuth?.enabled) {
+      throw badRequestError("The collection is not configured to allow password authentication.", {});
+    }
+
+    const rawBody = await c.req.text();
+    let body: Record<string, unknown> | null = null;
+
+    if (rawBody.trim() === "") {
+      // 空 body 视为空对象，触发 validation_required
+      body = {};
+    } else {
+      try {
+        body = JSON.parse(rawBody);
+      } catch {
+        // 无效 JSON 格式
+        throw badRequestError("An error occurred while validating the submitted data.", {});
+      }
+    }
+
+    const email = (body as Record<string, unknown>)?.email ?? "";
 
     if (!email) {
       throw badRequestError("An error occurred while validating the submitted data.", {
@@ -53,10 +73,24 @@ export function registerPasswordResetRoutes(app: Hono, baseApp: BaseApp): void {
       throw notFoundError("Missing or invalid auth collection context.");
     }
 
-    const body = await c.req.json().catch(() => ({}));
-    const token = body.token ?? "";
-    const password = body.password ?? "";
-    const passwordConfirm = body.passwordConfirm ?? "";
+    const rawConfirmBody = await c.req.text();
+    let body: Record<string, unknown> | null = null;
+
+    if (rawConfirmBody.trim() === "") {
+      // 空 body 视为空对象，触发各字段 validation_required
+      body = {};
+    } else {
+      try {
+        body = JSON.parse(rawConfirmBody);
+      } catch {
+        // 无效 JSON 格式
+        throw badRequestError("An error occurred while validating the submitted data.", {});
+      }
+    }
+
+    const token = body?.token ?? "";
+    const password = body?.password ?? "";
+    const passwordConfirm = body?.passwordConfirm ?? "";
 
     // 验证表单
     const errors: Record<string, { code: string; message: string }> = {};
@@ -75,6 +109,13 @@ export function registerPasswordResetRoutes(app: Hono, baseApp: BaseApp): void {
       throw badRequestError("An error occurred while validating the submitted data.", errors);
     }
 
+    // 密码最小长度 8
+    if (password.length < 8) {
+      throw badRequestError("An error occurred while validating the submitted data.", {
+        password: { code: "validation_length_out_of_range", message: "Must be between 8 and 100 characters." },
+      });
+    }
+
     if (password !== passwordConfirm) {
       throw badRequestError("An error occurred while validating the submitted data.", {
         passwordConfirm: { code: "validation_values_mismatch", message: "Values don't match." },
@@ -86,17 +127,30 @@ export function registerPasswordResetRoutes(app: Hono, baseApp: BaseApp): void {
     try {
       claims = decodeToken(token);
     } catch {
-      throw badRequestError("Invalid or expired token.", {});
+      throw badRequestError("An error occurred while validating the submitted data.", {
+        token: { code: "validation_invalid_token", message: "Invalid or expired token." },
+      });
     }
 
     if (claims.type !== TOKEN_TYPE_PASSWORD_RESET) {
-      throw badRequestError("Invalid or expired token.", {});
+      throw badRequestError("An error occurred while validating the submitted data.", {
+        token: { code: "validation_invalid_token", message: "Invalid or expired token." },
+      });
+    }
+
+    // 验证集合匹配
+    if (claims.collectionId && claims.collectionId !== collection.id) {
+      throw badRequestError("An error occurred while validating the submitted data.", {
+        token: { code: "validation_token_collection_mismatch", message: "Token collection mismatch." },
+      });
     }
 
     // 查找 record
     const record = await (baseApp as any).findRecordById?.(collection.name, claims.id);
     if (!record) {
-      throw badRequestError("Invalid or expired token.", {});
+      throw badRequestError("An error occurred while validating the submitted data.", {
+        token: { code: "validation_invalid_token", message: "Invalid or expired token." },
+      });
     }
 
     // 验证 JWT 签名
@@ -106,7 +160,9 @@ export function registerPasswordResetRoutes(app: Hono, baseApp: BaseApp): void {
     try {
       await verifyToken(token, signingKey);
     } catch {
-      throw badRequestError("Invalid or expired token.", {});
+      throw badRequestError("An error occurred while validating the submitted data.", {
+        token: { code: "validation_invalid_token", message: "Invalid or expired token." },
+      });
     }
 
     // 更新密码

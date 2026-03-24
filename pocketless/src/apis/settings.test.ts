@@ -26,6 +26,13 @@ function createTestApp(): { app: BaseApp; hono: Hono; tmpDir: string } {
     const apiErr = toApiError(err);
     return c.json(apiErr.toJSON(), apiErr.status as any);
   });
+
+  // 注入超级用户 auth 上下文，使路由中的 requireSuperuserMiddleware 通过
+  hono.use("*", async (c, next) => {
+    c.set("auth", { collectionName: "_superusers", id: "test-superuser" } as any);
+    await next();
+  });
+
   registerSettingsRoutes(hono, app);
   return { app, hono, tmpDir };
 }

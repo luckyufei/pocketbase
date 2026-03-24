@@ -1,7 +1,7 @@
 /**
  * Collection CRUD 端点
  * 与 Go 版 apis/collection.go 对齐
- * 所有路由要求 Superuser 认证（Phase 8 实现后添加中间件）
+ * 所有路由要求 Superuser 认证
  *
  * GET    /api/collections               → 列表（分页）
  * POST   /api/collections               → 创建
@@ -16,10 +16,14 @@ import type { Hono } from "hono";
 import type { BaseApp } from "../core/base";
 import { CollectionModel } from "../core/collection_model";
 import { notFoundError, badRequestError } from "./errors";
+import { requireSuperuserMiddleware } from "./middlewares";
 
 export function registerCollectionRoutes(app: Hono, baseApp: BaseApp): void {
+  // Helper middleware check
+  const requireSuperuser = requireSuperuserMiddleware();
+
   // 列表
-  app.get("/api/collections", async (c) => {
+  app.get("/api/collections", requireSuperuser, async (c) => {
     const page = Math.max(1, parseInt(c.req.query("page") || "1", 10));
     const perPage = Math.min(500, Math.max(1, parseInt(c.req.query("perPage") || "30", 10)));
     const skipTotal = c.req.query("skipTotal") === "true";
@@ -63,14 +67,14 @@ export function registerCollectionRoutes(app: Hono, baseApp: BaseApp): void {
   });
 
   // 查看
-  app.get("/api/collections/:idOrName", async (c) => {
+  app.get("/api/collections/:idOrName", requireSuperuser, async (c) => {
     const col = await baseApp.findCollectionByNameOrId(c.req.param("idOrName"));
     if (!col) throw notFoundError();
     return c.json(col.toJSON());
   });
 
   // 创建
-  app.post("/api/collections", async (c) => {
+  app.post("/api/collections", requireSuperuser, async (c) => {
     const body = await c.req.json();
     const col = new CollectionModel();
     col.load(body);
@@ -90,7 +94,7 @@ export function registerCollectionRoutes(app: Hono, baseApp: BaseApp): void {
   });
 
   // 更新
-  app.patch("/api/collections/:idOrName", async (c) => {
+  app.patch("/api/collections/:idOrName", requireSuperuser, async (c) => {
     const col = await baseApp.findCollectionByNameOrId(c.req.param("idOrName"));
     if (!col) throw notFoundError();
     const body = await c.req.json();
@@ -118,7 +122,7 @@ export function registerCollectionRoutes(app: Hono, baseApp: BaseApp): void {
   });
 
   // 删除
-  app.delete("/api/collections/:idOrName", async (c) => {
+  app.delete("/api/collections/:idOrName", requireSuperuser, async (c) => {
     const col = await baseApp.findCollectionByNameOrId(c.req.param("idOrName"));
     if (!col) throw notFoundError();
     if (col.system) throw badRequestError("You cannot delete system collections.");
@@ -128,7 +132,7 @@ export function registerCollectionRoutes(app: Hono, baseApp: BaseApp): void {
   });
 
   // 清空（Truncate）
-  app.delete("/api/collections/:idOrName/truncate", async (c) => {
+  app.delete("/api/collections/:idOrName/truncate", requireSuperuser, async (c) => {
     const col = await baseApp.findCollectionByNameOrId(c.req.param("idOrName"));
     if (!col) throw notFoundError();
     baseApp.dbAdapter().exec(`DELETE FROM ${col.name}`);
@@ -136,7 +140,7 @@ export function registerCollectionRoutes(app: Hono, baseApp: BaseApp): void {
   });
 
   // 导入
-  app.put("/api/collections/import", async (c) => {
+  app.put("/api/collections/import", requireSuperuser, async (c) => {
     const body = await c.req.json();
     const collections = body.collections as Record<string, unknown>[];
     const deleteMissing = !!body.deleteMissing;

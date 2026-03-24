@@ -5,6 +5,7 @@
 
 import type { BaseApp } from "../core/base";
 import { createRouter } from "./base";
+import { loadInstaller } from "./installer";
 
 export interface ServeOptions {
   httpAddr: string;
@@ -24,10 +25,16 @@ export async function startServe(baseApp: BaseApp, options: ServeOptions): Promi
     development: options.isDev,
   });
 
-  console.log(`Server started at http://${server.hostname}:${server.port}`);
-  if (options.isDev) {
-    console.log(`  ➜ Admin UI: http://${server.hostname}:${server.port}/_/`);
-  }
+  const baseURL = `http://${server.hostname}:${server.port}`;
+
+  console.log(`Server started at ${baseURL}`);
+  console.log(`├─ REST API:  ${baseURL}/api/`);
+  console.log(`└─ Dashboard: ${baseURL}/_/`);
+
+  // Run installer check (print setup URL if no superuser exists)
+  loadInstaller(baseApp, baseURL).catch((err) => {
+    console.warn("Failed to initialize installer", err);
+  });
 
   // 触发 onServe Hook
   await baseApp.onServe().trigger({
