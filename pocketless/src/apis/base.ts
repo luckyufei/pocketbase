@@ -15,8 +15,36 @@ import { registerAdminUIRoutes } from "./admin_ui";
 import { toApiError } from "./errors";
 import { authLoadingMiddleware } from "./middlewares";
 import { join } from "node:path";
+// 插件路由
+import { registerTraceRoutes } from "../plugins/trace/routes";
+import { registerMetricsRoutes } from "../plugins/metrics/routes";
+import { registerJobsRoutes } from "../plugins/jobs/routes";
+import { registerKVRoutes } from "../plugins/kv/routes";
+import { registerSecretsRoutes } from "../plugins/secrets/routes";
+import { registerAnalyticsRoutes } from "../plugins/analytics/routes";
+// 插件类型
+import type { Tracer } from "../plugins/trace/register";
+import type { MetricsCollector } from "../plugins/metrics/register";
+import type { JobsStore } from "../plugins/jobs/register";
+import type { KVStore } from "../plugins/kv/register";
+import type { SecretsStore } from "../plugins/secrets/register";
+import type { Analytics } from "../plugins/analytics/register";
 
-export function createRouter(baseApp: BaseApp): Hono {
+/**
+ * 可选插件 store 注入接口。
+ * 调用方（如 examples/base/main.ts）先通过各插件的 MustRegister() 创建 store 实例，
+ * 然后传入此结构，由 createRouter 负责挂载对应的 HTTP 路由。
+ */
+export interface PluginStores {
+  tracer?: Tracer;
+  metricsCollector?: MetricsCollector;
+  jobsStore?: JobsStore;
+  kvStore?: KVStore;
+  secretsStore?: SecretsStore;
+  analytics?: Analytics;
+}
+
+export function createRouter(baseApp: BaseApp, plugins?: PluginStores): Hono {
   const app = new Hono();
 
   // 全局错误处理（与 Go 版对齐：{status, message, data}）
@@ -36,6 +64,14 @@ export function createRouter(baseApp: BaseApp): Hono {
   registerRecordRoutes(app, baseApp);
   registerRecordAuthRoutes(app, baseApp);
   registerBatchRoutes(app, baseApp);
+
+  // 注册插件路由（仅当 store 实例被传入时才注册对应路由）
+  if (plugins?.tracer) registerTraceRoutes(app, plugins.tracer);
+  if (plugins?.metricsCollector) registerMetricsRoutes(app, plugins.metricsCollector);
+  if (plugins?.jobsStore) registerJobsRoutes(app, plugins.jobsStore);
+  if (plugins?.kvStore) registerKVRoutes(app, plugins.kvStore);
+  if (plugins?.secretsStore) registerSecretsRoutes(app, plugins.secretsStore);
+  if (plugins?.analytics) registerAnalyticsRoutes(app, plugins.analytics);
 
   // 注册 Admin UI 路由（必须在 notFound 前）
   const distDir = join(import.meta.dir, "../../../webui/dist");

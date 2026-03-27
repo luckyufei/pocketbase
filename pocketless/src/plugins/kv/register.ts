@@ -192,6 +192,269 @@ export class MemoryKVStore implements KVStore {
   }
 }
 
-export function MustRegister(_app: unknown, config: KVConfig = defaultConfig()): KVStore {
-  return new MemoryKVStore(config);
+export function applyEnvOverrides(config: KVConfig): KVConfig {
+  const c = { ...config };
+  const disabled = process.env["PB_KV_DISABLED"];
+  if (disabled) c.enabled = !(disabled === "true" || disabled === "1");
+  const httpEnabled = process.env["PB_KV_HTTP_ENABLED"];
+  if (httpEnabled) c.httpEnabled = httpEnabled === "true" || httpEnabled === "1";
+  const cleanup = Number(process.env["PB_KV_CLEANUP_INTERVAL"]);
+  if (cleanup > 0) c.cleanupInterval = cleanup;
+  return c;
+}
+
+// ─── DBKVStore（L1 内存 + L2 数据库）────────────────────────────────────────
+
+import type { DBAdapter } from "../../core/db_adapter";
+import { DateTime } from "../../tools/types/datetime";
+
+/**
+ * 双层 KV 存储：L1 内存缓存 + L2 SQLite 持久化。
+ * 读取策略：L1 命中 → 直接返回；L1 miss → 查 L2 → 填充 L1。
+ * 写入策略：同步写入 L1 和 L2。
+ * 对照 Go 版 kv_store.go DBKVStore。
+ */
+export class DBKVStore implements KVStore {
+  private readonly db: DBAdapter;
+  private readonly l1: MemoryKVStore;
+  private readonly config: KVConfig;
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+  constructor(config: KVConfig, db: DBAdapter) {
+    this.config = config;
+    this.db = db;
+    this.l1 = new MemoryKVStore(config);
+    // 启动后台 TTL 清理
+    const interval = (config.cleanupInterval ?? 60) * 1000;
+    this.cleanupTimer = setInterval(() => this._cleanupExpired(), interval);
+  }
+
+  isEnabled(): boolean {
+    return this.config.enabled;
+  }
+
+  /** 停止后台清理 */
+  stopCleanup(): void {
+    if (this.cleanupTimer) { clearInterval(this.cleanupTimer); this.cleanupTimer = null; }
+  }
+
+  // ── 基础操作 ──────────────────────────────────────────────────────────────
+
+  async get(key: string): Promise<unknown | null> {
+    // L1 先查
+    const l1val = await this.l1.get(key);
+    if (l1val !== null) return l1val;
+    // L2 回源
+    return this._getFromDB(key);
+  }
+
+  async set(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
+    await this.l1.set(key, value, ttlSeconds);
+    this._setInDB(key, "scalar", value, ttlSeconds);
+  }
+
+  async delete(key: string): Promise<void> {
+    await this.l1.delete(key);
+    this.db.exec(`DELETE FROM _kv WHERE key = ?`, key);
+    this.db.exec(`DELETE FROM _kv_hash WHERE key = ?`, key);
+  }
+
+  async exists(key: string): Promise<boolean> {
+    const val = await this.get(key);
+    return val !== null;
+  }
+
+  async ttl(key: string): Promise<number> {
+    // 优先用 L1（更精确）
+    const l1ttl = await this.l1.ttl(key);
+    if (l1ttl !== -2) return l1ttl;
+    // L1 miss → 查 L2
+    const row = this.db.queryOne<{ expireAt: string | null }>(
+      `SELECT expireAt FROM _kv WHERE key = ?`, key,
+    );
+    if (!row) return -2;
+    if (!row.expireAt) return -1;
+    const remaining = Math.ceil((new Date(row.expireAt).getTime() - Date.now()) / 1000);
+    return remaining > 0 ? remaining : -2;
+  }
+
+  async expire(key: string, ttlSeconds: number): Promise<void> {
+    await this.l1.expire(key, ttlSeconds);
+    const expireAt = new DateTime(new Date(Date.now() + ttlSeconds * 1000)).toSQLite();
+    this.db.exec(`UPDATE _kv SET expireAt=?, updated=? WHERE key=?`, expireAt, DateTime.now().toSQLite(), key);
+  }
+
+  // ── 计数器 ────────────────────────────────────────────────────────────────
+
+  async incr(key: string): Promise<number> { return this.incrBy(key, 1); }
+  async decr(key: string): Promise<number> { return this.incrBy(key, -1); }
+
+  async incrBy(key: string, amount: number): Promise<number> {
+    const current = (await this.get(key));
+    const next = (typeof current === "number" ? current : 0) + amount;
+    await this.set(key, next);
+    return next;
+  }
+
+  // ── Hash ──────────────────────────────────────────────────────────────────
+
+  async hset(key: string, field: string, value: unknown): Promise<void> {
+    await this.l1.hset(key, field, value);
+    const nowStr = DateTime.now().toSQLite();
+    // 确保主键行存在
+    this.db.exec(
+      `INSERT OR IGNORE INTO _kv (key, type, value, created, updated) VALUES (?, 'hash', '{}', ?, ?)`,
+      key, nowStr, nowStr,
+    );
+    this.db.exec(
+      `INSERT OR REPLACE INTO _kv_hash (key, field, value) VALUES (?, ?, ?)`,
+      key, field, JSON.stringify(value),
+    );
+  }
+
+  async hget(key: string, field: string): Promise<unknown | null> {
+    // L1 先查
+    const l1val = await this.l1.hget(key, field);
+    if (l1val !== null) return l1val;
+    // L2 回源
+    const row = this.db.queryOne<{ value: string }>(
+      `SELECT value FROM _kv_hash WHERE key = ? AND field = ?`, key, field,
+    );
+    if (!row) return null;
+    try { return JSON.parse(row.value); } catch { return null; }
+  }
+
+  async hgetAll(key: string): Promise<Record<string, unknown>> {
+    const rows = this.db.query<{ field: string; value: string }>(
+      `SELECT field, value FROM _kv_hash WHERE key = ?`, key,
+    );
+    if (rows.length === 0) return await this.l1.hgetAll(key);
+    const result: Record<string, unknown> = {};
+    for (const r of rows) {
+      try { result[r.field] = JSON.parse(r.value); } catch { result[r.field] = null; }
+    }
+    return result;
+  }
+
+  async hdel(key: string, field: string): Promise<void> {
+    await this.l1.hdel(key, field);
+    this.db.exec(`DELETE FROM _kv_hash WHERE key = ? AND field = ?`, key, field);
+  }
+
+  async hincrBy(key: string, field: string, amount: number): Promise<number> {
+    const current = await this.hget(key, field);
+    const next = (typeof current === "number" ? current : 0) + amount;
+    await this.hset(key, field, next);
+    return next;
+  }
+
+  // ── 分布式锁（使用 _kv 表保证持久化）────────────────────────────────────
+
+  async lock(key: string, ttlSeconds: number): Promise<boolean> {
+    const lockKey = `__lock:${key}`;
+    // 先查 L1（最快路径）
+    const l1lock = await this.l1.lock(key, ttlSeconds);
+    if (!l1lock) return false;
+    // L2 原子锁（check-and-set）
+    const row = this.db.queryOne<{ expireAt: string | null }>(
+      `SELECT expireAt FROM _kv WHERE key = ?`, lockKey,
+    );
+    const now = Date.now();
+    if (row && row.expireAt && new Date(row.expireAt).getTime() > now) {
+      // 锁被占用，回滚 L1
+      await this.l1.unlock(key);
+      return false;
+    }
+    const expireAt = new DateTime(new Date(now + ttlSeconds * 1000)).toSQLite();
+    const nowStr = DateTime.now().toSQLite();
+    this.db.exec(
+      `INSERT OR REPLACE INTO _kv (key, type, value, expireAt, created, updated) VALUES (?, 'scalar', '1', ?, ?, ?)`,
+      lockKey, expireAt, nowStr, nowStr,
+    );
+    return true;
+  }
+
+  async unlock(key: string): Promise<void> {
+    await this.l1.unlock(key);
+    this.db.exec(`DELETE FROM _kv WHERE key = ?`, `__lock:${key}`);
+  }
+
+  // ── 批量操作 ──────────────────────────────────────────────────────────────
+
+  async mset(entries: Record<string, unknown>): Promise<void> {
+    for (const [k, v] of Object.entries(entries)) await this.set(k, v);
+  }
+
+  async mget(keys: string[]): Promise<(unknown | null)[]> {
+    return Promise.all(keys.map((k) => this.get(k)));
+  }
+
+  async keys(pattern: string): Promise<string[]> {
+    // 组合 L1 和 L2 的结果
+    const l1keys = new Set(await this.l1.keys(pattern));
+    const regexStr = "^" + pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$";
+    const regex = new RegExp(regexStr);
+    const nowStr = DateTime.now().toSQLite();
+    const l2rows = this.db.query<{ key: string }>(
+      `SELECT key FROM _kv WHERE (expireAt IS NULL OR expireAt > ?)`, nowStr,
+    );
+    for (const r of l2rows) {
+      if (regex.test(r.key)) l1keys.add(r.key);
+    }
+    return Array.from(l1keys).sort();
+  }
+
+  // ── 私有方法 ──────────────────────────────────────────────────────────────
+
+  private _getFromDB(key: string): unknown | null {
+    const row = this.db.queryOne<{ value: string; expireAt: string | null; type: string }>(
+      `SELECT value, expireAt, type FROM _kv WHERE key = ?`, key,
+    );
+    if (!row) return null;
+    // 检查过期
+    if (row.expireAt && new Date(row.expireAt).getTime() < Date.now()) {
+      this.db.exec(`DELETE FROM _kv WHERE key = ?`, key);
+      return null;
+    }
+    try {
+      const value = JSON.parse(row.value);
+      // 填充 L1
+      const ttlMs = row.expireAt ? new Date(row.expireAt).getTime() - Date.now() : null;
+      void this.l1.set(key, value, ttlMs ? Math.ceil(ttlMs / 1000) : undefined);
+      return value;
+    } catch { return null; }
+  }
+
+  private _setInDB(key: string, type: string, value: unknown, ttlSeconds?: number): void {
+    const expireAt = ttlSeconds
+      ? new DateTime(new Date(Date.now() + ttlSeconds * 1000)).toSQLite()
+      : null;
+    const nowStr = DateTime.now().toSQLite();
+    this.db.exec(
+      `INSERT OR REPLACE INTO _kv (key, type, value, expireAt, created, updated) VALUES (?, ?, ?, ?, ?, ?)`,
+      key, type, JSON.stringify(value), expireAt, nowStr, nowStr,
+    );
+  }
+
+  /** 清理 L2 中已过期的 key */
+  private _cleanupExpired(): void {
+    const nowStr = DateTime.now().toSQLite();
+    this.db.exec(`DELETE FROM _kv WHERE expireAt IS NOT NULL AND expireAt < ?`, nowStr);
+    // 同步删除失效的 hash 子行（外键级联 OR 手动）
+    this.db.exec(
+      `DELETE FROM _kv_hash WHERE key NOT IN (SELECT key FROM _kv)`,
+    );
+  }
+}
+
+// ─── MustRegister ────────────────────────────────────────────────────────────
+
+export function MustRegister(
+  _app: unknown,
+  config: KVConfig = defaultConfig(),
+  db?: DBAdapter,
+): KVStore {
+  const merged = applyEnvOverrides(config);
+  if (db) return new DBKVStore(merged, db);
+  return new MemoryKVStore(merged);
 }

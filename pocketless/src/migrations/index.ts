@@ -264,5 +264,202 @@ export function getSystemMigrations(): Migration[] {
         auxAdapter.exec(`CREATE INDEX IF NOT EXISTS idx_logs_level ON _logs (level)`);
       },
     },
+
+    // 13. _spans 表（Trace 插件）
+    {
+      file: "13_init_spans.js",
+      up: (adapter) => {
+        adapter.exec(`
+          CREATE TABLE IF NOT EXISTS _spans (
+            id         TEXT PRIMARY KEY,
+            traceId    TEXT NOT NULL,
+            spanId     TEXT NOT NULL,
+            parentId   TEXT,
+            name       TEXT NOT NULL,
+            kind       TEXT,
+            startTime  INTEGER,
+            duration   INTEGER,
+            status     TEXT,
+            attributes JSON DEFAULT '{}',
+            created    TEXT DEFAULT ''
+          )
+        `);
+        adapter.exec(`CREATE INDEX IF NOT EXISTS idx_spans_traceId ON _spans (traceId)`);
+        adapter.exec(`CREATE INDEX IF NOT EXISTS idx_spans_created ON _spans (created)`);
+      },
+      down: (adapter) => {
+        adapter.exec("DROP INDEX IF EXISTS idx_spans_traceId");
+        adapter.exec("DROP INDEX IF EXISTS idx_spans_created");
+        adapter.exec("DROP TABLE IF EXISTS _spans");
+      },
+    },
+
+    // 14. _metrics 表（Metrics 插件）
+    {
+      file: "14_init_metrics.js",
+      up: (adapter) => {
+        adapter.exec(`
+          CREATE TABLE IF NOT EXISTS _metrics (
+            id                TEXT PRIMARY KEY,
+            timestamp         TEXT NOT NULL,
+            cpuUsagePercent   REAL DEFAULT 0,
+            memoryAllocMb     REAL DEFAULT 0,
+            goroutinesCount   INTEGER DEFAULT 0,
+            sqliteWalSizeMb   REAL DEFAULT 0,
+            sqliteOpenConns   INTEGER DEFAULT 0,
+            p95LatencyMs      REAL DEFAULT 0,
+            http5xxCount      INTEGER DEFAULT 0,
+            created           TEXT DEFAULT ''
+          )
+        `);
+        adapter.exec(`CREATE INDEX IF NOT EXISTS idx_metrics_timestamp ON _metrics (timestamp)`);
+      },
+      down: (adapter) => {
+        adapter.exec("DROP INDEX IF EXISTS idx_metrics_timestamp");
+        adapter.exec("DROP TABLE IF EXISTS _metrics");
+      },
+    },
+
+    // 15. _jobs 表 + _jobs_deadletter（Jobs 插件）
+    {
+      file: "15_init_jobs.js",
+      up: (adapter) => {
+        adapter.exec(`
+          CREATE TABLE IF NOT EXISTS _jobs (
+            id           TEXT PRIMARY KEY,
+            topic        TEXT NOT NULL,
+            payload      JSON DEFAULT NULL,
+            status       TEXT NOT NULL DEFAULT 'pending',
+            runAt        TEXT NOT NULL,
+            lockedUntil  TEXT DEFAULT NULL,
+            retries      INTEGER DEFAULT 0,
+            maxRetries   INTEGER DEFAULT 3,
+            lastError    TEXT DEFAULT '',
+            created      TEXT DEFAULT '',
+            updated      TEXT DEFAULT ''
+          )
+        `);
+        adapter.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_status_runAt   ON _jobs (status, runAt)`);
+        adapter.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_topic_status   ON _jobs (topic, status)`);
+        adapter.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_lockedUntil    ON _jobs (lockedUntil)`);
+        adapter.exec(`
+          CREATE TABLE IF NOT EXISTS _jobs_deadletter (
+            id        TEXT PRIMARY KEY,
+            jobId     TEXT NOT NULL,
+            topic     TEXT DEFAULT '',
+            lastError TEXT DEFAULT '',
+            attempts  INTEGER DEFAULT 0,
+            created   TEXT DEFAULT ''
+          )
+        `);
+      },
+      down: (adapter) => {
+        adapter.exec("DROP TABLE IF EXISTS _jobs_deadletter");
+        adapter.exec("DROP INDEX IF EXISTS idx_jobs_lockedUntil");
+        adapter.exec("DROP INDEX IF EXISTS idx_jobs_topic_status");
+        adapter.exec("DROP INDEX IF EXISTS idx_jobs_status_runAt");
+        adapter.exec("DROP TABLE IF EXISTS _jobs");
+      },
+    },
+
+    // 16. _kv 表 + _kv_hash（KV 插件）
+    {
+      file: "16_init_kv.js",
+      up: (adapter) => {
+        adapter.exec(`
+          CREATE TABLE IF NOT EXISTS _kv (
+            key      TEXT PRIMARY KEY,
+            type     TEXT NOT NULL DEFAULT 'scalar',
+            value    JSON NOT NULL DEFAULT 'null',
+            expireAt TEXT DEFAULT NULL,
+            created  TEXT DEFAULT '',
+            updated  TEXT DEFAULT ''
+          )
+        `);
+        adapter.exec(`CREATE INDEX IF NOT EXISTS idx_kv_expireAt ON _kv (expireAt)`);
+        adapter.exec(`
+          CREATE TABLE IF NOT EXISTS _kv_hash (
+            key      TEXT NOT NULL,
+            field    TEXT NOT NULL,
+            value    JSON NOT NULL DEFAULT 'null',
+            PRIMARY KEY (key, field)
+          )
+        `);
+      },
+      down: (adapter) => {
+        adapter.exec("DROP TABLE IF EXISTS _kv_hash");
+        adapter.exec("DROP INDEX IF EXISTS idx_kv_expireAt");
+        adapter.exec("DROP TABLE IF EXISTS _kv");
+      },
+    },
+
+    // 17. _secrets 表（Secrets 插件）
+    {
+      file: "17_init_secrets.js",
+      up: (adapter) => {
+        adapter.exec(`
+          CREATE TABLE IF NOT EXISTS _secrets (
+            id          TEXT PRIMARY KEY,
+            key         TEXT NOT NULL,
+            value       TEXT NOT NULL,
+            env         TEXT NOT NULL DEFAULT 'global',
+            description TEXT DEFAULT '',
+            created     TEXT DEFAULT '',
+            updated     TEXT DEFAULT '',
+            UNIQUE (key, env)
+          )
+        `);
+        adapter.exec(`CREATE INDEX IF NOT EXISTS idx_secrets_key ON _secrets (key)`);
+        adapter.exec(`CREATE INDEX IF NOT EXISTS idx_secrets_env ON _secrets (env)`);
+      },
+      down: (adapter) => {
+        adapter.exec("DROP INDEX IF EXISTS idx_secrets_env");
+        adapter.exec("DROP INDEX IF EXISTS idx_secrets_key");
+        adapter.exec("DROP TABLE IF EXISTS _secrets");
+      },
+    },
+
+    // 18. _events + _events_daily 表（Analytics 插件）
+    {
+      file: "18_init_analytics.js",
+      up: (adapter) => {
+        adapter.exec(`
+          CREATE TABLE IF NOT EXISTS _events (
+            id         TEXT PRIMARY KEY,
+            name       TEXT NOT NULL,
+            path       TEXT DEFAULT '',
+            source     TEXT DEFAULT '',
+            browser    TEXT DEFAULT '',
+            os         TEXT DEFAULT '',
+            visitorId  TEXT DEFAULT '',
+            duration   INTEGER DEFAULT 0,
+            properties JSON DEFAULT '{}',
+            timestamp  TEXT NOT NULL,
+            created    TEXT DEFAULT ''
+          )
+        `);
+        adapter.exec(`CREATE INDEX IF NOT EXISTS idx_events_timestamp         ON _events (timestamp)`);
+        adapter.exec(`CREATE INDEX IF NOT EXISTS idx_events_name_timestamp    ON _events (name, timestamp)`);
+        adapter.exec(`CREATE INDEX IF NOT EXISTS idx_events_path_timestamp    ON _events (path, timestamp)`);
+        adapter.exec(`
+          CREATE TABLE IF NOT EXISTS _events_daily (
+            date        TEXT NOT NULL,
+            path        TEXT NOT NULL,
+            totalPV     INTEGER DEFAULT 0,
+            totalUV     INTEGER DEFAULT 0,
+            avgDuration REAL DEFAULT 0,
+            updated     TEXT DEFAULT '',
+            PRIMARY KEY (date, path)
+          )
+        `);
+      },
+      down: (adapter) => {
+        adapter.exec("DROP TABLE IF EXISTS _events_daily");
+        adapter.exec("DROP INDEX IF EXISTS idx_events_path_timestamp");
+        adapter.exec("DROP INDEX IF EXISTS idx_events_name_timestamp");
+        adapter.exec("DROP INDEX IF EXISTS idx_events_timestamp");
+        adapter.exec("DROP TABLE IF EXISTS _events");
+      },
+    },
   ];
 }
